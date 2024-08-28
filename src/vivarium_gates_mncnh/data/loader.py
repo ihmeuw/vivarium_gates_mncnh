@@ -165,7 +165,7 @@ def _load_em_from_meid(location, meid, measure):
 
 
 # TODO - add project-specific data functions here
-def load_asfr(key: str, location: str) -> pd.DataFrame:
+def load_asfr(key: str, location: str, years: Optional[Union[int, str, List[int]]] = None) -> pd.DataFrame:
     asfr = load_standard_data(key, location)
     asfr = asfr.reset_index()
     asfr_pivot = asfr.pivot(
@@ -178,13 +178,13 @@ def load_asfr(key: str, location: str) -> pd.DataFrame:
     return asfr_draws
 
 
-def load_sbr(key: str, location: str) -> pd.DataFrame:
+def load_sbr(key: str, location: str, years: Optional[Union[int, str, List[int]]] = None) -> pd.DataFrame:
     sbr = load_standard_data(key, location)
     sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
     return sbr
 
 
-def load_raw_incidence_data(key: str, location: str) -> pd.DataFrame:
+def load_raw_incidence_data(key: str, location: str, years: Optional[Union[int, str, List[int]]] = None) -> pd.DataFrame:
     """Temporary function to short circuit around validation issues in Vivarium Inputs"""
     key = EntityKey(key)
     entity = get_entity(key)
