@@ -16,16 +16,19 @@ from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
+import vivarium_inputs.validation.sim as validation
 from gbd_mapping import causes, covariates, risk_factors
 from vivarium.framework.artifact import EntityKey
 from vivarium_gbd_access import gbd
+from vivarium_inputs import core as vi_core
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
 from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
-from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants import data_keys, metadata
+from vivarium_gates_mncnh.data import sampling
 
 
 def get_data(
@@ -54,13 +57,10 @@ def get_data(
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.ACMR: load_standard_data,
         # TODO - add appropriate mappings
-        # data_keys.DIARRHEA.PREVALENCE: load_standard_data,
-        # data_keys.DIARRHEA.INCIDENCE_RATE: load_standard_data,
-        # data_keys.DIARRHEA.REMISSION_RATE: load_standard_data,
-        # data_keys.DIARRHEA.CSMR: load_standard_data,
-        # data_keys.DIARRHEA.EMR: load_standard_data,
-        # data_keys.DIARRHEA.DISABILITY_WEIGHT: load_standard_data,
-        # data_keys.DIARRHEA.RESTRICTIONS: load_metadata,
+        data_keys.PREGNANCY.ASFR: load_asfr,
+        data_keys.PREGNANCY.SBR: load_sbr,
+        data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
+        data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -165,6 +165,35 @@ def _load_em_from_meid(location, meid, measure):
 
 
 # TODO - add project-specific data functions here
+def load_asfr(key: str, location: str) -> pd.DataFrame:
+    asfr = load_standard_data(key, location)
+    asfr = asfr.reset_index()
+    asfr_pivot = asfr.pivot(
+        index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
+        columns="parameter",
+        values="value",
+    )
+    seed = f"{key}_{location}"
+    asfr_draws = sampling.generate_vectorized_lognormal_draws(asfr_pivot, seed)
+    return asfr_draws
+
+
+def load_sbr(key: str, location: str) -> pd.DataFrame:
+    sbr = load_standard_data(key, location)
+    sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
+    return sbr
+
+
+def load_raw_incidence_data(key: str, location: str) -> pd.DataFrame:
+    """Temporary function to short circuit around validation issues in Vivarium Inputs"""
+    key = EntityKey(key)
+    entity = get_entity(key)
+    data = vi_core.get_data(entity, key.measure, location)
+    data = vi_utils.scrub_gbd_conventions(data, location)
+    validation.validate_for_simulation(data, entity, "incidence_rate", location)
+    data = vi_utils.split_interval(data, interval_column="age", split_column_prefix="age")
+    data = vi_utils.split_interval(data, interval_column="year", split_column_prefix="year")
+    return vi_utils.sort_hierarchical_data(data).droplevel("location")
 
 
 def get_entity(key: Union[str, EntityKey]):
