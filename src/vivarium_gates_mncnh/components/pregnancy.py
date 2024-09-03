@@ -1,11 +1,14 @@
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium_public_health.utilities import get_lookup_columns
 
+from vivarium_gates_mncnh.components.children import NewChildren
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.constants.data_values import PREGNANCY_OUTCOMES
+from vivarium_gates_mncnh.constants.data_values import PREGNANCY_OUTCOMES, DURATIONS
 
 
 class Pregnancy(Component):
@@ -21,8 +24,24 @@ class Pregnancy(Component):
             "pregnancy_duration",
             "sex_of_child",
             "birth_weight",
-            "gestational_age",
+            "gestational_age", # Why repeated?
         ]
+    
+    @property
+    def sub_components(self):
+        return super().sub_components + [self.new_children]
+
+    @property
+    def initialization_requirements(self) -> dict[str, list[str]]:
+        return {
+            "requires_columns": [],
+            "requires_values": ["birth_outcome_probabilities"],
+            "requires_streams": [],
+        }
+    
+    def __init__(self):
+        super().__init__()
+        self.new_children = NewChildren()
 
     def setup(self, builder: Builder):
         """Performs this component's simulation setup.
@@ -35,8 +54,13 @@ class Pregnancy(Component):
         super().setup(builder)
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
-        # TODO: need randomness stream for initialization
-        # TODO: add attribute to record outputs
+        self.birth_outcome_probabilities = builder.value.register_value_producer(
+            "birth_outcome_probabilities",
+            source=self.lookup_tables["birth_outcome_probabilities"],
+            requires_columns=get_lookup_columns(
+                [self.lookup_tables["birth_outcome_probabilities"]]
+            ),
+        )
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         super().build_all_lookup_tables(builder)
@@ -49,15 +73,24 @@ class Pregnancy(Component):
             value_columns=["live_birth", "partial_term", "stillbirth"],
         )
 
+    #####################
+    # Lifecycle Methods #
+    #####################
+
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        # TODO: Assign partial or full term duration according to table in `Pregnancy term lengths`_ section
         pregnancy_outcomes_and_durations = self.sample_pregnancy_outcomes_and_durations(
             pop_data
         )
-        # TODO: Assign sex of infant if pregnancy is full term (stillbirth or live birth)
-        # TODO: Assign birthweight of simulant child
-        # TODO: Assign propensity values for ANC and ultrasound
-        self.population_view.update(pop_update)
+        
+        self.population_view.update(pregnancy_outcomes_and_durations)
+    
+    def on_time_step(self, event: Event) -> None:
+        # TODO: update me
+        pass
+
+    ##################
+    # Helper methods #
+    ##################
 
     def get_birth_outcome_probabilities(self, builder: Builder) -> pd.DataFrame:
         asfr = builder.data.load(data_keys.PREGNANCY.ASFR).set_index(ARTIFACT_INDEX_COLUMNS)
@@ -126,3 +159,21 @@ class Pregnancy(Component):
             ] = sampling_function(term_pop)
 
         return pregnancy_outcomes
+    
+    def sample_partial_term_durations(self, partial_term_pop: pd.Index) -> pd.DataFrame:
+        child_status = self.new_children.empty(partial_term_pop)
+        low, high = DURATIONS.DETECTION_DAYS, DURATIONS.PARTIAL_TERM_DAYS
+        draw = self.randomness.get_draw(
+            partial_term_pop, additional_key="partial_term_pregnancy_duration"
+        )
+        child_status["pregnancy_duration"] = pd.to_timedelta(
+            (low + (high - low) * draw), unit="days"
+        )
+        return child_status
+
+    def sample_full_term_durations(self, full_term_pop: pd.Index) -> pd.DataFrame:
+        child_status = self.new_children.generate_children(full_term_pop)
+        child_status["pregnancy_duration"] = pd.to_timedelta(
+            7 * child_status["gestational_age"], unit="days"
+        )
+        return child_status
