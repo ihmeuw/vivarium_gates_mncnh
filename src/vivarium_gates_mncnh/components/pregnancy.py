@@ -81,12 +81,8 @@ class Pregnancy(Component):
         pregnancy_outcomes_and_durations = self.sample_pregnancy_outcomes_and_durations(
             pop_data
         )
-        
+
         self.population_view.update(pregnancy_outcomes_and_durations)
-    
-    def on_time_step(self, event: Event) -> None:
-        # TODO: update me
-        pass
 
     ##################
     # Helper methods #
