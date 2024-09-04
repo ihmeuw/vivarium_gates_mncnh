@@ -34,7 +34,7 @@ class NewChildren(Component):
     def empty(self, index: pd.Index) -> pd.DataFrame:
         return pd.DataFrame(
             {
-                "sex_of_child": models.INVALID_OUTCOME,
+                "sex_of_child": data_values.PREGNANCY_OUTCOMES.INVALID_OUTCOME,
                 "birth_weight": np.nan,
                 "gestational_age": np.nan,
             },

@@ -28,7 +28,7 @@ from vivarium_inputs import utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
 from vivarium_gates_mncnh.constants import data_keys, metadata
-from vivarium_gates_mncnh.data import sampling
+from vivarium_gates_mncnh.data import extra_gbd, sampling
 
 
 def get_data(
@@ -61,6 +61,9 @@ def get_data(
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
+        data_keys.LBWSG.DISTRIBUTION: load_metadata,
+        data_keys.LBWSG.CATEGORIES: load_metadata,
+        data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -196,6 +199,26 @@ def load_raw_incidence_data(key: str, location: str, years: Optional[Union[int, 
     return vi_utils.sort_hierarchical_data(data).droplevel("location")
 
 
+def load_lbwsg_exposure(key: str, location: str) -> pd.DataFrame:
+    entity = get_entity(data_keys.LBWSG.EXPOSURE)
+    data = extra_gbd.load_lbwsg_exposure(location)
+    # This category was a mistake in GBD 2019, so drop.
+    extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
+    data = data.loc[data["parameter"] != extra_residual_category]
+    idx_cols = ["location_id", "sex_id", "parameter"]
+    data = data.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
+
+    # Sometimes there are data values on the order of 10e-300 that cause
+    # floating point headaches, so clip everything to reasonable values
+    data = data.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
+
+    # normalize so all categories sum to 1
+    total_exposure = data.groupby(["location_id", "sex_id"]).transform("sum")
+    data = (data / total_exposure).reset_index()
+    data = reshape_to_vivarium_format(data, location)
+    return data
+
+
 def get_entity(key: Union[str, EntityKey]):
     # Map of entity types to their gbd mappings.
     type_map = {
@@ -206,3 +229,13 @@ def get_entity(key: Union[str, EntityKey]):
     }
     key = EntityKey(key)
     return type_map[key.type][key.name]
+
+
+def reshape_to_vivarium_format(df, location):
+    df = vi_utils.reshape(df, value_cols=vi_globals.DRAW_COLUMNS)
+    df = vi_utils.scrub_gbd_conventions(df, location)
+    df = vi_utils.split_interval(df, interval_column="age", split_column_prefix="age")
+    df = vi_utils.split_interval(df, interval_column="year", split_column_prefix="year")
+    df = vi_utils.sort_hierarchical_data(df)
+    df.index = df.index.droplevel("location")
+    return df

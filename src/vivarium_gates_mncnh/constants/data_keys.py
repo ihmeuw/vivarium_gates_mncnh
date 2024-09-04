@@ -48,8 +48,28 @@ class __Pregnancy(NamedTuple):
 
 PREGNANCY = __Pregnancy()
 
+
+class __LowBirthWeightShortGestation(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
+    DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
+    CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
+
+    @property
+    def name(self):
+        return "low_birth_weight_and_short_gestation"
+
+    @property
+    def log_name(self):
+        return "low birth weight and short gestation"
+
+
+LBWSG = __LowBirthWeightShortGestation()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
     PREGNANCY,
+    LBWSG,
 ]
