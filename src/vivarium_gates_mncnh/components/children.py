@@ -120,9 +120,11 @@ class LBWSGDistribution(Component):
     @staticmethod
     def _parse_description(description: str) -> Tuple:
         birth_weight = [
-            float(val) for val in description.split(", [")[1].split(")")[0].split(", ")
+            float(val)
+            for val in description.split(", [")[1].split(")")[0].split("]")[0].split(", ")
         ]
         gestational_age = [
-            float(val) for val in description.split("- [")[1].split(")")[0].split(", ")
+            float(val)
+            for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
         ]
         return *birth_weight, *gestational_age
