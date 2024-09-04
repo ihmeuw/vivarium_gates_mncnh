@@ -28,7 +28,7 @@ from vivarium_inputs import utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
 from vivarium_gates_mncnh.constants import data_keys, metadata
-from vivarium_gates_mncnh.data import extra_gbd, sampling
+from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
 
 
 def get_data(
@@ -105,7 +105,7 @@ def load_standard_data(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     key = EntityKey(key)
-    entity = get_entity(key)
+    entity = utilities.get_entity(key)
     return interface.get_measure(entity, key.measure, location, years).droplevel("location")
 
 
@@ -113,7 +113,7 @@ def load_metadata(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ):
     key = EntityKey(key)
-    entity = get_entity(key)
+    entity = utilities.get_entity(key)
     entity_metadata = entity[key.measure]
     if hasattr(entity_metadata, "to_dict"):
         entity_metadata = entity_metadata.to_dict()
@@ -190,7 +190,7 @@ def load_sbr(key: str, location: str, years: Optional[Union[int, str, List[int]]
 def load_raw_incidence_data(key: str, location: str, years: Optional[Union[int, str, List[int]]] = None) -> pd.DataFrame:
     """Temporary function to short circuit around validation issues in Vivarium Inputs"""
     key = EntityKey(key)
-    entity = get_entity(key)
+    entity = utilities.get_entity(key)
     data = vi_core.get_data(entity, key.measure, location)
     data = vi_utils.scrub_gbd_conventions(data, location)
     validation.validate_for_simulation(data, entity, "incidence_rate", location)
@@ -200,7 +200,7 @@ def load_raw_incidence_data(key: str, location: str, years: Optional[Union[int, 
 
 
 def load_lbwsg_exposure(key: str, location: str) -> pd.DataFrame:
-    entity = get_entity(data_keys.LBWSG.EXPOSURE)
+    entity = utilities.get_entity(data_keys.LBWSG.EXPOSURE)
     data = extra_gbd.load_lbwsg_exposure(location)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
@@ -217,18 +217,6 @@ def load_lbwsg_exposure(key: str, location: str) -> pd.DataFrame:
     data = (data / total_exposure).reset_index()
     data = reshape_to_vivarium_format(data, location)
     return data
-
-
-def get_entity(key: Union[str, EntityKey]):
-    # Map of entity types to their gbd mappings.
-    type_map = {
-        "cause": causes,
-        "covariate": covariates,
-        "risk_factor": risk_factors,
-        "alternative_risk_factor": alternative_risk_factors,
-    }
-    key = EntityKey(key)
-    return type_map[key.type][key.name]
 
 
 def reshape_to_vivarium_format(df, location):
