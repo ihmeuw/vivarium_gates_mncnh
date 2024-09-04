@@ -1,9 +1,9 @@
 #!/bin/bash
 
+# Reset OPTIND so help can be invoked multiple times per shell session.
+OPTIND=1
 Help()
 { 
-  # Reset OPTIND so help can be invoked multiple times per shell session.
-  OPTIND=1
    # Display Help
    echo "Script to automatically create and validate conda environments."
    echo
@@ -105,7 +105,7 @@ fi
 
 if [[ $create_env == 'yes' ]]; then
   if [[ $env_exists == 'yes' ]]; then
-    conda deactivate $env_name
+    conda deactivate
     conda remove -n $env_name --all -y
   fi
   # Create conda environment
