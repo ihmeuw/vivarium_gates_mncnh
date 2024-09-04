@@ -1,6 +1,5 @@
-from typing import NamedTuple
-
 from datetime import datetime
+from typing import NamedTuple
 
 ############################
 # Disease Model Parameters #
@@ -41,6 +40,7 @@ class __PregnancyOutcome(NamedTuple):
     LIVE_BIRTH_OUTCOME = "live_birth"
     STILLBIRTH_OUTCOME = "stillbirth"
     INVALID_OUTCOME = "invalid"  ## For sex of partial births
+
 
 PREGNANCY_OUTCOMES = __PregnancyOutcome()
 

@@ -5,11 +5,7 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
-from vivarium_gates_mncnh.constants import (
-    data_keys,
-    data_values,
-    models,
-)
+from vivarium_gates_mncnh.constants import data_keys, data_values, models
 
 
 class NewChildren(Component):

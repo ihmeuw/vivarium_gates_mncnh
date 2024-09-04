@@ -7,8 +7,8 @@ from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.components.children import NewChildren
 from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants.data_values import DURATIONS, PREGNANCY_OUTCOMES
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.constants.data_values import PREGNANCY_OUTCOMES, DURATIONS
 
 
 class Pregnancy(Component):
@@ -24,9 +24,9 @@ class Pregnancy(Component):
             "pregnancy_duration",
             "sex_of_child",
             "birth_weight",
-            "gestational_age", # Why repeated?
+            "gestational_age",  # Why repeated?
         ]
-    
+
     @property
     def sub_components(self):
         return super().sub_components + [self.new_children]
@@ -38,7 +38,7 @@ class Pregnancy(Component):
             "requires_values": ["birth_outcome_probabilities"],
             "requires_streams": [],
         }
-    
+
     def __init__(self):
         super().__init__()
         self.new_children = NewChildren()
@@ -155,7 +155,7 @@ class Pregnancy(Component):
             ] = sampling_function(term_pop)
 
         return pregnancy_outcomes
-    
+
     def sample_partial_term_durations(self, partial_term_pop: pd.Index) -> pd.DataFrame:
         child_status = self.new_children.empty(partial_term_pop)
         low, high = DURATIONS.DETECTION_DAYS, DURATIONS.PARTIAL_TERM_DAYS
