@@ -62,3 +62,13 @@ INFANT_MALE_PERCENTAGES = {
     "Nigeria": 0.511785,
     "Pakistan": 0.514583,
 }
+
+
+class _SimulationEventNames(NamedTuple):
+    INITIALIZATION = "initialization"
+    PREGNANCY = "pregnancy"
+    INTRAPARTRUM = "intrapartrum"
+    NEONATAL = "neonatal"
+
+
+SIMULATION_EVENT_NAMES = _SimulationEventNames()

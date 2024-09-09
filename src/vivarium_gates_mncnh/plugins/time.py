@@ -3,6 +3,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.time import DateTimeClock
 from vivarium.framework.time import TimeInterface as TimeInterface_
 
+from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
+
 
 class TimeInterface(TimeInterface_):
     def simulation_event_name(self):
@@ -19,7 +21,12 @@ class EventClock(DateTimeClock):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         # TODO: This means currently we need to configure the simulation to only have 4 steps
-        self.simulation_events = ("initialization", "pregnancy", "intrapartrum", "neonatal")
+        self.simulation_events = (
+            SIMULATION_EVENT_NAMES.INITIALIZATION,
+            SIMULATION_EVENT_NAMES.PREGNANCY,
+            SIMULATION_EVENT_NAMES.INTRAPARTRUM,
+            SIMULATION_EVENT_NAMES.NEONATAL,
+        )
         self.step_index = 0
         self.step_name = self.simulation_events[self.step_index]
 
