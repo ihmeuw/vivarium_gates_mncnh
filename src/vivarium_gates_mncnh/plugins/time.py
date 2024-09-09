@@ -18,6 +18,7 @@ class EventClock(DateTimeClock):
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
+        # TODO: This means currently we need to configure the simulation to only have 4 steps
         self.simulation_events = ("initialization", "pregnancy", "intrapartrum", "neonatal")
         self.step_index = 0
         self.step_name = self.simulation_events[self.step_index]
