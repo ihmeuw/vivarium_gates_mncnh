@@ -5,12 +5,12 @@ from vivarium.framework.time import TimeInterface as TimeInterface_
 
 
 class TimeInterface(TimeInterface_):
-    def step_size_name(self):
-        return self._manager.step_name
+    def simulation_event_name(self):
+        return lambda: self._manager.step_name
 
 
 class EventClock(DateTimeClock):
-    """A event driven clock."""
+    """A event driven clock that uses functionality of DateTimeClock."""
 
     @property
     def name(self):

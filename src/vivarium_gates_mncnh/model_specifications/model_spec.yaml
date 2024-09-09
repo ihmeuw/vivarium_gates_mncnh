@@ -36,7 +36,7 @@ configuration:
             year: 2025
             month: 1
             day: 4
-        step_size: 28 # Days
+        step_size: 1 # Days
 
     population:
         population_size: 20_000
