@@ -15,7 +15,6 @@ class __Population(NamedTuple):
     AGE_BINS: str = "population.age_bins"
     DEMOGRAPHY: str = "population.demographic_dimensions"
     TMRLE: str = "population.theoretical_minimum_risk_life_expectancy"
-    ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
 
     @property
     def name(self):
@@ -29,41 +28,47 @@ class __Population(NamedTuple):
 POPULATION = __Population()
 
 
-# TODO - sample key group used to identify keys in model
-# For more information see the tutorial:
-# https://vivarium-inputs.readthedocs.io/en/latest/tutorials/pulling_data.html#entity-measure-data
-class __SomeDisease(NamedTuple):
-
-    # Keys that will be loaded into the artifact. must have a colon type declaration
-    SOME_DISEASE_PREVALENCE: TargetString = TargetString("cause.some_disease.prevalence")
-    SOME_DISEASE_INCIDENCE_RATE: TargetString = TargetString(
-        "cause.some_disease.incidence_rate"
+class __Pregnancy(NamedTuple):
+    ASFR: str = "covariate.age_specific_fertility_rate.estimate"
+    SBR: str = "covariate.stillbirth_to_live_birth_ratio.estimate"
+    RAW_INCIDENCE_RATE_MISCARRIAGE: str = (
+        "cause.maternal_abortion_and_miscarriage.raw_incidence_rate"
     )
-    SOME_DISEASE_REMISSION_RATE: TargetString = TargetString(
-        "cause.some_disease.remission_rate"
-    )
-    DISABILITY_WEIGHT: TargetString = TargetString("cause.some_disease.disability_weight")
-    EMR: TargetString = TargetString("cause.some_disease.excess_mortality_rate")
-    CSMR: TargetString = TargetString("cause.some_disease.cause_specific_mortality_rate")
-    RESTRICTIONS: TargetString = TargetString("cause.some_disease.restrictions")
-
-    # Useful keys not for the artifact - distinguished by not using the colon type declaration
-    RAW_DISEASE_PREVALENCE = TargetString("sequela.raw_disease.prevalence")
-    RAW_DISEASE_INCIDENCE_RATE = TargetString("sequela.raw_disease.incidence_rate")
+    RAW_INCIDENCE_RATE_ECTOPIC: str = "cause.ectopic_pregnancy.raw_incidence_rate"
 
     @property
     def name(self):
-        return "some_disease"
+        return "pregnancy"
 
     @property
     def log_name(self):
-        return "some disease"
+        return self.name.replace("_", " ")
 
 
-SOME_DISEASE = __SomeDisease()
+PREGNANCY = __Pregnancy()
+
+
+class __LowBirthWeightShortGestation(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
+    DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
+    CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
+
+    @property
+    def name(self):
+        return "low_birth_weight_and_short_gestation"
+
+    @property
+    def log_name(self):
+        return "low birth weight and short gestation"
+
+
+LBWSG = __LowBirthWeightShortGestation()
+
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
-    # SOME_DISEASE
+    PREGNANCY,
+    LBWSG,
 ]
