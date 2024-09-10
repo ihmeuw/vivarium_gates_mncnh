@@ -1,6 +1,6 @@
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.time import DateTimeClock
+from vivarium.framework.time import SimulationClock
 from vivarium.framework.time import TimeInterface as TimeInterface_
 from vivarium.framework.time import get_time_stamp
 
@@ -12,7 +12,7 @@ class TimeInterface(TimeInterface_):
         return lambda: self._manager.step_name
 
 
-class EventClock(DateTimeClock):
+class EventClock(SimulationClock):
     """A event driven clock that uses functionality of DateTimeClock."""
 
     CONFIGURATION_DEFAULTS = {
@@ -31,7 +31,7 @@ class EventClock(DateTimeClock):
         return self.simulation_events[self.step_index]
 
     def setup(self, builder: Builder) -> None:
-        super(DateTimeClock, self).setup(builder)
+        super().setup(builder)
         self._minimum_step_size = pd.Timedelta(days=1)
         self._standard_step_size = pd.Timedelta(days=1)
         self._clock_step_size = self._minimum_step_size
