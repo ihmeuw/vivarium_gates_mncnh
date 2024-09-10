@@ -65,9 +65,8 @@ INFANT_MALE_PERCENTAGES = {
 
 
 class _SimulationEventNames(NamedTuple):
-    INITIALIZATION = "initialization"
     PREGNANCY = "pregnancy"
-    INTRAPARTRUM = "intrapartrum"
+    INTRAPARTRUM = "intrapartum"
     NEONATAL = "neonatal"
 
 
