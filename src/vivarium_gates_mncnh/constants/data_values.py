@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import NamedTuple
 
 ############################
 # Disease Model Parameters #
@@ -32,3 +33,42 @@ SCREENING_SCALE_UP_GOAL_COVERAGE = 0.50
 SCREENING_SCALE_UP_DIFFERENCE = (
     SCREENING_SCALE_UP_GOAL_COVERAGE - PROBABILITY_ATTENDING_SCREENING_START_MEAN
 )
+
+
+class __PregnancyOutcome(NamedTuple):
+    PARTIAL_TERM_OUTCOME = "partial_term"
+    LIVE_BIRTH_OUTCOME = "live_birth"
+    STILLBIRTH_OUTCOME = "stillbirth"
+    INVALID_OUTCOME = "invalid"  ## For sex of partial births
+
+
+PREGNANCY_OUTCOMES = __PregnancyOutcome()
+
+
+class _Durations(NamedTuple):
+    FULL_TERM_DAYS = 40 * 7
+    POSTPARTUM_DAYS = 6 * 7
+    PARTURITION_DAYS = 1 * 7
+    DETECTION_DAYS = 6 * 7
+    PARTIAL_TERM_DAYS = 24 * 7
+    INTERVENTION_DELAY_DAYS = 8 * 7
+
+
+DURATIONS = _Durations()
+
+
+INFANT_MALE_PERCENTAGES = {
+    "Ethiopia": 0.514271,
+    "Nigeria": 0.511785,
+    "Pakistan": 0.514583,
+}
+
+
+class _SimulationEventNames(NamedTuple):
+    INITIALIZATION = "initialization"
+    PREGNANCY = "pregnancy"
+    INTRAPARTRUM = "intrapartrum"
+    NEONATAL = "neonatal"
+
+
+SIMULATION_EVENT_NAMES = _SimulationEventNames()

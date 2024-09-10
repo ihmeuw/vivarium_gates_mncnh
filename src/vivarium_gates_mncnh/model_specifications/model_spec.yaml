@@ -1,19 +1,25 @@
+plugins:
+    required:
+        clock:
+            controller: vivarium_gates_mncnh.plugins.time.EventClock
+            builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
+
 components:
     vivarium_public_health:
         population:
             - BasePopulation()
-            - Mortality()
-        results:
-            - ResultsStratifier()
-            - DisabilityObserver()
-            - MortalityObserver()
 
     # Causes an error if left empty. Uncomment when you have components. 
-    # vivarium_gates_mncnh.components:
+    vivarium_gates_mncnh:
+        components:
+            - Pregnancy()
+            - ResultsStratifier()
+            - BirthObserver()
 
 configuration:
     input_data:
         input_draw_number: 0
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/pregnancy/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -23,25 +29,24 @@ configuration:
         random_seed: 0
     time:
         start:
-            year: 2005
-            month: 7
-            day: 2
+            year: 2025
+            month: 1
+            day: 1
         end:
-            year: 2010
-            month: 7
-            day: 2
+            year: 2025
+            month: 1
+            day: 4
         step_size: 1 # Days
+
     population:
-        population_size: 100
-        initialization_age_min: 0
-        initialization_age_max: 100
-        untracking_age: 100
+        population_size: 20_000
+        initialization_age_min: 10
+        initialization_age_max: 54
+        include_sex: "Female"
 
     stratification:
         default:
             - 'age_group'
-            - 'sex'
-            - 'current_year'
         # disability:
         #     include:
         #     exclude:

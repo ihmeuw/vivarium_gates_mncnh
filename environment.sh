@@ -1,31 +1,34 @@
 #!/bin/bash
 
+# Reset OPTIND so help can be invoked multiple times per shell session.
+OPTIND=1
 Help()
 { 
-  # Reset OPTIND so help can be invoked multiple times per shell session.
-  OPTIND=1
    # Display Help
    echo "Script to automatically create and validate conda environments."
    echo
    echo "Syntax: source environment.sh [-h|t|v]"
    echo "options:"
    echo "h     Print this Help."
-   echo "v     Verbose mode."
    echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
+   echo "f     Force creation of a new envionment."
 }
 
 # Define variables
 username=$(whoami)
 env_type="simulation"
+make_new="no"
 
 # Process input options
-while getopts ":ht:" option; do
+while getopts ":hft:" option; do
    case $option in
       h) # display help
          Help
          return;;
       t) # Type of conda environment to build
          env_type=$OPTARG;;
+      f) # Force the creation of a new environment
+         make_new="yes";;
      \?) # Invalid option
          echo "Error: Invalid option"
          return;;
@@ -62,13 +65,18 @@ if [[ $create_env == '' ]]; then
   echo "Environment $env_name does not exist."
   create_env="yes"
   env_exists="no"
+elif [[ $make_new == 'yes' ]]; then
+  # User has requested to make a new environment
+  echo "Making a new environment."
+  create_env="yes"
+  env_exists="yes"
 else
   env_exists="yes"
   conda activate $env_name
   # Check if existing environment needs to be recreated
   echo "Existing environment found for $env_name."
   one_week_ago=$(date -d "7 days ago" '+%Y-%m-%d %H:%M:%S')
-  creation_time="$(head -n1 /home/$username/miniconda3/envs/$env_name/conda-meta/history)"
+  creation_time="$(head -n1 $CONDA_PREFIX/conda-meta/history)"
   requirements_modification_time="$(date -r $install_file '+%Y-%m-%d %H:%M:%S')"
   # Check if existing environment is older than a week or if environment was built 
   # before last modification to requirements file. If so, mark for recreation.
@@ -105,7 +113,9 @@ fi
 
 if [[ $create_env == 'yes' ]]; then
   if [[ $env_exists == 'yes' ]]; then
-    conda deactivate $env_name
+    if [[ $env_name == $CONDA_DEFAULT_ENV ]]; then
+      conda deactivate
+    fi
     conda remove -n $env_name --all -y
   fi
   # Create conda environment
