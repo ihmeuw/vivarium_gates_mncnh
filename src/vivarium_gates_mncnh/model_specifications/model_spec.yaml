@@ -32,11 +32,10 @@ configuration:
             year: 2025
             month: 1
             day: 1
-        end:
-            year: 2025
-            month: 1
-            day: 4
-        step_size: 1 # Days
+        simulation_events: 
+            - 'pregnancy'
+            - 'intrapartum'  
+            - 'neonatal'
 
     population:
         population_size: 20_000
