@@ -27,7 +27,7 @@ class NewChildren(Component):
             builder.data.load(data_keys.POPULATION.LOCATION)
         ]
 
-    def empty(self, index: pd.Index) -> pd.DataFrame:
+    def get_child_data_structure(self, index: pd.Index) -> pd.DataFrame:
         return pd.DataFrame(
             {
                 "sex_of_child": data_values.PREGNANCY_OUTCOMES.INVALID_OUTCOME,
@@ -44,12 +44,12 @@ class NewChildren(Component):
             p=[self.male_sex_percentage, 1 - self.male_sex_percentage],
             additional_key="sex_of_child",
         )
-        lbwsg = self.lbwsg(sex_of_child)
+        lbwsg_exposures = self.lbwsg.get_exposure(sex_of_child)
         return pd.DataFrame(
             {
                 "sex_of_child": sex_of_child,
-                "birth_weight": lbwsg["birth_weight"],
-                "gestational_age": lbwsg["gestational_age"],
+                "birth_weight": lbwsg_exposures["birth_weight"],
+                "gestational_age": lbwsg_exposures["gestational_age"],
             },
             index=index,
         )
@@ -61,7 +61,7 @@ class LBWSGDistribution(Component):
         self.exposure = builder.data.load(data_keys.LBWSG.EXPOSURE).set_index("sex")
         self.category_intervals = self._get_category_intervals(builder)
 
-    def __call__(self, newborn_sex: pd.Series):
+    def get_exposure(self, newborn_sex: pd.Series):
         categorical_exposure = self._sample_categorical_exposure(newborn_sex)
         continuous_exposure = self._sample_continuous_exposure(categorical_exposure)
         return continuous_exposure

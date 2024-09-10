@@ -51,7 +51,6 @@ class Pregnancy(Component):
         builder : `engine.Builder`
             Interface to several simulation tools.
         """
-        super().setup(builder)
         self.time_step = builder.time.step_size()
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
@@ -158,7 +157,7 @@ class Pregnancy(Component):
         return pregnancy_outcomes
 
     def sample_partial_term_durations(self, partial_term_pop: pd.Index) -> pd.DataFrame:
-        child_status = self.new_children.empty(partial_term_pop)
+        child_status = self.new_children.get_child_data_structure(partial_term_pop)
         low, high = DURATIONS.DETECTION_DAYS, DURATIONS.PARTIAL_TERM_DAYS
         draw = self.randomness.get_draw(
             partial_term_pop, additional_key="partial_term_pregnancy_duration"

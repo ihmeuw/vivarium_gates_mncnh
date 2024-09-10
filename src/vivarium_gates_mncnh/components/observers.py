@@ -12,9 +12,6 @@ from vivarium_gates_mncnh.constants.data_values import PREGNANCY_OUTCOMES
 class ResultsStratifier(ResultsStratifier_):
     def setup(self, builder: Builder) -> None:
         self.age_bins = self.get_age_bins(builder)
-        # self.start_year = builder.configuration.time.start
-        # self.end_year = builder.configuration.time.end.year
-
         self.register_stratifications(builder)
 
     def register_stratifications(self, builder: Builder) -> None:

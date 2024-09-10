@@ -28,9 +28,13 @@ class EventClock(DateTimeClock):
             SIMULATION_EVENT_NAMES.NEONATAL,
         )
         self.step_index = 0
-        self.step_name = self.simulation_events[self.step_index]
+        self.step_name = self.simulation_events[self.step_index + 1]
 
     def step_forward(self, index: pd.Index) -> None:
         super().step_forward(index)
-        if self.step_index < len(self.simulation_events) - 1:
+        if self.step_index < len(self.simulation_events) - 2:
             self.step_index += 1
+
+    def step_backward(self) -> None:
+        super().step_backward()
+        self.step_index -= 1
