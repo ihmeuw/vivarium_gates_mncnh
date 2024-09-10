@@ -11,7 +11,7 @@ Help()
    echo "options:"
    echo "h     Print this Help."
    echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
-   echo "f     Make a new conda environment even if one currently exists."
+   echo "f     Force creation of a new envionment."
 }
 
 # Define variables
