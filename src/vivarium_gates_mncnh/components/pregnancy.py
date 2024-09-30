@@ -7,7 +7,11 @@ from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.components.children import NewChildren
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import DURATIONS, PREGNANCY_OUTCOMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    DURATIONS,
+    PREGNANCY_OUTCOMES,
+)
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 
 
@@ -20,11 +24,11 @@ class Pregnancy(Component):
     @property
     def columns_created(self):
         return [
-            "pregnancy_outcome",
-            "pregnancy_duration",
-            "sex_of_child",
-            "birth_weight",
-            "gestational_age",  # Why repeated?
+            COLUMNS.PREGNANCY_OUTCOME,
+            COLUMNS.PREGNANCY_DURATION,
+            COLUMNS.GESTATIONAL_AGE,
+            COLUMNS.BIRTH_WEIGHT,
+            COLUMNS.SEX_OF_CHILD,
         ]
 
     @property
