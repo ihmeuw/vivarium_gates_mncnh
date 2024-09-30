@@ -79,3 +79,49 @@ class _SimulationEventNames(NamedTuple):
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
+
+
+class __ANCRates(NamedTuple):
+    ATTENDED_CARE_FACILITY = {
+        "Ethiopia": 0.757,
+        "Nigeria": 0.743,
+        "Pakistan": 0.908,
+    }
+    RECEIVED_ULTRASOUND = {
+        "Ethiopia": 0.607,
+        "Nigeria": 0.587,
+        "Pakistan": 0.667,
+    }
+    ULTRASOUND_TYPE = {
+        "standard": 0.75,
+        "AI_assisted": 0.25,
+    }
+    SUCCESSFUL_LBW_IDENTIFICATION = {
+        "no_ultrasound": 0.10,
+        "standard": 0.61,
+        "AI_assisted": 0.80,
+    }
+    STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
+        "no_ultrasound": 45.5,
+        "standard": 20.0,
+        "AI_assisted": 5.0,
+    }
+
+
+ANC_RATES = __ANCRates()
+
+
+class __Columns(NamedTuple):
+    PREGNANCY_OUTCOME = "pregnancy_outcome"
+    PREGNANCY_DURATION = "pregnancy_duration"
+    SEX_OF_CHILD = "sex_of_child"
+    BIRTH_WEIGHT = "birth_weight"
+    GESTATIONAL_AGE = "gestational_age"
+    ATTENDED_CARE_FACILITY = "attended_care_facility"
+    RECEIVED_ULTRASOUND = "received_ultrasound"
+    ULTRASOUND_TYPE = "ultrasound_type"
+    STATED_GESTATIONAL_AGE = "stated_gestational_age"
+    SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
+
+
+COLUMNS = __Columns()
