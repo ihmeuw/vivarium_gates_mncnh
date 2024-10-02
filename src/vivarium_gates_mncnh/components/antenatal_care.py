@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable
 
 import numpy as np
@@ -5,16 +7,46 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.types import ClockTime
 from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import Machine, State, Transient, Transition
+from vivarium.types import ClockTime
 
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_RATES,
     COLUMNS,
     SIMULATION_EVENT_NAMES,
+    ULTRASOUND_TYPES,
 )
 from vivarium_gates_mncnh.utilities import get_location
+
+
+class TreeMachine(Machine):
+    @property
+    def columns_created(self) -> list[str]:
+        return [self.state_column]
+
+    @property
+    def columns_required(self) -> list[str] | None:
+        return None
+
+    def __init__(self, state_column: str, states: list[State], initial_state: State) -> None:
+        super().__init__(state_column, states)
+        self.initial_state = initial_state
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        self.population_view.update(
+            pd.Series(
+                self.initial_state.state_id, index=pop_data.index, name=self.state_column
+            ),
+        )
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY:
+            self.transition(event.index, event.time)
 
 
 class DecisionTreeState(State):
@@ -27,13 +59,22 @@ class DecisionTreeState(State):
         output_state: State,
         decision_function: Callable[[pd.Index], pd.Series],
     ) -> None:
-        def probability_function(index: pd.Index) -> pd.Series:
-            if self._sim_step_name != SIMULATION_EVENT_NAMES.PREGNANCY:
-                return pd.Series(0.0, index=index)
+        transition = Transition(
+            self, output_state, self.get_probability_function(decision_function)
+        )
+        self.add_transition(transition)
+
+    def get_probability_function(
+        self, decision_function: Callable[[pd.Index], pd.Series]
+    ) -> Callable[[pd.Index], pd.Series]:
+        """We need to check the simulation step name within the probability function, because it will change"""
+
+        def pf(index: pd.Index) -> pd.Series:
+            if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
+                return lambda index: pd.Series(0.0, index=index)
             return decision_function(index)
 
-        transition = Transition(self, output_state, probability_function)
-        self.add_transition(transition)
+        return pf
 
 
 class TransientDecisionTreeState(DecisionTreeState, Transient):
@@ -64,7 +105,7 @@ class StandardUltrasound(TransientDecisionTreeState):
 
     def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
         pop = self.population_view.get(index)
-        pop[COLUMNS.ULTRASOUND_TYPE] = "standard"
+        pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.STANDARD
         self.population_view.update(pop)
 
 
@@ -78,7 +119,7 @@ class AIAssistedUltrasound(TransientDecisionTreeState):
 
     def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
         pop = self.population_view.get(index)
-        pop[COLUMNS.ULTRASOUND_TYPE] = "AI_assisted"
+        pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.AI_ASSISTED
         self.population_view.update(pop)
 
 
@@ -117,16 +158,20 @@ def ANC() -> Machine:
     )
     gets_ultrasound.add_decision(
         standard_ultasound,
-        lambda index: pd.Series(ANC_RATES.ULTRASOUND_TYPE["standard"], index=index),
+        lambda index: pd.Series(
+            ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.STANDARD], index=index
+        ),
     )
     gets_ultrasound.add_decision(
         ai_assisted_ultrasound,
-        lambda index: pd.Series(1 - ANC_RATES.ULTRASOUND_TYPE["AI_assisted"], index=index),
+        lambda index: pd.Series(
+            1 - ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.AI_ASSISTED], index=index
+        ),
     )
-    standard_ultasound.add_decision(end_state, lambda index: pd.Series(1, index=index))
-    ai_assisted_ultrasound.add_decision(end_state, lambda index: pd.Series(1, index=index))
+    standard_ultasound.add_decision(end_state, lambda index: pd.Series(1.0, index=index))
+    ai_assisted_ultrasound.add_decision(end_state, lambda index: pd.Series(1.0, index=index))
 
-    return Machine(
+    return TreeMachine(
         "anc_state",
         [
             initial_state,
@@ -136,6 +181,7 @@ def ANC() -> Machine:
             ai_assisted_ultrasound,
             end_state,
         ],
+        initial_state,
     )
 
 
@@ -170,15 +216,11 @@ class AntenatalCare(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        # TODO: I don't think we need this
-        pass
-
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
                 COLUMNS.ATTENDED_CARE_FACILITY: False,
-                COLUMNS.ULTRASOUND_TYPE: "no_ultrasound",
+                COLUMNS.ULTRASOUND_TYPE: ULTRASOUND_TYPES.NO_ULTRASOUND,
                 COLUMNS.STATED_GESTATIONAL_AGE: np.nan,
                 COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION: np.nan,
             },

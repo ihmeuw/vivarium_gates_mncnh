@@ -81,6 +81,15 @@ class _SimulationEventNames(NamedTuple):
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
 
 
+class __UltrasoundTypes(NamedTuple):
+    STANDARD: str = "standard"
+    NO_ULTRASOUND: str = "no_ultrasound"
+    AI_ASSISTED: str = "AI_assisted"
+
+
+ULTRASOUND_TYPES = __UltrasoundTypes()
+
+
 class __ANCRates(NamedTuple):
     ATTENDED_CARE_FACILITY = {
         "Ethiopia": 0.757,
@@ -93,18 +102,18 @@ class __ANCRates(NamedTuple):
         "Pakistan": 0.667,
     }
     ULTRASOUND_TYPE = {
-        "standard": 0.75,
-        "AI_assisted": 0.25,
+        ULTRASOUND_TYPES.STANDARD: 0.75,
+        ULTRASOUND_TYPES.AI_ASSISTED: 0.25,
     }
     SUCCESSFUL_LBW_IDENTIFICATION = {
-        "no_ultrasound": 0.10,
-        "standard": 0.61,
-        "AI_assisted": 0.80,
+        ULTRASOUND_TYPES.NO_ULTRASOUND: 0.10,
+        ULTRASOUND_TYPES.STANDARD: 0.61,
+        ULTRASOUND_TYPES.AI_ASSISTED: 0.80,
     }
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
-        "no_ultrasound": 45.5,
-        "standard": 20.0,
-        "AI_assisted": 5.0,
+        ULTRASOUND_TYPES.NO_ULTRASOUND: 45.5,
+        ULTRASOUND_TYPES.STANDARD: 20.0,
+        ULTRASOUND_TYPES.AI_ASSISTED: 5.0,
     }
 
 
