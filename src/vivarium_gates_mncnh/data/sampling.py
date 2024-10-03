@@ -1,4 +1,5 @@
 from typing import Tuple
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -37,6 +38,7 @@ def generate_vectorized_lognormal_draws(
     draws = pd.concat([lognorm_samples, use_means])
     draws = draws.sort_index().rename(columns=lambda d: f"draw_{d}")
     return draws
+
 
 def get_truncnorm_from_quantiles(
     mean: float,
