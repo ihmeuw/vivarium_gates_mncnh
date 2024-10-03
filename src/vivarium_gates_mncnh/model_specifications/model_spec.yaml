@@ -9,7 +9,6 @@ components:
         population:
             - BasePopulation()
 
-    # Causes an error if left empty. Uncomment when you have components. 
     vivarium_gates_mncnh:
         components:
             - Pregnancy()
