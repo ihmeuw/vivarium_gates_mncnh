@@ -35,6 +35,12 @@ SCREENING_SCALE_UP_DIFFERENCE = (
 )
 
 
+#########################
+# Constat scalar values #
+#########################
+LOW_BIRTH_WEIGHT_THRESHOLD = 2500
+
+
 class __PregnancyOutcome(NamedTuple):
     PARTIAL_TERM_OUTCOME = "partial_term"
     LIVE_BIRTH_OUTCOME = "live_birth"
@@ -111,9 +117,9 @@ class __ANCRates(NamedTuple):
         ULTRASOUND_TYPES.AI_ASSISTED: 0.80,
     }
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
-        ULTRASOUND_TYPES.NO_ULTRASOUND: 45.5,
-        ULTRASOUND_TYPES.STANDARD: 20.0,
-        ULTRASOUND_TYPES.AI_ASSISTED: 5.0,
+        ULTRASOUND_TYPES.NO_ULTRASOUND: 45.5 / 7,
+        ULTRASOUND_TYPES.STANDARD: 20.0 / 7,
+        ULTRASOUND_TYPES.AI_ASSISTED: 5.0 / 7,
     }
 
 

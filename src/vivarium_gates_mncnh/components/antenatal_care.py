@@ -4,6 +4,7 @@ from typing import Callable
 
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -14,6 +15,7 @@ from vivarium.types import ClockTime
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_RATES,
     COLUMNS,
+    LOW_BIRTH_WEIGHT_THRESHOLD,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
 )
@@ -69,12 +71,12 @@ class DecisionTreeState(State):
     ) -> Callable[[pd.Index], pd.Series]:
         """We need to check the simulation step name within the probability function, because it will change"""
 
-        def pf(index: pd.Index) -> pd.Series:
+        def probability_function(index: pd.Index) -> pd.Series:
             if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
                 return lambda index: pd.Series(0.0, index=index)
             return decision_function(index)
 
-        return pf
+        return probability_function
 
 
 class TransientDecisionTreeState(DecisionTreeState, Transient):
@@ -216,18 +218,74 @@ class AntenatalCare(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
 
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        # Convert standard deviation from days to weeks
+        stated_ga_standard_deviation = self.format_dict_for_lookup_table(
+            ANC_RATES.STATED_GESTATIONAL_AGE_STANDARD_DEVIATION,
+            COLUMNS.ULTRASOUND_TYPE,
+        )
+        self.lookup_tables[
+            "stated_gestational_age_standa_deviation"
+        ] = self.build_lookup_table(
+            builder=builder,
+            data_source=stated_ga_standard_deviation,
+            value_columns=["value"],
+        )
+        lbw_identification_rates = self.format_dict_for_lookup_table(
+            ANC_RATES.SUCCESSFUL_LBW_IDENTIFICATION,
+            COLUMNS.ULTRASOUND_TYPE,
+        )
+        self.lookup_tables["low_birth_weight_identification_rates"] = self.build_lookup_table(
+            builder=builder,
+            data_source=lbw_identification_rates,
+            value_columns=["value"],
+        )
+
+    def format_dict_for_lookup_table(self, data: dict, column: str) -> pd.DataFrame:
+        series = pd.Series(data)
+        return series.reset_index().rename(columns={"index": column, 0: "value"})
+
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
                 COLUMNS.ATTENDED_CARE_FACILITY: False,
                 COLUMNS.ULTRASOUND_TYPE: ULTRASOUND_TYPES.NO_ULTRASOUND,
                 COLUMNS.STATED_GESTATIONAL_AGE: np.nan,
-                COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION: np.nan,
+                COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION: False,
             },
             index=pop_data.index,
         )
+
         self.population_view.update(anc_data)
 
     def on_time_step_cleanup(self, event: Event) -> None:
-        # TODO: Add columns of stated gestational age and successful lbw identification
-        pass
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
+            return
+        pop = self.population_view.get(event.index)
+        pop[COLUMNS.STATED_GESTATIONAL_AGE] = self._calculate_stated_gestational_age(pop)
+        pop[COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION] = self._determine_lbw_identification(pop)
+
+        self.population_view.update(pop)
+
+    def _calculate_stated_gestational_age(self, pop: pd.DataFrame) -> pd.Series:
+        # Apply standard deviation based on ultrasound type
+        gestational_age = pop[COLUMNS.GESTATIONAL_AGE]
+        measurement_errors = self.lookup_tables["stated_gestational_age_standa_deviation"](
+            pop.index
+        )
+        measurement_error_draws = self.randomness.get_draw(
+            pop.index, additional_key="measurement_error"
+        )
+        return stats.norm.ppf(
+            measurement_error_draws, loc=gestational_age, scale=measurement_errors
+        )
+
+    def _determine_lbw_identification(self, pop: pd.DataFrame) -> pd.Series:
+        identification = pd.Series(False, index=pop.index)
+        lbw_index = pop.index[pop[COLUMNS.BIRTH_WEIGHT] < LOW_BIRTH_WEIGHT_THRESHOLD]
+        identification_rates = self.lookup_tables["low_birth_weight_identification_rates"](
+            lbw_index
+        )
+        draws = self.randomness.get_draw(lbw_index, additional_key="lbw_identification")
+        identification[lbw_index] = draws < identification_rates
+        return identification
