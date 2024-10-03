@@ -136,6 +136,7 @@ def ANC() -> Machine:
     # Decisions
     initial_state.add_decision(
         attended_antental_care,
+        # TODO: this data will need to be updated when the ANC artifact is finished
         lambda index: pd.Series(
             ANC_RATES.ATTENDED_CARE_FACILITY[initial_state.location], index=index
         ),
