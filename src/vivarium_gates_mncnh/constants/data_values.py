@@ -35,9 +35,11 @@ SCREENING_SCALE_UP_DIFFERENCE = (
 )
 
 
-#########################
-# Constat scalar values #
-#########################
+##########################
+# Constant scalar values #
+##########################
+
+# Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
 
