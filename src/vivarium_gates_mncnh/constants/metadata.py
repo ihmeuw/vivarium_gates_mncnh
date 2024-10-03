@@ -18,6 +18,8 @@ MAKE_ARTIFACT_SLEEP = 10
 LOCATIONS = [
     # TODO - project locations here
     "Ethiopia",
+    "Nigeria",
+    "Pakistan"
 ]
 
 ARTIFACT_INDEX_COLUMNS = [
