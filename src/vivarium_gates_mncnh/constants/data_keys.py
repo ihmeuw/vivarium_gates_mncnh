@@ -65,6 +65,7 @@ class __LowBirthWeightShortGestation(NamedTuple):
 
 LBWSG = __LowBirthWeightShortGestation()
 
+
 class __ANC(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     ESTIMATE: str = "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
@@ -78,7 +79,6 @@ class __ANC(NamedTuple):
         return "anc"
 
 
-
 ANC = __ANC()
 
 
@@ -87,5 +87,5 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     # TODO: list all key groups here
     PREGNANCY,
     LBWSG,
-    ANC
-  ]
+    ANC,
+]

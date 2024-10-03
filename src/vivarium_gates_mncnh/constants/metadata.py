@@ -19,7 +19,7 @@ LOCATIONS = [
     # TODO - project locations here
     "Ethiopia",
     "Nigeria",
-    "Pakistan"
+    "Pakistan",
 ]
 
 ARTIFACT_INDEX_COLUMNS = [

@@ -64,7 +64,7 @@ def get_data(
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
-	data_keys.ANC.ESTIMATE: load_anc_proportion
+        data_keys.ANC.ESTIMATE: load_anc_proportion,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -227,33 +227,36 @@ def load_lbwsg_exposure(
     data = reshape_to_vivarium_format(data, location)
     return data
 
+
 def load_anc_proportion(
-        key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
+    key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
     anc_proportion = load_standard_data(key, location, years)
     year_start, year_end = 2021, 2022
-    lower_value = anc_proportion.loc[(year_start, year_end, 'lower_value'), 'value']
-    mean_value = anc_proportion.loc[(year_start, year_end, 'mean_value'), 'value']
-    upper_value = anc_proportion.loc[(year_start, year_end, 'upper_value'), 'value']
-    
+    lower_value = anc_proportion.loc[(year_start, year_end, "lower_value"), "value"]
+    mean_value = anc_proportion.loc[(year_start, year_end, "mean_value"), "value"]
+    upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
+
     try:
         anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
-            mean=mean_value,
-            lower=lower_value,
-            upper=upper_value)
+            mean=mean_value, lower=lower_value, upper=upper_value
+        )
         num_draws = 1000
         anc_proportion_draws = anc_proportion_dist.rvs(num_draws).reshape(1, num_draws)
     except FloatingPointError:
         print("FloatingPointError encountered, proceeding with caution.")
         anc_proportion_draws = np.full((1, num_draws), mean_value)
-        
-    draw_columns = [f'draw_{i:03d}' for i in range(num_draws)]
+
+    draw_columns = [f"draw_{i:03d}" for i in range(num_draws)]
     anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
-    anc_proportion_draws_df['year_start'] = year_start
-    anc_proportion_draws_df['year_end'] = year_end
-    anc_proportion_draws_df = anc_proportion_draws_df[['year_start', 'year_end'] + draw_columns]
-    
+    anc_proportion_draws_df["year_start"] = year_start
+    anc_proportion_draws_df["year_end"] = year_end
+    anc_proportion_draws_df = anc_proportion_draws_df[
+        ["year_start", "year_end"] + draw_columns
+    ]
+
     return anc_proportion_draws_df
+
 
 def reshape_to_vivarium_format(df, location):
     df = vi_utils.reshape(df, value_cols=vi_globals.DRAW_COLUMNS)

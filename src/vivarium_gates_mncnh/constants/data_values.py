@@ -63,23 +63,12 @@ INFANT_MALE_PERCENTAGES = {
     "Pakistan": 0.514583,
 }
 
-ANC_ULTRASOUND = { 
-    "Ethiopia": 0.607,
-    "Nigeria": 0.587,
-    "Pakistan": 0.667
-}
+ANC_ULTRASOUND = {"Ethiopia": 0.607, "Nigeria": 0.587, "Pakistan": 0.667}
 
-ANC_AI_ULTRASOUND = {
-    "Ethiopia": 0,
-    "Nigeria": 0,
-    "Pakistan": 0
-}
+ANC_AI_ULTRASOUND = {"Ethiopia": 0, "Nigeria": 0, "Pakistan": 0}
 
-STATED_GA_AT_ANC = {
-    "no_ultrasound": 45.5,
-    "standard_ultrasound": 20,
-    "ai_ultrasound": 5
-}
+STATED_GA_AT_ANC = {"no_ultrasound": 45.5, "standard_ultrasound": 20, "ai_ultrasound": 5}
+
 
 class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
