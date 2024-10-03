@@ -59,7 +59,9 @@ class DecisionTreeState(State):
     def add_decision(
         self,
         output_state: State,
-        decision_function: Callable[[pd.Index], pd.Series],
+        decision_function: Callable[[pd.Index], pd.Series] = lambda index: pd.Series(
+            1.0, index=index
+        ),
     ) -> None:
         transition = Transition(
             self, output_state, self.get_probability_function(decision_function)
@@ -97,9 +99,10 @@ class ANCState(TransientDecisionTreeState):
         self.population_view.update(pop)
 
 
-class StandardUltrasound(TransientDecisionTreeState):
-    def __init__(self) -> None:
-        super().__init__("standard_ultasound")
+class UltrasoundState(TransientDecisionTreeState):
+    def __init__(self, ultrasound_type: str) -> None:
+        super().__init__(f"{ultrasound_type}_ultasound")
+        self.ultrasound_type = ultrasound_type
 
     @property
     def columns_required(self) -> list[str]:
@@ -107,30 +110,16 @@ class StandardUltrasound(TransientDecisionTreeState):
 
     def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
         pop = self.population_view.get(index)
-        pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.STANDARD
+        pop[COLUMNS.ULTRASOUND_TYPE] = self.ultrasound_type
         self.population_view.update(pop)
 
 
-class AIAssistedUltrasound(TransientDecisionTreeState):
-    def __init__(self) -> None:
-        super().__init__("ai_assisted_ultrasound")
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.ULTRASOUND_TYPE]
-
-    def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
-        pop = self.population_view.get(index)
-        pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.AI_ASSISTED
-        self.population_view.update(pop)
-
-
-def ANC() -> Machine:
+def create_anc_machine() -> Machine:
     initial_state = DecisionTreeState("initial")
     attended_antental_care = ANCState()
     gets_ultrasound = TransientDecisionTreeState("gets_ultrasound")
-    standard_ultasound = StandardUltrasound()
-    ai_assisted_ultrasound = AIAssistedUltrasound()
+    standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
+    ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
     end_state = DecisionTreeState("end")
 
     # Decisions
@@ -168,11 +157,11 @@ def ANC() -> Machine:
     gets_ultrasound.add_decision(
         ai_assisted_ultrasound,
         lambda index: pd.Series(
-            1 - ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.AI_ASSISTED], index=index
+            ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.AI_ASSISTED], index=index
         ),
     )
-    standard_ultasound.add_decision(end_state, lambda index: pd.Series(1.0, index=index))
-    ai_assisted_ultrasound.add_decision(end_state, lambda index: pd.Series(1.0, index=index))
+    standard_ultasound.add_decision(end_state)
+    ai_assisted_ultrasound.add_decision(end_state)
 
     return TreeMachine(
         "anc_state",
@@ -208,11 +197,11 @@ class AntenatalCare(Component):
 
     @property
     def sub_components(self) -> list[Component]:
-        return [self.machine]
+        return [self.decision_tree]
 
     def __init__(self) -> None:
         super().__init__()
-        self.machine = ANC()
+        self.decision_tree = create_anc_machine()
 
     def setup(self, builder: Builder):
         self._sim_step_name = builder.time.simulation_event_name()
