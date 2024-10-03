@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -36,3 +37,21 @@ def generate_vectorized_lognormal_draws(
     draws = pd.concat([lognorm_samples, use_means])
     draws = draws.sort_index().rename(columns=lambda d: f"draw_{d}")
     return draws
+
+def get_truncnorm_from_quantiles(
+    mean: float,
+    lower: float,
+    upper: float,
+    quantiles: Tuple[float, float] = (0.025, 0.975),
+    lower_clip: float = 0.0,
+    upper_clip: float = 1.0,
+) -> stats.truncnorm:
+    stdnorm_quantiles = stats.norm.ppf(quantiles)
+    sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
+    try:
+        a = (lower_clip - mean) / sd
+        b = (upper_clip - mean) / sd
+        return stats.truncnorm(loc=mean, scale=sd, a=a, b=b)
+    except ZeroDivisionError:
+        # degenerate case: if upper == lower, then use the mean with sd==0
+        return stats.norm(loc=mean, scale=sd)
