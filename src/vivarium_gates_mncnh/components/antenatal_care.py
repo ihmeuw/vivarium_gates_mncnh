@@ -102,7 +102,7 @@ class ANCState(TransientDecisionTreeState):
 
 class UltrasoundState(TransientDecisionTreeState):
     def __init__(self, ultrasound_type: str) -> None:
-        super().__init__(f"{ultrasound_type}_ultasound")
+        super().__init__(f"{ultrasound_type}_ultrasound")
         self.ultrasound_type = ultrasound_type
 
     @property
@@ -139,7 +139,7 @@ class AntenatalCare(Component):
 
     def __init__(self) -> None:
         super().__init__()
-        self.decision_tree = self.create_anc_machine()
+        self.decision_tree = self.create_anc_decision_tree()
 
     def setup(self, builder: Builder):
         self._sim_step_name = builder.time.simulation_event_name()
@@ -229,7 +229,7 @@ class AntenatalCare(Component):
         identification[lbw_index] = draws < identification_rates
         return identification
 
-    def create_anc_machine(self) -> Machine:
+    def create_anc_decision_tree(self) -> Machine:
         initial_state = DecisionTreeState("initial")
         attended_antental_care = ANCState()
         gets_ultrasound = TransientDecisionTreeState("gets_ultrasound")
