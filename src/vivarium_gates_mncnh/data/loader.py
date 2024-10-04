@@ -5,13 +5,13 @@ The intent here is to provide a uniform interface around this portion
 of artifact creation. The value of this interface shows up when more
 complicated data needs are part of the project. See the BEP project
 for an example.
-
 `BEP <https://github.com/ihmeuw/vivarium_gates_bep/blob/master/src/vivarium_gates_bep/data/loader.py>`_
 
 .. admonition::
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
+import pdb
 from typing import List, Optional, Union
 
 import numpy as np
@@ -27,7 +27,7 @@ from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
-from vivarium_gates_mncnh.constants import data_keys, metadata
+from vivarium_gates_mncnh.constants import data_keys, data_values, metadata
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
 
 
@@ -64,6 +64,7 @@ def get_data(
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
+        data_keys.ANC.ESTIMATE: load_anc_proportion,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -225,6 +226,33 @@ def load_lbwsg_exposure(
     data = (data / total_exposure).reset_index()
     data = reshape_to_vivarium_format(data, location)
     return data
+
+
+def load_anc_proportion(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
+) -> pd.DataFrame:
+    anc_proportion = load_standard_data(key, location, years)
+    year_start, year_end = 2021, 2022
+    lower_value = anc_proportion.loc[(year_start, year_end, "lower_value"), "value"]
+    mean_value = anc_proportion.loc[(year_start, year_end, "mean_value"), "value"]
+    upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
+
+    try:
+        anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
+            mean=mean_value, lower=lower_value, upper=upper_value
+        )
+        anc_proportion_draws = anc_proportion_dist.rvs(data_values.NUM_DRAWS).reshape(
+            1, data_values.NUM_DRAWS
+        )
+    except FloatingPointError:
+        print("FloatingPointError encountered, proceeding with caution.")
+        anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
+
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+    anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
+    anc_proportion_draws_df["year_start"] = year_start
+    anc_proportion_draws_df["year_end"] = year_end
+    return anc_proportion_draws_df.set_index(["year_start", "year_end"])
 
 
 def reshape_to_vivarium_format(df, location):
