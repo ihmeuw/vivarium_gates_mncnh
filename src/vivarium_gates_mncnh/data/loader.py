@@ -248,7 +248,7 @@ def load_anc_proportion(
         print("FloatingPointError encountered, proceeding with caution.")
         anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
 
-    draw_columns = [f"draw_{i:03d}" for i in range(data_values.NUM_DRAWS)]
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
     anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
     anc_proportion_draws_df["year_start"] = year_start
     anc_proportion_draws_df["year_end"] = year_end
