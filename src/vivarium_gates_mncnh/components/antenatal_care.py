@@ -53,9 +53,6 @@ class TreeMachine(Machine):
 
 
 class DecisionTreeState(State):
-    def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
-
     def add_decision(
         self,
         output_state: State,
@@ -63,22 +60,8 @@ class DecisionTreeState(State):
             1.0, index=index
         ),
     ) -> None:
-        transition = Transition(
-            self, output_state, self.get_probability_function(decision_function)
-        )
+        transition = Transition(self, output_state, decision_function)
         self.add_transition(transition)
-
-    def get_probability_function(
-        self, decision_function: Callable[[pd.Index], pd.Series]
-    ) -> Callable[[pd.Index], pd.Series]:
-        """We need to check the simulation step name within the probability function, because it will change"""
-
-        def probability_function(index: pd.Index) -> pd.Series:
-            if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
-                return lambda index: pd.Series(0.0, index=index)
-            return decision_function(index)
-
-        return probability_function
 
 
 class TransientDecisionTreeState(DecisionTreeState, Transient):
