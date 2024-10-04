@@ -11,7 +11,6 @@ for an example.
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
-import pdb
 from typing import List, Optional, Union
 
 import numpy as np

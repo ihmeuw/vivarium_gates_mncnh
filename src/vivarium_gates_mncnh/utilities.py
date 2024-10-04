@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium.framework.engine import Builder
 from vivarium.framework.randomness import get_hash
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
@@ -176,3 +177,7 @@ def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> f
     seed, distribution = seeded_distribution
     np.random.seed(get_hash(f"{seed}_draw_{draw}"))
     return distribution.rvs()
+
+
+def get_location(builder: Builder) -> str:
+    return builder.data.load("population.location")
