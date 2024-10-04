@@ -5,13 +5,13 @@ The intent here is to provide a uniform interface around this portion
 of artifact creation. The value of this interface shows up when more
 complicated data needs are part of the project. See the BEP project
 for an example.
-
 `BEP <https://github.com/ihmeuw/vivarium_gates_bep/blob/master/src/vivarium_gates_bep/data/loader.py>`_
 
 .. admonition::
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
+import pdb
 from typing import List, Optional, Union
 
 import numpy as np
@@ -27,7 +27,7 @@ from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
-from vivarium_gates_mncnh.constants import data_keys, metadata
+from vivarium_gates_mncnh.constants import data_keys, data_values, metadata
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
 
 
@@ -241,21 +241,18 @@ def load_anc_proportion(
         anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
             mean=mean_value, lower=lower_value, upper=upper_value
         )
-        num_draws = 1000
-        anc_proportion_draws = anc_proportion_dist.rvs(num_draws).reshape(1, num_draws)
+        anc_proportion_draws = anc_proportion_dist.rvs(data_values.NUM_DRAWS).reshape(
+            1, data_values.NUM_DRAWS
+        )
     except FloatingPointError:
         print("FloatingPointError encountered, proceeding with caution.")
-        anc_proportion_draws = np.full((1, num_draws), mean_value)
+        anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
 
-    draw_columns = [f"draw_{i:03d}" for i in range(num_draws)]
+    draw_columns = [f"draw_{i:03d}" for i in range(data_values.NUM_DRAWS)]
     anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
     anc_proportion_draws_df["year_start"] = year_start
     anc_proportion_draws_df["year_end"] = year_end
-    anc_proportion_draws_df = anc_proportion_draws_df[
-        ["year_start", "year_end"] + draw_columns
-    ]
-
-    return anc_proportion_draws_df
+    return anc_proportion_draws_df.set_index(["year_start", "year_end"])
 
 
 def reshape_to_vivarium_format(df, location):

@@ -69,6 +69,8 @@ ANC_AI_ULTRASOUND = {"Ethiopia": 0, "Nigeria": 0, "Pakistan": 0}
 
 STATED_GA_AT_ANC = {"no_ultrasound": 45.5, "standard_ultrasound": 20, "ai_ultrasound": 5}
 
+NUM_DRAWS = 500
+
 
 class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
