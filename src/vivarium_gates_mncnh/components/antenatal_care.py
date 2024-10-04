@@ -12,6 +12,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import Machine, State, Transient, Transition
 from vivarium.types import ClockTime
 
+from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_RATES,
     COLUMNS,
@@ -114,69 +115,6 @@ class UltrasoundState(TransientDecisionTreeState):
         self.population_view.update(pop)
 
 
-def create_anc_machine() -> Machine:
-    initial_state = DecisionTreeState("initial")
-    attended_antental_care = ANCState()
-    gets_ultrasound = TransientDecisionTreeState("gets_ultrasound")
-    standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
-    ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
-    end_state = DecisionTreeState("end")
-
-    # Decisions
-    initial_state.add_decision(
-        attended_antental_care,
-        # TODO: this data will need to be updated when the ANC artifact is finished
-        lambda index: pd.Series(
-            ANC_RATES.ATTENDED_CARE_FACILITY[initial_state.location], index=index
-        ),
-    )
-    initial_state.add_decision(
-        end_state,
-        lambda index: pd.Series(
-            1 - ANC_RATES.ATTENDED_CARE_FACILITY[initial_state.location], index=index
-        ),
-    )
-    attended_antental_care.add_decision(
-        gets_ultrasound,
-        lambda index: pd.Series(
-            ANC_RATES.RECEIVED_ULTRASOUND[attended_antental_care.location], index=index
-        ),
-    )
-    attended_antental_care.add_decision(
-        end_state,
-        lambda index: pd.Series(
-            1 - ANC_RATES.RECEIVED_ULTRASOUND[attended_antental_care.location], index=index
-        ),
-    )
-    gets_ultrasound.add_decision(
-        standard_ultasound,
-        lambda index: pd.Series(
-            ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.STANDARD], index=index
-        ),
-    )
-    gets_ultrasound.add_decision(
-        ai_assisted_ultrasound,
-        lambda index: pd.Series(
-            ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.AI_ASSISTED], index=index
-        ),
-    )
-    standard_ultasound.add_decision(end_state)
-    ai_assisted_ultrasound.add_decision(end_state)
-
-    return TreeMachine(
-        "anc_state",
-        [
-            initial_state,
-            attended_antental_care,
-            gets_ultrasound,
-            standard_ultasound,
-            ai_assisted_ultrasound,
-            end_state,
-        ],
-        initial_state,
-    )
-
-
 class AntenatalCare(Component):
     @property
     def columns_created(self):
@@ -201,7 +139,7 @@ class AntenatalCare(Component):
 
     def __init__(self) -> None:
         super().__init__()
-        self.decision_tree = create_anc_machine()
+        self.decision_tree = self.create_anc_machine()
 
     def setup(self, builder: Builder):
         self._sim_step_name = builder.time.simulation_event_name()
@@ -209,7 +147,15 @@ class AntenatalCare(Component):
         self.location = get_location(builder)
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        # Convert standard deviation from days to weeks
+        # TODO: update data key to constant
+        anc_attendance_probability = builder.data.load(
+            "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
+        )
+        self.lookup_tables["anc_attendance_probability"] = self.build_lookup_table(
+            builder=builder,
+            data_source=anc_attendance_probability,
+            value_columns=["value"],
+        )
         stated_ga_standard_deviation = self.format_dict_for_lookup_table(
             ANC_RATES.STATED_GESTATIONAL_AGE_STANDARD_DEVIATION,
             COLUMNS.ULTRASOUND_TYPE,
@@ -230,6 +176,9 @@ class AntenatalCare(Component):
             data_source=lbw_identification_rates,
             value_columns=["value"],
         )
+
+    def get_anc_attendance_rate(self, index: pd.Index) -> pd.Series:
+        return self.lookup_tables["anc_attendance_probability"](index)
 
     def format_dict_for_lookup_table(self, data: dict, column: str) -> pd.DataFrame:
         series = pd.Series(data)
@@ -279,3 +228,61 @@ class AntenatalCare(Component):
         draws = self.randomness.get_draw(lbw_index, additional_key="lbw_identification")
         identification[lbw_index] = draws < identification_rates
         return identification
+
+    def create_anc_machine(self) -> Machine:
+        initial_state = DecisionTreeState("initial")
+        attended_antental_care = ANCState()
+        gets_ultrasound = TransientDecisionTreeState("gets_ultrasound")
+        standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
+        ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
+        end_state = DecisionTreeState("end")
+
+        # Decisions
+        initial_state.add_decision(
+            attended_antental_care,
+            # TODO: this data will need to be updated when the ANC artifact is finished
+            self.get_anc_attendance_rate,
+        )
+        initial_state.add_decision(
+            end_state, lambda index: 1 - self.get_anc_attendance_rate(index)
+        )
+        attended_antental_care.add_decision(
+            gets_ultrasound,
+            lambda index: pd.Series(
+                ANC_RATES.RECEIVED_ULTRASOUND[attended_antental_care.location], index=index
+            ),
+        )
+        attended_antental_care.add_decision(
+            end_state,
+            lambda index: pd.Series(
+                1 - ANC_RATES.RECEIVED_ULTRASOUND[attended_antental_care.location],
+                index=index,
+            ),
+        )
+        gets_ultrasound.add_decision(
+            standard_ultasound,
+            lambda index: pd.Series(
+                ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.STANDARD], index=index
+            ),
+        )
+        gets_ultrasound.add_decision(
+            ai_assisted_ultrasound,
+            lambda index: pd.Series(
+                ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.AI_ASSISTED], index=index
+            ),
+        )
+        standard_ultasound.add_decision(end_state)
+        ai_assisted_ultrasound.add_decision(end_state)
+
+        return TreeMachine(
+            "anc_state",
+            [
+                initial_state,
+                attended_antental_care,
+                gets_ultrasound,
+                standard_ultasound,
+                ai_assisted_ultrasound,
+                end_state,
+            ],
+            initial_state,
+        )
