@@ -55,7 +55,6 @@ class TreeMachine(Machine):
 class DecisionTreeState(State):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        self.location = get_location(builder)
 
     def add_decision(
         self,
@@ -249,26 +248,28 @@ class AntenatalCare(Component):
         attended_antental_care.add_decision(
             gets_ultrasound,
             lambda index: pd.Series(
-                ANC_RATES.RECEIVED_ULTRASOUND[attended_antental_care.location], index=index
+                ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
             ),
         )
         attended_antental_care.add_decision(
             end_state,
             lambda index: pd.Series(
-                1 - ANC_RATES.RECEIVED_ULTRASOUND[attended_antental_care.location],
+                1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
                 index=index,
             ),
         )
         gets_ultrasound.add_decision(
             standard_ultasound,
             lambda index: pd.Series(
-                ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.STANDARD], index=index
+                ANC_RATES.ULTRASOUND_TYPE[self.location][ULTRASOUND_TYPES.STANDARD],
+                index=index,
             ),
         )
         gets_ultrasound.add_decision(
             ai_assisted_ultrasound,
             lambda index: pd.Series(
-                ANC_RATES.ULTRASOUND_TYPE[ULTRASOUND_TYPES.AI_ASSISTED], index=index
+                ANC_RATES.ULTRASOUND_TYPE[self.location][ULTRASOUND_TYPES.AI_ASSISTED],
+                index=index,
             ),
         )
         standard_ultasound.add_decision(end_state)

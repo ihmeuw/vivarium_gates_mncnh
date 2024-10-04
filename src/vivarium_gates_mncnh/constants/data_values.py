@@ -110,8 +110,18 @@ class __ANCRates(NamedTuple):
         "Pakistan": 0.667,
     }
     ULTRASOUND_TYPE = {
-        ULTRASOUND_TYPES.STANDARD: 0.75,
-        ULTRASOUND_TYPES.AI_ASSISTED: 0.25,
+        "Ethiopia": {
+            ULTRASOUND_TYPES.STANDARD: 1.0,
+            ULTRASOUND_TYPES.AI_ASSISTED: 0.0,
+        },
+        "Nigeria": {
+            ULTRASOUND_TYPES.STANDARD: 1.0,
+            ULTRASOUND_TYPES.AI_ASSISTED: 0.0,
+        },
+        "Pakistan": {
+            ULTRASOUND_TYPES.STANDARD: 1.0,
+            ULTRASOUND_TYPES.AI_ASSISTED: 0.0,
+        },
     }
     SUCCESSFUL_LBW_IDENTIFICATION = {
         ULTRASOUND_TYPES.NO_ULTRASOUND: 0.10,
