@@ -76,7 +76,6 @@ class ANCObserver(Observer):
                 COLUMNS.ULTRASOUND_TYPE,
                 COLUMNS.GESTATIONAL_AGE,
                 COLUMNS.STATED_GESTATIONAL_AGE,
-                COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION,
                 COLUMNS.PREGNANCY_OUTCOME,
             ],
         )
