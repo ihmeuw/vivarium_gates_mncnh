@@ -72,6 +72,7 @@ class ANCObserver(Observer):
         builder.results.register_concatenating_observation(
             name="anc",
             requires_columns=[
+                COLUMNS.AGE,
                 COLUMNS.ATTENDED_CARE_FACILITY,
                 COLUMNS.ULTRASOUND_TYPE,
                 COLUMNS.GESTATIONAL_AGE,
