@@ -15,6 +15,7 @@ components:
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
+            - ANCObserver()
 
 configuration:
     input_data:
