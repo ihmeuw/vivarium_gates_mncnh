@@ -6,7 +6,7 @@ from vivarium.framework.results import Observer
 from vivarium_public_health.results import COLUMNS, PublicHealthObserver
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
-from vivarium_gates_mncnh.constants.data_values import PREGNANCY_OUTCOMES
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
 
 
 class ResultsStratifier(ResultsStratifier_):
@@ -65,3 +65,18 @@ class BirthObserver(Observer):
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         new_births = results[list(self.COL_MAPPING)].rename(columns=self.COL_MAPPING)
         return new_births
+
+
+class ANCObserver(Observer):
+    def register_observations(self, builder: Builder) -> None:
+        builder.results.register_concatenating_observation(
+            name="anc",
+            requires_columns=[
+                COLUMNS.AGE,
+                COLUMNS.ATTENDED_CARE_FACILITY,
+                COLUMNS.ULTRASOUND_TYPE,
+                COLUMNS.GESTATIONAL_AGE,
+                COLUMNS.STATED_GESTATIONAL_AGE,
+                COLUMNS.PREGNANCY_OUTCOME,
+            ],
+        )

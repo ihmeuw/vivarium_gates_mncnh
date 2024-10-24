@@ -134,6 +134,11 @@ ANC_RATES = __ANCRates()
 
 
 class __Columns(NamedTuple):
+    TRACKED = "tracked"
+    SEX = "sex"
+    ALIVE = "alive"
+    AGE = "age"
+    LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
     PREGNANCY_DURATION = "pregnancy_duration"
     SEX_OF_CHILD = "sex_of_child"
