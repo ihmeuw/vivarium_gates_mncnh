@@ -1,6 +1,5 @@
 from gbd_mapping import sequelae
 from vivarium_gbd_access import constants as gbd_constants
-from vivarium_gbd_access import gbd
 from vivarium_gbd_access import utilities as vi_utils
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
@@ -9,7 +8,7 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.data import utilities
 
 
-@gbd.memory.cache
+@vi_utils.cache
 def load_lbwsg_exposure(location: str):
     entity = utilities.get_entity(data_keys.LBWSG.EXPOSURE)
     location_id = utility_data.get_location_id(location)
