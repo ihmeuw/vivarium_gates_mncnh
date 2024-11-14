@@ -24,7 +24,6 @@ from vivarium_gates_mncnh.utilities import get_location
 
 
 class TreeMachine(Machine):
-
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self._sim_step_name = builder.time.simulation_event_name()
@@ -191,8 +190,8 @@ class AntenatalCare(Component):
             probability_function=self.get_anc_attendance_rate,
         )
         initial_state.add_transition(
-            output_state=end_state, 
-            probability_function=lambda index: 1 - self.get_anc_attendance_rate(index)
+            output_state=end_state,
+            probability_function=lambda index: 1 - self.get_anc_attendance_rate(index),
         )
         attended_antental_care.add_transition(
             output_state=gets_ultrasound,
