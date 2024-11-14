@@ -54,13 +54,14 @@ def get_data(
         data_keys.POPULATION.AGE_BINS: load_age_bins,
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
-        data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
+        
         # data_keys.POPULATION.ACMR: load_standard_data,
         # TODO - add appropriate mappings
         data_keys.PREGNANCY.ASFR: load_asfr,
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
+        data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
@@ -169,6 +170,7 @@ def _load_em_from_meid(location, meid, measure):
 
 
 # TODO - add project-specific data functions here
+
 def load_asfr(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -207,6 +209,28 @@ def load_raw_incidence_data(
     data = vi_utils.split_interval(data, interval_column="age", split_column_prefix="age")
     data = vi_utils.split_interval(data, interval_column="year", split_column_prefix="year")
     return vi_utils.sort_hierarchical_data(data).droplevel("location")
+
+def load_scaling_factor(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    incidence_c995 = load_standard_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE, location, years)
+    incidence_c374 = load_standard_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC, location, years)
+    asfr = load_standard_data(data_keys.PREGNANCY.ASFR, location)
+    asfr = asfr.reset_index()
+    asfr_pivot = asfr.pivot(
+        index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
+        columns="parameter",
+        values="value",
+    )
+    sbr = load_standard_data(data_keys.PREGNANCY.SBR, location)
+    sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
+
+    preg_inc = (asfr.set_index(['location_id','age_group_id'])[['val']]
+                + (asfr.set_index(['location_id','age_group_id'])[['val']]
+                * sbr.set_index(['location_id'])[['val']])
+                + incidence_c995.set_index(['location_id','age_group_id'])[['val']]
+                + incidence_c374.set_index(['location_id','age_group_id'])[['val']])
+    return preg_inc
 
 
 def load_lbwsg_exposure(
