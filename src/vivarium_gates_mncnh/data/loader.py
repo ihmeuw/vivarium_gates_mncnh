@@ -54,6 +54,7 @@ def get_data(
         data_keys.POPULATION.AGE_BINS: load_age_bins,
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
+        data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         # data_keys.POPULATION.ACMR: load_standard_data,
         # TODO - add appropriate mappings
         data_keys.PREGNANCY.ASFR: load_asfr,
