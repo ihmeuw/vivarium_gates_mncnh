@@ -223,7 +223,7 @@ class AntenatalCare(Component):
         standard_ultasound.add_transition(output_state=end_state)
         ai_assisted_ultrasound.add_transition(output_state=end_state)
 
-        return Machine(
+        return TreeMachine(
             "anc_state",
             [
                 initial_state,
