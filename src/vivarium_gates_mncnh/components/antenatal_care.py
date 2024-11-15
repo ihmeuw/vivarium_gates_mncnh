@@ -9,7 +9,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.state_machine import Machine, TransientState
+from vivarium.framework.state_machine import Machine, State, TransientState
 from vivarium.types import ClockTime
 
 from vivarium_gates_mncnh.constants import data_keys
@@ -177,12 +177,12 @@ class AntenatalCare(Component):
         return identification
 
     def create_anc_decision_tree(self) -> Machine:
-        initial_state = TransientState("initial")
+        initial_state = State("initial")
         attended_antental_care = ANCState()
         gets_ultrasound = TransientState("gets_ultrasound")
         standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
         ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
-        end_state = TransientState("end")
+        end_state = State("end")
 
         # Decisions
         initial_state.add_transition(
