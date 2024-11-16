@@ -64,6 +64,10 @@ def get_data(
         data_keys.LBWSG.CATEGORIES: load_metadata,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.ANC.ESTIMATE: load_anc_proportion,
+        data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
+        data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
+        data_keys.MATERNAL_SEPSIS.INCIDENCE_RISK: load_sepsis_incidence_risk,
+        data_keys.MATERNAL_SEPSIS.CASE_FATALITY_RATE: load_sepsis_case_fatality_rate,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -255,6 +259,16 @@ def load_anc_proportion(
     anc_proportion_draws_df["year_start"] = year_start
     anc_proportion_draws_df["year_end"] = year_end
     return anc_proportion_draws_df.set_index(["year_start", "year_end"])
+
+
+def load_sepsis_incidence_risk(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
+) -> pd.DataFrame:
+    # Incidence risk is raw_incidence / ((1 + SBR) ASFR)
+    raw_incidence = get_data(data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE, location)
+    sbr = get_data(data_keys.PREGNANCY.SBR, location)
+    asfr = get_data(data_keys.PREGNANCY.ASFR, location)
+    
 
 
 def reshape_to_vivarium_format(df, location):
