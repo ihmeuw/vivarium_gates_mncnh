@@ -64,6 +64,8 @@ def get_data(
         data_keys.LBWSG.CATEGORIES: load_metadata,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.ANC.ESTIMATE: load_anc_proportion,
+        data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
+        data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
