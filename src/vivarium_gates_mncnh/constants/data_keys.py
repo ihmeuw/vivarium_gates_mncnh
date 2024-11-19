@@ -90,10 +90,6 @@ class __MaternalSepsis(NamedTuple):
     CSMR: str = (
         "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
     )
-    INCIDENCE_RISK: str = "cause.maternal_sepsis_and_other_maternal_infections.incidence_risk"
-    CASE_FATALITY_RATE: str = (
-        "cause.maternal_sepsis_and_other_maternal_infections.case_fatality_rate"
-    )
 
     @property
     def name(self):
