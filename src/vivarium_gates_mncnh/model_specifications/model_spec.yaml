@@ -7,7 +7,7 @@ plugins:
 components:
     vivarium_public_health:
         population:
-            - ScaledPopulation()
+            - ScaledPopulation("population.scaling_factor")
 
     vivarium_gates_mncnh:
         components:
