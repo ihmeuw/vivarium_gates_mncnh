@@ -213,25 +213,35 @@ def load_raw_incidence_data(
 def load_scaling_factor(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    incidence_c995 = load_standard_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE, location, years)
-    incidence_c374 = load_standard_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC, location, years)
-    asfr = load_standard_data(data_keys.PREGNANCY.ASFR, location)
-    asfr = asfr.reset_index()
-    asfr_pivot = asfr.pivot(
-        index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
-        columns="parameter",
-        values="value",
+
+    incidence_c995 = get_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE, location, years).reset_index()
+    incidence_c374 = get_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC, location, years).reset_index()
+    asfr = get_data(data_keys.PREGNANCY.ASFR, location).reset_index()
+    sbr = get_data(data_keys.PREGNANCY.SBR, location).reset_index()
+
+    for df in [incidence_c995, incidence_c374, asfr]:
+        draw_columns = [col for col in df.columns if col.startswith('draw_')]
+        df['value'] = df[draw_columns].mean(axis=1)
+        df['location'] = location
+    
+    asfr = asfr.set_index(['location', 'sex', 'age_start', 'age_end', 'year_start', 'year_end'])
+    incidence_c995 = incidence_c995.set_index(['location', 'sex', 'age_start', 'age_end', 'year_start', 'year_end'])
+    incidence_c374 = incidence_c374.set_index(['location', 'sex', 'age_start', 'age_end', 'year_start', 'year_end'])
+    sbr = (sbr.set_index("year_start")
+            .drop(columns=["year_end"])
+            .reindex(asfr.index, level="year_start")
     )
-    sbr = load_standard_data(data_keys.PREGNANCY.SBR, location)
-    sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
 
-    preg_inc = (asfr.set_index(['location_id','age_group_id'])[['val']]
-                + (asfr.set_index(['location_id','age_group_id'])[['val']]
-                * sbr.set_index(['location_id'])[['val']])
-                + incidence_c995.set_index(['location_id','age_group_id'])[['val']]
-                + incidence_c374.set_index(['location_id','age_group_id'])[['val']])
+    # Calculate pregnancy incidence
+    
+    preg_inc = (
+        asfr
+        + asfr.multiply(sbr["value"], axis=0)
+        + incidence_c995
+        + incidence_c374
+    )
+
     return preg_inc
-
 
 def load_lbwsg_exposure(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
