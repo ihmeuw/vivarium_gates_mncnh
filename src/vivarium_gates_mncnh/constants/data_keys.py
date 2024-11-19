@@ -84,10 +84,16 @@ ANC = __ANC()
 
 class __MaternalSepsis(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    RAW_INCIDENCE_RATE: str = "cause.maternal_sepsis_and_other_maternal_infections.incidence_rate"
-    CSMR: str = "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
+    RAW_INCIDENCE_RATE: str = (
+        "cause.maternal_sepsis_and_other_maternal_infections.incidence_rate"
+    )
+    CSMR: str = (
+        "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
+    )
     INCIDENCE_RISK: str = "cause.maternal_sepsis_and_other_maternal_infections.incidence_risk"
-    CASE_FATALITY_RATE: str = "cause.maternal_sepsis_and_other_maternal_infections.case_fatality_rate"
+    CASE_FATALITY_RATE: str = (
+        "cause.maternal_sepsis_and_other_maternal_infections.case_fatality_rate"
+    )
 
     @property
     def name(self):
