@@ -54,6 +54,7 @@ def get_data(
         data_keys.POPULATION.AGE_BINS: load_age_bins,
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
+        data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         # data_keys.POPULATION.ACMR: load_standard_data,
         # TODO - add appropriate mappings
         data_keys.PREGNANCY.ASFR: load_asfr,
@@ -170,6 +171,8 @@ def _load_em_from_meid(location, meid, measure):
 
 
 # TODO - add project-specific data functions here
+
+
 def load_asfr(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -208,6 +211,34 @@ def load_raw_incidence_data(
     data = vi_utils.split_interval(data, interval_column="age", split_column_prefix="age")
     data = vi_utils.split_interval(data, interval_column="year", split_column_prefix="year")
     return vi_utils.sort_hierarchical_data(data).droplevel("location")
+
+
+def load_scaling_factor(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+
+    incidence_c995 = get_data(
+        data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE, location, years
+    ).reset_index()
+    incidence_c374 = get_data(
+        data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC, location, years
+    ).reset_index()
+    asfr = get_data(data_keys.PREGNANCY.ASFR, location).reset_index()
+    sbr = get_data(data_keys.PREGNANCY.SBR, location).reset_index()
+
+    asfr = asfr.set_index(metadata.ARTIFACT_INDEX_COLUMNS)
+    incidence_c995 = incidence_c995.set_index(metadata.ARTIFACT_INDEX_COLUMNS)
+    incidence_c374 = incidence_c374.set_index(metadata.ARTIFACT_INDEX_COLUMNS)
+    sbr = (
+        sbr.set_index("year_start")
+        .drop(columns=["year_end"])
+        .reindex(asfr.index, level="year_start")
+    )
+
+    # Calculate pregnancy incidence
+    preg_inc = asfr + asfr.multiply(sbr["value"], axis=0) + incidence_c995 + incidence_c374
+
+    return preg_inc
 
 
 def load_lbwsg_exposure(
