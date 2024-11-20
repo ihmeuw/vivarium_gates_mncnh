@@ -236,7 +236,6 @@ def load_scaling_factor(
     )
 
     # Calculate pregnancy incidence
-
     preg_inc = asfr + asfr.multiply(sbr["value"], axis=0) + incidence_c995 + incidence_c374
 
     return preg_inc
