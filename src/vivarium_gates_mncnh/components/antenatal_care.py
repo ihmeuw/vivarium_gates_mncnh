@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Callable
-
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
@@ -9,10 +7,10 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.state_machine import Machine, State, TransientState
+from vivarium.framework.state_machine import State, TransientState
 from vivarium.types import ClockTime
 
-from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_RATES,
     COLUMNS,
@@ -21,30 +19,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     ULTRASOUND_TYPES,
 )
 from vivarium_gates_mncnh.utilities import get_location
-
-
-class TreeMachine(Machine):
-    def setup(self, builder: Builder) -> None:
-        super().setup(builder)
-        self._sim_step_name = builder.time.simulation_event_name()
-
-    def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY:
-            super().on_time_step(event)
-
-
-class ANCState(TransientState):
-    def __init__(self) -> None:
-        super().__init__("attended_antental_care")
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.ATTENDED_CARE_FACILITY]
-
-    def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
-        pop = self.population_view.get(index)
-        pop[COLUMNS.ATTENDED_CARE_FACILITY] = True
-        self.population_view.update(pop)
 
 
 class UltrasoundState(TransientState):
@@ -176,9 +150,11 @@ class AntenatalCare(Component):
         identification[lbw_index] = draws < identification_rates
         return identification
 
-    def create_anc_decision_tree(self) -> Machine:
+    def create_anc_decision_tree(self) -> TreeMachine:
         initial_state = State("initial")
-        attended_antental_care = ANCState()
+        attended_antental_care = DecisionTreeState(
+            "attended_antental_care", COLUMNS.ATTENDED_CARE_FACILITY, True
+        )
         gets_ultrasound = TransientState("gets_ultrasound")
         standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
         ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
@@ -224,7 +200,7 @@ class AntenatalCare(Component):
         ai_assisted_ultrasound.add_transition(output_state=end_state)
 
         return TreeMachine(
-            "anc_state",
+            COLUMNS.ANC_STATE,
             [
                 initial_state,
                 attended_antental_care,
@@ -234,4 +210,5 @@ class AntenatalCare(Component):
                 end_state,
             ],
             initial_state,
+            time_step_name=SIMULATION_EVENT_NAMES.PREGNANCY,
         )
