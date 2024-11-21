@@ -78,6 +78,7 @@ NUM_DRAWS = 500
 class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
     INTRAPARTRUM = "intrapartum"
+    MATERNAL_SEPSIS = "maternal_sepsis"
     NEONATAL = "neonatal"
 
 
@@ -149,6 +150,9 @@ class __Columns(NamedTuple):
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
+    ANC_STATE = "anc_state"
+    SEPSIS_STATE = "sepsis_state"
+    MATERNAL_SEPSIS = "maternal_sepsis"
 
 
 COLUMNS = __Columns()
