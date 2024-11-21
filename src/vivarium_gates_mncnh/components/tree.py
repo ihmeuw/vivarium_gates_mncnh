@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pandas as pd
-
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.state_machine import Machine, State, TransientState
@@ -12,12 +11,12 @@ from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 
 class TreeMachine(Machine):
     def __init__(
-        self, 
-        state_column: str, 
-        states: list[State], 
-        initial_state = None,
+        self,
+        state_column: str,
+        states: list[State],
+        initial_state=None,
         time_step_name: str = "",
-        ):
+    ):
         super().__init__(state_column, states, initial_state)
         # Time step name where the simulants will go through the decision tree
         self._time_step_trigger = time_step_name
@@ -32,8 +31,9 @@ class TreeMachine(Machine):
 
 
 class DecisionTreeState(TransientState):
-    def __init__(self, 
-        state_id: str, 
+    def __init__(
+        self,
+        state_id: str,
         update_col: str,
         update_value: str | bool,
     ) -> None:
@@ -49,4 +49,3 @@ class DecisionTreeState(TransientState):
         pop = self.population_view.get(index)
         pop[self.update_column] = self.update_value
         self.population_view.update(pop)
-

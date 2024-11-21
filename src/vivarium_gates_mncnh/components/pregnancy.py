@@ -56,7 +56,6 @@ class Pregnancy(Component):
             Interface to several simulation tools.
         """
         self.time_step = builder.time.step_size()
-        self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.birth_outcome_probabilities = builder.value.register_value_producer(
             "birth_outcome_probabilities",
