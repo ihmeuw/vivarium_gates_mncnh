@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-import scipy.stats as stats
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.state_machine import State, TransientState
-from vivarium.types import ClockTime
 
-from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
@@ -45,7 +40,7 @@ class MaternalSepsis(Component):
 
         self.population_view.update(anc_data)
 
-    def on_time_step(self, event) -> None:
+    def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.MATERNAL_SEPSIS:
             return
 
