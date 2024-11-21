@@ -15,12 +15,14 @@ components:
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
+            - MaternalSepsis()
+            # Add model observers below here
             - ANCObserver()
 
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/anc/pakistan.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/sepis/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -35,7 +37,8 @@ configuration:
             day: 1
         simulation_events: 
             - 'pregnancy'
-            - 'intrapartum'  
+            - 'intrapartum' 
+            - "maternal_sepsis"
             - 'neonatal'
 
     population:
