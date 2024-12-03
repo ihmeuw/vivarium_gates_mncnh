@@ -104,6 +104,23 @@ class __MaternalSepsis(NamedTuple):
 MATERNAL_SEPSIS = __MaternalSepsis()
 
 
+class __MaternalHemorrhage(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RAW_INCIDENCE_RATE: str = "cause.maternal_hemorrhage.incidence_rate"
+    CSMR: str = "cause.maternal_hemorrhage.cause_specific_mortality_rate"
+
+    @property
+    def name(self):
+        return "maternal_hemorrhage"
+
+    @property
+    def log_name(self):
+        return "maternal hemorrhage"
+
+
+MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
