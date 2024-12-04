@@ -7,10 +7,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import (
-    COLUMNS,
-    PREGNANCY_OUTCOMES,
-)
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
@@ -31,7 +28,7 @@ class MaternalDisorder(Component):
     def __init__(self, maternal_disorder: str) -> None:
         super().__init__()
         self.maternal_disorder = maternal_disorder
-    
+
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
