@@ -121,6 +121,27 @@ class __MaternalHemorrhage(NamedTuple):
 MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
 
 
+class __ObstructedLabor(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RAW_INCIDENCE_RATE: str = (
+        "cause.maternal_obstructed_labor_and_uterine_rupture.incidence_rate"
+    )
+    CSMR: str = (
+        "cause.maternal_obstructed_labor_and_uterine_rupture.cause_specific_mortality_rate"
+    )
+
+    @property
+    def name(self):
+        return "obstructed_labor"
+
+    @property
+    def log_name(self):
+        return "obstructed labor"
+
+
+OBSTRUCTED_LABOR = __ObstructedLabor()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -129,4 +150,5 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     ANC,
     MATERNAL_SEPSIS,
     MATERNAL_HEMORRHAGE,
+    OBSTRUCTED_LABOR,
 ]
