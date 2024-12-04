@@ -16,19 +16,23 @@ from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class MaternalSepsis(Component):
+class MaternalDisorder(Component):
     @property
     def configuration_defaults(self) -> dict:
         return {self.name: {"data_sources": {"incidence_risk": self.load_incidence_risk}}}
 
     @property
     def columns_created(self):
-        return [COLUMNS.MATERNAL_SEPSIS]
+        return [self.maternal_disorder]
 
     @property
     def columns_required(self):
         return [COLUMNS.PREGNANCY_OUTCOME]
 
+    def __init__(self, maternal_disorder: str) -> None:
+        super().__init__()
+        self.maternal_disorder = maternal_disorder
+    
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
@@ -37,7 +41,7 @@ class MaternalSepsis(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
-                COLUMNS.MATERNAL_SEPSIS: False,
+                self.maternal_disorder: False,
             },
             index=pop_data.index,
         )
@@ -45,7 +49,7 @@ class MaternalSepsis(Component):
         self.population_view.update(anc_data)
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.MATERNAL_SEPSIS:
+        if self._sim_step_name() != self.maternal_disorder:
             return
 
         pop = self.population_view.get(event.index)
@@ -54,16 +58,17 @@ class MaternalSepsis(Component):
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
         ]
-        sepsis_risk = self.lookup_tables["incidence_risk"](full_term.index)
+        incidence_risk = self.lookup_tables["incidence_risk"](full_term.index)
         got_sepsis = self.randomness.filter_for_probability(
             full_term.index,
-            sepsis_risk,
-            "got_sepsis_choice",
+            incidence_risk,
+            f"got_{self.name}_choice",
         )
-        pop.loc[got_sepsis, COLUMNS.MATERNAL_SEPSIS] = True
+        pop.loc[got_sepsis, self.maternal_disorder] = True
         self.population_view.update(pop)
 
     def load_incidence_risk(self, builder: Builder) -> pd.DataFrame:
+        artifact_key = "cause." + self.maternal_disorder + ".incidence_rate"
         raw_incidence = builder.data.load(
             data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE
         ).set_index(ARTIFACT_INDEX_COLUMNS)
