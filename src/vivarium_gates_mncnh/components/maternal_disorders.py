@@ -58,7 +58,7 @@ class MaternalDisorder(Component):
         got_sepsis = self.randomness.filter_for_probability(
             full_term.index,
             incidence_risk,
-            f"got_{self.name}_choice",
+            f"got_{self.maternal_disorder}_choice",
         )
         pop.loc[got_sepsis, self.maternal_disorder] = True
         self.population_view.update(pop)
