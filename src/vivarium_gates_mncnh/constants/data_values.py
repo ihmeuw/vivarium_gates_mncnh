@@ -78,7 +78,8 @@ NUM_DRAWS = 500
 class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
     INTRAPARTRUM = "intrapartum"
-    MATERNAL_SEPSIS = "maternal_sepsis"
+    MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
+    MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     NEONATAL = "neonatal"
 
 
@@ -152,7 +153,8 @@ class __Columns(NamedTuple):
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
     ANC_STATE = "anc_state"
     SEPSIS_STATE = "sepsis_state"
-    MATERNAL_SEPSIS = "maternal_sepsis"
+    MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
+    MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
 
 
 COLUMNS = __Columns()
