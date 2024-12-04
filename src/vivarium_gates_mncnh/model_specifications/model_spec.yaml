@@ -15,8 +15,8 @@ components:
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
+            - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
-            - MternalDisorder("maternal_hemorrhage")
             # Add model observers below here
             - ANCObserver()
 
@@ -39,8 +39,8 @@ configuration:
         simulation_events: 
             - 'pregnancy'
             - 'intrapartum' 
-            - "maternal_sepsis_and_other_maternal_infections"
             - "maternal_hemorrhage"
+            - "maternal_sepsis_and_other_maternal_infections"
             - 'neonatal'
 
     population:
