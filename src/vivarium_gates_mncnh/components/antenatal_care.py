@@ -11,6 +11,7 @@ from vivarium.framework.state_machine import State, TransientState
 from vivarium.types import ClockTime
 
 from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
+from vivarium_gates_mncnh.constants.data_keys import ANC
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_RATES,
     COLUMNS,
@@ -68,10 +69,7 @@ class AntenatalCare(Component):
         self.location = get_location(builder)
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        # TODO: update data key to constant
-        anc_attendance_probability = builder.data.load(
-            "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
-        )
+        anc_attendance_probability = builder.data.load(ANC.ESTIMATE)
         self.lookup_tables["anc_attendance_probability"] = self.build_lookup_table(
             builder=builder,
             data_source=anc_attendance_probability,

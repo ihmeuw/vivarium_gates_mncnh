@@ -83,6 +83,7 @@ class _SimulationEventNames(NamedTuple):
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     NEONATAL = "neonatal"
+    MORTALITY = "mortality"
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
@@ -139,6 +140,7 @@ ANC_RATES = __ANCRates()
 
 class __Columns(NamedTuple):
     TRACKED = "tracked"
+    EXIT_TIME = "exit_time"
     SEX = "sex"
     ALIVE = "alive"
     AGE = "age"
@@ -154,7 +156,6 @@ class __Columns(NamedTuple):
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
     ANC_STATE = "anc_state"
-    SEPSIS_STATE = "sepsis_state"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
