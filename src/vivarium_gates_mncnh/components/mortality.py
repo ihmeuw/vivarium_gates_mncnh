@@ -126,7 +126,6 @@ class Mortality(Component):
                 additional_key="cause_of_death",
             )
             pop.loc[dead_idx, COLUMNS.CAUSE_OF_DEATH] = cause_of_death
-            # TODO: calculate disability metrics
             pop.loc[dead_idx, COLUMNS.YEARS_OF_LIFE_LOST] = self.lookup_tables[
                 "life_expectancy"
             ](dead_idx)
