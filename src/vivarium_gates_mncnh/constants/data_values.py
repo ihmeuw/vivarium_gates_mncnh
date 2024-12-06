@@ -76,10 +76,12 @@ NUM_DRAWS = 500
 
 
 class _SimulationEventNames(NamedTuple):
+    # Constants for the simulation events. Used for string comparison in components.
     PREGNANCY = "pregnancy"
     INTRAPARTRUM = "intrapartum"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     NEONATAL = "neonatal"
 
 
@@ -155,6 +157,7 @@ class __Columns(NamedTuple):
     SEPSIS_STATE = "sepsis_state"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
 
 
 COLUMNS = __Columns()
