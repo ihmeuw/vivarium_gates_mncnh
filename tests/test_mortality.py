@@ -6,7 +6,7 @@ from vivarium_gates_mncnh.constants.data_values import COLUMNS
 
 
 def test_get_proportional_case_fatality_rates():
-    """This is a unit test for calculating the proportional case fatality rates."""
+    """Tests that proportional case fatality rates sum to 1."""
 
     # Make case fatality data
     simulant_idx = pd.Index(list(range(10)))
