@@ -26,6 +26,7 @@ class Mortality(Component):
         return {
             "mortality": {
                 "data_sources": {
+                    "life_expectancy": "population.theoretical_minimum_risk_life_expectancy",
                     # TODO: add additional maternal disorders when implemented
                     "maternal_hemorrhage_case_fatality_rate": partial(
                         self.load_cfr_data,
@@ -108,21 +109,28 @@ class Mortality(Component):
             choice_data["total_cfr"],
             "mortality_choice",
         )
-        pop.loc[dead_idx, COLUMNS.ALIVE] = "dead"
-        # TODO: Do I have to untrack simulants that are dead?
 
-        # Get maternal disorders each simulant is affect by
-        cause_of_death = self.randomness.choice(
-            index=dead_idx,
-            choices=self.maternal_disorders,
-            p=choice_data.loc[
-                dead_idx,
-                [f"{disorder}_proportional_cfr" for disorder in self.maternal_disorders],
-            ],
-            additional_key="cause_of_death",
-        )
-        pop.loc[dead_idx, COLUMNS.CAUSE_OF_DEATH] = cause_of_death
-        # TODO: calculate disability metrics
+        # Update metadata for simulants that died
+        if not dead_idx.empty:
+            pop.loc[dead_idx, COLUMNS.ALIVE] = "dead"
+            # TODO: Do I have to untrack simulants that are dead?
+
+            # Get maternal disorders each simulant is affect by
+            cause_of_death = self.randomness.choice(
+                index=dead_idx,
+                choices=self.maternal_disorders,
+                p=choice_data.loc[
+                    dead_idx,
+                    [f"{disorder}_proportional_cfr" for disorder in self.maternal_disorders],
+                ],
+                additional_key="cause_of_death",
+            )
+            pop.loc[dead_idx, COLUMNS.CAUSE_OF_DEATH] = cause_of_death
+            # TODO: calculate disability metrics
+            pop.loc[dead_idx, COLUMNS.YEARS_OF_LIFE_LOST] = self.lookup_tables[
+                "life_expectancy"
+            ](dead_idx)
+
         self.population_view.update(pop)
 
     ##################
