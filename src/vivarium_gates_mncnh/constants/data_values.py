@@ -144,6 +144,8 @@ class __Columns(NamedTuple):
     SEX = "sex"
     ALIVE = "alive"
     AGE = "age"
+    CAUSE_OF_DEATH = "cause_of_death"
+    YEARS_OF_LIFE_LOST = "years_of_life_lost"
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
     PREGNANCY_DURATION = "pregnancy_duration"
