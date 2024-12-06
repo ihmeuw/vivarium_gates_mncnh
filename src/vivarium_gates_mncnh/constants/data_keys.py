@@ -91,6 +91,7 @@ class __MaternalSepsis(NamedTuple):
     CSMR: str = (
         "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
     )
+    YLD_RATE = "cause.maternal_sepsis_and_other_maternal_infections.yld_rate"
 
     @property
     def name(self):
@@ -108,6 +109,7 @@ class __MaternalHemorrhage(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     RAW_INCIDENCE_RATE: str = "cause.maternal_hemorrhage.incidence_rate"
     CSMR: str = "cause.maternal_hemorrhage.cause_specific_mortality_rate"
+    YLD_RATE: str = "cause.maternal_hemorrhage.yld_rate"
 
     @property
     def name(self):
@@ -129,6 +131,7 @@ class __ObstructedLabor(NamedTuple):
     CSMR: str = (
         "cause.maternal_obstructed_labor_and_uterine_rupture.cause_specific_mortality_rate"
     )
+    YLD_RATE: str = "cause.maternal_obstructed_labor_and_uterine_rupture.yld_rate"
 
     @property
     def name(self):
