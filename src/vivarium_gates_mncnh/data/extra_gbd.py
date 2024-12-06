@@ -37,6 +37,6 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
         year_id=2021,
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
         measure_id=vi_globals.MEASURES["YLDs"],
-        metric_id=vi_globals.METRICS["RATE"],
+        metric_id=vi_globals.METRICS["Rate"],
     )
     return data
