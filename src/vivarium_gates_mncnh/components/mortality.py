@@ -24,14 +24,14 @@ class MortalityDueToMaternalDisorders(Component):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
-            "mortality": {
+            self.name: {
                 "data_sources": {
                     **{
                         "life_expectancy": "population.theoretical_minimum_risk_life_expectancy"
                     },
                     **{
-                        cause: partial(
-                            self.load_cfr_data, key_name=f"{cause}_case_fatality_rate"
+                        f"{cause}_case_fatality_rate": partial(
+                            self.load_cfr_data, key_name=cause
                         )
                         for cause in self.maternal_disorders
                     },
