@@ -14,7 +14,7 @@ from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class Mortality(Component):
+class MortalityDueToMaternalDisorders(Component):
     """A component to handle mortality caused by the modeled maternal disorders."""
 
     ##############
@@ -26,20 +26,15 @@ class Mortality(Component):
         return {
             "mortality": {
                 "data_sources": {
-                    "life_expectancy": "population.theoretical_minimum_risk_life_expectancy",
-                    # TODO: add additional maternal disorders when implemented
-                    "maternal_hemorrhage_case_fatality_rate": partial(
-                        self.load_cfr_data,
-                        key_name="maternal_hemorrhage_case_fatality_rate",
-                    ),
-                    "maternal_sepsis_and_other_maternal_infections_case_fatality_rate": partial(
-                        self.load_cfr_data,
-                        key_name="maternal_sepsis_and_other_maternal_infections_case_fatality_rate",
-                    ),
-                    "maternal_obstructed_labor_and_uterine_rupture_case_fatality_rate": partial(
-                        self.load_cfr_data,
-                        key_name="maternal_obstructed_labor_and_uterine_rupture_case_fatality_rate",
-                    ),
+                    **{
+                        "life_expectancy": "population.theoretical_minimum_risk_life_expectancy"
+                    },
+                    **{
+                        cause: partial(
+                            self.load_cfr_data, key_name=f"{cause}_case_fatality_rate"
+                        )
+                        for cause in self.maternal_disorders
+                    },
                 },
             },
         }
@@ -106,14 +101,13 @@ class Mortality(Component):
         # Decide what simulants die from what maternal disorders
         dead_idx = self.randomness.filter_for_probability(
             choice_data.index,
-            choice_data["total_cfr"],
+            choice_data["mortality_probability"],
             "mortality_choice",
         )
 
         # Update metadata for simulants that died
         if not dead_idx.empty:
             pop.loc[dead_idx, COLUMNS.ALIVE] = "dead"
-            # TODO: Do I have to untrack simulants that are dead?
 
             # Get maternal disorders each simulant is affect by
             cause_of_death = self.randomness.choice(
@@ -157,7 +151,7 @@ class Mortality(Component):
             simulants[disorder] = simulants[disorder] * self.lookup_tables[
                 f"{disorder}_case_fatality_rate"
             ](simulants.index)
-        simulants["total_cfr"] = simulants[self.maternal_disorders].sum(axis=1)
+        simulants["mortality_probability"] = simulants[self.maternal_disorders].sum(axis=1)
         cfr_data = self.get_proportional_case_fatality_rates(simulants)
 
         return cfr_data
@@ -167,7 +161,7 @@ class Mortality(Component):
 
         for disorder in self.maternal_disorders:
             simulants[f"{disorder}_proportional_cfr"] = (
-                simulants[disorder] / simulants["total_cfr"]
+                simulants[disorder] / simulants["mortality_probability"]
             )
 
         return simulants
