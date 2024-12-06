@@ -97,14 +97,10 @@ class Mortality(Component):
         has_maternal_disorders = has_maternal_disorders.loc[
             has_maternal_disorders.any(axis=1)
         ]
-        choice_data = has_maternal_disorders.copy()
 
-        # Get what maternal disorders each simulant is affected by
-        choice_data["maternal_disorders"] = has_maternal_disorders.apply(
-            lambda row: row[row == True].index.tolist(), axis=1
-        )
-        # Get total case fatality rate for each simulant
-        choice_data = self.calculate_case_fatality_metrics(choice_data)
+        # Get raw and conditional case fatality rates for each simulant
+        choice_data = has_maternal_disorders.copy()
+        choice_data = self.calculate_case_fatality_rates(choice_data)
 
         # Decide what simulants die from what maternal disorders
         dead_idx = self.randomness.filter_for_probability(
@@ -146,11 +142,10 @@ class Mortality(Component):
 
         return cfr
 
-    def calculate_case_fatality_metrics(self, simulants: pd.DataFrame) -> pd.DataFrame:
+    def calculate_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
         """Calculate the total and proportional case fatality rate for each simulant."""
 
-        # Simulants is a dataframe with columns for each maternal disorder that are boolean and then
-        # a column that has a list of each maternal disorder a simulant has.
+        # Simulants is a boolean dataframe of whether or not a simulant has each maternal disorder.
         for disorder in self.maternal_disorders:
             simulants[disorder] = simulants[disorder] * self.lookup_tables[
                 f"{disorder}_case_fatality_rate"
@@ -167,12 +162,5 @@ class Mortality(Component):
             simulants[f"{disorder}_proportional_cfr"] = (
                 simulants[disorder] / simulants["total_cfr"]
             )
-        # Combine the proportional case fatality rates into a list in one series
-        simulants["proportional_cfrs"] = simulants.apply(
-            lambda row: [
-                row[f"{disorder}_proportional_cfr"] for disorder in self.maternal_disorders
-            ],
-            axis=1,
-        )
 
         return simulants
