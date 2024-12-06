@@ -69,6 +69,8 @@ def get_data(
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
+        data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
+        data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
