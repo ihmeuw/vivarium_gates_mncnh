@@ -91,7 +91,7 @@ class __MaternalSepsis(NamedTuple):
     CSMR: str = (
         "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
     )
-    YLD_RATE = "cause.maternal_sepsis_and_other_maternal_infections.yld_rate"
+    YLD_RATE: str = "cause.maternal_sepsis_and_other_maternal_infections.yld_rate"
 
     @property
     def name(self):
