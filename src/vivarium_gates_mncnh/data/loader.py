@@ -68,10 +68,13 @@ def get_data(
         data_keys.ANC.ESTIMATE: load_anc_proportion,
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
+        data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
+        data_keys.MATERNAL_HEMORRHAGE.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
+        data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -293,6 +296,19 @@ def load_anc_proportion(
     anc_proportion_draws_df["year_start"] = year_start
     anc_proportion_draws_df["year_end"] = year_end
     return anc_proportion_draws_df.set_index(["year_start", "year_end"])
+
+
+def load_maternal_disorder_yld_rate(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
+) -> pd.DataFrame:
+
+    groupby_cols = ["age_group_id", "sex_id", "year_id"]
+    draw_cols = vi_globals.DRAW_COLUMNS
+    yld_rate = extra_gbd.get_maternal_disorder_yld_rate(key, location)
+    yld_rate = yld_rate[groupby_cols + draw_cols]
+    yld_rate = reshape_to_vivarium_format(yld_rate, location)
+
+    return yld_rate
 
 
 def reshape_to_vivarium_format(df, location):
