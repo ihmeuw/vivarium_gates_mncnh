@@ -45,7 +45,9 @@ class MortalityDueToMaternalDisorders(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return [COLUMNS.CAUSE_OF_DEATH, COLUMNS.YEARS_OF_LIFE_LOST]
+        return [COLUMNS.CAUSE_OF_DEATH, COLUMNS.YEARS_OF_LIFE_LOST] + [
+            f"{cause}_ylds" for cause in self.maternal_disorders
+        ]
 
     @property
     def columns_required(self) -> list[str]:
@@ -80,12 +82,12 @@ class MortalityDueToMaternalDisorders(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
-            **{
-                COLUMNS.CAUSE_OF_DEATH: "not_dead",
-                COLUMNS.YEARS_OF_LIFE_LOST: 0.0,
-            },
-            **{
-                f"{cause}_ylds": 0.0 for cause in self.maternal_disorders
+            {
+                **{
+                    COLUMNS.CAUSE_OF_DEATH: "not_dead",
+                    COLUMNS.YEARS_OF_LIFE_LOST: 0.0,
+                },
+                **{f"{cause}_ylds": 0.0 for cause in self.maternal_disorders},
             },
             index=pop_data.index,
         )
@@ -131,13 +133,13 @@ class MortalityDueToMaternalDisorders(Component):
                 "life_expectancy"
             ](dead_idx)
 
-            # Update YLDs for each maternal disorder
-            yld_idx = has_maternal_disorders.index.differnece(dead_idx)
-            for cause in self.maternal_disorders:
-                pop.loc[yld_idx, f"{cause}_ylds"] = self.lookup_tables[
-                    f"{cause}_yld_rate"
-                ](yld_idx)
-        breakpoint()
+        # Update YLDs for each maternal disorder
+        yld_idx = has_maternal_disorders.index.difference(dead_idx)
+        for cause in self.maternal_disorders:
+            pop.loc[yld_idx, f"{cause}_ylds"] = self.lookup_tables[f"{cause}_yld_rate"](
+                yld_idx
+            )
+
         self.population_view.update(pop)
 
     ##################
