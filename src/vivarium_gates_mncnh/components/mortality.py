@@ -14,8 +14,8 @@ from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class MortalityDueToMaternalDisorders(Component):
-    """A component to handle mortality caused by the modeled maternal disorders."""
+class MaternalDisordersBurden(Component):
+    """A component to handle morbidity and mortality caused by the modeled maternal disorders."""
 
     ##############
     # Properties #
