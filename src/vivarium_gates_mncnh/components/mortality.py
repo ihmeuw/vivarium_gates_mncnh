@@ -14,8 +14,8 @@ from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class MortalityDueToMaternalDisorders(Component):
-    """A component to handle mortality caused by the modeled maternal disorders."""
+class MaternalDisordersBurden(Component):
+    """A component to handle morbidity and mortality caused by the modeled maternal disorders."""
 
     ##############
     # Properties #
@@ -35,13 +35,19 @@ class MortalityDueToMaternalDisorders(Component):
                         )
                         for cause in self.maternal_disorders
                     },
+                    **{
+                        f"{cause}_yld_rate": f"cause.{cause}.yld_rate"
+                        for cause in self.maternal_disorders
+                    },
                 },
             },
         }
 
     @property
     def columns_created(self) -> list[str]:
-        return [COLUMNS.CAUSE_OF_DEATH, COLUMNS.YEARS_OF_LIFE_LOST]
+        return [COLUMNS.CAUSE_OF_DEATH, COLUMNS.YEARS_OF_LIFE_LOST] + [
+            f"{cause}_ylds" for cause in self.maternal_disorders
+        ]
 
     @property
     def columns_required(self) -> list[str]:
@@ -77,8 +83,11 @@ class MortalityDueToMaternalDisorders(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
-                COLUMNS.CAUSE_OF_DEATH: "not_dead",
-                COLUMNS.YEARS_OF_LIFE_LOST: 0.0,
+                **{
+                    COLUMNS.CAUSE_OF_DEATH: "not_dead",
+                    COLUMNS.YEARS_OF_LIFE_LOST: 0.0,
+                },
+                **{f"{cause}_ylds": 0.0 for cause in self.maternal_disorders},
             },
             index=pop_data.index,
         )
@@ -124,6 +133,13 @@ class MortalityDueToMaternalDisorders(Component):
                 "life_expectancy"
             ](dead_idx)
 
+        # Update YLDs for each maternal disorder
+        yld_idx = has_maternal_disorders.index.difference(dead_idx)
+        for cause in self.maternal_disorders:
+            pop.loc[yld_idx, f"{cause}_ylds"] = self.lookup_tables[f"{cause}_yld_rate"](
+                yld_idx
+            )
+
         self.population_view.update(pop)
 
     ##################
@@ -147,9 +163,9 @@ class MortalityDueToMaternalDisorders(Component):
         """Calculate the total and proportional case fatality rate for each simulant."""
 
         # Simulants is a boolean dataframe of whether or not a simulant has each maternal disorder.
-        for disorder in self.maternal_disorders:
-            simulants[disorder] = simulants[disorder] * self.lookup_tables[
-                f"{disorder}_case_fatality_rate"
+        for cause in self.maternal_disorders:
+            simulants[cause] = simulants[cause] * self.lookup_tables[
+                f"{cause}_case_fatality_rate"
             ](simulants.index)
         simulants["mortality_probability"] = simulants[self.maternal_disorders].sum(axis=1)
         cfr_data = self.get_proportional_case_fatality_rates(simulants)
@@ -159,9 +175,9 @@ class MortalityDueToMaternalDisorders(Component):
     def get_proportional_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
         """Calculate the proportional case fatality rates for each maternal disorder."""
 
-        for disorder in self.maternal_disorders:
-            simulants[f"{disorder}_proportional_cfr"] = (
-                simulants[disorder] / simulants["mortality_probability"]
+        for cause in self.maternal_disorders:
+            simulants[f"{cause}_proportional_cfr"] = (
+                simulants[cause] / simulants["mortality_probability"]
             )
 
         return simulants
