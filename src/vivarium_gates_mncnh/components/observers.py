@@ -2,11 +2,15 @@ from typing import Any
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import Observer
+from vivarium.framework.results import Observer, StrtifiedObserver
 from vivarium_public_health.results import COLUMNS, PublicHealthObserver
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    MATERNAL_DISORDERS,
+    PREGNANCY_OUTCOMES,
+)
 
 
 class ResultsStratifier(ResultsStratifier_):
@@ -37,6 +41,11 @@ class ResultsStratifier(ResultsStratifier_):
 
         builder.results.register_stratification(
             "sex", ["Female", "Male"], requires_columns=["sex"]
+        )
+        builder.results.register_stratification(
+            "maternal_disorder",
+            MATERNAL_DISORDERS,
+            requires_columns=MATERNAL_DISORDERS,
         )
 
 
@@ -80,3 +89,46 @@ class ANCObserver(Observer):
                 COLUMNS.PREGNANCY_OUTCOME,
             ],
         )
+
+
+class MaternalDisordersBurdenObserver(StrtifiedObserver):
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": [self.maternal_disorders],
+                    "include": [],
+                },
+            },
+        }
+
+    def __init__(self):
+        super().__init__()
+        self.maternal_disorders = MATERNAL_DISORDERS
+
+    def register_observations(self, builder: Builder) -> None:
+        builder.results.register_adding_observation(
+            name="maternal_disorders_burden",
+            pop_filter=(
+                "("
+                f"{COLUMNS.ALIVE} == 'dead' and "
+                f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'"
+                f"or {COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME}'"
+                ") "
+            ),
+            requires_columns=[
+                COLUMNS.AGE,
+                COLUMNS.ALIVE,
+                COLUMNS.PREGNANCY_OUTCOME,
+                COLUMNS.CAUSE_OF_DEATH,
+                COLUMNS.YEARS_OF_LIFE_LOST,
+            ]
+            + self.maternal_disorders
+            + [f"{cause}_ylds" for cause in self.maternal_disorders],
+        )
+
+    # TODO: get number of full term pregnancies
+    # TODO: get number of cases of each disorder
+    # TODO: get number of deaths from each disorder
+    # TODO: get YLLs and YLDs from each disorder

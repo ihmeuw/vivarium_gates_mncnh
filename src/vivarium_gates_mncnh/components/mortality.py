@@ -9,7 +9,11 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    MATERNAL_DISORDERS,
+    SIMULATION_EVENT_NAMES,
+)
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
@@ -64,12 +68,7 @@ class MaternalDisordersBurden(Component):
 
     def __init__(self) -> None:
         super().__init__()
-        # TODO: update list of maternal disorders when implemented
-        self.maternal_disorders = [
-            COLUMNS.OBSTRUCTED_LABOR,
-            COLUMNS.MATERNAL_HEMORRHAGE,
-            COLUMNS.MATERNAL_SEPSIS,
-        ]
+        self.maternal_disorders = MATERNAL_DISORDERS
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
