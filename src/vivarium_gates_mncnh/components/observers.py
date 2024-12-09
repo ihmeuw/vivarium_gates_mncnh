@@ -2,7 +2,7 @@ from typing import Any
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import Observer, StrtifiedObserver
+from vivarium.framework.results import Observer
 from vivarium_public_health.results import COLUMNS
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 

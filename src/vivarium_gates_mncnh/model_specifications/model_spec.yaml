@@ -15,17 +15,18 @@ components:
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
-            - MaternalDisordersBurden()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - MaternalDisordersBurden()
             # Add model observers below here
             - ANCObserver()
+            - MaternalDisordersBurdenObserver()
 
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/mortality/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/hemorrhage/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -56,6 +57,9 @@ configuration:
     stratification:
         default:
             - 'age_group'
+        maternal_disorders_burden:
+            - include:
+                - "maternal_disorder"
         # disability:
         #     include:
         #     exclude:
