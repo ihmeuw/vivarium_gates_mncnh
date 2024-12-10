@@ -117,7 +117,7 @@ class MaternalDisordersBurdenObserver(Observer):
         return builder.configuration["stratification"][self.get_configuration_name()]
 
     def register_observations(self, builder: Builder) -> None:
-        pop_filter = f"{COLUMNS.ALIVE} == 'dead'"
+        dead_pop_filter = f"{COLUMNS.ALIVE} == 'dead'"
         builder.results.register_stratification(
             "cause_of_maternal_death",
             MATERNAL_DISORDERS + ["not_dead"],
@@ -127,7 +127,7 @@ class MaternalDisordersBurdenObserver(Observer):
 
         builder.results.register_adding_observation(
             name="maternal_disorder_deaths",
-            pop_filter=pop_filter,
+            pop_filter=dead_pop_filter,
             requires_columns=[COLUMNS.ALIVE],
             additional_stratifications=self.configuration.include
             + ["cause_of_maternal_death"],
@@ -136,7 +136,7 @@ class MaternalDisordersBurdenObserver(Observer):
         )
         builder.results.register_adding_observation(
             name="maternal_disorder_ylls",
-            pop_filter=pop_filter,
+            pop_filter=dead_pop_filter,
             requires_columns=[COLUMNS.ALIVE, COLUMNS.YEARS_OF_LIFE_LOST],
             additional_stratifications=self.configuration.include
             + ["cause_of_maternal_death"],
@@ -155,7 +155,7 @@ class MaternalDisordersBurdenObserver(Observer):
             )
             builder.results.register_adding_observation(
                 name=f"{cause}_ylds",
-                pop_filter=f'{COLUMNS.ALIVE} == "alive" and {cause} == True',
+                pop_filter=f"{cause} == True",
                 requires_columns=[cause],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
