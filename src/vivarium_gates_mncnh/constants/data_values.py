@@ -164,3 +164,11 @@ class __Columns(NamedTuple):
 
 
 COLUMNS = __Columns()
+
+
+# TODO: add other maternal disorders when implemented
+MATERNAL_DISORDERS = [
+    COLUMNS.OBSTRUCTED_LABOR,
+    COLUMNS.MATERNAL_HEMORRHAGE,
+    COLUMNS.MATERNAL_SEPSIS,
+]

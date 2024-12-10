@@ -4,6 +4,7 @@ from vivarium_gates_mncnh.components.mortality import MaternalDisordersBurden
 from vivarium_gates_mncnh.components.observers import (
     ANCObserver,
     BirthObserver,
+    MaternalDisordersBurdenObserver,
     ResultsStratifier,
 )
 from vivarium_gates_mncnh.components.pregnancy import Pregnancy
