@@ -26,7 +26,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/hemorrhage/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/mortality/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
