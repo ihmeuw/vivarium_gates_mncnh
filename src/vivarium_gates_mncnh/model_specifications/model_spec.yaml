@@ -15,12 +15,13 @@ components:
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
-            - MaternalDisordersBurden()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - MaternalDisordersBurden()
             # Add model observers below here
             - ANCObserver()
+            - MaternalDisordersBurdenObserver()
 
 configuration:
     input_data:
@@ -52,13 +53,7 @@ configuration:
         initialization_age_min: 10
         initialization_age_max: 54
         include_sex: "Female"
-
+    
     stratification:
         default:
             - 'age_group'
-        # disability:
-        #     include:
-        #     exclude:
-        # mortality:
-        #     include:
-        #     exclude:
