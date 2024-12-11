@@ -9,7 +9,11 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    MATERNAL_DISORDERS,
+    SIMULATION_EVENT_NAMES,
+)
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
@@ -31,12 +35,8 @@ class MaternalDisordersBurden(Component):
                     },
                     **{
                         f"{cause}_case_fatality_rate": partial(
-                            self.load_cfr_data, key_name=cause
+                            self.load_cfr_data, cause=cause
                         )
-                        for cause in self.maternal_disorders
-                    },
-                    **{
-                        f"{cause}_yld_rate": f"cause.{cause}.yld_rate"
                         for cause in self.maternal_disorders
                     },
                 },
@@ -45,9 +45,7 @@ class MaternalDisordersBurden(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return [COLUMNS.CAUSE_OF_DEATH, COLUMNS.YEARS_OF_LIFE_LOST] + [
-            f"{cause}_ylds" for cause in self.maternal_disorders
-        ]
+        return [COLUMNS.CAUSE_OF_DEATH, COLUMNS.YEARS_OF_LIFE_LOST]
 
     @property
     def columns_required(self) -> list[str]:
@@ -64,12 +62,7 @@ class MaternalDisordersBurden(Component):
 
     def __init__(self) -> None:
         super().__init__()
-        # TODO: update list of maternal disorders when implemented
-        self.maternal_disorders = [
-            COLUMNS.OBSTRUCTED_LABOR,
-            COLUMNS.MATERNAL_HEMORRHAGE,
-            COLUMNS.MATERNAL_SEPSIS,
-        ]
+        self.maternal_disorders = MATERNAL_DISORDERS
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -83,11 +76,8 @@ class MaternalDisordersBurden(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
-                **{
-                    COLUMNS.CAUSE_OF_DEATH: "not_dead",
-                    COLUMNS.YEARS_OF_LIFE_LOST: 0.0,
-                },
-                **{f"{cause}_ylds": 0.0 for cause in self.maternal_disorders},
+                COLUMNS.CAUSE_OF_DEATH: "not_dead",
+                COLUMNS.YEARS_OF_LIFE_LOST: 0.0,
             },
             index=pop_data.index,
         )
@@ -133,28 +123,20 @@ class MaternalDisordersBurden(Component):
                 "life_expectancy"
             ](dead_idx)
 
-        # Update YLDs for each maternal disorder
-        yld_idx = has_maternal_disorders.index.difference(dead_idx)
-        for cause in self.maternal_disorders:
-            pop.loc[yld_idx, f"{cause}_ylds"] = self.lookup_tables[f"{cause}_yld_rate"](
-                yld_idx
-            )
-
         self.population_view.update(pop)
 
     ##################
     # Helper methods #
     ##################
 
-    def load_cfr_data(self, builder: Builder, key_name: str) -> pd.DataFrame:
+    def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
-        maternal_disorder = key_name.split("_case_fatality_rate")[0]
-        incidence_rate = builder.data.load(
-            f"cause.{maternal_disorder}.incidence_rate"
-        ).set_index(ARTIFACT_INDEX_COLUMNS)
-        csmr = builder.data.load(
-            f"cause.{maternal_disorder}.cause_specific_mortality_rate"
-        ).set_index(ARTIFACT_INDEX_COLUMNS)
+        incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+            ARTIFACT_INDEX_COLUMNS
+        )
+        csmr = builder.data.load(f"cause.{cause}.cause_specific_mortality_rate").set_index(
+            ARTIFACT_INDEX_COLUMNS
+        )
         cfr = (csmr / incidence_rate).fillna(0).reset_index()
 
         return cfr
