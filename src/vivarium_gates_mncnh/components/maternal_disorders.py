@@ -65,9 +65,7 @@ class MaternalDisorder(Component):
 
     def load_incidence_risk(self, builder: Builder) -> pd.DataFrame:
         artifact_key = "cause." + self.maternal_disorder + ".incidence_rate"
-        raw_incidence = builder.data.load(
-            data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE
-        ).set_index(ARTIFACT_INDEX_COLUMNS)
+        raw_incidence = builder.data.load(artifact_key).set_index(ARTIFACT_INDEX_COLUMNS)
         asfr = builder.data.load(data_keys.PREGNANCY.ASFR).set_index(ARTIFACT_INDEX_COLUMNS)
         sbr = (
             builder.data.load(data_keys.PREGNANCY.SBR)
