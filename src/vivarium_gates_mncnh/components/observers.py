@@ -57,7 +57,11 @@ class BirthObserver(Observer):
         "pregnancy_outcome": "pregnancy_outcome",
     }
 
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
     def register_observations(self, builder: Builder) -> None:
+        # TODO: update this to adding observation when docs are ready
         builder.results.register_concatenating_observation(
             name="births",
             pop_filter=(
@@ -68,15 +72,23 @@ class BirthObserver(Observer):
             ),
             requires_columns=list(self.COL_MAPPING),
             results_formatter=self.format,
+            to_observe=self.to_observe,
         )
 
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         new_births = results[list(self.COL_MAPPING)].rename(columns=self.COL_MAPPING)
         return new_births
 
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY
+
 
 class ANCObserver(Observer):
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
     def register_observations(self, builder: Builder) -> None:
+        # TODO: update this to adding observation when docs are ready
         builder.results.register_concatenating_observation(
             name="anc",
             requires_columns=[
@@ -87,7 +99,11 @@ class ANCObserver(Observer):
                 COLUMNS.STATED_GESTATIONAL_AGE,
                 COLUMNS.PREGNANCY_OUTCOME,
             ],
+            to_observe=self.to_observe,
         )
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY
 
 
 class MaternalDisordersBurdenObserver(Observer):
