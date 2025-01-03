@@ -331,7 +331,9 @@ def load_lbwsg_rr(
     return data
 
 
-def load_lbwsg_interpolated_rr(key: str, location: str) -> pd.DataFrame:
+def load_lbwsg_interpolated_rr(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]]
+) -> pd.DataFrame:
     if key != data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR:
         raise ValueError(f"Unrecognized key {key}")
 
