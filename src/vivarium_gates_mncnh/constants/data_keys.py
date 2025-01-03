@@ -164,9 +164,7 @@ PRETERM_BIRTH = __NeonatalPretermBirth()
 
 class __NeonatalSepsis(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    CSMR: str = (
-        "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
-    )
+    CSMR: str = "cause.neonatal_neonatal_sepsis_and_other_neonatal_infectionssepsis.cause_specific_mortality_rate"
 
     @property
     def name(self):
