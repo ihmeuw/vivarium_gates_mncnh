@@ -16,6 +16,7 @@ class __Population(NamedTuple):
     DEMOGRAPHY: str = "population.demographic_dimensions"
     TMRLE: str = "population.theoretical_minimum_risk_life_expectancy"
     SCALING_FACTOR: str = "population.scaling_factor"
+    ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
 
     @property
     def name(self):
@@ -145,6 +146,54 @@ class __ObstructedLabor(NamedTuple):
 OBSTRUCTED_LABOR = __ObstructedLabor()
 
 
+class __NeonatalPretermBirth(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
+
+    @property
+    def name(self):
+        return "neonatal_preterm_birth"
+
+    @property
+    def log_name(self):
+        return "neonatal preterm birth"
+
+
+PRETERM_BIRTH = __NeonatalPretermBirth()
+
+
+class __NeonatalSepsis(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    CSMR: str = "cause.neonatal_neonatal_sepsis_and_other_neonatal_infectionssepsis.cause_specific_mortality_rate"
+
+    @property
+    def name(self):
+        return "neonatal_sepsis"
+
+    @property
+    def log_name(self):
+        return "neonatal sepsis"
+
+
+NEONATAL_SEPSIS = __NeonatalSepsis()
+
+
+class __NeonatalEncephalopath(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    CSMR: str = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+
+    @property
+    def name(self):
+        return "neonatal_encephalopathy"
+
+    @property
+    def log_name(self):
+        return "neonatal encephalopathy"
+
+
+NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -154,4 +203,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     MATERNAL_SEPSIS,
     MATERNAL_HEMORRHAGE,
     OBSTRUCTED_LABOR,
+    PRETERM_BIRTH,
+    NEONATAL_SEPSIS,
+    NEONATAL_ENCEPHALOPATHY,
 ]
