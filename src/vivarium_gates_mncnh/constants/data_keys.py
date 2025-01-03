@@ -55,6 +55,13 @@ class __LowBirthWeightShortGestation(NamedTuple):
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
+    RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
+    RELATIVE_RISK_INTERPOLATOR: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
+    )
+    PAF: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction"
+    )
 
     @property
     def name(self):
