@@ -8,6 +8,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
@@ -83,7 +84,7 @@ class MaternalDisordersBurden(Component):
         )
         self.population_view.update(pop_update)
 
-    def on_time_step(self, event) -> None:
+    def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.MORTALITY:
             return
 
@@ -163,3 +164,79 @@ class MaternalDisordersBurden(Component):
             )
 
         return simulants
+
+
+class NeonatalMortality(Component):
+    """A component to handle neonatal mortality."""
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            self.name: {
+                "data_sources": {
+                    "all_cause_mortality_rate": "cause.all_causes.cause_specific_mortality_rate",
+                    "life_expectancy": "population.theoretical_minimum_risk_life_expectancy",
+                }
+            }
+        }
+
+    @property
+    def columns_created(self) -> list[str]:
+        return [COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.CHILD_ALIVE,
+        ]
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.randomness = builder.randomness.get_stream(self.name)
+        self.location = get_location(builder)
+
+        self.acmr = builder.value.register_rate_producer(
+            "all_cause_mortality_rate",
+            source=self.lookup_tables["all_cause_mortality_rate"],
+            component=self,
+            requires_columns=get_lookup_columns(
+                [self.lookup_tables["all_cause_mortality_rate"]]
+            ),
+        )
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        pop_update = pd.DataFrame(
+            {
+                COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
+                COLUMNS.CHILD_YEARS_OF_LIFE_LOST: 0.0,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(pop_update)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() not in [
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+        ]:
+            return
+
+        pop = self.population_view.get(event.index)
+        alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        # TODO: add multiple for early vs late neonatal mortality by updating age of children
+        dead_idx = self.randomness.filter_for_rate(
+            alive_children.index, self.acmr(alive_children.index), "neonatal_mortality_choice"
+        )
+
+        if not dead_idx.empty:
+            pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
+            pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = "other_causes"
+            pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
+                "life_expectancy"
+            ](dead_idx)
+
+        self.population_view.update(pop)

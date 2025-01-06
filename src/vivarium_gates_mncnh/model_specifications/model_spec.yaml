@@ -19,6 +19,7 @@ components:
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
+            - NeonatalMortality()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -47,6 +48,8 @@ configuration:
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'mortality'
             - 'neonatal'
+            - 'early_neonatal_mortality'
+            - 'late_neonatal_mortality'
 
     population:
         population_size: 20_000

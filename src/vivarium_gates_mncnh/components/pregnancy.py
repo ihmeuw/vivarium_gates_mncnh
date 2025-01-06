@@ -29,6 +29,7 @@ class Pregnancy(Component):
             COLUMNS.GESTATIONAL_AGE,
             COLUMNS.BIRTH_WEIGHT,
             COLUMNS.SEX_OF_CHILD,
+            COLUMNS.CHILD_ALIVE,
         ]
 
     @property
@@ -84,6 +85,12 @@ class Pregnancy(Component):
         pregnancy_outcomes_and_durations = self.sample_pregnancy_outcomes_and_durations(
             pop_data
         )
+        pregnancy_outcomes_and_durations[COLUMNS.CHILD_ALIVE] = "dead"
+        pregnancy_outcomes_and_durations.loc[
+            pregnancy_outcomes_and_durations[COLUMNS.PREGNANCY_OUTCOME]
+            == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+            COLUMNS.CHILD_ALIVE,
+        ] = "alive"
 
         self.population_view.update(pregnancy_outcomes_and_durations)
 
@@ -115,14 +122,14 @@ class Pregnancy(Component):
         )
 
         partial_term = (raw_incidence_ectopic + raw_incidence_miscarriage) / total_incidence
-        partial_term["pregnancy_outcome"] = PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+        partial_term[COLUMNS.PREGNANCY_OUTCOME] = PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
         live_births = asfr / total_incidence
-        live_births["pregnancy_outcome"] = PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        live_births[COLUMNS.PREGNANCY_OUTCOME] = PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         stillbirths = asfr.multiply(sbr["value"], axis=0) / total_incidence
-        stillbirths["pregnancy_outcome"] = PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        stillbirths[COLUMNS.PREGNANCY_OUTCOME] = PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
         probabilities = pd.concat([partial_term, live_births, stillbirths])
         probabilities = probabilities.pivot(
-            columns="pregnancy_outcome", values="value"
+            columns=COLUMNS.PREGNANCY_OUTCOME, values="value"
         ).reset_index()
         return probabilities
 
