@@ -243,7 +243,7 @@ class NeonatalMortality(Component):
         self.population_view.update(pop)
 
         # Determine which neonates die and update metadata
-        dead_idx = self.randomness.filter_for_rate(
+        dead_idx = self.randomness.filter_for_probability(
             alive_children.index,
             self.probability_death_by_age_group(alive_children.index),
             f"{self._sim_step_name}_neonatal_mortality_choice",
