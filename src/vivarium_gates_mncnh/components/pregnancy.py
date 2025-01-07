@@ -12,6 +12,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DURATIONS,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 
@@ -46,6 +47,11 @@ class Pregnancy(Component):
             "requires_streams": [],
         }
 
+    @property
+    def time_step_priority(self) -> int:
+        # This is to age the children before mortality happens
+        return 0
+
     def __init__(self):
         super().__init__()
         self.new_children = NewChildren()
@@ -60,6 +66,7 @@ class Pregnancy(Component):
         """
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
+        self._sim_step_name = builder.time.simulation_event_name()
         self.birth_outcome_probabilities = builder.value.register_value_producer(
             "birth_outcome_probabilities",
             source=self.lookup_tables["birth_outcome_probabilities"],
@@ -97,6 +104,22 @@ class Pregnancy(Component):
         pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_AGE] = 0.0
 
         self.population_view.update(pregnancy_outcomes_and_durations)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() not in [
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+        ]:
+            return
+
+        pop = self.population_view.get(event.index)
+        alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        # Update age of children to get correctlookup values - use midpoint of age groups
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = (7 / 2) / 365.0
+        else:
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
+        self.population_view.update(pop)
 
     ##################
     # Helper methods #

@@ -10,5 +10,6 @@ from vivarium_gates_mncnh.components.observers import (
     MaternalDisordersBurdenObserver,
     ResultsStratifier,
 )
+from vivarium_gates_mncnh.components.population import AgelessPopulation
 from vivarium_gates_mncnh.components.pregnancy import Pregnancy
 from vivarium_gates_mncnh.plugins.time import EventClock, TimeInterface
