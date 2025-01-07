@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -29,6 +30,7 @@ class Pregnancy(Component):
             COLUMNS.GESTATIONAL_AGE,
             COLUMNS.BIRTH_WEIGHT,
             COLUMNS.SEX_OF_CHILD,
+            COLUMNS.CHILD_AGE,
             COLUMNS.CHILD_ALIVE,
         ]
 
@@ -86,11 +88,13 @@ class Pregnancy(Component):
             pop_data
         )
         pregnancy_outcomes_and_durations[COLUMNS.CHILD_ALIVE] = "dead"
-        pregnancy_outcomes_and_durations.loc[
+        pregnancy_outcomes_and_durations[COLUMNS.CHILD_AGE] = np.nan
+        live_birth_index = pregnancy_outcomes_and_durations.index[
             pregnancy_outcomes_and_durations[COLUMNS.PREGNANCY_OUTCOME]
-            == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
-            COLUMNS.CHILD_ALIVE,
-        ] = "alive"
+            == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        ]
+        pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
+        pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_AGE] = 0.0
 
         self.population_view.update(pregnancy_outcomes_and_durations)
 

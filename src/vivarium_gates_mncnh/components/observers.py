@@ -92,7 +92,7 @@ class ANCObserver(Observer):
         builder.results.register_concatenating_observation(
             name="anc",
             requires_columns=[
-                COLUMNS.AGE,
+                COLUMNS.MOTHER_AGE,
                 COLUMNS.ATTENDED_CARE_FACILITY,
                 COLUMNS.ULTRASOUND_TYPE,
                 COLUMNS.GESTATIONAL_AGE,
@@ -133,18 +133,18 @@ class MaternalDisordersBurdenObserver(Observer):
         return builder.configuration["stratification"][self.get_configuration_name()]
 
     def register_observations(self, builder: Builder) -> None:
-        dead_pop_filter = f"{COLUMNS.ALIVE} == 'dead'"
+        dead_pop_filter = f"{COLUMNS.MOTHER_ALIVE} == 'dead'"
         builder.results.register_stratification(
             "cause_of_maternal_death",
             MATERNAL_DISORDERS + ["not_dead"],
             excluded_categories=["not_dead"],
-            requires_columns=[COLUMNS.CAUSE_OF_DEATH],
+            requires_columns=[COLUMNS.MOTHER_CAUSE_OF_DEATH],
         )
 
         builder.results.register_adding_observation(
             name="maternal_disorder_deaths",
             pop_filter=dead_pop_filter,
-            requires_columns=[COLUMNS.ALIVE],
+            requires_columns=[COLUMNS.MOTHER_ALIVE],
             additional_stratifications=self.configuration.include
             + ["cause_of_maternal_death"],
             excluded_stratifications=self.configuration.exclude,
@@ -153,7 +153,7 @@ class MaternalDisordersBurdenObserver(Observer):
         builder.results.register_adding_observation(
             name="maternal_disorder_ylls",
             pop_filter=dead_pop_filter,
-            requires_columns=[COLUMNS.ALIVE, COLUMNS.YEARS_OF_LIFE_LOST],
+            requires_columns=[COLUMNS.MOTHER_ALIVE, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST],
             additional_stratifications=self.configuration.include
             + ["cause_of_maternal_death"],
             excluded_stratifications=self.configuration.exclude,
@@ -183,7 +183,7 @@ class MaternalDisordersBurdenObserver(Observer):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.MORTALITY
 
     def calculate_ylls(self, data: pd.DataFrame) -> float:
-        return data[COLUMNS.YEARS_OF_LIFE_LOST].sum()
+        return data[COLUMNS.MOTHER_YEARS_OF_LIFE_LOST].sum()
 
     def calculate_ylds(self, data: pd.DataFrame, cause: str) -> float:
         yld_per_case = self.lookup_tables[f"{cause}_ylds"](data.index)
