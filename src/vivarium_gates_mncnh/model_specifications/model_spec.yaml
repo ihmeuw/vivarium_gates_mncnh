@@ -5,12 +5,9 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
-    vivarium_public_health:
-        population:
-            - ScaledPopulation("population.scaling_factor")
-
     vivarium_gates_mncnh:
         components:
+            - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
             - BirthObserver()
@@ -19,6 +16,7 @@ components:
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
+            - NeonatalMortality()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -47,6 +45,8 @@ configuration:
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'mortality'
             - 'neonatal'
+            - 'early_neonatal_mortality'
+            - 'late_neonatal_mortality'
 
     population:
         population_size: 20_000

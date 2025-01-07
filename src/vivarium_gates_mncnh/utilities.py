@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import click
 import numpy as np
@@ -8,6 +8,7 @@ from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.randomness import get_hash
+from vivarium.types import NumberLike, NumericArray
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_gates_mncnh.constants import metadata
@@ -181,3 +182,16 @@ def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> f
 
 def get_location(builder: Builder) -> str:
     return builder.data.load("population.location")
+
+
+def rate_to_probability(
+    rate: Sequence[float] | NumberLike, duration_scaling_factor: int = 1.0
+) -> NumericArray:
+    # encountered underflow from rate > 30k
+    # for rates greater than 250, exp(-rate) evaluates to 1e-109
+    # beware machine-specific floating point issues
+
+    rate = np.array(rate)
+    rate[rate > 250] = 250.0
+    probability: NumericArray = 1 - np.exp(-rate * duration_scaling_factor)
+    return probability
