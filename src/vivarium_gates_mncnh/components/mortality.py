@@ -17,7 +17,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.utilities import get_location
+from vivarium_gates_mncnh.utilities import get_location, rate_to_probability
 
 
 class MaternalDisordersBurden(Component):
@@ -121,6 +121,7 @@ class MaternalDisordersBurden(Component):
                 additional_key="cause_of_death",
             )
             pop.loc[dead_idx, COLUMNS.MOTHER_CAUSE_OF_DEATH] = cause_of_death
+            # TODO: should this be age + gestational_age
             pop.loc[dead_idx, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST] = self.lookup_tables[
                 "life_expectancy"
             ](dead_idx)
@@ -179,9 +180,8 @@ class NeonatalMortality(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "all_cause_mortality_rate": self.load_acmr_data,
+                    "probability_death_by_age_group": self.load_probability_death_by_age_group,
                     "life_expectancy": self.load_life_expectancy_data,
-                    # "life_expectancy": "population.theoretical_minimum_risk_life_expectancy",
                 }
             }
         }
@@ -206,12 +206,12 @@ class NeonatalMortality(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
 
-        self.acmr = builder.value.register_value_producer(
-            "all_cause_mortality_rate",
-            source=self.lookup_tables["all_cause_mortality_rate"],
+        self.probability_death_by_age_group = builder.value.register_value_producer(
+            "probability_death_by_age_group",
+            source=self.lookup_tables["probability_death_by_age_group"],
             component=self,
             requires_columns=get_lookup_columns(
-                [self.lookup_tables["all_cause_mortality_rate"]]
+                [self.lookup_tables["probability_death_by_age_group"]]
             ),
         )
 
@@ -240,10 +240,14 @@ class NeonatalMortality(Component):
             pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = 7 / 365.0
         else:
             pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = 28 / 365.0
-        dead_idx = self.randomness.filter_for_probability(
-            alive_children.index, self.acmr(alive_children.index), "neonatal_mortality_choice"
-        )
+        self.population_view.update(pop)
 
+        # Determine which neonates die and update metadata
+        dead_idx = self.randomness.filter_for_rate(
+            alive_children.index,
+            self.probability_death_by_age_group(alive_children.index),
+            f"{self._sim_step_name}_neonatal_mortality_choice",
+        )
         if not dead_idx.empty:
             pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
             pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = "other_causes"
@@ -257,11 +261,20 @@ class NeonatalMortality(Component):
     # Helper methods #
     ##################
 
-    def load_acmr_data(self, builder: Builder) -> pd.DataFrame:
+    def load_probability_death_by_age_group(self, builder: Builder) -> pd.DataFrame:
         """Load all-cause mortality rate data."""
         acmr = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
         child_acmr = acmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return child_acmr
+        # Scale by duration of age group
+        child_acmr["value"] = child_acmr["value"] * (
+            child_acmr["child_age_end"] - child_acmr["child_age_start"]
+        )
+        # Convert rate to probability
+        scaled_probability = rate_to_probability(child_acmr["value"])
+        probability_death_by_age_group = child_acmr.copy()
+        probability_death_by_age_group["value"] = scaled_probability
+
+        return probability_death_by_age_group
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
