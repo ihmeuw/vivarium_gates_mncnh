@@ -84,6 +84,8 @@ class _SimulationEventNames(NamedTuple):
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     NEONATAL = "neonatal"
     MORTALITY = "mortality"
+    EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
+    LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
@@ -141,11 +143,15 @@ ANC_RATES = __ANCRates()
 class __Columns(NamedTuple):
     TRACKED = "tracked"
     EXIT_TIME = "exit_time"
-    SEX = "sex"
-    ALIVE = "alive"
-    AGE = "age"
-    CAUSE_OF_DEATH = "cause_of_death"
-    YEARS_OF_LIFE_LOST = "years_of_life_lost"
+    MOTHER_SEX = "sex"
+    MOTHER_ALIVE = "alive"
+    CHILD_ALIVE = "child_alive"
+    MOTHER_AGE = "age"
+    CHILD_AGE = "child_age"
+    MOTHER_CAUSE_OF_DEATH = "cause_of_death"
+    CHILD_CAUSE_OF_DEATH = "child_cause_of_death"
+    MOTHER_YEARS_OF_LIFE_LOST = "years_of_life_lost"
+    CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
     PREGNANCY_DURATION = "pregnancy_duration"
@@ -172,3 +178,10 @@ MATERNAL_DISORDERS = [
     COLUMNS.MATERNAL_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
 ]
+
+
+CHILD_LOOKUP_COLUMN_MAPPER = {
+    "sex": COLUMNS.SEX_OF_CHILD,
+    "age_start": "child_age_start",
+    "age_end": "child_age_end",
+}

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -11,6 +12,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DURATIONS,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 
@@ -29,6 +31,8 @@ class Pregnancy(Component):
             COLUMNS.GESTATIONAL_AGE,
             COLUMNS.BIRTH_WEIGHT,
             COLUMNS.SEX_OF_CHILD,
+            COLUMNS.CHILD_AGE,
+            COLUMNS.CHILD_ALIVE,
         ]
 
     @property
@@ -42,6 +46,11 @@ class Pregnancy(Component):
             "requires_values": ["birth_outcome_probabilities"],
             "requires_streams": [],
         }
+
+    @property
+    def time_step_priority(self) -> int:
+        # This is to age the children before mortality happens
+        return 0
 
     def __init__(self):
         super().__init__()
@@ -57,6 +66,7 @@ class Pregnancy(Component):
         """
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
+        self._sim_step_name = builder.time.simulation_event_name()
         self.birth_outcome_probabilities = builder.value.register_value_producer(
             "birth_outcome_probabilities",
             source=self.lookup_tables["birth_outcome_probabilities"],
@@ -84,8 +94,32 @@ class Pregnancy(Component):
         pregnancy_outcomes_and_durations = self.sample_pregnancy_outcomes_and_durations(
             pop_data
         )
+        pregnancy_outcomes_and_durations[COLUMNS.CHILD_ALIVE] = "dead"
+        pregnancy_outcomes_and_durations[COLUMNS.CHILD_AGE] = np.nan
+        live_birth_index = pregnancy_outcomes_and_durations.index[
+            pregnancy_outcomes_and_durations[COLUMNS.PREGNANCY_OUTCOME]
+            == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        ]
+        pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
+        pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_AGE] = 0.0
 
         self.population_view.update(pregnancy_outcomes_and_durations)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() not in [
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+        ]:
+            return
+
+        pop = self.population_view.get(event.index)
+        alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        # Update age of children to get correctlookup values - use midpoint of age groups
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = (7 / 2) / 365.0
+        else:
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
+        self.population_view.update(pop)
 
     ##################
     # Helper methods #
@@ -115,14 +149,14 @@ class Pregnancy(Component):
         )
 
         partial_term = (raw_incidence_ectopic + raw_incidence_miscarriage) / total_incidence
-        partial_term["pregnancy_outcome"] = PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+        partial_term[COLUMNS.PREGNANCY_OUTCOME] = PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
         live_births = asfr / total_incidence
-        live_births["pregnancy_outcome"] = PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        live_births[COLUMNS.PREGNANCY_OUTCOME] = PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         stillbirths = asfr.multiply(sbr["value"], axis=0) / total_incidence
-        stillbirths["pregnancy_outcome"] = PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        stillbirths[COLUMNS.PREGNANCY_OUTCOME] = PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
         probabilities = pd.concat([partial_term, live_births, stillbirths])
         probabilities = probabilities.pivot(
-            columns="pregnancy_outcome", values="value"
+            columns=COLUMNS.PREGNANCY_OUTCOME, values="value"
         ).reset_index()
         return probabilities
 
