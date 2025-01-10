@@ -207,7 +207,7 @@ class NeonatalMortality(Component):
         self.location = get_location(builder)
 
         self.all_cause_mortality_rate = builder.value.register_value_producer(
-            "all_cause_mortality_rate",
+            "all_causes.cause_specific_mortality_rate",
             source=self.lookup_tables["all_cause_mortality_rate"],
             component=self,
             required_resources=get_lookup_columns(

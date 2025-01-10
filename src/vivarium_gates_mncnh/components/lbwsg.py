@@ -9,8 +9,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     """Subclass of LBWSGRiskEffect to expose the PAF pipeline to be accessable by other components."""
 
     def setup(self, builder: Builder) -> None:
-
-        super().setup(builder)
+        # Paf pipeline needs to be registered before the super setup is called
         self.paf = builder.value.register_value_producer(
             "paf",
             source=self.lookup_tables["population_attributable_fraction"],
@@ -19,7 +18,10 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 [self.lookup_tables["population_attributable_fraction"]]
             ),
         )
+        super().setup(builder)
 
+    # NOTE: We will be manually handling the paf effect so the target_paf_pipeline
+    # has not been created and will throw a warning
     def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
             self.target_paf_pipeline_name,
