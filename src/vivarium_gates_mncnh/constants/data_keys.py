@@ -189,7 +189,7 @@ NEONATAL_SEPSIS = __NeonatalSepsis()
 
 class __NeonatalEncephalopath(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    CSMR: str = "cause. .cause_specific_mortality_rate"
+    CSMR: str = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
 
     @property
     def name(self):
