@@ -11,7 +11,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     def setup(self, builder: Builder) -> None:
         # Paf pipeline needs to be registered before the super setup is called
         self.paf = builder.value.register_value_producer(
-            "paf",
+            "lbwsg_paf",
             source=self.lookup_tables["population_attributable_fraction"],
             component=self,
             required_resources=get_lookup_columns(
