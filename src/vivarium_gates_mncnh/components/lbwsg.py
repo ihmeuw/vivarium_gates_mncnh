@@ -61,12 +61,6 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         return ["age", "sex"]
 
     @property
-    def initialization_requirements(
-        self,
-    ) -> list[str | Resource]:
-        return ["age", "sex"]
-
-    @property
     def columns_created(self) -> list[str]:
         return [self.get_exposure_column_name(axis) for axis in self.AXES] + [
             "lbwsg_category",

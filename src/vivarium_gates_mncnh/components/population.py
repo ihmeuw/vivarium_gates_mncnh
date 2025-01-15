@@ -25,7 +25,7 @@ class EvenlyDistributedPopulation(BasePopulation):
 
     @property
     def columns_created(self) -> list[str]:
-        return super().columns_created + ["subnational"]
+        return super().columns_created
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:

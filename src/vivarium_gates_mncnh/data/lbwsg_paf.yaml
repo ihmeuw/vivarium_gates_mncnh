@@ -4,7 +4,7 @@ components:
             - ResultsStratifier()
     vivarium_gates_mncnh:
         components:
-            - EvenlyDistributedPopulation()  # move this over
+            - EvenlyDistributedPopulation()
             - LBWSGPAFCalculationExposure()
             - LBWSGPAFCalculationRiskEffect('cause.all_causes.cause_specific_mortality_rate')
             - LBWSGPAFObserver('cause.all_causes.cause_specific_mortality_rate')
