@@ -41,7 +41,7 @@ class NeonatalCause(Component):
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
             f"{self.neonatal_cause}_csmr",
-            source=self.lookup_tables["csmr"],
+            source=self.get_normalized_csmr,
             component=self,
             required_resources=["lbwsg_paf", "relative_risk"],
         )
