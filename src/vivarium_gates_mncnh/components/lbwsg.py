@@ -209,7 +209,7 @@ class LBWSGPAFObserver(Component):
         )
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
-        relative_risk = self.risk_effect.target_modifier(x.index, pd.Series(1, index=x.index))
+        relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
         lbwsg_prevalence = self.lbwsg_exposure.rename(
