@@ -1,20 +1,19 @@
 components:
     vivarium_public_health:
-        metrics:
+        results:
             - ResultsStratifier()
     vivarium_gates_nutrition_optimization_child:
         components:
-            - EvenlyDistributedPopulation()
+            - EvenlyDistributedPopulation()  # move this over
             - LBWSGPAFCalculationExposure()
-            - SIS_with_birth_prevalence('diarrheal_diseases')
-            - LBWSGPAFCalculationRiskEffect('cause.diarrheal_diseases.excess_mortality_rate')
-            - LBWSGPAFObserver('cause.diarrheal_diseases.excess_mortality_rate')
+            - LBWSGPAFCalculationRiskEffect('cause.all_causes.cause_specific_mortality_rate')
+            - LBWSGPAFObserver('cause.all_causes.cause_specific_mortality_rate')
 
 
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_nutrition_optimization_child/artifacts/subnational/nigeria.hdf'
+        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/neonatal/nigeria.hdf'
     interpolation:
         order: 0
         extrapolate: True
