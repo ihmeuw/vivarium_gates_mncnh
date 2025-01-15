@@ -2,7 +2,7 @@ components:
     vivarium_public_health:
         results:
             - ResultsStratifier()
-    vivarium_gates_nutrition_optimization_child:
+    vivarium_gates_mncnh:
         components:
             - EvenlyDistributedPopulation()  # move this over
             - LBWSGPAFCalculationExposure()
