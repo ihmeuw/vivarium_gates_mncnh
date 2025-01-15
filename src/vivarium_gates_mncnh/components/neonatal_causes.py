@@ -14,10 +14,14 @@ from vivarium_gates_mncnh.constants.data_values import (
 
 class NeonatalCause(Component):
     @property
-    def initialization_requirements(
-        self,
-    ) -> list[str | Resource]:
-        return ["lbwsg_paf", "death_in_age_group_probability", COLUMNS.GESTATIONAL_AGE]
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.GESTATIONAL_AGE]
+
+    # @property
+    # def initialization_requirements(
+    #     self,
+    # ) -> list[str | Resource]:
+    #     return [PIPELINES.ACMR_PAF, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY]
 
     @property
     def configuration_defaults(self) -> dict:
@@ -38,18 +42,19 @@ class NeonatalCause(Component):
     #####################
 
     def setup(self, builder):
+        self.paf = builder.value.get_value(PIPELINES.ACMR_PAF)
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
-            f"{self.neonatal_cause}_csmr",
+            f"cause.{self.neonatal_cause}.cause_specific_mnoortality_rate",
             source=self.get_normalized_csmr,
             component=self,
-            required_resources=["lbwsg_paf", "relative_risk"],
+            required_resources=[PIPELINES.ACMR_PAF],
         )
-        self.paf = builder.value.get_value(PIPELINES.LBWSG_PAF)
         builder.value.register_value_modifier(
             "death_in_age_group_probability",
             modifier=self.modify_death_in_age_group_probability,
             component=self,
+            required_resources=[PIPELINES.ACMR_PAF, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
         )
 
     ##################
