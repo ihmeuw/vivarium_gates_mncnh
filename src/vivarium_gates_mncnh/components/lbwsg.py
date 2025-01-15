@@ -7,6 +7,7 @@ from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
@@ -47,7 +48,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         )
 
 
-class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect):
+class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
     """Risk effect component for calculating PAFs for LBWSG."""
 
     def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
@@ -57,6 +58,12 @@ class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect):
 class LBWSGPAFCalculationExposure(LBWSGRisk):
     @property
     def columns_required(self) -> list[str] | None:
+        return ["age", "sex"]
+
+    @property
+    def initialization_requirements(
+        self,
+    ) -> list[str | Resource]:
         return ["age", "sex"]
 
     @property
