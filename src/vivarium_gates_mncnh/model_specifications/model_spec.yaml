@@ -28,7 +28,6 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
