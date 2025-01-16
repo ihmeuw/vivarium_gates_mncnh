@@ -1,4 +1,5 @@
 from vivarium_gates_mncnh.components.antenatal_care import AntenatalCare
+from vivarium_gates_mncnh.components.lbwsg import LBWSGRiskEffect
 from vivarium_gates_mncnh.components.maternal_disorders import MaternalDisorder
 from vivarium_gates_mncnh.components.mortality import (
     MaternalDisordersBurden,
