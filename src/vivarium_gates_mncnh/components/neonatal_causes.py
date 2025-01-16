@@ -70,7 +70,7 @@ class NeonatalCause(Component):
         pop = self.population_view.get(index)
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
-        raw_csmr = self.lookup_tables["csmr"]
+        raw_csmr = self.lookup_tables["csmr"](index)
         normalizing_constant = 1 - self.paf(index)
         normalized_csmr = raw_csmr * normalizing_constant
         # Account for structural zeros in preterm birth
