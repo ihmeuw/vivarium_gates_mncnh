@@ -207,12 +207,19 @@ class NeonatalMortality(Component):
         self.location = get_location(builder)
 
         self.all_cause_mortality_rate = builder.value.register_value_producer(
-            "all_cause_mortality_rate",
+            "all_causes.cause_specific_mortality_rate",
             source=self.lookup_tables["all_cause_mortality_rate"],
             component=self,
-            requires_columns=get_lookup_columns(
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["all_cause_mortality_rate"]]
             ),
+        )
+        # Modify ACMR pipeline with CSMR for neonatal causes
+        self.death_in_age_group = builder.value.register_value_producer(
+            "death_in_age_group_probability",
+            source=self.all_cause_mortality_rate,
+            component=self,
+            required_resources=[self.all_cause_mortality_rate],
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -234,7 +241,7 @@ class NeonatalMortality(Component):
 
         pop = self.population_view.get(event.index)
         alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
-        mortality_rates = self.all_cause_mortality_rate(alive_children.index)
+        mortality_rates = self.death_in_age_group(alive_children.index)
         # Convert to rates to probability
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
             duration = 7 / 365.0

@@ -5,6 +5,10 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
+    vivarium_public_health:
+        risks:
+            - LBWSGRisk()
+
     vivarium_gates_mncnh:
         components:
             - AgelessPopulation("population.scaling_factor")
@@ -17,6 +21,7 @@ components:
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
             - NeonatalMortality()
+            - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -24,7 +29,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/mortality/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/neonatal/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
