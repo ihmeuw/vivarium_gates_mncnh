@@ -48,4 +48,3 @@ class EvenlyDistributedPopulation(BasePopulation):
         population.loc[population.index % 2 == 1, "sex"] = "Male"
         self.register_simulants(population[list(self.key_columns)])
         self.population_view.update(population)
-        
