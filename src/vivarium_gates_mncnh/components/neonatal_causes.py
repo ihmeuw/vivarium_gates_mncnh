@@ -83,6 +83,7 @@ class NeonatalCause(Component):
         self, index: pd.Index, probability_death_in_age_group: pd.Series
     ) -> pd.Series:
         csmr_pipeline = self.csmr(index)
+        csmr_source = self.get_normalized_csmr(index)
         # ACMR = ACMR - CSMR + CSMR
-        modified_acmr = probability_death_in_age_group - csmr_pipeline + csmr_pipeline
+        modified_acmr = probability_death_in_age_group - csmr_source + csmr_pipeline
         return modified_acmr
