@@ -39,7 +39,7 @@ class NeonatalCause(Component):
         self.paf = builder.value.get_value(PIPELINES.ACMR_PAF)
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
-            f"cause.{self.neonatal_cause}.cause_specific_mnoortality_rate",
+            f"cause.{self.neonatal_cause}.cause_specific_mortality_rate",
             source=self.get_normalized_csmr,
             component=self,
             required_resources=[PIPELINES.ACMR_PAF],
