@@ -17,12 +17,6 @@ class NeonatalCause(Component):
     def columns_required(self) -> list[str]:
         return [COLUMNS.GESTATIONAL_AGE]
 
-    # @property
-    # def initialization_requirements(
-    #     self,
-    # ) -> list[str | Resource]:
-    #     return [PIPELINES.ACMR_PAF, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY]
-
     @property
     def configuration_defaults(self) -> dict:
         return {
