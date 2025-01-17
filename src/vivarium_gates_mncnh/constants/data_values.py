@@ -189,7 +189,7 @@ CHILD_LOOKUP_COLUMN_MAPPER = {
 
 class __NeonatalCauses(NamedTuple):
     PRETERM_BIRTH = "neonatal_preterm_birth"
-    NEONATAL_SEPSIS = "neonatal_sepsis"
+    NEONATAL_SEPSIS = "neonatal_sepsis_and_other_neonatal_infections"
     NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma"
 
 
@@ -200,6 +200,11 @@ class __Pipelines(NamedTuple):
     ACMR_PAF = "lbwsg_paf_on_all_causes.cause_specific_mortality_rate"
     ACMR = "all_causes.cause_specific_mortality_rate"
     DEATH_IN_AGE_GROUP_PROBABILITY = "death_in_age_group_probability"
+    NEONATAL_PRETERM_BIRTH = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
+    NEONATAL_SEPSIS = (
+        "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
+    )
+    NEONATAL_ENCEPHALOPATHY = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
     PRETERM_BIRTH_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth.relative_risk",
     )
@@ -215,3 +220,6 @@ class __Pipelines(NamedTuple):
 
 
 PIPELINES = __Pipelines()
+
+
+PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY = 0.85
