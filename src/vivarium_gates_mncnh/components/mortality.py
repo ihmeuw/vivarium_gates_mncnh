@@ -14,6 +14,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     MATERNAL_DISORDERS,
+    NEONATAL_CAUSES,
     PIPELINES,
     SIMULATION_EVENT_NAMES,
 )
@@ -205,8 +206,19 @@ class NeonatalMortality(Component):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
-        self.location = get_location(builder)
+        self.causes_of_death = [
+            NEONATAL_CAUSES.PRETERM_BIRTH,
+            NEONATAL_CAUSES.NEONATAL_SEPSIS,
+            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
+            "other_causes",
+        ]
 
+        # Get neonatal csmr pipelines
+        self.preterm_csmr = builder.value.get_value(PIPELINES.NEONATAL_PRETERM_BIRTH)
+        self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS)
+        self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
+
+        # Register pipelines
         self.all_cause_mortality_rate = builder.value.register_value_producer(
             PIPELINES.ACMR,
             source=self.lookup_tables["all_cause_mortality_rate"],
@@ -258,7 +270,9 @@ class NeonatalMortality(Component):
         )
         if not dead_idx.empty:
             pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
-            pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = "other_causes"
+            pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = self.determine_cause_of_death(
+                dead_idx, duration
+            )
             pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
                 "life_expectancy"
             ](dead_idx)
@@ -282,3 +296,27 @@ class NeonatalMortality(Component):
         )
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
+
+    def determine_cause_of_death(self, simulant_idx: pd.Index, age_group_duration: float) -> pd.Series:
+        """Determine the cause of death for neonates."""
+        choices = pd.DataFrame(index=simulant_idx)
+        neonatal_cause_dict = {
+            NEONATAL_CAUSES.PRETERM_BIRTH: self.preterm_csmr(simulant_idx),
+            NEONATAL_CAUSES.NEONATAL_SEPSIS: self.sepsis_csmr(simulant_idx),
+            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: self.encephalopathy_csmr(simulant_idx),
+            "other_causes": 1 - self.preterm_csmr(simulant_idx) - self.sepsis_csmr(simulant_idx) - self.encephalopathy_csmr(simulant_idx),
+        }
+        all_causes_death_rate = self.death_in_age_group(simulant_idx)
+        # Calculate proportional cause of death for each neonatal cause
+        for cause, pipeline in neonatal_cause_dict.items():
+            choices[cause] = pipeline / all_causes_death_rate
+
+        # Choose cause of death for each neonate
+        cause_of_death = self.randomness.choice(
+            index=simulant_idx,
+            choices=self.causes_of_death,
+            p=choices,
+            additional_key="cause_of_death",
+        )
+        return cause_of_death
+    
