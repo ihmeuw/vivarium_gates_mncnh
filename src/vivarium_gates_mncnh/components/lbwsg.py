@@ -1,5 +1,6 @@
 import itertools
 import math
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -18,13 +19,39 @@ from vivarium_public_health.risks.implementations.low_birth_weight_and_short_ges
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
-from vivarium_public_health.utilities import TargetString, get_lookup_columns
+from vivarium_public_health.utilities import (
+    TargetString,
+    get_lookup_columns,
+    to_snake_case,
+)
 
 from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_LOOKUP_COLUMN_MAPPER,
+    COLUMNS,
+)
+
+CATEGORICAL = "categorical"
+BIRTH_WEIGHT = "birth_weight"
+GESTATIONAL_AGE = "gestational_age"
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
-    """Subclass of LBWSGRiskEffect to expose the PAF pipeline to be accessable by other components."""
+    """Subclass of LBWSGRiskEffect to be compatible with the wide state table, meaning it
+    will query on child lookup columns. This also exposes the PAF to a pipeline so it is
+    accessible by other components in the model."""
+
+    @property
+    def columns_required(self) -> list[str] | None:
+        return [COLUMNS.CHILD_AGE, COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
+
+    @property
+    def initialization_requirements(self) -> dict[str, list[str]]:
+        return {
+            "requires_columns": [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names,
+            "requires_values": [],
+            "requires_streams": [],
+        }
 
     def setup(self, builder: Builder) -> None:
         # Paf pipeline needs to be registered before the super setup is called
@@ -38,6 +65,75 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         )
         super().setup(builder)
 
+    def get_population_attributable_fraction_source(
+        self, builder: Builder
+    ) -> tuple[pd.DataFrame, list[str]]:
+        paf_key = f"{self.risk}.population_attributable_fraction"
+        paf_data = builder.data.load(paf_key)
+        # Map to child columns
+        paf_data = paf_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return paf_data, builder.data.value_columns()(paf_key)
+
+    def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
+        age_bins = builder.data.load("population.age_bins").set_index("age_start")
+        exposure = builder.data.load(f"{self.risk}.exposure")
+        # Map to child columns
+        age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        exposure = exposure.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        exposure = exposure[exposure["child_age_end"] > 0]
+        #
+
+        exposed_age_group_starts = (
+            exposure.groupby("child_age_start")["value"]
+            .any()
+            .reset_index()["child_age_start"]
+        )
+
+        return {
+            to_snake_case(age_bins.loc[age_start, "age_group_name"]): pd.Interval(
+                age_start, age_bins.loc[age_start, "child_age_end"]
+            )
+            for age_start in exposed_age_group_starts
+        }
+
+    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.relative_risk_pipeline_name,
+            source=self._relative_risk_source,
+            component=self,
+            required_resources=[COLUMNS.CHILD_AGE] + self.rr_column_names,
+        )
+
+    def get_interpolator(self, builder: Builder) -> pd.Series:
+        age_start_to_age_group_name_map = {
+            interval.left: to_snake_case(age_group_name)
+            for age_group_name, interval in self.age_intervals.items()
+        }
+
+        # get relative risk data for target
+        interpolators = builder.data.load(f"{self.risk}.relative_risk_interpolator")
+        # Map to child columns
+        interpolators = interpolators.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        interpolators = (
+            # isolate RRs for target and drop non-neonatal age groups since they have RR == 1.0
+            interpolators[
+                interpolators["child_age_start"].isin(
+                    [interval.left for interval in self.age_intervals.values()]
+                )
+            ]
+            .drop(columns=["child_age_end", "year_start", "year_end"])
+            .set_index([COLUMNS.SEX_OF_CHILD, "value"])
+            .apply(
+                lambda row: (age_start_to_age_group_name_map[row["child_age_start"]]), axis=1
+            )
+            .rename("age_group_name")
+            .reset_index()
+            .set_index([COLUMNS.SEX_OF_CHILD, "age_group_name"])
+        )["value"]
+
+        interpolators = interpolators.apply(lambda x: pickle.loads(bytes.fromhex(x)))
+        return interpolators
+
     # NOTE: We will be manually handling the paf effect so the target_paf_pipeline
     # has not been created and will throw a warning
     def register_paf_modifier(self, builder: Builder) -> None:
@@ -46,6 +142,59 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             modifier=self.paf,
             component=self,
         )
+
+    def _get_relative_risk(self, index: pd.Index) -> pd.Series:
+        pop = self.population_view.get(index)
+        relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
+
+        for age_group, interval in self.age_intervals.items():
+            age_group_mask = (interval.left <= pop[COLUMNS.CHILD_AGE]) & (
+                pop[COLUMNS.CHILD_AGE] < interval.right
+            )
+            relative_risk[age_group_mask] = pop.loc[
+                age_group_mask, self.relative_risk_column_name(age_group)
+            ]
+        return relative_risk
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        pop = self.population_view.subview(
+            [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
+        ).get(pop_data.index)
+        birth_weight = pop[LBWSGRisk.get_exposure_column_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk.get_exposure_column_name(GESTATIONAL_AGE)]
+
+        is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
+        is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
+            self.TMREL_BIRTH_WEIGHT_INTERVAL.left <= birth_weight
+        )
+
+        def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
+            column_name = self.relative_risk_column_name(age_group)
+            log_relative_risk = pd.Series(0.0, index=pop_data.index, name=column_name)
+
+            male_interpolator = self.interpolator["Male", age_group]
+            log_relative_risk[is_male & ~is_tmrel] = male_interpolator(
+                gestational_age[is_male & ~is_tmrel],
+                birth_weight[is_male & ~is_tmrel],
+                grid=False,
+            )
+
+            female_interpolator = self.interpolator["Female", age_group]
+            log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
+                gestational_age[~is_male & ~is_tmrel],
+                birth_weight[~is_male & ~is_tmrel],
+                grid=False,
+            )
+            return np.exp(log_relative_risk)
+
+        relative_risk_columns = [
+            get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
+        ]
+        self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
 
 class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
