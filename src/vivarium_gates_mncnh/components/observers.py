@@ -283,7 +283,7 @@ class NeonatalCauseRelativeRiskObserver(Observer):
 
     def get_configuration(self, builder: Builder) -> dict[str, Any]:
         return builder.configuration["stratification"][self.get_configuration_name()]
-    
+
     def register_observations(self, builder: Builder) -> None:
         for cause in self.neonatal_causes:
             builder.results.register_adding_observation(
