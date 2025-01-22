@@ -31,6 +31,8 @@ components:
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
+            - NeonatalBurdenObserver()
+            - NeonatalCauseRelativeRiskObserver()
 
 configuration:
     input_data:

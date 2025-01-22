@@ -15,6 +15,8 @@ from vivarium_gates_mncnh.components.observers import (
     ANCObserver,
     BirthObserver,
     MaternalDisordersBurdenObserver,
+    NeonatalBurdenObserver,
+    NeonatalCauseRelativeRiskObserver,
     ResultsStratifier,
 )
 from vivarium_gates_mncnh.components.population import (

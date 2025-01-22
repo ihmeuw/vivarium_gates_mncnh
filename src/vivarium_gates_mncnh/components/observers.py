@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from functools import partial
 from typing import Any
 
@@ -11,6 +12,7 @@ from vivarium_public_health.results import ResultsStratifier as ResultsStratifie
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     MATERNAL_DISORDERS,
+    NEONATAL_CAUSES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
@@ -106,7 +108,64 @@ class ANCObserver(Observer):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY
 
 
-class MaternalDisordersBurdenObserver(Observer):
+class BurdenObserver(Observer):
+    def __init__(
+        self,
+        burden_disorders: list[str],
+        alive_column: str,
+        ylls_column: str,
+        cause_of_death_column: str,
+    ):
+        super().__init__()
+        self.burden_disorders = burden_disorders
+        self.alive_column = alive_column
+        self.ylls_column = ylls_column
+        self.cause_of_death_column = cause_of_death_column
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    def get_configuration(self, builder: Builder) -> dict[str, Any]:
+        return builder.configuration["stratification"][self.get_configuration_name()]
+
+    def register_observations(self, builder: Builder) -> None:
+        dead_pop_filter = f"{self.alive_column} == 'dead'"
+        builder.results.register_stratification(
+            name=f"{self.name}_cause_of_death",
+            categories=self.burden_disorders + ["not_dead"],
+            excluded_categories=["not_dead"],
+            requires_columns=[self.cause_of_death_column],
+        )
+
+        builder.results.register_adding_observation(
+            name=f"{self.name}_disorder_deaths",
+            pop_filter=dead_pop_filter,
+            requires_columns=[self.alive_column],
+            additional_stratifications=self.configuration.include
+            + [f"{self.name}_cause_of_death"],
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+        )
+        builder.results.register_adding_observation(
+            name=f"{self.name}_disorder_ylls",
+            pop_filter=dead_pop_filter,
+            requires_columns=[self.alive_column, self.ylls_column],
+            additional_stratifications=self.configuration.include
+            + [f"{self.name}_cause_of_death"],
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+            aggregator=self.calculate_ylls,
+        )
+
+    @abstractmethod
+    def to_observe(self, event: Event) -> bool:
+        pass
+
+    def calculate_ylls(self, data: pd.DataFrame) -> float:
+        return data[self.ylls_column].sum()
+
+
+class MaternalDisordersBurdenObserver(BurdenObserver):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
@@ -116,51 +175,23 @@ class MaternalDisordersBurdenObserver(Observer):
                     "include": [],
                     "data_sources": {
                         f"{cause}_ylds": partial(self.load_ylds_per_case, cause=cause)
-                        for cause in self.maternal_disorders
+                        for cause in self.burden_disorders
                     },
                 },
             },
         }
 
     def __init__(self):
-        super().__init__()
-        self.maternal_disorders = MATERNAL_DISORDERS
-
-    def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
-
-    def get_configuration(self, builder):
-        return builder.configuration["stratification"][self.get_configuration_name()]
+        super().__init__(
+            burden_disorders=MATERNAL_DISORDERS,
+            alive_column=COLUMNS.MOTHER_ALIVE,
+            ylls_column=COLUMNS.MOTHER_YEARS_OF_LIFE_LOST,
+            cause_of_death_column=COLUMNS.MOTHER_CAUSE_OF_DEATH,
+        )
 
     def register_observations(self, builder: Builder) -> None:
-        dead_pop_filter = f"{COLUMNS.MOTHER_ALIVE} == 'dead'"
-        builder.results.register_stratification(
-            "cause_of_maternal_death",
-            MATERNAL_DISORDERS + ["not_dead"],
-            excluded_categories=["not_dead"],
-            requires_columns=[COLUMNS.MOTHER_CAUSE_OF_DEATH],
-        )
-
-        builder.results.register_adding_observation(
-            name="maternal_disorder_deaths",
-            pop_filter=dead_pop_filter,
-            requires_columns=[COLUMNS.MOTHER_ALIVE],
-            additional_stratifications=self.configuration.include
-            + ["cause_of_maternal_death"],
-            excluded_stratifications=self.configuration.exclude,
-            to_observe=self.to_observe,
-        )
-        builder.results.register_adding_observation(
-            name="maternal_disorder_ylls",
-            pop_filter=dead_pop_filter,
-            requires_columns=[COLUMNS.MOTHER_ALIVE, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST],
-            additional_stratifications=self.configuration.include
-            + ["cause_of_maternal_death"],
-            excluded_stratifications=self.configuration.exclude,
-            to_observe=self.to_observe,
-            aggregator=self.calculate_ylls,
-        )
-        for cause in self.maternal_disorders:
+        super().register_observations(builder)
+        for cause in self.burden_disorders:
             builder.results.register_adding_observation(
                 name=f"{cause}_counts",
                 pop_filter=f"{cause} == True",
@@ -182,9 +213,6 @@ class MaternalDisordersBurdenObserver(Observer):
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.MORTALITY
 
-    def calculate_ylls(self, data: pd.DataFrame) -> float:
-        return data[COLUMNS.MOTHER_YEARS_OF_LIFE_LOST].sum()
-
     def calculate_ylds(self, data: pd.DataFrame, cause: str) -> float:
         yld_per_case = self.lookup_tables[f"{cause}_ylds"](data.index)
         return yld_per_case.sum()
@@ -203,3 +231,72 @@ class MaternalDisordersBurdenObserver(Observer):
         ylds = (yld_rate / incidence_rate).fillna(0).reset_index()
 
         return ylds
+
+
+class NeonatalBurdenObserver(BurdenObserver):
+    """Observer to capture death counts and ylls for neonatal sub causes."""
+
+    def __init__(self):
+        super().__init__(
+            burden_disorders=[
+                f"{NEONATAL_CAUSES.PRETERM_BIRTH}_with_rds",
+                f"{NEONATAL_CAUSES.PRETERM_BIRTH}_without_rds",
+                NEONATAL_CAUSES.NEONATAL_SEPSIS,
+                NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
+                "other_causes",
+            ],
+            alive_column=COLUMNS.CHILD_ALIVE,
+            ylls_column=COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
+            cause_of_death_column=COLUMNS.CHILD_CAUSE_OF_DEATH,
+        )
+
+    def register_observations(self, builder: Builder) -> None:
+        super().register_observations(builder)
+        for cause in self.burden_disorders:
+            builder.results.register_adding_observation(
+                name=f"{cause}_counts",
+                pop_filter=f"{self.cause_of_death_column} == '{cause}'",
+                requires_columns=[self.cause_of_death_column],
+                additional_stratifications=self.configuration.include,
+                excluded_stratifications=self.configuration.exclude,
+                to_observe=self.to_observe,
+            )
+
+    def to_observe(self, event: Event) -> bool:
+        return (self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY) or (
+            self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
+        )
+
+
+class NeonatalCauseRelativeRiskObserver(Observer):
+    def __init__(self):
+        super().__init__()
+        self.neonatal_causes = [
+            NEONATAL_CAUSES.PRETERM_BIRTH,
+            NEONATAL_CAUSES.NEONATAL_SEPSIS,
+            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
+            "all_causes",
+        ]
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    def get_configuration(self, builder: Builder) -> dict[str, Any]:
+        return builder.configuration["stratification"][self.get_configuration_name()]
+    
+    def register_observations(self, builder: Builder) -> None:
+        for cause in self.neonatal_causes:
+            builder.results.register_adding_observation(
+                name=f"{cause}_relative_risk",
+                requires_values=[
+                    f"effect_of_low_birth_weight_and_short_gestation_on_{cause}.relative_risk"
+                ],
+                additional_stratifications=self.configuration.include,
+                excluded_stratifications=self.configuration.exclude,
+                to_observe=self.to_observe,
+            )
+
+    def to_observe(self, event: Event) -> bool:
+        return (self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY) or (
+            self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
+        )
