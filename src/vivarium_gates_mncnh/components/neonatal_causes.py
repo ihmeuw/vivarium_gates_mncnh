@@ -7,7 +7,6 @@ from vivarium.framework.resource import Resource
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
-    NEONATAL_CAUSES,
     PIPELINES,
 )
 
