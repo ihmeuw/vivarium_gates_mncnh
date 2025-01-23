@@ -14,6 +14,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     MATERNAL_DISORDERS,
+    PIPELINES,
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
@@ -207,7 +208,7 @@ class NeonatalMortality(Component):
         self.location = get_location(builder)
 
         self.all_cause_mortality_rate = builder.value.register_value_producer(
-            "all_causes.cause_specific_mortality_rate",
+            PIPELINES.ACMR,
             source=self.lookup_tables["all_cause_mortality_rate"],
             component=self,
             required_resources=get_lookup_columns(
@@ -216,7 +217,7 @@ class NeonatalMortality(Component):
         )
         # Modify ACMR pipeline with CSMR for neonatal causes
         self.death_in_age_group = builder.value.register_value_producer(
-            "death_in_age_group_probability",
+            PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
             source=self.all_cause_mortality_rate,
             component=self,
             required_resources=[self.all_cause_mortality_rate],

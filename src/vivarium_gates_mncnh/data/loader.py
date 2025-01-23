@@ -29,7 +29,7 @@ from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
-from vivarium_gates_mncnh.constants import data_keys, data_values, metadata
+from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
 
 
@@ -69,7 +69,7 @@ def get_data(
         data_keys.LBWSG.EXPOSURE: load_standard_data,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
-        data_keys.LBWSG.PAF: load_standard_data,
+        data_keys.LBWSG.PAF: load_lbwsg_paf,
         data_keys.ANC.ESTIMATE: load_anc_proportion,
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
@@ -366,6 +366,51 @@ def load_lbwsg_interpolated_rr(
         .unstack()
     )
     return log_rr_interpolator
+
+
+def load_lbwsg_paf(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]]
+) -> pd.DataFrame:
+    if key != data_keys.LBWSG.PAF:
+        raise ValueError(f"Unrecognized key {key}")
+
+    location_mapper = {
+        "Ethiopia": "ethiopia",
+        "Nigeria": "nigeria",
+        "Pakistan": "pakistan",
+    }
+
+    output_dir = paths.PAF_DIR / location_mapper[location]
+
+    df = pd.read_parquet(
+        output_dir
+        / "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
+    )
+    if "input_draw" in df.columns:
+        df = df.assign(input_draw="draw_" + df.input_draw.astype(str))
+    else:
+        df = df.assign(input_draw="draw_0")
+    df = df.pivot_table(
+        "value", [c for c in df if c not in ["input_draw", "value"]], "input_draw"
+    ).reset_index()
+    not_needed_columns = ["scenario", "random_seed"]
+    df = df.drop(columns=[c for c in df.columns if c in not_needed_columns])
+
+    age_start_dict = {"early_neonatal": 0.0, "late_neonatal": 0.01917808}
+    age_end_dict = {"early_neonatal": 0.01917808, "late_neonatal": 0.07671233}
+    df["age_start"] = df["age_group"].replace(age_start_dict)
+    df["age_end"] = df["age_group"].replace(age_end_dict)
+    df["year_start"] = 2021
+    df["year_end"] = 2022
+    df = df.drop("age_group", axis=1)
+    index_columns = ["sex", "age_start", "age_end", "year_start", "year_end"]
+    df = df.set_index(index_columns)
+    unaffected_age_groups = [(0.07671233, 1.0), (1.0, 5.0)]
+    for age_start, age_end in unaffected_age_groups:
+        for sex in ["Male", "Female"]:
+            df.loc[(sex, age_start, age_end, 2021, 2022), :] = 0
+
+    return df.sort_index()
 
 
 def reshape_to_vivarium_format(df, location):
