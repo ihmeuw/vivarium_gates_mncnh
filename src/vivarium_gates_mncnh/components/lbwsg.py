@@ -55,7 +55,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
     def setup(self, builder: Builder) -> None:
         # Paf pipeline needs to be registered before the super setup is called
-        self.paf = builder.value.register_value_producer(
+        self.acmr_paf = builder.value.register_value_producer(
             f"lbwsg_paf_on_{self.target.name}.{self.target.measure}",
             source=self.lookup_tables["population_attributable_fraction"],
             component=self,
@@ -139,7 +139,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
             self.target_paf_pipeline_name,
-            modifier=self.paf,
+            modifier=self.acmr_paf,
             component=self,
         )
 
@@ -198,7 +198,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
 
 class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
-    """Risk effect component for calculating PAFs for LBWSG."""
+    """Risk effect component for calculating PAFs for LBWSG. This is only used in a
+    separate simulation to calculate the PAFs for the LBWSG risk effect."""
 
     def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
         return 0, []

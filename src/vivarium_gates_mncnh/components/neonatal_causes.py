@@ -7,7 +7,6 @@ from vivarium.framework.resource import Resource
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
-    NEONATAL_CAUSES,
     PIPELINES,
 )
 
@@ -36,7 +35,7 @@ class NeonatalCause(Component):
     #####################
 
     def setup(self, builder):
-        self.paf = builder.value.get_value(PIPELINES.ACMR_PAF)
+        self.acmr_paf = builder.value.get_value(PIPELINES.ACMR_PAF)
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
             f"cause.{self.neonatal_cause}.cause_specific_mortality_rate",
@@ -61,16 +60,12 @@ class NeonatalCause(Component):
         return csmr
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
         raw_csmr = self.lookup_tables["csmr"](index)
-        normalizing_constant = 1 - self.paf(index)
+        normalizing_constant = 1 - self.acmr_paf(index)
         normalized_csmr = raw_csmr * normalizing_constant
-        # Account for structural zeros in preterm birth
-        if self.neonatal_cause == NEONATAL_CAUSES.PRETERM_BIRTH:
-            ga_less_than_37 = pop[COLUMNS.GESTATIONAL_AGE] < 37
-            normalized_csmr.loc[ga_less_than_37] = 0
+
         return normalized_csmr
 
     def modify_death_in_age_group_probability(
@@ -81,3 +76,13 @@ class NeonatalCause(Component):
         # ACMR = ACMR - CSMR + CSMR
         modified_acmr = probability_death_in_age_group - csmr_source + csmr_pipeline
         return modified_acmr
+
+
+class PretermBirth(NeonatalCause):
+    def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
+        pop = self.population_view.get(index)
+        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
+
+        normalized_csmr = super().get_normalized_csmr(index)
+        normalized_csmr.loc[ga_greater_than_37] = 0
+        return normalized_csmr
