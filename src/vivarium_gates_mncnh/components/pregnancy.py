@@ -9,6 +9,7 @@ from vivarium_public_health.utilities import get_lookup_columns
 from vivarium_gates_mncnh.components.children import NewChildren
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_INITIALIZATION_AGE,
     COLUMNS,
     DURATIONS,
     PREGNANCY_OUTCOMES,
@@ -95,13 +96,15 @@ class Pregnancy(Component):
             pop_data
         )
         pregnancy_outcomes_and_durations[COLUMNS.CHILD_ALIVE] = "dead"
-        pregnancy_outcomes_and_durations[COLUMNS.CHILD_AGE] = np.nan
+        pregnancy_outcomes_and_durations[COLUMNS.CHILD_AGE] = CHILD_INITIALIZATION_AGE / 2
         live_birth_index = pregnancy_outcomes_and_durations.index[
             pregnancy_outcomes_and_durations[COLUMNS.PREGNANCY_OUTCOME]
             == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         ]
         pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
-        pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_AGE] = 0.0
+        pregnancy_outcomes_and_durations.loc[
+            live_birth_index, COLUMNS.CHILD_AGE
+        ] = CHILD_INITIALIZATION_AGE
 
         self.population_view.update(pregnancy_outcomes_and_durations)
 
@@ -119,6 +122,7 @@ class Pregnancy(Component):
             pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = (7 / 2) / 365.0
         else:
             pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
+
         self.population_view.update(pop)
 
     ##################
