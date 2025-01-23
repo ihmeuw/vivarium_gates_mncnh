@@ -20,8 +20,14 @@ components:
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
-            - NeonatalMortality()
             - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_preterm_birth.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate')
+            - PretermBirth('neonatal_preterm_birth')
+            - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
+            - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
+            - NeonatalMortality()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -49,7 +55,7 @@ configuration:
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'mortality'
-            - 'neonatal'
+            # - 'neonatal'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
 
