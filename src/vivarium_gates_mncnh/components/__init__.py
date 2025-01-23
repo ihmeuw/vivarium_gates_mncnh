@@ -10,7 +10,7 @@ from vivarium_gates_mncnh.components.mortality import (
     MaternalDisordersBurden,
     NeonatalMortality,
 )
-from vivarium_gates_mncnh.components.neonatal_causes import NeonatalCause
+from vivarium_gates_mncnh.components.neonatal_causes import NeonatalCause, PretermBirth
 from vivarium_gates_mncnh.components.observers import (
     ANCObserver,
     BirthObserver,
