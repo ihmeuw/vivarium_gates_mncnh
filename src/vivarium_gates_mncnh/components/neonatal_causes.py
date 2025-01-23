@@ -69,8 +69,8 @@ class NeonatalCause(Component):
         normalized_csmr = raw_csmr * normalizing_constant
         # Account for structural zeros in preterm birth
         if self.neonatal_cause == NEONATAL_CAUSES.PRETERM_BIRTH:
-            ga_less_than_37 = pop[COLUMNS.GESTATIONAL_AGE] < 37
-            normalized_csmr.loc[ga_less_than_37] = 0
+            ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
+            normalized_csmr.loc[ga_greater_than_37] = 0
         return normalized_csmr
 
     def modify_death_in_age_group_probability(

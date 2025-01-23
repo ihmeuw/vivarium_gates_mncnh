@@ -10,6 +10,8 @@ from vivarium_public_health.results import COLUMNS
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
 from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_INITIALIZATION_AGE,
+    CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
@@ -22,6 +24,7 @@ from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 class ResultsStratifier(ResultsStratifier_):
     def setup(self, builder: Builder) -> None:
         self.age_bins = self.get_age_bins(builder)
+        self.child_age_bins = self.get_child_age_bins(builder)
         self.register_stratifications(builder)
 
     def register_stratifications(self, builder: Builder) -> None:
@@ -48,6 +51,49 @@ class ResultsStratifier(ResultsStratifier_):
         builder.results.register_stratification(
             "sex", ["Female", "Male"], requires_columns=["sex"]
         )
+        builder.results.register_stratification(
+            "child_sex",
+            ["Female", "Male", "invalid"],
+            ["invalid"],
+            requires_columns=[COLUMNS.SEX_OF_CHILD],
+        )
+        builder.results.register_stratification(
+            "child_age_group",
+            self.child_age_bins["age_group_name"].to_list(),
+            mapper=self.map_child_age_groups,
+            is_vectorized=True,
+            requires_columns=[COLUMNS.CHILD_AGE],
+        )
+
+    def get_child_age_bins(self, builder: Builder) -> pd.DataFrame:
+        age_bins_data = {
+            "child_age_start": [
+                0.0,
+                CHILD_INITIALIZATION_AGE,
+                7 / 365.0,
+            ],
+            "child_age_end": [
+                CHILD_INITIALIZATION_AGE,
+                7 / 365.0,
+                28 / 365.0,
+            ],
+            "age_group_name": [
+                "stillbirth",
+                "early_neonatal",
+                "late_neonatal",
+            ],
+        }
+        return pd.DataFrame(age_bins_data)
+
+    def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
+        # Overwriting to use child_age_bins
+        bins = self.child_age_bins["child_age_start"].to_list() + [
+            self.child_age_bins["child_age_end"].iloc[-1]
+        ]
+        labels = self.child_age_bins["age_group_name"].to_list()
+        age_group = pd.cut(pop.squeeze(axis=1), bins, labels=labels).rename("child_age_group")
+
+        return age_group
 
 
 class BirthObserver(Observer):
@@ -193,7 +239,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         super().register_observations(builder)
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(
-                name=f"{cause}_counts",
+                name=f"{cause}_death_counts",
                 pop_filter=f"{cause} == True",
                 requires_columns=[cause],
                 additional_stratifications=self.configuration.include,
@@ -236,6 +282,17 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
 class NeonatalBurdenObserver(BurdenObserver):
     """Observer to capture death counts and ylls for neonatal sub causes."""
 
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": ["age_group"],
+                    "include": ["child_age_group", "child_sex"],
+                },
+            },
+        }
+
     def __init__(self):
         super().__init__(
             burden_disorders=[
@@ -254,7 +311,7 @@ class NeonatalBurdenObserver(BurdenObserver):
         super().register_observations(builder)
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(
-                name=f"{cause}_counts",
+                name=f"{cause}_death_counts",
                 pop_filter=f"{self.cause_of_death_column} == '{cause}'",
                 requires_columns=[self.cause_of_death_column],
                 additional_stratifications=self.configuration.include,
@@ -269,6 +326,17 @@ class NeonatalBurdenObserver(BurdenObserver):
 
 
 class NeonatalCauseRelativeRiskObserver(Observer):
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": ["age_group"],
+                    "include": ["child_age_group", "child_sex"],
+                },
+            },
+        }
+
     def __init__(self):
         super().__init__()
         self.neonatal_causes = [
