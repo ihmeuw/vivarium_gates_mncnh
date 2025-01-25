@@ -205,7 +205,7 @@ class NeonatalMortality(Component):
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        self.randomness = builder.randomness.get_stream(self.name)
+        self.randomness = builder.randomness.get_stream(self.name, self)
         self.causes_of_death = [
             NEONATAL_CAUSES.PRETERM_BIRTH,
             NEONATAL_CAUSES.NEONATAL_SEPSIS,
@@ -253,8 +253,8 @@ class NeonatalMortality(Component):
             return
 
         pop = self.population_view.get(event.index)
-        alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
-        mortality_rates = self.death_in_age_group(alive_children.index)
+        alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        mortality_rates = self.death_in_age_group(alive_idx)
         # Convert to rates to probability
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
             duration = 7 / 365.0
@@ -264,9 +264,9 @@ class NeonatalMortality(Component):
 
         # Determine which neonates die and update metadata
         dead_idx = self.randomness.filter_for_probability(
-            alive_children.index,
+            alive_idx,
             mortality_risk,
-            f"{self._sim_step_name}_neonatal_mortality_choice",
+            f"{self._sim_step_name()}_choice",
         )
         if not dead_idx.empty:
             pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
@@ -313,6 +313,8 @@ class NeonatalMortality(Component):
         for cause, pipeline in neonatal_cause_dict.items():
             choices[cause] = pipeline / all_causes_death_rate
         choices["other_causes"] = 1 - choices.sum(axis=1)
+        if (choices["other_causes"] < 0).any():
+            raise ValueError("Negative probability of death for other causes")
 
         # Choose cause of death for each neonate
         cause_of_death = self.randomness.choice(
