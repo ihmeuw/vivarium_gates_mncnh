@@ -11,7 +11,6 @@ from vivarium_public_health.results import ResultsStratifier as ResultsStratifie
 
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_INITIALIZATION_AGE,
-    CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
@@ -296,8 +295,8 @@ class NeonatalBurdenObserver(BurdenObserver):
     def __init__(self):
         super().__init__(
             burden_disorders=[
-                f"{NEONATAL_CAUSES.PRETERM_BIRTH}_with_rds",
-                f"{NEONATAL_CAUSES.PRETERM_BIRTH}_without_rds",
+                NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS,
+                NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS,
                 NEONATAL_CAUSES.NEONATAL_SEPSIS,
                 NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
                 "other_causes",
@@ -340,7 +339,8 @@ class NeonatalCauseRelativeRiskObserver(Observer):
     def __init__(self):
         super().__init__()
         self.neonatal_causes = [
-            NEONATAL_CAUSES.PRETERM_BIRTH,
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS,
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS,
             NEONATAL_CAUSES.NEONATAL_SEPSIS,
             NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
             "all_causes",

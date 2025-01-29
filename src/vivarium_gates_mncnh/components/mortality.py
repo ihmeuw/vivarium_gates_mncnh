@@ -16,7 +16,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
     PIPELINES,
-    PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
@@ -207,14 +206,20 @@ class NeonatalMortality(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name, self)
         self.causes_of_death = [
-            NEONATAL_CAUSES.PRETERM_BIRTH,
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS,
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS,
             NEONATAL_CAUSES.NEONATAL_SEPSIS,
             NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
             "other_causes",
         ]
 
         # Get neonatal csmr pipelines
-        self.preterm_csmr = builder.value.get_value(PIPELINES.NEONATAL_PRETERM_BIRTH)
+        self.with_rds_csmr = builder.value.get_value(
+            PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
+        )
+        self.without_rds_csmr = builder.value.get_value(
+            PIPELINES.NEONATAL_PRETERM_BIRTH_WITHOUT_RDS
+        )
         self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS)
         self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
 
@@ -304,7 +309,8 @@ class NeonatalMortality(Component):
         choices = pd.DataFrame(index=simulant_idx)
         all_causes_death_rate = self.death_in_age_group(simulant_idx)
         neonatal_cause_dict = {
-            NEONATAL_CAUSES.PRETERM_BIRTH: self.preterm_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: self.with_rds_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.without_rds_csmr(simulant_idx),
             NEONATAL_CAUSES.NEONATAL_SEPSIS: self.sepsis_csmr(simulant_idx),
             NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: self.encephalopathy_csmr(simulant_idx),
         }
@@ -323,16 +329,5 @@ class NeonatalMortality(Component):
             p=choices,
             additional_key="cause_of_death",
         )
-
-        # Determine which preterm deaths are due to RDS
-        preterm_death_idx = cause_of_death.index[cause_of_death == "neonatal_preterm_birth"]
-        deaths_with_rds_idx = self.randomness.filter_for_probability(
-            preterm_death_idx,
-            PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
-            "preterm_rds_death_choice",
-        )
-        cause_of_death.loc[deaths_with_rds_idx] = f"{NEONATAL_CAUSES.PRETERM_BIRTH}_with_rds"
-        without_rds_idx = preterm_death_idx.difference(deaths_with_rds_idx)
-        cause_of_death.loc[without_rds_idx] = f"{NEONATAL_CAUSES.PRETERM_BIRTH}_without_rds"
 
         return cause_of_death
