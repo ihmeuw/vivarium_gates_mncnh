@@ -78,7 +78,7 @@ NUM_DRAWS = 500
 class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
     PREGNANCY = "pregnancy"
-    INTRAPARTRUM = "intrapartum"
+    INTRAPARTUM = "intrapartum"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -159,6 +159,7 @@ class __Columns(NamedTuple):
     BIRTH_WEIGHT = "birth_weight"
     GESTATIONAL_AGE = "gestational_age"
     ATTENDED_CARE_FACILITY = "attended_care_facility"
+    DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     RECEIVED_ULTRASOUND = "received_ultrasound"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
@@ -167,6 +168,7 @@ class __Columns(NamedTuple):
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
+    CPAP_AVAILABLE = "cpap_available"
 
 
 COLUMNS = __Columns()
@@ -233,3 +235,47 @@ PIPELINES = __Pipelines()
 
 PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY = 0.85
 CHILD_INITIALIZATION_AGE = 0.1 / 365.0
+
+
+class __DeliveryFacilityTypes(NamedTuple):
+    HOME = "home"
+    HOSPITAL = "hospital"
+    CLINIC = "clinic"
+    NONE = "none"
+
+
+DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
+
+
+DELIVERY_FACILITY_TYPE_PROBABILITIES = {
+    "Ethiopia": {
+        DELIVERY_FACILITY_TYPES.HOME: 0.683,
+        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.266,
+        DELIVERY_FACILITY_TYPES.CLINIC: 0.051,
+    },
+    "Nigeria": {
+        DELIVERY_FACILITY_TYPES.HOME: 0.683,
+        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.266,
+        DELIVERY_FACILITY_TYPES.CLINIC: 0.051,
+    },
+    "Pakistan": {
+        DELIVERY_FACILITY_TYPES.HOME: 0.683,
+        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.266,
+        DELIVERY_FACILITY_TYPES.CLINIC: 0.051,
+    },
+}
+# TODO: move these to artifact if/when necessary
+CPAP_ACCESS_PROBABILITIES = {
+    "Ethiopia": {
+        DELIVERY_FACILITY_TYPES.CLINIC: 0.075,
+        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.393,
+    },
+    "Nigeria": {
+        DELIVERY_FACILITY_TYPES.CLINIC: 0.075,
+        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.393,
+    },
+    "Pakistan": {
+        DELIVERY_FACILITY_TYPES.CLINIC: 0.075,
+        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.393,
+    },
+}
