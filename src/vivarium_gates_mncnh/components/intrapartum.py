@@ -5,6 +5,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
+    CPAP_ACCESS_PROBABILITIES,
     DELIVERY_FACILITY_TYPES,
     DELIVERY_FACILITY_TYPE_PROBABILITIES,
     SIMULATION_EVENT_NAMES,
@@ -13,15 +14,12 @@ from vivarium_gates_mncnh.utilities import get_location
 
 
 class Intrapartum(Component):
-    @property
-    def on_time_Step_priority(self) -> int:
-        # We want this to happen first so delivery facility type is chosen
-        return 2
     
     @property
     def columns_created(self) -> list[str]:
         return [
             COLUMNS.DELIVERY_FACILITY_TYPE,
+            COLUMNS.CPAP_AVAILABLE,
         ]
 
     def setup(self, builder: Builder) -> None:
@@ -32,7 +30,8 @@ class Intrapartum(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
-                COLUMNS.DELIVERY_FACILITY_TYPE: DELIVERY_FACILITY_TYPES.NONE
+                COLUMNS.DELIVERY_FACILITY_TYPE: DELIVERY_FACILITY_TYPES.NONE,
+                COLUMNS.CPAP_AVAILABLE: False,
             },
             index=pop_data.index,
         )
@@ -51,6 +50,15 @@ class Intrapartum(Component):
             additional_key="delivery_facility_type",    
         )
         pop[COLUMNS.DELIVERY_FACILITY_TYPE] = delivery_facility_type
+        
+        # Determine if simulant had access to CPAP
+        for facility_type in [DELIVERY_FACILITY_TYPES.CLINIC, DELIVERY_FACILITY_TYPES.HOSPITAL]:
+            facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
+            cpap_access_probability = CPAP_ACCESS_PROBABILITIES[self.location][facility_type]
+            cpap_access_idx = self.randomness.filter_for_probability(
+                facility_idx, cpap_access_probability, f"cpap_access_{facility_type}"
+            )
+            pop.loc[cpap_access_idx, COLUMNS.CPAP_AVAILABLE] = True
 
         self.population_view.update(pop)
         
