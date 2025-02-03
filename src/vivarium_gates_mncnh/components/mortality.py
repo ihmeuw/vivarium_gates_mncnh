@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
+    CAUSES_OF_NEONATAL_MORTALITY,
     PIPELINES,
     SIMULATION_EVENT_NAMES,
 )
@@ -205,19 +206,13 @@ class NeonatalMortality(Component):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name, self)
-        self.causes_of_death = [
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS,
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS,
-            NEONATAL_CAUSES.NEONATAL_SEPSIS,
-            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
-            "other_causes",
-        ]
+        self.causes_of_death = CAUSES_OF_NEONATAL_MORTALITY + ["other_causes"]
 
         # Get neonatal csmr pipelines
-        self.with_rds_csmr = builder.value.get_value(
+        self.preterm_with_rds_csmr = builder.value.get_value(
             PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
         )
-        self.without_rds_csmr = builder.value.get_value(
+        self.preterm_without_rds_csmr = builder.value.get_value(
             PIPELINES.NEONATAL_PRETERM_BIRTH_WITHOUT_RDS
         )
         self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS)
@@ -309,8 +304,8 @@ class NeonatalMortality(Component):
         choices = pd.DataFrame(index=simulant_idx)
         all_causes_death_rate = self.death_in_age_group(simulant_idx)
         neonatal_cause_dict = {
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: self.with_rds_csmr(simulant_idx),
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.without_rds_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: self.preterm_with_rds_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.preterm_without_rds_csmr(simulant_idx),
             NEONATAL_CAUSES.NEONATAL_SEPSIS: self.sepsis_csmr(simulant_idx),
             NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: self.encephalopathy_csmr(simulant_idx),
         }
