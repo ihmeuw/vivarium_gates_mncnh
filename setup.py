@@ -61,7 +61,7 @@ if __name__ == "__main__":
     data_requirements = ["vivarium_inputs[data]>=5.0.5"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
     test_requirements = ["pytest"]
-    lint_requirements = ["black", "isort"]
+    lint_requirements = ["black==22.3.0", "isort==5.13.2"]
 
     setup(
         name=about["__title__"],

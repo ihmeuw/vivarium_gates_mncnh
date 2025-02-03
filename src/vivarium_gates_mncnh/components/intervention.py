@@ -3,11 +3,12 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     CPAP_ACCESS_PROBABILITIES,
-    DELIVERY_FACILITY_TYPES,
     DELIVERY_FACILITY_TYPE_PROBABILITIES,
+    DELIVERY_FACILITY_TYPES,
     PIPELINES,
     SIMULATION_EVENT_NAMES,
 )
@@ -15,7 +16,7 @@ from vivarium_gates_mncnh.utilities import get_location
 
 
 class CPAPIntervention(Component):
-    """Component for CPAP intervention. This is essentially a risk effect. """
+    """Component for CPAP intervention. This is essentially a risk effect."""
 
     def __init__(self, preterm_csmr_target: str) -> None:
         super().__init__()
@@ -30,15 +31,19 @@ class CPAPIntervention(Component):
         builder.value.register_value_modifier(
             self.with_rds_csmr.name,
             self.calculate_cpap_path_probability,
-            required_resources=[self.with_rds_csmr.name, COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.CPAP_AVAILABLE]
+            required_resources=[
+                self.with_rds_csmr.name,
+                COLUMNS.DELIVERY_FACILITY_TYPE,
+                COLUMNS.CPAP_AVAILABLE,
+            ],
         )
-    
+
     ##################
     # Helper nethods #
     ##################
 
     def calculate_cpap_path_probability(self, index: pd.Index, csmr: pd.Series) -> pd.Series:
-        
+
         pop = self.population_view.get(index)
         # TODO: implement
         # TODO: iterate through each facility time

@@ -8,13 +8,11 @@ from vivarium.framework.resource import Resource
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
-    CPAP_ACCESS_PROBABILITIES,
     COLUMNS,
-    DELIVERY_FACILITY_TYPES,
+    CPAP_ACCESS_PROBABILITIES,
     NEONATAL_CAUSES,
     PIPELINES,
     PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
-    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.utilities import get_location
 
@@ -90,7 +88,6 @@ class NeonatalCause(Component):
 
 
 class PretermBirth(NeonatalCause):
-
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
         ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
