@@ -10,8 +10,8 @@ from vivarium_public_health.results import COLUMNS
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
 from vivarium_gates_mncnh.constants.data_values import (
+    CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_INITIALIZATION_AGE,
-    CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
@@ -295,13 +295,7 @@ class NeonatalBurdenObserver(BurdenObserver):
 
     def __init__(self):
         super().__init__(
-            burden_disorders=[
-                f"{NEONATAL_CAUSES.PRETERM_BIRTH}_with_rds",
-                f"{NEONATAL_CAUSES.PRETERM_BIRTH}_without_rds",
-                NEONATAL_CAUSES.NEONATAL_SEPSIS,
-                NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
-                "other_causes",
-            ],
+            burden_disorders=CAUSES_OF_NEONATAL_MORTALITY + ["other_causes"],
             alive_column=COLUMNS.CHILD_ALIVE,
             ylls_column=COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
             cause_of_death_column=COLUMNS.CHILD_CAUSE_OF_DEATH,
@@ -339,12 +333,7 @@ class NeonatalCauseRelativeRiskObserver(Observer):
 
     def __init__(self):
         super().__init__()
-        self.neonatal_causes = [
-            NEONATAL_CAUSES.PRETERM_BIRTH,
-            NEONATAL_CAUSES.NEONATAL_SEPSIS,
-            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY,
-            "all_causes",
-        ]
+        self.neonatal_causes = CAUSES_OF_NEONATAL_MORTALITY + ["all_causes"]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
