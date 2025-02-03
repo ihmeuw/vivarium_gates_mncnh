@@ -42,7 +42,7 @@ class NeonatalCause(Component):
     # Lifecycle methods #
     #####################
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
@@ -90,46 +90,6 @@ class NeonatalCause(Component):
 
 
 class PretermBirth(NeonatalCause):
-    @property
-    def columns_created(self) -> list[str]:
-        return [
-            COLUMNS.CPAP_AVAILABLE,
-        ]
-    
-    def setup(self, builder: Builder) -> None:
-        super().setup(builder)
-        builder.value.register_value_modifier(
-            self.csmr.name,
-            self.calculate_cpap_path_probability,
-            required_resources=[self.csmr.name, COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.CPAP_AVAILABLE]
-        )
-    
-    #####################
-    # Lifecycle methods #
-    #####################
-
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        pop = pd.DataFrame(
-            {COLUMNS.CPAP_AVAILABLE: False},
-            index=pop_data.index,
-        )
-        self.population_view.update(pop)
-
-    def on_time_step(self, event: Event) -> None:
-
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.INTRAPARTUM:
-            return
-
-        pop = self.population_view.get(event.index)
-        # Determine if simulant had access to CPAP
-        for facility_type in [DELIVERY_FACILITY_TYPES.CLINIC, DELIVERY_FACILITY_TYPES.HOSPITAL]:
-            cpap_access_probability = CPAP_ACCESS_PROBABILITIES[self.location][facility_type]
-            cpap_access_idx = self.randomness.filter_for_probability(
-                pop.index, cpap_access_probability, f"cpap_access_{facility_type}"
-            )
-            pop.loc[cpap_access_idx, COLUMNS.CPAP_AVAILABLE] = True
-
-        self.population_view.update(pop)
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
@@ -149,7 +109,3 @@ class PretermBirth(NeonatalCause):
         csmr = builder.data.load(data_keys.PRETERM_BIRTH.CSMR)
         csmr = csmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return csmr
-    
-    def calculate_cpap_path_probability(self, index: pd.Index, csmr: pd.Series) -> pd.Series:
-        # TODO: implement
-        pass
