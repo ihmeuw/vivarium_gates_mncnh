@@ -4,10 +4,13 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.resource import Resource
 
+from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
+    NEONATAL_CAUSES,
     PIPELINES,
+    PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
 )
 
 
@@ -85,4 +88,15 @@ class PretermBirth(NeonatalCause):
 
         normalized_csmr = super().get_normalized_csmr(index)
         normalized_csmr.loc[ga_greater_than_37] = 0
+        # Weight csmr for preterm birth with rds
+        if self.neonatal_cause == NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS:
+            normalized_csmr = normalized_csmr * PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
+        else:
+            normalized_csmr = normalized_csmr * (1 - PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY)
         return normalized_csmr
+
+    def load_csmr(self, builder: Builder) -> pd.DataFrame:
+        # Hard codes preterm csmr key since it is the same for both preterm subcauses
+        csmr = builder.data.load(data_keys.PRETERM_BIRTH.CSMR)
+        csmr = csmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return csmr
