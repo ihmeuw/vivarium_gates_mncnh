@@ -11,11 +11,11 @@ from vivarium.framework.population import SimulantData
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants.data_values import (
+    CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
-    CAUSES_OF_NEONATAL_MORTALITY,
     PIPELINES,
     SIMULATION_EVENT_NAMES,
 )
@@ -305,7 +305,9 @@ class NeonatalMortality(Component):
         all_causes_death_rate = self.death_in_age_group(simulant_idx)
         neonatal_cause_dict = {
             NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: self.preterm_with_rds_csmr(simulant_idx),
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.preterm_without_rds_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.preterm_without_rds_csmr(
+                simulant_idx
+            ),
             NEONATAL_CAUSES.NEONATAL_SEPSIS: self.sepsis_csmr(simulant_idx),
             NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: self.encephalopathy_csmr(simulant_idx),
         }
