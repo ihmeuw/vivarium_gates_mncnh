@@ -18,4 +18,6 @@ Updating the shared repo will take affect on the next pipeline invocation.
 The "_" denotes that all modules will be imported from the shared library.
 */ 
 @Library("vivarium_build_utils") _
-reusable_pipeline(scheduled_branches: ["main"], upstream_repos: ["layered_config_tree", "vivarium", "vivarium_public_health", "vivarium_inputs"])
+reusable_pipeline(test_types: ["all-tests"], 
+                  skip_build: true,
+                  upstream_repos: ["vivarium", "vivarium_inputs", "vivarium_public_health", "vivarium_cluster_tools", "gbd_mapping", "layered_config_tree"])
