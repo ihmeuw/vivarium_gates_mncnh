@@ -21,6 +21,7 @@
         dependencies: "layered_config_tree,vivarium,vivarium_public_health,vivarium_inputs"
         python_version: ${{ matrix.python-version }}
         skip_mypy: true
+        skip_docs: true
       secrets:
         notify_email: ${{ secrets.NOTIFY_EMAIL }}
         NOTIFY_PASSWORD: ${{ secrets.NOTIFY_PASSWORD }}
