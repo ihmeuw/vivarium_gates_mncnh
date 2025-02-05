@@ -6,9 +6,8 @@ import sys
 from packaging.version import parse
 from setuptools import find_packages, setup
 
-f = open("python_versions.json")
-supported_python_versions = json.load(f)
-f.close()
+with open("python_versions.json", "r") as f:
+    supported_python_versions = json.load(f)
 
 python_versions = [parse(v) for v in supported_python_versions]
 min_version = min(python_versions)
@@ -60,7 +59,7 @@ if __name__ == "__main__":
 
     data_requirements = ["vivarium_inputs[data]>=5.0.5"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
-    test_requirements = ["pytest"]
+    test_requirements = ["pytest", "pytest-cov"]
     lint_requirements = ["black==22.3.0", "isort==5.13.2"]
 
     setup(
