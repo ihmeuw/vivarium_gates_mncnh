@@ -224,12 +224,12 @@ class __Pipelines(NamedTuple):
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk",
     )
     NEONATAL_SEPSIS_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk",
-    )
+    "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk",
+)
     NEONATAL_ENCEPHALOPATHY_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk",
-    )
-    ACMR_RR = (
+    "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk",
+)
+ACMR_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_all_causes.cause_specific_mortality_rate",
     )
 
