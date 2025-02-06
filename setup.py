@@ -6,6 +6,7 @@ import sys
 from packaging.version import parse
 from setuptools import find_packages, setup
 
+# Get python versions
 with open("python_versions.json", "r") as f:
     supported_python_versions = json.load(f)
 
