@@ -38,8 +38,9 @@ GESTATIONAL_AGE = "gestational_age"
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
     """Subclass of LBWSGRiskEffect to be compatible with the wide state table, meaning it
-    will query on child lookup columns. This also exposes the PAF to a pipeline so it is
-    accessible by other components in the model."""
+    will query on child lookup columns. This also exposes the PAF as a pipeline so it is
+    accessible by the neonatal causes component. The ACMR PAF will be used to calculate a
+    normalizing Z constant to modify CSMR pipelines for neonatal causes."""
 
     @property
     def columns_required(self) -> list[str] | None:
@@ -133,15 +134,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
         interpolators = interpolators.apply(lambda x: pickle.loads(bytes.fromhex(x)))
         return interpolators
-
-    # NOTE: We will be manually handling the paf effect so the target_paf_pipeline
-    # has not been created and will throw a warning
-    def register_paf_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(
-            self.target_paf_pipeline_name,
-            modifier=self.acmr_paf,
-            component=self,
-        )
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
