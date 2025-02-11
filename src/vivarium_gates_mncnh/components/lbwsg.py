@@ -40,7 +40,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     """Subclass of LBWSGRiskEffect to be compatible with the wide state table, meaning it
     will query on child lookup columns. This also exposes the PAF as a pipeline so it is
     accessible by the neonatal causes component. The ACMR PAF will be used to calculate a
-    normalizing Z constant to modify CSMR pipelines for neonatal causes."""
+    normalizing constant to modify CSMR pipelines for neonatal causes."""
 
     @property
     def columns_required(self) -> list[str] | None:
