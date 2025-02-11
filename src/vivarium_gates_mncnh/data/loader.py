@@ -83,6 +83,14 @@ def get_data(
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
+        data_keys.CPAP_INTERVENTION.P_RDS: load_cpap_p_rds,
+        data_keys.CPAP_INTERVENTION.P_HOME: load_probability_birth_facility_type,
+        data_keys.CPAP_INTERVENTION.P_BEmONC: load_probability_birth_facility_type,
+        data_keys.CPAP_INTERVENTION.P_CEmONC: load_probability_birth_facility_type,
+        data_keys.CPAP_INTERVENTION.P_CPAP_HOME: load_cpap_facility_access_probability,
+        data_keys.CPAP_INTERVENTION.P_CPAP_BEmONC: load_cpap_facility_access_probability,
+        data_keys.CPAP_INTERVENTION.P_CPAP_CEmONC: load_cpap_facility_access_probability,
+        data_keys.CPAP_INTERVENTION.RELATIVE_RISK: load_cpap_relative_risk,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -411,6 +419,30 @@ def load_lbwsg_paf(
             df.loc[(sex, age_start, age_end, 2021, 2022), :] = 0
 
     return df.sort_index()
+
+
+def load_cpap_p_rds(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> int:
+    return 0.1
+
+
+def load_probability_birth_facility_type(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> int:
+    return data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][lookup_key]
+
+
+def load_cpap_facility_access_probability(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> int:
+    return data_values.CPAP_ACCESS_PROBABILITIES[location][lookup_key]
+
+
+def load_cpap_relative_risk(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> int:
+    return 0.53
 
 
 def reshape_to_vivarium_format(df, location):
