@@ -416,7 +416,8 @@ def load_lbwsg_paf(
 def load_lbwsg_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-
+    
+    entity = get_entity(data_keys.LBWSG.EXPOSURE)
     data = extra_gbd.load_lbwsg_exposure(location)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
