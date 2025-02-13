@@ -65,11 +65,7 @@ class LBWSGDistribution(Component):
         exposure = builder.data.load(data_keys.LBWSG.EXPOSURE).rename(
             columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER
         )
-        # Subset to early neonatal for birth prevalence group
-        birth_prevalence_exposure = exposure.loc[
-            exposure["child_age_end"] < 8 / 365.0
-        ].set_index(data_values.COLUMNS.SEX_OF_CHILD)
-        return birth_prevalence_exposure
+        breakpoint()
 
     def get_exposure(self, newborn_sex: pd.Series):
         categorical_exposure = self._sample_categorical_exposure(newborn_sex)

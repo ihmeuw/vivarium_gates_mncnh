@@ -66,7 +66,7 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
-        data_keys.LBWSG.EXPOSURE: load_standard_data,
+        data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
         data_keys.LBWSG.PAF: load_lbwsg_paf,
@@ -411,6 +411,28 @@ def load_lbwsg_paf(
             df.loc[(sex, age_start, age_end, 2021, 2022), :] = 0
 
     return df.sort_index()
+
+
+def load_lbwsg_exposure(
+    location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+
+    data = extra_gbd.load_lbwsg_exposure(location)
+    # This category was a mistake in GBD 2019, so drop.
+    extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
+    data = data.loc[data["parameter"] != extra_residual_category]
+    idx_cols = ["location_id", "sex_id", "parameter"]
+    data = data.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
+
+    # Sometimes there are data values on the order of 10e-300 that cause
+    # floating point headaches, so clip everything to reasonable values
+    data = data.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
+
+    # normalize so all categories sum to 1
+    total_exposure = data.groupby(["location_id", "sex_id"]).transform("sum")
+    data = (data / total_exposure).reset_index()
+    data = reshape_to_vivarium_format(data, location)
+    return data
 
 
 def reshape_to_vivarium_format(df, location):
