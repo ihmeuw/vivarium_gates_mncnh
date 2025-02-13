@@ -62,10 +62,12 @@ class LBWSGDistribution(Component):
         self.category_intervals = self._get_category_intervals(builder)
 
     def _load_exposure_data(self, builder: Builder) -> pd.DataFrame:
-        exposure = builder.data.load(data_keys.LBWSG.EXPOSURE).rename(
-            columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER
+        exposure = (
+            builder.data.load(data_keys.LBWSG.EXPOSURE)
+            .rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
+            .set_index(data_values.COLUMNS.SEX_OF_CHILD)
         )
-        breakpoint()
+        return exposure
 
     def get_exposure(self, newborn_sex: pd.Series):
         categorical_exposure = self._sample_categorical_exposure(newborn_sex)
