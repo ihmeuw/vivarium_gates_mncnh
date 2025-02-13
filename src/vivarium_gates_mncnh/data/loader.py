@@ -414,7 +414,7 @@ def load_lbwsg_paf(
 
 
 def load_lbwsg_exposure(
-    location: str, years: Optional[Union[int, str, List[int]]] = None
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
 
     data = extra_gbd.load_lbwsg_exposure(location)
