@@ -439,12 +439,12 @@ def load_lbwsg_exposure(
     birth_exposure = reshape_to_vivarium_format(birth_exposure, location).reset_index()
     birth_exposure["age_start"] = (0 - 7) / 365.0
     birth_exposure["age_end"] = 0.0
-    idx_cols = ["age_start", "age_end", "year_id", "sex_id", "parameter"]
+    idx_cols = ["sex", "age_start", "age_end", "year_start", "year_end", "parameter"]
     exposure = pd.concat([all_age_exposure.reset_index(), birth_exposure])
     exposure = exposure.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
 
     # normalize so all categories sum to 1
-    total_exposure = exposure.groupby(["age_start", "age_end", "sex_id"]).transform("sum")
+    total_exposure = exposure.groupby(["age_start", "age_end", "sex"]).transform("sum")
     exposure = (exposure / total_exposure).reset_index().set_index(idx_cols)
     return exposure
 
