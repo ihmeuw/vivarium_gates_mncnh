@@ -431,7 +431,7 @@ def load_lbwsg_exposure(
         birth_exposure["parameter"] != extra_residual_category
     ]
     birth_exposure = birth_exposure.set_index(
-        ["location_id", "age_group_id", "year_id", "sex_id", "parameter"]
+        ["location_id", "year_id", "sex_id", "parameter"]
     )[vi_globals.DRAW_COLUMNS]
     # Sometimes there are data values on the order of 10e-300 that cause
     # floating point headaches, so clip everything to reasonable values
