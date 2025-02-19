@@ -445,7 +445,7 @@ def load_lbwsg_exposure(
 
     # normalize so all categories sum to 1
     total_exposure = exposure.groupby(["age_start", "age_end", "sex"]).transform("sum")
-    exposure = (exposure / total_exposure).reset_index().set_index(idx_cols)
+    exposure = (exposure / total_exposure).reset_index().set_index(idx_cols).sort_index()
     return exposure
 
 
