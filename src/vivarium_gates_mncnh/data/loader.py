@@ -436,11 +436,11 @@ def load_lbwsg_exposure(
     # Sometimes there are data values on the order of 10e-300 that cause
     # floating point headaches, so clip everything to reasonable values
     birth_exposure = birth_exposure.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
-    birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
+    birth_exposure = reshape_to_vivarium_format(birth_exposure, location).reset_index()
     birth_exposure["age_start"] = (0 - 7) / 365.0
     birth_exposure["age_end"] = 0.0
     idx_cols = ["age_start", "age_end", "year_id", "sex_id", "parameter"]
-    exposure = pd.concat([all_age_exposure.reset_index(), birth_exposure.reset_index()])
+    exposure = pd.concat([all_age_exposure.reset_index(), birth_exposure])
     exposure = exposure.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
 
     # normalize so all categories sum to 1
