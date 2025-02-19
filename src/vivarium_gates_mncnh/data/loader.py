@@ -417,11 +417,36 @@ def load_lbwsg_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
 
+    if key != data_keys.LBWSG.EXPOSURE:
+        raise ValueError(f"Unrecognized key {key}")
+
+    # Get exposure for all age groups except birth age group
+    all_age_exposure = load_standard_data(key, location, years)
+
     entity = utilities.get_entity(data_keys.LBWSG.EXPOSURE)
-    data = extra_gbd.load_lbwsg_exposure(location)
-    normalized_exposure = utilities.rescale_prevalence(data)
-    cleaned_data = reshape_to_vivarium_format(normalized_exposure, location)
-    return cleaned_data
+    birth_exposure = extra_gbd.load_lbwsg_exposure(location)
+    # This category was a mistake in GBD 2019, so drop.
+    extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
+    birth_exposure = birth_exposure.loc[
+        birth_exposure["parameter"] != extra_residual_category
+    ]
+    birth_exposure = birth_exposure.set_index(
+        ["location_id", "age_group_id", "year_id", "sex_id", "parameter"]
+    )[vi_globals.DRAW_COLUMNS]
+    # Sometimes there are data values on the order of 10e-300 that cause
+    # floating point headaches, so clip everything to reasonable values
+    birth_exposure = birth_exposure.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
+    birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
+    birth_exposure["age_start"] = (0 - 7) / 365.0
+    birth_exposure["age_end"] = 0.0
+    idx_cols = ["age_start", "age_end", "year_id", "sex_id", "parameter"]
+    exposure = pd.concat([all_age_exposure.reset_index(), birth_exposure.reset_index()])
+    exposure = exposure.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
+
+    # normalize so all categories sum to 1
+    total_exposure = exposure.groupby(["age_start", "age_end", "sex_id"]).transform("sum")
+    exposure = (exposure / total_exposure).reset_index().set_index(idx_cols)
+    return exposure
 
 
 def reshape_to_vivarium_format(df, location):
