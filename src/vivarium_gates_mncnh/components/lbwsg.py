@@ -81,7 +81,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         # Map to child columns
         age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         relative_risks = relative_risks.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        relative_risks = relative_risks[relative_risks["child_age_end"] > 0]
 
         exposed_age_group_starts = (
             relative_risks.groupby("child_age_start")["value"]
