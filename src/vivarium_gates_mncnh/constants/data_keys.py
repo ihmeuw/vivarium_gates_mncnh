@@ -212,6 +212,7 @@ class __CPAPIntervention(NamedTuple):
     P_CPAP_BEmONC: str = "intervention.cpap_intervention.probability_CPAP_BEMONC"
     P_CPAP_CEmONC: str = "intervention.cpap_intervention.probability_CPAP_CEmONC"
     RELATIVE_RISK: str = "intervention.cpap_intervention.relative_risk"
+    PAF: str = "intervention.cpap_intervention.population_attributable_fraction"
 
     @property
     def name(self):
