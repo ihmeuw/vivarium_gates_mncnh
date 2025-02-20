@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import NamedTuple
 
-from vivarium_gates_mncnh.constants.data_keys import CPAP_INTERVENTION
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
 
 ############################
 # Disease Model Parameters #
@@ -255,36 +255,36 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        CPAP_INTERVENTION.P_HOME: 0.683,
-        CPAP_INTERVENTION.P_CEmONC: 0.266,
-        CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_INTERVENTION.P_HOME: 0.683,
+        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
+        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
     "Nigeria": {
-        CPAP_INTERVENTION.P_HOME: 0.683,
-        CPAP_INTERVENTION.P_CEmONC: 0.266,
-        CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_INTERVENTION.P_HOME: 0.683,
+        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
+        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
     "Pakistan": {
-        CPAP_INTERVENTION.P_HOME: 0.683,
-        CPAP_INTERVENTION.P_CEmONC: 0.266,
-        CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_INTERVENTION.P_HOME: 0.683,
+        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
+        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
 }
 # TODO: move these to artifact if/when necessary
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
-        CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
     },
     "Nigeria": {
-        CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
     },
     "Pakistan": {
-        CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
     },
 }

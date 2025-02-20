@@ -203,7 +203,7 @@ class __NeonatalEncephalopath(NamedTuple):
 NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
 
 
-class __CPAPIntervention(NamedTuple):
+class __NoCPAPIntervention(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     P_RDS: str = "intervention.cpap_intervention.p_rds"
     P_HOME: str = "intervention.cpap_intervention.probability_home_birth"
@@ -211,6 +211,7 @@ class __CPAPIntervention(NamedTuple):
     P_CEmONC: str = "intervention.cpap_intervention.probability_CEmONC_birth"
     P_CPAP_BEmONC: str = "intervention.cpap_intervention.probability_CPAP_BEMONC"
     P_CPAP_CEmONC: str = "intervention.cpap_intervention.probability_CPAP_CEmONC"
+    P_CPAP_HOME: str = "intervention.cpap_intervention.probability_CPAP_home"
     RELATIVE_RISK: str = "intervention.cpap_intervention.relative_risk"
     PAF: str = "intervention.cpap_intervention.population_attributable_fraction"
 
@@ -223,7 +224,7 @@ class __CPAPIntervention(NamedTuple):
         return "CPAP intervention"
 
 
-CPAP_INTERVENTION = __CPAPIntervention()
+NO_CPAP_INTERVENTION = __NoCPAPIntervention()
 
 
 MAKE_ARTIFACT_KEY_GROUPS = [
@@ -238,5 +239,5 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     PRETERM_BIRTH,
     NEONATAL_SEPSIS,
     NEONATAL_ENCEPHALOPATHY,
-    CPAP_INTERVENTION,
+    NO_CPAP_INTERVENTION,
 ]
