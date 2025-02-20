@@ -270,7 +270,7 @@ DELIVERY_FACILITY_TYPE_PROBABILITIES = {
         NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
 }
-# TODO: move these to artifact if/when necessary
+# Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
         NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
