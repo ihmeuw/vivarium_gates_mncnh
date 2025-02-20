@@ -5,7 +5,7 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
-from vivarium_gates_mncnh.constants import data_keys, data_values, models
+from vivarium_gates_mncnh.constants import data_keys, data_values
 
 
 class NewChildren(Component):
@@ -58,8 +58,18 @@ class NewChildren(Component):
 class LBWSGDistribution(Component):
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.exposure = builder.data.load(data_keys.LBWSG.EXPOSURE).set_index("sex")
+        self.exposure = self._load_exposure_data(builder)
         self.category_intervals = self._get_category_intervals(builder)
+
+    def _load_exposure_data(self, builder: Builder) -> pd.DataFrame:
+        exposure = (
+            builder.data.load(data_keys.LBWSG.EXPOSURE)
+            .rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
+            .set_index(data_values.COLUMNS.SEX_OF_CHILD)
+        )
+        # Subset to birth age group
+        exposure = exposure[exposure["child_age_start"] < 0.0]
+        return exposure
 
     def get_exposure(self, newborn_sex: pd.Series):
         categorical_exposure = self._sample_categorical_exposure(newborn_sex)
