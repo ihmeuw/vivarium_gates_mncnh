@@ -83,7 +83,7 @@ def get_data(
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
-        data_keys.NO_CPAP_INTERVENTION.P_RDS: load_cpap_p_rds,
+        data_keys.NO_CPAP_INTERVENTION.P_RDS: load_p_rds,
         data_keys.NO_CPAP_INTERVENTION.P_HOME: load_probability_birth_facility_type,
         data_keys.NO_CPAP_INTERVENTION.P_BEmONC: load_probability_birth_facility_type,
         data_keys.NO_CPAP_INTERVENTION.P_CEmONC: load_probability_birth_facility_type,
@@ -422,7 +422,7 @@ def load_lbwsg_paf(
     return df.sort_index()
 
 
-def load_cpap_p_rds(
+def load_p_rds(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
     return 0.1
