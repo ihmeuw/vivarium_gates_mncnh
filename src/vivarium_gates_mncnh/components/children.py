@@ -67,6 +67,8 @@ class LBWSGDistribution(Component):
             .rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
             .set_index(data_values.COLUMNS.SEX_OF_CHILD)
         )
+        # Subset to birth age group
+        exposure = exposure[exposure["child_age_start"] < 0.0]
         return exposure
 
     def get_exposure(self, newborn_sex: pd.Series):
