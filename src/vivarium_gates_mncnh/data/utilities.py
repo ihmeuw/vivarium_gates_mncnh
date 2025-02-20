@@ -66,20 +66,3 @@ def parse_short_gestation_description(description: str) -> pd.Interval:
         ]
     )
     return endpoints
-
-
-def rescale_prevalence(exposure):
-    """Rescales prevalences to add to 1 in LBWSG exposure data pulled from GBD 2019 by get_draws."""
-    # Drop residual 'cat125' parameter with meid==NaN, and convert meid col from float to int
-    exposure = exposure.dropna().astype({"modelable_entity_id": int})
-    # Define some categories of columns
-    draw_cols = exposure.filter(regex=r"^draw_\d{1,3}$").columns.to_list()
-    category_cols = ["modelable_entity_id", "parameter"]
-    index_cols = exposure.columns.difference(draw_cols)
-    sum_index = index_cols.difference(category_cols)
-    # Add prevalences over categories (indexed by meid and/or parameter) to get denominator for rescaling
-    prevalence_sum = exposure.groupby(sum_index.to_list())[draw_cols].sum()
-    # Divide prevalences by total to rescale them to add to 1, and reset index to put df back in original form
-    exposure = exposure.set_index(index_cols.to_list()) / prevalence_sum
-    exposure.reset_index(inplace=True)
-    return exposure
