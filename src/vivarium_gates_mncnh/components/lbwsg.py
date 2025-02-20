@@ -77,7 +77,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
-        exposure = builder.data.load(f"{self.risk}.exposure")
+        exposure = builder.data.load(f"{self.risk}.relative_risk")
         # Map to child columns
         age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         exposure = exposure.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
