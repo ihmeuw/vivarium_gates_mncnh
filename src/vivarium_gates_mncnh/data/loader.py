@@ -87,9 +87,9 @@ def get_data(
         data_keys.NO_CPAP_INTERVENTION.P_HOME: load_probability_birth_facility_type,
         data_keys.NO_CPAP_INTERVENTION.P_BEmONC: load_probability_birth_facility_type,
         data_keys.NO_CPAP_INTERVENTION.P_CEmONC: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME: load_no_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC: load_no_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC: load_no_cpap_facility_access_probability,
+        data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_INTERVENTION.PAF: load_no_cpap_paf,
     }
@@ -434,7 +434,7 @@ def load_probability_birth_facility_type(
     return data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][lookup_key]
 
 
-def load_no_cpap_facility_access_probability(
+def load_cpap_facility_access_probability(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
     return data_values.CPAP_ACCESS_PROBABILITIES[location][lookup_key]
