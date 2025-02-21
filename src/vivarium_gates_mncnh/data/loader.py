@@ -425,7 +425,6 @@ def load_lbwsg_paf(
 def load_p_rds(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    # TODO: implement
     csmr = get_data(data_keys.PRETERM_BIRTH.CSMR, location, years)
     p_rds = csmr * data_values.PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
     return p_rds
@@ -502,6 +501,7 @@ def load_no_cpap_paf(
         + (p_CEmONC * p_CPAP_CEmONC)
     )
     paf_no_cpap = 1 - (p_rds_cpap / p_rds)
+    paf_no_cpap = paf_no_cpap.fillna(0.0)
     return paf_no_cpap
 
 
