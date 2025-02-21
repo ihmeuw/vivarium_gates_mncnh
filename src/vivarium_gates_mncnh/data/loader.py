@@ -465,12 +465,13 @@ def load_no_cpap_paf(
     # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
     # p_rds_no_cpap = p_rds_cpap * relative_risk
 
-    # Get probability all all no cpap paths
+    # Get probability of each path
     # p_home_no_cpap = p_home * p_rds_no_cpap
     # p_BEmONC_no_cpap = p_BEmONC * 1 - p_CPAP_BEmONC * p_rds_no_cpap
     # p_CEmONC_no_cpap = p_CEmONC * 1 - p_CPAP_CEmONC * p_rds_no_cpap
     # p_BEmONC_cpap = p_BEmONC * p_CPAP_BEmONC * p_rds_cpap
     # p_CEmONC_cpap = p_CEmONC * p_CPAP_CEmONC * p_rds_cpap
+    
     # p_rds = (
     #     p_home * p_rds_cpap * relative_risk
     #     + p_BEmONC * 1 - p_CPAP_CEmONC * p_rds_cpap * relative_risk
