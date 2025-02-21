@@ -425,7 +425,10 @@ def load_lbwsg_paf(
 def load_p_rds(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    return 0.1
+    # TODO: implement
+    csmr = get_data(data_keys.PRETERM_BIRTH.CSMR, location, years)
+    p_rds = csmr * data_values.PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
+    return p_rds
 
 
 def load_probability_birth_facility_type(
@@ -459,7 +462,7 @@ def load_no_cpap_paf(
     p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC, location, years)
     p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC, location, years)
     relative_risk = get_data(data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK, location, years)
-
+    # rr_cpap = 1 / relative_risk)
     # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
     # p_rds_no_cpap = p_rds_cpap * relative_risk
 
