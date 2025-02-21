@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import NamedTuple
 
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
+
 ############################
 # Disease Model Parameters #
 ############################
@@ -245,8 +247,8 @@ CHILD_INITIALIZATION_AGE = 0.1 / 365.0
 
 class __DeliveryFacilityTypes(NamedTuple):
     HOME = "home"
-    HOSPITAL = "hospital"
-    CLINIC = "clinic"
+    CEmONC = "CEmONC"
+    BEmONC = "BEmONC"
     NONE = "none"
 
 
@@ -255,33 +257,36 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        DELIVERY_FACILITY_TYPES.HOME: 0.683,
-        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.266,
-        DELIVERY_FACILITY_TYPES.CLINIC: 0.051,
+        NO_CPAP_INTERVENTION.P_HOME: 0.683,
+        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
+        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
     "Nigeria": {
-        DELIVERY_FACILITY_TYPES.HOME: 0.683,
-        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.266,
-        DELIVERY_FACILITY_TYPES.CLINIC: 0.051,
+        NO_CPAP_INTERVENTION.P_HOME: 0.683,
+        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
+        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
     "Pakistan": {
-        DELIVERY_FACILITY_TYPES.HOME: 0.683,
-        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.266,
-        DELIVERY_FACILITY_TYPES.CLINIC: 0.051,
+        NO_CPAP_INTERVENTION.P_HOME: 0.683,
+        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
+        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
     },
 }
-# TODO: move these to artifact if/when necessary
+# Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
-        DELIVERY_FACILITY_TYPES.CLINIC: 0.075,
-        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
     },
     "Nigeria": {
-        DELIVERY_FACILITY_TYPES.CLINIC: 0.075,
-        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
     },
     "Pakistan": {
-        DELIVERY_FACILITY_TYPES.CLINIC: 0.075,
-        DELIVERY_FACILITY_TYPES.HOSPITAL: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
     },
 }
