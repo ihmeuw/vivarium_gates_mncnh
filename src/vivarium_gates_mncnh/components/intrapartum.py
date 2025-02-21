@@ -53,8 +53,8 @@ class Intrapartum(Component):
 
         # Determine if simulant had access to CPAP
         for facility_type in [
-            DELIVERY_FACILITY_TYPES.CLINIC,
-            DELIVERY_FACILITY_TYPES.HOSPITAL,
+            DELIVERY_FACILITY_TYPES.BEmONC,
+            DELIVERY_FACILITY_TYPES.CEmONC,
         ]:
             facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
             cpap_access_probability = CPAP_ACCESS_PROBABILITIES[self.location][facility_type]
