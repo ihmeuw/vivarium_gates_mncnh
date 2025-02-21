@@ -479,7 +479,7 @@ def load_no_cpap_paf(
     #     + p_BEmONC * p_CPAP_BEmONC * p_rds_cpap
     #     + p_CEmONC * p_CPAP_CEmONC * p_rds_cpap
     # )
-    # 0.1 = (
+    # p_rds = (
     #     0.5 * 1.0 * p_rds_cpap * (1 / 0.53)
     #     + 0.1 * (1 - 0.075) * p_rds_cpap * (1 / 0.53)
     #     + 0.4 * (1 - 0.393) * p_rds_cpap * (1 / 0.53)
@@ -492,9 +492,9 @@ def load_no_cpap_paf(
     #     + (0.4 * (1 / 0.393) * (1 / 0.53))
     #     + (0.1 * 0.075)
     #     + (0.4 * 0.393)
-    # ) = 0.1
+    # ) = p_rds
 
-    p_rds_cpap = 0.1 / (
+    p_rds_cpap = p_rds / (
         (p_home * relative_risk)
         + (p_BEmONC * (1 - p_CPAP_BEmONC) * relative_risk)
         + (p_CEmONC * (1 - p_CPAP_CEmONC) * relative_risk)
