@@ -1,11 +1,15 @@
+from __future__ import annotations
+
+from functools import partial
+
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
 
+from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
-from vivarium_gates_mncnh.constants.data_values import COLUMNS
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
 from vivarium_gates_mncnh.utilities import get_location
 
 
@@ -18,18 +22,18 @@ class NoCPAPIntervention(Component):
             self.name: {
                 "data_sources": {
                     "relative_risk": NO_CPAP_INTERVENTION.RELATIVE_RISK,
-                    "paf": NO_CPAP_INTERVENTION.PAF,
+                    "paf": self.load_paf_data,
                 }
             }
         }
 
     @property
-    def required_columns(self) -> list[str]:
+    def columns_required(self) -> list[str]:
         return [COLUMNS.CPAP_AVAILABLE]
 
-    def __init__(self, preterm_csmr_target: str) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.preterm_csmr_target = preterm_csmr_target
+        self.preterm_csmr_target = PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -50,26 +54,23 @@ class NoCPAPIntervention(Component):
     # Helper nethods #
     ##################
 
+    def load_paf_data(self, builder: Builder) -> pd.Series:
+        data = builder.data.load(NO_CPAP_INTERVENTION.PAF)
+        data = data.rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
+        return data
+
     def modify_preterm_with_rds_csmr(
-        self, index: pd.Index, preterm_with_rds_csmr: pd.Series
+        self, index: pd.Index, preterm_with_rds_csmr: pd.Series[float]
     ) -> pd.Series[float]:
         # No CPAP access is like a dichotomous risk factor, meaning those that have access to CPAP will
         # not have their CSMR modify by no CPAP RR
         pop = self.population_view.get(index)
-        has_cpap_idx = pop.index[pop[COLUMNS.CPAP_AVAILABLE] == True]
         no_cpap_idx = pop.index[pop[COLUMNS.CPAP_AVAILABLE] == False]
         no_cpap_rr = self.lookup_tables["relative_risk"](no_cpap_idx)
-        has_cpap_paf = self.lookup_tables["paf"](has_cpap_idx)
-        no_cpap_paf = self.lookup_tables["paf"](no_cpap_idx)
+        # Note: PAF is the PAF of not receiving CPAP
+        paf = self.lookup_tables["paf"](index)
 
-        has_cpap_modifier = 1 - has_cpap_paf
-        no_cpap_modifier = no_cpap_rr * (1 - no_cpap_paf)
-        csmr_modifier = pd.concat(
-            [
-                has_cpap_modifier,
-                no_cpap_modifier,
-            ]
-        ).sort_index()
-
-        modified_csmr = preterm_with_rds_csmr * csmr_modifier
+        # Modify the CSMR pipeline
+        modified_csmr = preterm_with_rds_csmr * (1 - paf)
+        modified_csmr.loc[no_cpap_idx] = modified_csmr * no_cpap_rr
         return modified_csmr
