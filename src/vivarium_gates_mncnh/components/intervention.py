@@ -66,8 +66,9 @@ class NoCPAPIntervention(Component):
         # not have their CSMR modify by no CPAP RR
         pop = self.population_view.get(index)
         no_cpap_idx = pop.index[pop[COLUMNS.CPAP_AVAILABLE] == False]
+        # NOTE: RR is relative risk for no CPAP
         no_cpap_rr = self.lookup_tables["relative_risk"](no_cpap_idx)
-        # Note: PAF is the PAF of not receiving CPAP
+        # NOTE: PAF is for no CPAP
         paf = self.lookup_tables["paf"](index)
 
         # Modify the CSMR pipeline
