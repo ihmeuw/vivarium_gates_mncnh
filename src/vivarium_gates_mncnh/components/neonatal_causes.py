@@ -9,7 +9,6 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
-    CPAP_ACCESS_PROBABILITIES,
     NEONATAL_CAUSES,
     PIPELINES,
     PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
@@ -19,7 +18,7 @@ from vivarium_gates_mncnh.constants.data_values import (
 class NeonatalCause(Component):
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.GESTATIONAL_AGE, COLUMNS.DELIVERY_FACILITY_TYPE]
+        return [COLUMNS.GESTATIONAL_AGE]
 
     @property
     def configuration_defaults(self) -> dict:
