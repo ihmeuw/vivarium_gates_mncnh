@@ -83,6 +83,15 @@ def get_data(
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
+        data_keys.NO_CPAP_INTERVENTION.P_RDS: load_p_rds,
+        data_keys.NO_CPAP_INTERVENTION.P_HOME: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_INTERVENTION.P_BEmONC: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_INTERVENTION.P_CEmONC: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK: load_no_cpap_relative_risk,
+        data_keys.NO_CPAP_INTERVENTION.PAF: load_no_cpap_paf,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -411,6 +420,90 @@ def load_lbwsg_paf(
             df.loc[(sex, age_start, age_end, 2021, 2022), :] = 0
 
     return df.sort_index()
+
+
+def load_p_rds(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    csmr = get_data(data_keys.PRETERM_BIRTH.CSMR, location, years)
+    p_rds = csmr * data_values.PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
+    return p_rds
+
+
+def load_probability_birth_facility_type(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    return data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][lookup_key]
+
+
+def load_cpap_facility_access_probability(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    return data_values.CPAP_ACCESS_PROBABILITIES[location][lookup_key]
+
+
+def load_no_cpap_relative_risk(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    return 1 / 0.53
+
+
+def load_no_cpap_paf(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+
+    # Get all no_cpap data for calculations
+    p_rds = get_data(data_keys.NO_CPAP_INTERVENTION.P_RDS, location, years)
+    p_home = get_data(data_keys.NO_CPAP_INTERVENTION.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CEmONC, location, years)
+    p_CPAP_home = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME, location, years)
+    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC, location, years)
+    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC, location, years)
+    relative_risk = get_data(data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK, location, years)
+    # rr_cpap = 1 / relative_risk)
+    # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
+    # p_rds_no_cpap = p_rds_cpap * relative_risk
+
+    # Get death probability of each path
+    # p_home_no_cpap = p_home * p_rds_no_cpap
+    # p_BEmONC_no_cpap = p_BEmONC * 1 - p_CPAP_BEmONC * p_rds_no_cpap
+    # p_CEmONC_no_cpap = p_CEmONC * 1 - p_CPAP_CEmONC * p_rds_no_cpap
+    # p_BEmONC_cpap = p_BEmONC * p_CPAP_BEmONC * p_rds_cpap
+    # p_CEmONC_cpap = p_CEmONC * p_CPAP_CEmONC * p_rds_cpap
+
+    # p_rds = (
+    #     p_home * p_rds_cpap * relative_risk
+    #     + p_BEmONC * (1 - p_CPAP_CEmONC) * p_rds_cpap * relative_risk
+    #     + p_CEmONC * (1 - p_CPAP_CEmONC) * p_rds_cpap * relative_risk
+    #     + p_BEmONC * p_CPAP_BEmONC * p_rds_cpap
+    #     + p_CEmONC * p_CPAP_CEmONC * p_rds_cpap
+    # )
+    # p_rds = (
+    #     0.5 * 1.0 * p_rds_cpap * (1 / 0.53)
+    #     + 0.1 * (1 - 0.075) * p_rds_cpap * (1 / 0.53)
+    #     + 0.4 * (1 - 0.393) * p_rds_cpap * (1 / 0.53)
+    #     + 0.1 * 0.075 * p_rds_cpap
+    #     + 0.4 * 0.393 * p_rds_cpap
+    # )
+    # p_rds_cpap(
+    #     (0.5 * 1 * (1 / 0.53))
+    #     + (0.1 * (1 - 0.075) * (1 / 0.53))
+    #     + (0.4 * (1 / 0.393) * (1 / 0.53))
+    #     + (0.1 * 0.075)
+    #     + (0.4 * 0.393)
+    # ) = p_rds
+
+    p_rds_cpap = p_rds / (
+        (p_home * relative_risk)
+        + (p_BEmONC * (1 - p_CPAP_BEmONC) * relative_risk)
+        + (p_CEmONC * (1 - p_CPAP_CEmONC) * relative_risk)
+        + (p_BEmONC * p_CPAP_BEmONC)
+        + (p_CEmONC * p_CPAP_CEmONC)
+    )
+    paf_no_cpap = 1 - (p_rds_cpap / p_rds)
+    paf_no_cpap = paf_no_cpap.fillna(0.0)
+    return paf_no_cpap
 
 
 def load_lbwsg_exposure(
