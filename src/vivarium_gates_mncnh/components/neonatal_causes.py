@@ -14,7 +14,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     PIPELINES,
     PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
 )
-from vivarium_gates_mncnh.utilities import get_location
 
 
 class NeonatalCause(Component):
@@ -41,9 +40,6 @@ class NeonatalCause(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
-        self.randomness = builder.randomness.get_stream(self.name)
-        self.location = get_location(builder)
         self.acmr_paf = builder.value.get_value(PIPELINES.ACMR_PAF)
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
