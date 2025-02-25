@@ -128,3 +128,6 @@ dmypy.json
 
 # Version file
 src/*/_version.py
+
+# FuzzyChecker outputs
+tests/v_and_v_output
