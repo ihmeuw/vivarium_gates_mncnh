@@ -39,7 +39,6 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session")
 def model_spec_path() -> Path:
     repo_path = paths.BASE_DIR
-    breakpoint()
     config_path = repo_path / "model_specifications" / "model_spec.yaml"
     return config_path
 
