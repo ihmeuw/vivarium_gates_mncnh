@@ -50,7 +50,7 @@ class Intrapartum(Component):
         delivery_facility_type = self.randomness.choice(
             pop.index,
             [
-                DELIVERY_FACILITY_TYPES.NONE,
+                DELIVERY_FACILITY_TYPES.HOME,
                 DELIVERY_FACILITY_TYPES.CEmONC,
                 DELIVERY_FACILITY_TYPES.BEmONC,
             ],
