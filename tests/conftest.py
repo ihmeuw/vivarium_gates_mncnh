@@ -1,7 +1,9 @@
+import os
 from pathlib import Path
 import pytest
 
 from vivarium import InteractiveContext
+from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 from vivarium_gates_mncnh.constants import paths
@@ -56,3 +58,17 @@ def simulation_states(model_spec_path: Path) -> dict[str, InteractiveContext]:
         sim.step()
     
     return sim_states
+
+
+@pytest.fixture(scope="session")
+def output_directory() -> str:
+    v_v_path = Path(os.path.dirname(__file__)) / "v_and_v_output"
+    return v_v_path
+
+@pytest.fixture(scope="session")
+def fuzzy_checker(output_directory) -> FuzzyChecker:
+    checker = FuzzyChecker()
+
+    yield checker
+
+    checker.save_diagnostic_output(output_directory)
