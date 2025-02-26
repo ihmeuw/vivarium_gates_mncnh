@@ -56,3 +56,20 @@ def test_received_ultrasound_proportions(
         ultrasound_proportion * attended_anc_facility_proportion,
         name="received_ultrasound_proportion",
     )
+
+
+@pytest.mark.parametrize(
+    "ultrasound_type", [ULTRASOUND_TYPES.STANDARD, ULTRASOUND_TYPES.AI_ASSISTED]
+)
+def test_ultrasound_type_proportions(
+    ultrasound_type: str, anc_state: InteractiveContext, fuzzy_checker: FuzzyChecker
+) -> None:
+    pop = anc_state.get_population()
+    location = pop[COLUMNS.LOCATION].iloc[0]
+    ultrasound_type_proportion = ANC_RATES.ULTRASOUND_TYPE[location][ultrasound_type]
+    fuzzy_checker.fuzzy_assert_proportion(
+        (pop[COLUMNS.ULTRASOUND_TYPE] == ultrasound_type).sum(),
+        (pop[COLUMNS.ULTRASOUND_TYPE] != ULTRASOUND_TYPES.NO_ULTRASOUND).sum(),
+        ultrasound_type_proportion,
+        name=f"ultrasound_type_proportion_{ultrasound_type}",
+    )
