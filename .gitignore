@@ -130,4 +130,4 @@ dmypy.json
 src/*/_version.py
 
 # FuzzyChecker outputs
-tests/v_and_v_output
+tests/v_and_v_output/*.csv
