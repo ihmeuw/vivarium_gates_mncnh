@@ -102,9 +102,6 @@ class Pregnancy(Component):
             == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         ]
         pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
-        pregnancy_outcomes_and_durations.loc[
-            live_birth_index, COLUMNS.CHILD_AGE
-        ] = CHILD_INITIALIZATION_AGE
 
         self.population_view.update(pregnancy_outcomes_and_durations)
 
@@ -119,9 +116,9 @@ class Pregnancy(Component):
         alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
         # Update age of children to get correctlookup values - use midpoint of age groups
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
-            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = (7 / 2) / 365.0
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] += (7 / 2) / 365.0
         else:
-            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] += ((28 - 7) / 2) / 365.0
 
         self.population_view.update(pop)
 
