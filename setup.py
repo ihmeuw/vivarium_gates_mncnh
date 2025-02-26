@@ -43,6 +43,7 @@ if __name__ == "__main__":
 
     install_requirements = [
         "gbd_mapping>=4.0.0",
+        "layered_config_tree",
         "vivarium>=3.0.0",
         "vivarium_public_health>=3.0.0",
         "click",

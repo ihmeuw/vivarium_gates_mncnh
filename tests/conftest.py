@@ -1,13 +1,13 @@
 import os
 from pathlib import Path
-import pytest
 
-from vivarium import InteractiveContext
+import pytest
+from layered_config_tree import LayeredConfigTree
+from vivarium import Artifact, InteractiveContext
 from vivarium_testing_utils import FuzzyChecker
 
-from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 from vivarium_gates_mncnh.constants import paths
-
+from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 
 SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.PREGNANCY,
@@ -38,6 +38,7 @@ def pytest_collection_modifyitems(config, items):
         if "slow" in item.keywords:
             item.add_marker(skip_slow)
 
+
 @pytest.fixture(scope="session")
 def model_spec_path() -> Path:
     repo_path = paths.BASE_DIR
@@ -56,14 +57,22 @@ def simulation_states(model_spec_path: Path) -> dict[str, InteractiveContext]:
         if step == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY:
             continue
         sim.step()
-    
+
     return sim_states
+
+
+@pytest.fixture(scope="session")
+def artifact(model_spec_path) -> Artifact:
+    config = LayeredConfigTree(model_spec_path)
+    artifact = Artifact(config.configuration.input_data.artifact_path)
+    return artifact
 
 
 @pytest.fixture(scope="session")
 def output_directory() -> str:
     v_v_path = Path(os.path.dirname(__file__)) / "v_and_v_output"
     return v_v_path
+
 
 @pytest.fixture(scope="session")
 def fuzzy_checker(output_directory) -> FuzzyChecker:
