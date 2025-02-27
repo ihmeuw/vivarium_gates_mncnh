@@ -314,7 +314,7 @@ class NeonatalBurdenObserver(BurdenObserver):
             )
 
     def to_observe(self, event: Event) -> bool:
-        # Only observer deaths after both neonatal periods to not double count ENN deaths.
+        # Need to make single observeration of deaths after all time steps where neonates die.
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
