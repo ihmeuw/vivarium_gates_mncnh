@@ -63,7 +63,7 @@ class LBWSGDistribution(Component):
 
     def _load_exposure_data(self, builder: Builder) -> pd.DataFrame:
         exposure = (
-            builder.data.load(data_keys.LBWSG.EXPOSURE)
+            builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
             .rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
             .set_index(data_values.COLUMNS.SEX_OF_CHILD)
         )

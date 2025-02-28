@@ -64,12 +64,13 @@ def get_data(
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
-        #data_keys.LBWSG.DISTRIBUTION: load_metadata,
-        #data_keys.LBWSG.CATEGORIES: load_metadata,
-        data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
-        #data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
-        #data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
-        #data_keys.LBWSG.PAF: load_lbwsg_paf,
+        # data_keys.LBWSG.DISTRIBUTION: load_metadata,
+        # data_keys.LBWSG.CATEGORIES: load_metadata,
+        data_keys.LBWSG.BIRTH_EXPOSURE: load_standard_data,
+        data_keys.CHILD_WASTING.BIRTH_EXPOSURE: load_standard_data,
+        # data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
+        # data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
+        # data_keys.LBWSG.PAF: load_lbwsg_paf,
         data_keys.ANC.ESTIMATE: load_anc_proportion,
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
@@ -510,13 +511,13 @@ def load_lbwsg_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
 
-    if key != data_keys.LBWSG.EXPOSURE:
+    if key != data_keys.LBWSG.BIRTH_EXPOSURE:
         raise ValueError(f"Unrecognized key {key}")
 
     # Get exposure for all age groups except birth age group
     all_age_exposure = load_standard_data(key, location, years)
 
-    entity = utilities.get_entity(data_keys.LBWSG.EXPOSURE)
+    entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
     birth_exposure = extra_gbd.load_lbwsg_exposure(location)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]

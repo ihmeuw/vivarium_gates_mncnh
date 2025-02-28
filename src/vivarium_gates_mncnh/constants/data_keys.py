@@ -52,7 +52,7 @@ PREGNANCY = __Pregnancy()
 
 class __LowBirthWeightShortGestation(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
+    BIRTH_EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.birthexposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
     RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
@@ -227,17 +227,33 @@ class __NoCPAPIntervention(NamedTuple):
 NO_CPAP_INTERVENTION = __NoCPAPIntervention()
 
 
+class __ChildWasting(NamedTuple):
+    BIRTH_EXPOSURE: str = "risk_factor.child_wasting.birth_exposure"
+
+    @property
+    def name(self):
+        return "child_wasting"
+
+    @property
+    def log_name(self):
+        return "child wasting"
+
+
+CHILD_WASTING = __ChildWasting()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
-    #PREGNANCY,
+    # PREGNANCY,
     LBWSG,
-    #ANC,
-    #MATERNAL_SEPSIS,
-    #MATERNAL_HEMORRHAGE,
-    #OBSTRUCTED_LABOR,
-    #PRETERM_BIRTH,
-    #NEONATAL_SEPSIS,
-    #NEONATAL_ENCEPHALOPATHY,
-    #NO_CPAP_INTERVENTION,
+    CHILD_WASTING,
+    # ANC,
+    # MATERNAL_SEPSIS,
+    # MATERNAL_HEMORRHAGE,
+    # OBSTRUCTED_LABOR,
+    # PRETERM_BIRTH,
+    # NEONATAL_SEPSIS,
+    # NEONATAL_ENCEPHALOPATHY,
+    # NO_CPAP_INTERVENTION,
 ]
