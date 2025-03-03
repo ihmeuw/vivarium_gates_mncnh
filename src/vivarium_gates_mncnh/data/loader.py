@@ -61,7 +61,9 @@ def get_data(
 def load_lbwsg_birth_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    return interface.get_birth_exposure(location, years)
+    key = EntityKey(key)
+    entity = utilities.get_entity(key)
+    return interface.get_birth_exposure(entity, location, years)
 
 def load_population_location(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
