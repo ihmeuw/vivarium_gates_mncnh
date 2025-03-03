@@ -102,9 +102,6 @@ class Pregnancy(Component):
             == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         ]
         pregnancy_outcomes_and_durations.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
-        pregnancy_outcomes_and_durations.loc[
-            live_birth_index, COLUMNS.CHILD_AGE
-        ] = CHILD_INITIALIZATION_AGE
 
         self.population_view.update(pregnancy_outcomes_and_durations)
 
