@@ -52,8 +52,8 @@ def get_data(
 
     """
     mapping = {
-        data_keys.LBWSG.BIRTH_EXPOSURE: load_standard_data,
-        data_keys.CHILD_WASTING.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
+        data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
+        data_keys.CHILD_WASTING.BIRTH_EXPOSURE: load_standard_data,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
