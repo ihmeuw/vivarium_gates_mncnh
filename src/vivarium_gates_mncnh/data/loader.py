@@ -53,10 +53,15 @@ def get_data(
     """
     mapping = {
         data_keys.LBWSG.BIRTH_EXPOSURE: load_standard_data,
-        data_keys.CHILD_WASTING.BIRTH_EXPOSURE: load_standard_data,
+        data_keys.CHILD_WASTING.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
+
+def load_lbwsg_birth_exposure(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    return interface.get_birth_exposure(location, years)
 
 def load_population_location(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
