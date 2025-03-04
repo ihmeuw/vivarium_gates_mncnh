@@ -1,6 +1,8 @@
 import itertools
 import math
 import pickle
+from functools import partial
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -14,7 +16,7 @@ from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
-    LBWSGRisk,
+    LBWSGRisk
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
@@ -42,6 +44,25 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     accessible by the neonatal causes component. The ACMR PAF will be used to calculate a
     normalizing constant to modify CSMR pipelines for neonatal causes."""
 
+    # @property
+    # def configuration_defaults(self) -> dict[str, Any]:
+    #     """Default values for any configurations managed by this component."""
+    #     return {
+    #         self.name: {
+    #             "data_sources": {
+    #                 **{
+    #                     key: partial(
+    #                         self.load_child_data_from_artifact, data_key=key
+    #                     )
+    #                     for key in ["relative_risk", "population_attributable_fraction"]
+    #                 },
+    #             },
+    #             "data_source_parameters": {
+    #                 "relative_risk": {},
+    #             },
+    #         }
+    #     }
+
     @property
     def columns_required(self) -> list[str] | None:
         return [COLUMNS.CHILD_AGE, COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
@@ -65,6 +86,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             ),
         )
         super().setup(builder)
+        breakpoint()
 
     def get_population_attributable_fraction_source(
         self, builder: Builder
@@ -82,12 +104,11 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         relative_risks = relative_risks.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
 
-        exposed_age_group_starts = (
-            relative_risks.groupby("child_age_start")["value"]
-            .any()
-            .reset_index()["child_age_start"]
-        )
-
+        # Filter groups where all 'value' entries are not equal to 1
+        filtered_groups = relative_risks.groupby('child_age_start').filter(lambda x: (x['value'] != 1).any())
+        # Get unique 'age_start' values from the filtered groups
+        exposed_age_group_starts = filtered_groups['child_age_start'].unique()
+        
         return {
             to_snake_case(age_bins.loc[age_start, "age_group_name"]): pd.Interval(
                 age_start, age_bins.loc[age_start, "child_age_end"]
@@ -119,7 +140,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 interpolators["child_age_start"].isin(
                     [interval.left for interval in self.age_intervals.values()]
                 )
-            ]
+            ]   
             .drop(columns=["child_age_end", "year_start", "year_end"])
             .set_index([COLUMNS.SEX_OF_CHILD, "value"])
             .apply(
@@ -140,11 +161,16 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         for age_group, interval in self.age_intervals.items():
             age_group_mask = (interval.left <= pop[COLUMNS.CHILD_AGE]) & (
                 pop[COLUMNS.CHILD_AGE] < interval.right
-            )
+            )   
             relative_risk[age_group_mask] = pop.loc[
                 age_group_mask, self.relative_risk_column_name(age_group)
             ]
         return relative_risk
+
+    def load_child_data_from_artifact(self, builder: Builder, data_key: str) -> pd.DataFrame:
+        data = builder.data.load(data_key)
+        data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return data
 
     ########################
     # Event-driven methods #
@@ -172,13 +198,13 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 birth_weight[is_male & ~is_tmrel],
                 grid=False,
             )
-
             female_interpolator = self.interpolator["Female", age_group]
             log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
                 gestational_age[~is_male & ~is_tmrel],
                 birth_weight[~is_male & ~is_tmrel],
                 grid=False,
             )
+    
             return np.exp(log_relative_risk)
 
         relative_risk_columns = [
