@@ -156,7 +156,6 @@ class __Columns(NamedTuple):
     CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
-    PREGNANCY_DURATION = "pregnancy_duration"
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT = "birth_weight"
     GESTATIONAL_AGE = "gestational_age"
@@ -234,6 +233,9 @@ class __Pipelines(NamedTuple):
     ACMR_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_all_causes.cause_specific_mortality_rate",
     )
+    BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
+    GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
+    PREGNANCY_DURATION = "pregnancy_duration"
 
 
 PIPELINES = __Pipelines()
