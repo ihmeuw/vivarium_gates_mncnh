@@ -15,8 +15,12 @@ from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
+from vivarium_public_health.risks.distributions import RiskExposureDistribution
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
-    LBWSGRisk
+    LBWSGDistribution as LBWSGDistribution_,
+)
+from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+    LBWSGRisk as LBWSGRisk_,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
@@ -36,6 +40,21 @@ from vivarium_gates_mncnh.constants.data_values import (
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
+
+
+class LBWSGDistribution(LBWSGDistribution_):
+    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
+        if self._exposure_data is not None:
+            return self._exposure_data
+        data = self.get_data(builder, self.configuration["data_sources"]["exposure"])
+        renamed_data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+
+        return renamed_data
+
+
+class LBWSGRisk(LBWSGRisk_):
+    # Point to the subclass of LBWSGDistribution
+    exposure_distributions = {"lbwsg": LBWSGDistribution}
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -86,7 +105,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             ),
         )
         super().setup(builder)
-        breakpoint()
 
     def get_population_attributable_fraction_source(
         self, builder: Builder
@@ -105,10 +123,12 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         relative_risks = relative_risks.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
 
         # Filter groups where all 'value' entries are not equal to 1
-        filtered_groups = relative_risks.groupby('child_age_start').filter(lambda x: (x['value'] != 1).any())
+        filtered_groups = relative_risks.groupby("child_age_start").filter(
+            lambda x: (x["value"] != 1).any()
+        )
         # Get unique 'age_start' values from the filtered groups
-        exposed_age_group_starts = filtered_groups['child_age_start'].unique()
-        
+        exposed_age_group_starts = filtered_groups["child_age_start"].unique()
+
         return {
             to_snake_case(age_bins.loc[age_start, "age_group_name"]): pd.Interval(
                 age_start, age_bins.loc[age_start, "child_age_end"]
@@ -140,7 +160,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 interpolators["child_age_start"].isin(
                     [interval.left for interval in self.age_intervals.values()]
                 )
-            ]   
+            ]
             .drop(columns=["child_age_end", "year_start", "year_end"])
             .set_index([COLUMNS.SEX_OF_CHILD, "value"])
             .apply(
@@ -161,7 +181,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         for age_group, interval in self.age_intervals.items():
             age_group_mask = (interval.left <= pop[COLUMNS.CHILD_AGE]) & (
                 pop[COLUMNS.CHILD_AGE] < interval.right
-            )   
+            )
             relative_risk[age_group_mask] = pop.loc[
                 age_group_mask, self.relative_risk_column_name(age_group)
             ]
@@ -180,8 +200,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         pop = self.population_view.subview(
             [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
         ).get(pop_data.index)
-        birth_weight = pop[LBWSGRisk.get_exposure_column_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk.get_exposure_column_name(GESTATIONAL_AGE)]
+        birth_weight = pop[LBWSGRisk_.get_exposure_column_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk_.get_exposure_column_name(GESTATIONAL_AGE)]
 
         is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
@@ -204,12 +224,13 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 birth_weight[~is_male & ~is_tmrel],
                 grid=False,
             )
-    
+
             return np.exp(log_relative_risk)
 
         relative_risk_columns = [
             get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
         ]
+        breakpoint()
         self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
 
@@ -221,7 +242,7 @@ class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
         return 0, []
 
 
-class LBWSGPAFCalculationExposure(LBWSGRisk):
+class LBWSGPAFCalculationExposure(LBWSGRisk_):
     @property
     def columns_required(self) -> list[str] | None:
         return ["age", "sex"]

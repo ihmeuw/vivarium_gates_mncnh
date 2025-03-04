@@ -3,6 +3,7 @@ from vivarium_gates_mncnh.components.lbwsg import (
     LBWSGPAFCalculationExposure,
     LBWSGPAFCalculationRiskEffect,
     LBWSGPAFObserver,
+    LBWSGRisk,
     LBWSGRiskEffect,
 )
 from vivarium_gates_mncnh.components.maternal_disorders import MaternalDisorder

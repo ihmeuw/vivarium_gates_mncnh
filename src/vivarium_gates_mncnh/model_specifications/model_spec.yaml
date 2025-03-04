@@ -20,6 +20,7 @@ components:
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
+            # - LBWSGRisk()
             - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
             - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate')
             - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate')
