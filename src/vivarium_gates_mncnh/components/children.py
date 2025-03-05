@@ -26,8 +26,6 @@ class NewChildren(Component):
     @property
     def columns_created(self) -> list[str]:
         return [
-            COLUMNS.GESTATIONAL_AGE,
-            COLUMNS.BIRTH_WEIGHT,
             COLUMNS.SEX_OF_CHILD,
             COLUMNS.CHILD_AGE,
             COLUMNS.CHILD_ALIVE,
@@ -39,7 +37,9 @@ class NewChildren(Component):
 
     @property
     def initialization_requirements(self):
-        return [COLUMNS.PREGNANCY_OUTCOME, self.gestational_age, self.birth_weight]
+        return [
+            COLUMNS.PREGNANCY_OUTCOME,
+        ]
 
     @property
     def time_step_priority(self) -> int:
@@ -52,9 +52,6 @@ class NewChildren(Component):
         self.male_sex_percentage = INFANT_MALE_PERCENTAGES[
             builder.data.load(data_keys.POPULATION.LOCATION)
         ]
-        # todo get the lbwsg value pipelines
-        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
-        self.birth_weight = builder.value.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         index = pop_data.index
@@ -69,8 +66,6 @@ class NewChildren(Component):
                 COLUMNS.SEX_OF_CHILD: sex_of_child,
                 COLUMNS.CHILD_AGE: CHILD_INITIALIZATION_AGE / 2,
                 COLUMNS.CHILD_ALIVE: "dead",
-                COLUMNS.BIRTH_WEIGHT: self.birth_weight(index),
-                COLUMNS.GESTATIONAL_AGE: self.gestational_age(index),
             },
             index=index,
         )
@@ -98,3 +93,36 @@ class NewChildren(Component):
             pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
 
         self.population_view.update(pop)
+
+
+class ChildrenBirthExposure(Component):
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def columns_created(self) -> list[str]:
+        return [
+            COLUMNS.GESTATIONAL_AGE,
+            COLUMNS.BIRTH_WEIGHT,
+        ]
+
+    @property
+    def initialization_requirements(self):
+        return [self.gestational_age, self.birth_weight]
+
+    def setup(self, builder: Builder) -> None:
+        # todo get the lbwsg value pipelines
+        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
+        self.birth_weight = builder.value.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        index = pop_data.index
+        new_children = pd.DataFrame(
+            {
+                COLUMNS.GESTATIONAL_AGE: self.gestational_age(index),
+                COLUMNS.BIRTH_WEIGHT: self.birth_weight(index),
+            },
+            index=index,
+        )
+        self.population_view.update(new_children)

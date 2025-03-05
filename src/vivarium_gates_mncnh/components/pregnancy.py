@@ -5,7 +5,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium_public_health.utilities import get_lookup_columns
 
-from vivarium_gates_mncnh.components.children import NewChildren
+from vivarium_gates_mncnh.components.children import ChildrenBirthExposure, NewChildren
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,

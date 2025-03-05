@@ -53,8 +53,21 @@ class LBWSGDistribution(LBWSGDistribution_):
 
 
 class LBWSGRisk(LBWSGRisk_):
+
     # Point to the subclass of LBWSGDistribution
     exposure_distributions = {"lbwsg": LBWSGDistribution}
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE]
+
+    @property
+    def initialization_requirements(self) -> dict[str, list[str]]:
+        return {
+            "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE],
+            "requires_values": [],
+            "requires_streams": [],
+        }
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -63,25 +76,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     accessible by the neonatal causes component. The ACMR PAF will be used to calculate a
     normalizing constant to modify CSMR pipelines for neonatal causes."""
 
-    # @property
-    # def configuration_defaults(self) -> dict[str, Any]:
-    #     """Default values for any configurations managed by this component."""
-    #     return {
-    #         self.name: {
-    #             "data_sources": {
-    #                 **{
-    #                     key: partial(
-    #                         self.load_child_data_from_artifact, data_key=key
-    #                     )
-    #                     for key in ["relative_risk", "population_attributable_fraction"]
-    #                 },
-    #             },
-    #             "data_source_parameters": {
-    #                 "relative_risk": {},
-    #             },
-    #         }
-    #     }
-
     @property
     def columns_required(self) -> list[str] | None:
         return [COLUMNS.CHILD_AGE, COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
@@ -89,7 +83,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     @property
     def initialization_requirements(self) -> dict[str, list[str]]:
         return {
-            "requires_columns": [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names,
+            "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE]
+            + self.lbwsg_exposure_column_names,
             "requires_values": [],
             "requires_streams": [],
         }
@@ -230,7 +225,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         relative_risk_columns = [
             get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
         ]
-        breakpoint()
         self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
 
@@ -390,6 +384,16 @@ class LBWSGPAFObserver(Component):
             pop_filter='alive == "alive"',
             aggregator=self.calculate_paf,
             requires_columns=["alive"],
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="time_step__prepare",
+        )
+        # Add observer to get paf for preterm birth population
+        builder.results.register_adding_observation(
+            name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
+            pop_filter='alive == "alive" and gestational_age < 37',
+            aggregator=self.calculate_paf,
+            requires_columns=["alive", "gestational_age"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
