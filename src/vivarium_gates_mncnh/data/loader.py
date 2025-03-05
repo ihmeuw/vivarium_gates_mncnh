@@ -83,15 +83,15 @@ def get_data(
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
-        data_keys.NO_CPAP_INTERVENTION.P_RDS: load_p_rds,
-        data_keys.NO_CPAP_INTERVENTION.P_HOME: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_BEmONC: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_CEmONC: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK: load_no_cpap_relative_risk,
-        data_keys.NO_CPAP_INTERVENTION.PAF: load_no_cpap_paf,
+        data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
+        data_keys.NO_CPAP_RISK.P_HOME: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_RISK.P_BEmONC: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_RISK.P_CEmONC: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.P_CPAP_BEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.P_CPAP_CEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
+        data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -453,14 +453,14 @@ def load_no_cpap_paf(
 ) -> float:
 
     # Get all no_cpap data for calculations
-    p_rds = get_data(data_keys.NO_CPAP_INTERVENTION.P_RDS, location, years)
-    p_home = get_data(data_keys.NO_CPAP_INTERVENTION.P_HOME, location, years)
-    p_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_BEmONC, location, years)
-    p_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CEmONC, location, years)
-    p_CPAP_home = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME, location, years)
-    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC, location, years)
-    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC, location, years)
-    relative_risk = get_data(data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK, location, years)
+    p_rds = get_data(data_keys.NO_CPAP_RISK.P_RDS, location, years)
+    p_home = get_data(data_keys.NO_CPAP_RISK.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CEmONC, location, years)
+    p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
+    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEmONC, location, years)
+    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEmONC, location, years)
+    relative_risk = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
     # rr_cpap = 1 / relative_risk)
     # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
     # p_rds_no_cpap = p_rds_cpap * relative_risk
