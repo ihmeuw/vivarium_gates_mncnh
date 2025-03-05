@@ -162,7 +162,6 @@ class __Columns(NamedTuple):
     GESTATIONAL_AGE = "gestational_age"
     ATTENDED_CARE_FACILITY = "attended_care_facility"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
-    RECEIVED_ULTRASOUND = "received_ultrasound"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
