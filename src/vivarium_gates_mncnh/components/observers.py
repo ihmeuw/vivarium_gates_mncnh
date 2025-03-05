@@ -14,7 +14,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_INITIALIZATION_AGE,
     COLUMNS,
     MATERNAL_DISORDERS,
-    NEONATAL_CAUSES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
