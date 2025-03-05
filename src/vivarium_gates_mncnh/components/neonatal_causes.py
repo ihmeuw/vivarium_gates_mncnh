@@ -1,8 +1,6 @@
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.resource import Resource
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
@@ -37,7 +35,7 @@ class NeonatalCause(Component):
     # Lifecycle methods #
     #####################
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         self.acmr_paf = builder.value.get_value(PIPELINES.ACMR_PAF)
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(

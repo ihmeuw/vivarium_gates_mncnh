@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import NamedTuple
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 
 ############################
 # Disease Model Parameters #
@@ -80,7 +80,7 @@ NUM_DRAWS = 500
 class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
     PREGNANCY = "pregnancy"
-    INTRAPARTRUM = "intrapartum"
+    INTRAPARTUM = "intrapartum"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -161,6 +161,7 @@ class __Columns(NamedTuple):
     BIRTH_WEIGHT = "birth_weight"
     GESTATIONAL_AGE = "gestational_age"
     ATTENDED_CARE_FACILITY = "attended_care_facility"
+    DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     RECEIVED_ULTRASOUND = "received_ultrasound"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
@@ -169,6 +170,7 @@ class __Columns(NamedTuple):
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
+    CPAP_AVAILABLE = "cpap_available"
 
 
 COLUMNS = __Columns()
@@ -255,36 +257,36 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_INTERVENTION.P_HOME: 0.683,
-        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
-        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_RISK.P_HOME: 0.683,
+        NO_CPAP_RISK.P_CEmONC: 0.266,
+        NO_CPAP_RISK.P_BEmONC: 0.051,
     },
     "Nigeria": {
-        NO_CPAP_INTERVENTION.P_HOME: 0.683,
-        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
-        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_RISK.P_HOME: 0.683,
+        NO_CPAP_RISK.P_CEmONC: 0.266,
+        NO_CPAP_RISK.P_BEmONC: 0.051,
     },
     "Pakistan": {
-        NO_CPAP_INTERVENTION.P_HOME: 0.683,
-        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
-        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_RISK.P_HOME: 0.683,
+        NO_CPAP_RISK.P_CEmONC: 0.266,
+        NO_CPAP_RISK.P_BEmONC: 0.051,
     },
 }
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
     "Nigeria": {
-        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
     "Pakistan": {
-        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
 }
