@@ -31,7 +31,7 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - NoCPAPIntervention()
+            - NoCPAPRisk()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
