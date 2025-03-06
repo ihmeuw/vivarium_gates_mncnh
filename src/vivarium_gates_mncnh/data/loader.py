@@ -69,7 +69,7 @@ def get_data(
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
-        data_keys.LBWSG.PAF: load_lbwsg_paf,
+        data_keys.LBWSG.PAF: load_paf_data,
         data_keys.ANC.ESTIMATE: load_anc_proportion,
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
@@ -81,6 +81,7 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
+        data_keys.PRETERM_BIRTH.PAF: load_paf_data,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
@@ -377,11 +378,15 @@ def load_lbwsg_interpolated_rr(
     return log_rr_interpolator
 
 
-def load_lbwsg_paf(
+def load_paf_data(
     key: str, location: str, years: Optional[Union[int, str, list[int]]]
 ) -> pd.DataFrame:
-    if key != data_keys.LBWSG.PAF:
-        raise ValueError(f"Unrecognized key {key}")
+    if key == data_keys.LBWSG.PAF:
+        filename = (
+            "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
+        )
+    else:
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate_preterm.parquet"
 
     location_mapper = {
         "Ethiopia": "ethiopia",
@@ -391,10 +396,7 @@ def load_lbwsg_paf(
 
     output_dir = paths.PAF_DIR / location_mapper[location]
 
-    df = pd.read_parquet(
-        output_dir
-        / "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
-    )
+    df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
         df = df.assign(input_draw="draw_" + df.input_draw.astype(str))
     else:

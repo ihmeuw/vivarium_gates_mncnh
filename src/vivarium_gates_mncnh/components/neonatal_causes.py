@@ -1,6 +1,8 @@
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.lookup import LookupTable
+from vivarium.framework.values import Pipeline
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
@@ -36,24 +38,28 @@ class NeonatalCause(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        self.acmr_paf = builder.value.get_value(PIPELINES.ACMR_PAF)
+        # This is the ACMR PAF pipeline. For preterm we will get the custom preterm PAF
+        self.paf = self.get_paf(self, builder)
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
             f"cause.{self.neonatal_cause}.cause_specific_mortality_rate",
             source=self.get_normalized_csmr,
             component=self,
-            required_resources=[PIPELINES.ACMR_PAF],
+            required_resources=[self.paf],
         )
         builder.value.register_value_modifier(
             "death_in_age_group_probability",
             modifier=self.modify_death_in_age_group_probability,
             component=self,
-            required_resources=[PIPELINES.ACMR_PAF, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
+            required_resources=[self.paf],
         )
 
     ##################
     # Helper methods #
     ##################
+
+    def get_paf(self, builder: Builder) -> Pipeline:
+        return builder.value.get_value(PIPELINES.ACMR_PAF)
 
     def load_csmr(self, builder: Builder) -> pd.DataFrame:
         csmr = builder.data.load(f"cause.{self.neonatal_cause}.cause_specific_mortality_rate")
@@ -64,7 +70,7 @@ class NeonatalCause(Component):
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
         raw_csmr = self.lookup_tables["csmr"](index)
-        normalizing_constant = 1 - self.acmr_paf(index)
+        normalizing_constant = 1 - self.paf(index)
         normalized_csmr = raw_csmr * normalizing_constant
 
         return normalized_csmr
@@ -80,6 +86,25 @@ class NeonatalCause(Component):
 
 
 class PretermBirth(NeonatalCause):
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    "csmr": self.load_csmr,
+                    "paf": self.load_paf,
+                }
+            }
+        }
+
+    def load_paf(self, builder: Builder) -> pd.DataFrame:
+        paf = builder.data.load(data_keys.PRETERM_BIRTH.PAF)
+        paf = paf.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return paf
+
+    def get_paf(self, _: Builder) -> LookupTable:
+        return self.lookup_tables["paf"]
+
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
         ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
