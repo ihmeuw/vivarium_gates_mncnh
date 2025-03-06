@@ -364,7 +364,7 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category"]
+        return ["lbwsg_category", "gestational_age_exposure"]
 
     def __init__(self, target: str):
         super().__init__()
@@ -390,9 +390,9 @@ class LBWSGPAFObserver(Component):
         # Add observer to get paf for preterm birth population
         builder.results.register_adding_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
-            pop_filter='alive == "alive" and gestational_age < 37',
+            pop_filter='alive == "alive" and gestational_age_exposure < 37',
             aggregator=self.calculate_paf,
-            requires_columns=["alive", "gestational_age"],
+            requires_columns=["alive", "gestational_age_exposure"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
