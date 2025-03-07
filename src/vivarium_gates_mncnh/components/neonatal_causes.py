@@ -1,3 +1,5 @@
+from functools import partial
+
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -91,26 +93,30 @@ class PretermBirth(NeonatalCause):
         return {
             self.name: {
                 "data_sources": {
-                    "csmr": self.load_csmr,
-                    "paf": self.load_paf,
+                    key: partial(self.load_lookup_data, key=key)
+                    for key in ["csmr", "paf", "prevalence"]
                 }
             }
         }
-
-    def load_paf(self, builder: Builder) -> pd.DataFrame:
-        paf = builder.data.load(data_keys.PRETERM_BIRTH.PAF)
-        paf = paf.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return paf
 
     def get_paf(self, _: Builder) -> LookupTable:
         return self.lookup_tables["paf"]
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
+        # CSMR = (1 - PAF) * RR * (CSMR / PRETERM_PREVALENCE)
+        # NOTE: This isn't technically a traditional PAF but it is the
+        # PAF for the preterm population. We are accounting for this by
+        # dividing the CSMR by the prevalence of the preterm categories
         pop = self.population_view.get(index)
         ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
 
-        normalized_csmr = super().get_normalized_csmr(index)
+        raw_csmr = self.lookup_tables["csmr"](index)
+        normalizing_constant = 1 - self.paf(index)
+        prevalence = self.lookup_tables["prevalence"](index)
+        normalized_csmr = normalizing_constant * (raw_csmr / prevalence)
+        # Set CSMR to 0 for those who are not preterm
         normalized_csmr.loc[ga_greater_than_37] = 0
+
         # Weight csmr for preterm birth with rds
         if self.neonatal_cause == NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS:
             normalized_csmr = normalized_csmr * PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
@@ -118,8 +124,14 @@ class PretermBirth(NeonatalCause):
             normalized_csmr = normalized_csmr * (1 - PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY)
         return normalized_csmr
 
-    def load_csmr(self, builder: Builder) -> pd.DataFrame:
+    def load_lookup_data(self, builder: Builder, key: str) -> pd.DataFrame:
         # Hard codes preterm csmr key since it is the same for both preterm subcauses
-        csmr = builder.data.load(data_keys.PRETERM_BIRTH.CSMR)
+        key_mapper = {
+            "csmr": data_keys.PRETERM_BIRTH.CSMR,
+            "paf": data_keys.PRETERM_BIRTH.PAF,
+            "prevalence": data_keys.PRETERM_BIRTH.PREVALENCE,
+        }
+        art_key = key_mapper[key]
+        csmr = builder.data.load(art_key)
         csmr = csmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return csmr

@@ -82,6 +82,7 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
+        data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
@@ -542,6 +543,30 @@ def load_lbwsg_exposure(
     total_exposure = exposure.groupby(["age_start", "age_end", "sex"]).transform("sum")
     exposure = (exposure / total_exposure).reset_index().set_index(idx_cols).sort_index()
     return exposure
+
+
+def load_preterm_prevalence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # TODO: implement
+    exposure = get_data(data_keys.LBWSG.EXPOSURE, location, years).reset_index()
+    # Remove birth age group
+    exposure = exposure.loc[exposure["age_end"] > 0.0]
+    categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
+    # Get preterm categories
+    preterm_cats = []
+    for cat, description in categories.items():
+        i = utilities.parse_short_gestation_description(description)
+        if i.right < 37:
+            preterm_cats.append(cat)
+
+    # Subset exposure to preterm categories
+    preterm_exposure = exposure.loc[exposure["parameter"].isin(preterm_cats)]
+    preterm_exposure = preterm_exposure.drop(columns=["parameter"])
+    draw_cols = [col for col in preterm_exposure.columns if "draw" in col]
+    sum_exposure = preterm_exposure.groupby(metadata.ARTIFACT_INDEX_COLUMNS)[draw_cols].sum()
+
+    return sum_exposure
 
 
 def reshape_to_vivarium_format(df, location):

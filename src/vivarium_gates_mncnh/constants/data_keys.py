@@ -157,6 +157,7 @@ class __NeonatalPretermBirth(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
     PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
+    PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
 
     @property
     def name(self):

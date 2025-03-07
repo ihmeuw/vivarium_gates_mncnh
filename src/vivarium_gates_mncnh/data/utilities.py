@@ -63,6 +63,7 @@ def parse_short_gestation_description(description: str) -> pd.Interval:
         *[
             float(val)
             for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
-        ]
+        ],
+        closed="left",
     )
     return endpoints
