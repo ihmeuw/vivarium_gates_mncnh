@@ -41,19 +41,20 @@ class NeonatalCause(Component):
 
     def setup(self, builder: Builder) -> None:
         # This is the ACMR PAF pipeline. For preterm we will get the custom preterm PAF
-        self.paf = self.get_paf(self, builder)
+        self.paf = self.get_paf(builder)
+        required_pipeline_resources = [self.paf] if isinstance(self.paf, Pipeline) else []
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
-            f"cause.{self.neonatal_cause}.cause_specific_mortality_rate",
+            f"{self.neonatal_cause}.cause_specific_mortality_rate",
             source=self.get_normalized_csmr,
             component=self,
-            required_resources=[self.paf],
+            required_resources=required_pipeline_resources,
         )
         builder.value.register_value_modifier(
             "death_in_age_group_probability",
             modifier=self.modify_death_in_age_group_probability,
             component=self,
-            required_resources=[self.paf],
+            required_resources=required_pipeline_resources,
         )
 
     ##################
@@ -103,20 +104,20 @@ class PretermBirth(NeonatalCause):
         return self.lookup_tables["paf"]
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
+        pop = self.population_view.get(index)
+        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
+
         # CSMR = (1 - PAF) * RR * (CSMR / PRETERM_PREVALENCE)
         # NOTE: This isn't technically a traditional PAF but it is the
         # PAF for the preterm population. We are accounting for this by
         # dividing the CSMR by the prevalence of the preterm categories
-        pop = self.population_view.get(index)
-        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
-
         raw_csmr = self.lookup_tables["csmr"](index)
         normalizing_constant = 1 - self.paf(index)
         prevalence = self.lookup_tables["prevalence"](index)
         normalized_csmr = normalizing_constant * (raw_csmr / prevalence)
+
         # Set CSMR to 0 for those who are not preterm
         normalized_csmr.loc[ga_greater_than_37] = 0
-
         # Weight csmr for preterm birth with rds
         if self.neonatal_cause == NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS:
             normalized_csmr = normalized_csmr * PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
@@ -132,6 +133,6 @@ class PretermBirth(NeonatalCause):
             "prevalence": data_keys.PRETERM_BIRTH.PREVALENCE,
         }
         art_key = key_mapper[key]
-        csmr = builder.data.load(art_key)
-        csmr = csmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return csmr
+        data = builder.data.load(art_key)
+        data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return data

@@ -211,15 +211,15 @@ class __Pipelines(NamedTuple):
     ACMR = "all_causes.cause_specific_mortality_rate"
     DEATH_IN_AGE_GROUP_PROBABILITY = "death_in_age_group_probability"
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
-        "cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
     )
     NEONATAL_PRETERM_BIRTH_WITHOUT_RDS = (
-        "cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
     )
     NEONATAL_SEPSIS = (
-        "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
+        "neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
     )
-    NEONATAL_ENCEPHALOPATHY = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+    NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
     PRETERM_WITH_RDS_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk",
     )

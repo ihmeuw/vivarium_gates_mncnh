@@ -63,7 +63,6 @@ configuration:
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'mortality'
-            # - 'neonatal'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
 
