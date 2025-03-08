@@ -271,7 +271,7 @@ class NeonatalMortality(Component):
         if not dead_idx.empty:
             pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
             pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = self.determine_cause_of_death(
-                dead_idx, duration
+                dead_idx
             )
             pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
                 "life_expectancy"
@@ -297,9 +297,7 @@ class NeonatalMortality(Component):
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
 
-    def determine_cause_of_death(
-        self, simulant_idx: pd.Index, age_group_duration: float
-    ) -> pd.Series:
+    def determine_cause_of_death(self, simulant_idx: pd.Index) -> pd.Series:
         """Determine the cause of death for neonates."""
         choices = pd.DataFrame(index=simulant_idx)
         all_causes_death_rate = self.death_in_age_group(simulant_idx)

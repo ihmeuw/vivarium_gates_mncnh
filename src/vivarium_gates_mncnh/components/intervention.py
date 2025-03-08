@@ -5,7 +5,6 @@ from functools import partial
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
 
 from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
