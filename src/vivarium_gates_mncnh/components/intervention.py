@@ -8,7 +8,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
 from vivarium_gates_mncnh.constants import data_values
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
 from vivarium_gates_mncnh.utilities import get_location
 
