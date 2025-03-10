@@ -1,6 +1,8 @@
 import itertools
 import math
 import pickle
+from functools import partial
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -8,13 +10,16 @@ from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
+from vivarium_public_health.risks.distributions import RiskExposureDistribution
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
-    LBWSGRisk,
+    LBWSGDistribution as LBWSGDistribution_,
+)
+from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+    LBWSGRisk as LBWSGRisk_,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
@@ -36,6 +41,34 @@ BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
 
 
+class LBWSGDistribution(LBWSGDistribution_):
+    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
+        if self._exposure_data is not None:
+            return self._exposure_data
+        data = self.get_data(builder, self.configuration["data_sources"]["exposure"])
+        renamed_data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+
+        return renamed_data
+
+
+class LBWSGRisk(LBWSGRisk_):
+
+    # Point to the subclass of LBWSGDistribution
+    exposure_distributions = {"lbwsg": LBWSGDistribution}
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE]
+
+    @property
+    def initialization_requirements(self) -> dict[str, list[str]]:
+        return {
+            "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE],
+            "requires_values": [],
+            "requires_streams": [],
+        }
+
+
 class LBWSGRiskEffect(LBWSGRiskEffect_):
     """Subclass of LBWSGRiskEffect to be compatible with the wide state table, meaning it
     will query on child lookup columns. This also exposes the PAF as a pipeline so it is
@@ -49,7 +82,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     @property
     def initialization_requirements(self) -> dict[str, list[str]]:
         return {
-            "requires_columns": [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names,
+            "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE]
+            + self.lbwsg_exposure_column_names,
             "requires_values": [],
             "requires_streams": [],
         }
@@ -82,11 +116,12 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         relative_risks = relative_risks.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
 
-        exposed_age_group_starts = (
-            relative_risks.groupby("child_age_start")["value"]
-            .any()
-            .reset_index()["child_age_start"]
+        # Filter groups where all 'value' entries are not equal to 1
+        filtered_groups = relative_risks.groupby("child_age_start").filter(
+            lambda x: (x["value"] != 1).any()
         )
+        # Get unique 'age_start' values from the filtered groups
+        exposed_age_group_starts = filtered_groups["child_age_start"].unique()
 
         return {
             to_snake_case(age_bins.loc[age_start, "age_group_name"]): pd.Interval(
@@ -146,6 +181,11 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             ]
         return relative_risk
 
+    def load_child_data_from_artifact(self, builder: Builder, data_key: str) -> pd.DataFrame:
+        data = builder.data.load(data_key)
+        data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return data
+
     ########################
     # Event-driven methods #
     ########################
@@ -154,8 +194,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         pop = self.population_view.subview(
             [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
         ).get(pop_data.index)
-        birth_weight = pop[LBWSGRisk.get_exposure_column_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk.get_exposure_column_name(GESTATIONAL_AGE)]
+        birth_weight = pop[LBWSGRisk_.get_exposure_column_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk_.get_exposure_column_name(GESTATIONAL_AGE)]
 
         is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
@@ -172,13 +212,13 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 birth_weight[is_male & ~is_tmrel],
                 grid=False,
             )
-
             female_interpolator = self.interpolator["Female", age_group]
             log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
                 gestational_age[~is_male & ~is_tmrel],
                 birth_weight[~is_male & ~is_tmrel],
                 grid=False,
             )
+
             return np.exp(log_relative_risk)
 
         relative_risk_columns = [
@@ -195,7 +235,7 @@ class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
         return 0, []
 
 
-class LBWSGPAFCalculationExposure(LBWSGRisk):
+class LBWSGPAFCalculationExposure(LBWSGRisk_):
     @property
     def columns_required(self) -> list[str] | None:
         return ["age", "sex"]
@@ -324,7 +364,7 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category"]
+        return ["lbwsg_category", "gestational_age_exposure"]
 
     def __init__(self, target: str):
         super().__init__()
@@ -343,6 +383,16 @@ class LBWSGPAFObserver(Component):
             pop_filter='alive == "alive"',
             aggregator=self.calculate_paf,
             requires_columns=["alive"],
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="time_step__prepare",
+        )
+        # Add observer to get paf for preterm birth population
+        builder.results.register_adding_observation(
+            name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
+            pop_filter='alive == "alive" and gestational_age_exposure < 37',
+            aggregator=self.calculate_paf,
+            requires_columns=["alive", "gestational_age_exposure"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",

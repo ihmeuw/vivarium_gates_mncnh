@@ -13,7 +13,7 @@ from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class NoCPAPIntervention(Component):
+class NoCPAPRisk(Component):
     """Component for CPAP intervention. This is essentially a risk effect."""
 
     @property
@@ -21,7 +21,7 @@ class NoCPAPIntervention(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": NO_CPAP_INTERVENTION.RELATIVE_RISK,
+                    "relative_risk": NO_CPAP_RISK.RELATIVE_RISK,
                     "paf": self.load_paf_data,
                 }
             }
@@ -36,7 +36,6 @@ class NoCPAPIntervention(Component):
         self.preterm_csmr_target = PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
 
     def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
         self.preterm_with_rds_csmr = builder.value.get_value(self.preterm_csmr_target)
@@ -55,7 +54,7 @@ class NoCPAPIntervention(Component):
     ##################
 
     def load_paf_data(self, builder: Builder) -> pd.Series:
-        data = builder.data.load(NO_CPAP_INTERVENTION.PAF)
+        data = builder.data.load(NO_CPAP_RISK.PAF)
         data = data.rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
         return data
 

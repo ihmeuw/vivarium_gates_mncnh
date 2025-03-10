@@ -69,7 +69,7 @@ def get_data(
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
-        data_keys.LBWSG.PAF: load_lbwsg_paf,
+        data_keys.LBWSG.PAF: load_paf_data,
         data_keys.ANC.ESTIMATE: load_anc_proportion,
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
@@ -81,17 +81,19 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
+        data_keys.PRETERM_BIRTH.PAF: load_paf_data,
+        data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
-        data_keys.NO_CPAP_INTERVENTION.P_RDS: load_p_rds,
-        data_keys.NO_CPAP_INTERVENTION.P_HOME: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_BEmONC: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_CEmONC: load_probability_birth_facility_type,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK: load_no_cpap_relative_risk,
-        data_keys.NO_CPAP_INTERVENTION.PAF: load_no_cpap_paf,
+        data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
+        data_keys.NO_CPAP_RISK.P_HOME: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_RISK.P_BEmONC: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_RISK.P_CEmONC: load_probability_birth_facility_type,
+        data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.P_CPAP_BEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.P_CPAP_CEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
+        data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -377,11 +379,15 @@ def load_lbwsg_interpolated_rr(
     return log_rr_interpolator
 
 
-def load_lbwsg_paf(
+def load_paf_data(
     key: str, location: str, years: Optional[Union[int, str, list[int]]]
 ) -> pd.DataFrame:
-    if key != data_keys.LBWSG.PAF:
-        raise ValueError(f"Unrecognized key {key}")
+    if key == data_keys.LBWSG.PAF:
+        filename = (
+            "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
+        )
+    else:
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate_preterm.parquet"
 
     location_mapper = {
         "Ethiopia": "ethiopia",
@@ -391,10 +397,7 @@ def load_lbwsg_paf(
 
     output_dir = paths.PAF_DIR / location_mapper[location]
 
-    df = pd.read_parquet(
-        output_dir
-        / "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
-    )
+    df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
         df = df.assign(input_draw="draw_" + df.input_draw.astype(str))
     else:
@@ -453,14 +456,14 @@ def load_no_cpap_paf(
 ) -> float:
 
     # Get all no_cpap data for calculations
-    p_rds = get_data(data_keys.NO_CPAP_INTERVENTION.P_RDS, location, years)
-    p_home = get_data(data_keys.NO_CPAP_INTERVENTION.P_HOME, location, years)
-    p_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_BEmONC, location, years)
-    p_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CEmONC, location, years)
-    p_CPAP_home = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_HOME, location, years)
-    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_BEmONC, location, years)
-    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_INTERVENTION.P_CPAP_CEmONC, location, years)
-    relative_risk = get_data(data_keys.NO_CPAP_INTERVENTION.RELATIVE_RISK, location, years)
+    p_rds = get_data(data_keys.NO_CPAP_RISK.P_RDS, location, years)
+    p_home = get_data(data_keys.NO_CPAP_RISK.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CEmONC, location, years)
+    p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
+    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEmONC, location, years)
+    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEmONC, location, years)
+    relative_risk = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
     # rr_cpap = 1 / relative_risk)
     # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
     # p_rds_no_cpap = p_rds_cpap * relative_risk
@@ -540,6 +543,30 @@ def load_lbwsg_exposure(
     total_exposure = exposure.groupby(["age_start", "age_end", "sex"]).transform("sum")
     exposure = (exposure / total_exposure).reset_index().set_index(idx_cols).sort_index()
     return exposure
+
+
+def load_preterm_prevalence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # TODO: implement
+    exposure = get_data(data_keys.LBWSG.EXPOSURE, location, years).reset_index()
+    # Remove birth age group
+    exposure = exposure.loc[exposure["age_end"] > 0.0]
+    categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
+    # Get preterm categories
+    preterm_cats = []
+    for cat, description in categories.items():
+        i = utilities.parse_short_gestation_description(description)
+        if i.right < 37:
+            preterm_cats.append(cat)
+
+    # Subset exposure to preterm categories
+    preterm_exposure = exposure.loc[exposure["parameter"].isin(preterm_cats)]
+    preterm_exposure = preterm_exposure.drop(columns=["parameter"])
+    draw_cols = [col for col in preterm_exposure.columns if "draw" in col]
+    sum_exposure = preterm_exposure.groupby(metadata.ARTIFACT_INDEX_COLUMNS)[draw_cols].sum()
+
+    return sum_exposure
 
 
 def reshape_to_vivarium_format(df, location):

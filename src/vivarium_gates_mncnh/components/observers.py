@@ -313,9 +313,8 @@ class NeonatalBurdenObserver(BurdenObserver):
             )
 
     def to_observe(self, event: Event) -> bool:
-        return (self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY) or (
-            self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
-        )
+        # Need to make single observeration of deaths after all time steps where neonates die.
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
 class NeonatalCauseRelativeRiskObserver(Observer):

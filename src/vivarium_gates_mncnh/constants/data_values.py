@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import NamedTuple
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 
 ############################
 # Disease Model Parameters #
@@ -156,7 +156,6 @@ class __Columns(NamedTuple):
     CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
-    PREGNANCY_DURATION = "pregnancy_duration"
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT = "birth_weight"
     GESTATIONAL_AGE = "gestational_age"
@@ -211,15 +210,15 @@ class __Pipelines(NamedTuple):
     ACMR = "all_causes.cause_specific_mortality_rate"
     DEATH_IN_AGE_GROUP_PROBABILITY = "death_in_age_group_probability"
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
-        "cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
     )
     NEONATAL_PRETERM_BIRTH_WITHOUT_RDS = (
-        "cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
     )
     NEONATAL_SEPSIS = (
-        "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
+        "neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
     )
-    NEONATAL_ENCEPHALOPATHY = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+    NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
     PRETERM_WITH_RDS_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk",
     )
@@ -235,6 +234,9 @@ class __Pipelines(NamedTuple):
     ACMR_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_all_causes.cause_specific_mortality_rate",
     )
+    BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
+    GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
+    PREGNANCY_DURATION = "pregnancy_duration"
 
 
 PIPELINES = __Pipelines()
@@ -256,36 +258,36 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_INTERVENTION.P_HOME: 0.683,
-        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
-        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_RISK.P_HOME: 0.683,
+        NO_CPAP_RISK.P_CEmONC: 0.266,
+        NO_CPAP_RISK.P_BEmONC: 0.051,
     },
     "Nigeria": {
-        NO_CPAP_INTERVENTION.P_HOME: 0.683,
-        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
-        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_RISK.P_HOME: 0.683,
+        NO_CPAP_RISK.P_CEmONC: 0.266,
+        NO_CPAP_RISK.P_BEmONC: 0.051,
     },
     "Pakistan": {
-        NO_CPAP_INTERVENTION.P_HOME: 0.683,
-        NO_CPAP_INTERVENTION.P_CEmONC: 0.266,
-        NO_CPAP_INTERVENTION.P_BEmONC: 0.051,
+        NO_CPAP_RISK.P_HOME: 0.683,
+        NO_CPAP_RISK.P_CEmONC: 0.266,
+        NO_CPAP_RISK.P_BEmONC: 0.051,
     },
 }
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
     "Nigeria": {
-        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
     "Pakistan": {
-        NO_CPAP_INTERVENTION.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_INTERVENTION.P_CPAP_CEmONC: 0.393,
-        NO_CPAP_INTERVENTION.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
 }

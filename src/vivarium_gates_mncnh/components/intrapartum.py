@@ -4,7 +4,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     CPAP_ACCESS_PROBABILITIES,
@@ -61,8 +61,8 @@ class Intrapartum(Component):
 
         # Determine if simulant had access to CPAP
         facility_type_mapper = {
-            DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_INTERVENTION.P_CPAP_BEmONC,
-            DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_INTERVENTION.P_CPAP_CEmONC,
+            DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_CPAP_BEmONC,
+            DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CPAP_CEmONC,
         }
         for facility_type in [
             DELIVERY_FACILITY_TYPES.BEmONC,

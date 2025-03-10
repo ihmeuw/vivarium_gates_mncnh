@@ -4,8 +4,18 @@ import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants import data_keys, data_values
+from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_INITIALIZATION_AGE,
+    COLUMNS,
+    INFANT_MALE_PERCENTAGES,
+    PIPELINES,
+    PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
+)
 
 
 class NewChildren(Component):
@@ -14,127 +24,105 @@ class NewChildren(Component):
     ##############
 
     @property
-    def sub_components(self) -> List[str]:
-        return [self.lbwsg]
+    def columns_created(self) -> list[str]:
+        return [
+            COLUMNS.SEX_OF_CHILD,
+            COLUMNS.CHILD_AGE,
+            COLUMNS.CHILD_ALIVE,
+        ]
 
-    def __init__(self):
-        super().__init__()
-        self.lbwsg = LBWSGDistribution()
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.PREGNANCY_OUTCOME]
+
+    @property
+    def initialization_requirements(self):
+        return [
+            COLUMNS.PREGNANCY_OUTCOME,
+        ]
+
+    @property
+    def time_step_priority(self) -> int:
+        # This is to age the children before mortality happens
+        return 0
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.male_sex_percentage = data_values.INFANT_MALE_PERCENTAGES[
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.male_sex_percentage = INFANT_MALE_PERCENTAGES[
             builder.data.load(data_keys.POPULATION.LOCATION)
         ]
 
-    def get_child_data_structure(self, index: pd.Index) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "sex_of_child": data_values.PREGNANCY_OUTCOMES.INVALID_OUTCOME,
-                "birth_weight": np.nan,
-                "gestational_age": np.nan,
-            },
-            index=index,
-        )
-
-    def generate_children(self, index: pd.Index) -> pd.DataFrame:
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        index = pop_data.index
         sex_of_child = self.randomness.choice(
             index,
             choices=["Male", "Female"],
             p=[self.male_sex_percentage, 1 - self.male_sex_percentage],
             additional_key="sex_of_child",
         )
-        lbwsg_exposures = self.lbwsg.get_exposure(sex_of_child)
-        return pd.DataFrame(
+        new_children = pd.DataFrame(
             {
-                "sex_of_child": sex_of_child,
-                "birth_weight": lbwsg_exposures["birth_weight"],
-                "gestational_age": lbwsg_exposures["gestational_age"],
+                COLUMNS.SEX_OF_CHILD: sex_of_child,
+                COLUMNS.CHILD_AGE: CHILD_INITIALIZATION_AGE / 2,
+                COLUMNS.CHILD_ALIVE: "dead",
             },
             index=index,
         )
+        # Find live births and set child status to alive
+        outcomes = self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index)
+        live_birth_index = outcomes.index[
+            outcomes[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        ]
+        new_children.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
+        self.population_view.update(new_children)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() not in [
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+        ]:
+            return
+
+        pop = self.population_view.get(event.index)
+        alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        # Update age of children to get correctlookup values - use midpoint of age groups
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = (7 / 2) / 365.0
+        else:
+            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
+
+        self.population_view.update(pop)
 
 
-class LBWSGDistribution(Component):
-    def setup(self, builder: Builder):
-        self.randomness = builder.randomness.get_stream(self.name)
-        self.exposure = self._load_exposure_data(builder)
-        self.category_intervals = self._get_category_intervals(builder)
+class ChildrenBirthExposure(Component):
+    ##############
+    # Properties #
+    ##############
 
-    def _load_exposure_data(self, builder: Builder) -> pd.DataFrame:
-        exposure = (
-            builder.data.load(data_keys.LBWSG.EXPOSURE)
-            .rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
-            .set_index(data_values.COLUMNS.SEX_OF_CHILD)
+    @property
+    def columns_created(self) -> list[str]:
+        return [
+            COLUMNS.GESTATIONAL_AGE,
+            COLUMNS.BIRTH_WEIGHT,
+        ]
+
+    @property
+    def initialization_requirements(self):
+        return [self.gestational_age, self.birth_weight]
+
+    def setup(self, builder: Builder) -> None:
+        # todo get the lbwsg value pipelines
+        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
+        self.birth_weight = builder.value.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        index = pop_data.index
+        new_children = pd.DataFrame(
+            {
+                COLUMNS.GESTATIONAL_AGE: self.gestational_age(index),
+                COLUMNS.BIRTH_WEIGHT: self.birth_weight(index),
+            },
+            index=index,
         )
-        # Subset to birth age group
-        exposure = exposure[exposure["child_age_start"] < 0.0]
-        return exposure
-
-    def get_exposure(self, newborn_sex: pd.Series):
-        categorical_exposure = self._sample_categorical_exposure(newborn_sex)
-        continuous_exposure = self._sample_continuous_exposure(categorical_exposure)
-        return continuous_exposure
-
-    ############
-    # Sampling #
-    ############
-
-    def _sample_categorical_exposure(self, newborn_sex: pd.Series):
-        categorical_exposures = []
-        for sex in newborn_sex.unique():
-            group_data = newborn_sex[newborn_sex == sex]
-            sex_exposure = self.exposure.loc[sex]
-            categorical_exposures.append(
-                self.randomness.choice(
-                    group_data.index,
-                    choices=sex_exposure.parameter.tolist(),
-                    p=sex_exposure.value.tolist(),
-                    additional_key="categorical_exposure",
-                )
-            )
-        categorical_exposures = pd.concat(categorical_exposures).sort_index()
-        return categorical_exposures
-
-    def _sample_continuous_exposure(self, categorical_exposure: pd.Series):
-        intervals = self.category_intervals.loc[categorical_exposure]
-        intervals.index = categorical_exposure.index
-        exposures = []
-        for axis in ["birth_weight", "gestational_age"]:
-            draw = self.randomness.get_draw(categorical_exposure.index, additional_key=axis)
-            lower, upper = intervals[f"{axis}_lower"], intervals[f"{axis}_upper"]
-            exposures.append((lower + (upper - lower) * draw).rename(axis))
-        return pd.concat(exposures, axis=1)
-
-    ################
-    # Data loading #
-    ################
-
-    def _get_category_intervals(self, builder: Builder):
-        categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
-        category_intervals = pd.DataFrame(
-            data=[
-                (category, *self._parse_description(description))
-                for category, description in categories.items()
-            ],
-            columns=[
-                "category",
-                "birth_weight_lower",
-                "birth_weight_upper",
-                "gestational_age_lower",
-                "gestational_age_upper",
-            ],
-        ).set_index("category")
-        return category_intervals
-
-    @staticmethod
-    def _parse_description(description: str) -> Tuple:
-        birth_weight = [
-            float(val)
-            for val in description.split(", [")[1].split(")")[0].split("]")[0].split(", ")
-        ]
-        gestational_age = [
-            float(val)
-            for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
-        ]
-        return *birth_weight, *gestational_age
+        self.population_view.update(new_children)

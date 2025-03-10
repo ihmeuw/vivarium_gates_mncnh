@@ -156,6 +156,8 @@ OBSTRUCTED_LABOR = __ObstructedLabor()
 class __NeonatalPretermBirth(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
+    PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
+    PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
 
     @property
     def name(self):
@@ -203,7 +205,7 @@ class __NeonatalEncephalopath(NamedTuple):
 NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
 
 
-class __NoCPAPIntervention(NamedTuple):
+class __NoCPAPRisk(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     P_RDS: str = "intervention.no_cpap_intervention.p_rds"
     P_HOME: str = "intervention.no_cpap_intervention.probability_home_birth"
@@ -224,7 +226,7 @@ class __NoCPAPIntervention(NamedTuple):
         return "no CPAP intervention"
 
 
-NO_CPAP_INTERVENTION = __NoCPAPIntervention()
+NO_CPAP_RISK = __NoCPAPRisk()
 
 
 MAKE_ARTIFACT_KEY_GROUPS = [
@@ -239,5 +241,5 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     PRETERM_BIRTH,
     NEONATAL_SEPSIS,
     NEONATAL_ENCEPHALOPATHY,
-    NO_CPAP_INTERVENTION,
+    NO_CPAP_RISK,
 ]
