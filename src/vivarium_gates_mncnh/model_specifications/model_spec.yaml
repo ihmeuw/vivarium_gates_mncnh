@@ -5,10 +5,6 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
-    # vivarium_public_health:
-    #     risks:
-    #         - LBWSGRisk()
-
     vivarium_gates_mncnh:
         components:
             - AgelessPopulation("population.scaling_factor")
