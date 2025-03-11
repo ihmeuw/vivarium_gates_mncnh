@@ -1,18 +1,17 @@
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
+from vivarium.framework.engine import SimulationContext
 
 from vivarium_gates_mncnh.components.mortality import MaternalDisordersBurden
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
-    MATERNAL_DISORDERS,
     SIMULATION_EVENT_NAMES,
 )
 
 
 @pytest.fixture(scope="module")
-def mortality_state(simulation_states: dict[str, IndentationError]) -> InteractiveContext:
+def mortality_state(simulation_states: dict[str, SimulationContext]) -> SimulationContext:
     return simulation_states[SIMULATION_EVENT_NAMES.MORTALITY]
 
 
@@ -46,7 +45,7 @@ def test_get_proportional_case_fatality_rates():
     ],
 )
 def test_cause_of_death_normalized(
-    cause_of_death_column: str, alive_column: str, mortality_state: InteractiveContext
+    cause_of_death_column: str, alive_column: str, mortality_state: SimulationContext
 ) -> None:
     pop = mortality_state.get_population()
     alive = pop.loc[pop[alive_column] == "dead"]

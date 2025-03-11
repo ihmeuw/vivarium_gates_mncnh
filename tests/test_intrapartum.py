@@ -1,8 +1,8 @@
 import pytest
-from vivarium import InteractiveContext
+from vivarium.framework.engine import SimulationContext
 from vivarium_testing_utils import FuzzyChecker
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_INTERVENTION
+from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     CPAP_ACCESS_PROBABILITIES,
@@ -13,7 +13,7 @@ from vivarium_gates_mncnh.constants.data_values import (
 
 
 @pytest.fixture(scope="module")
-def intrapartum_state(simulation_states) -> InteractiveContext:
+def intrapartum_state(simulation_states) -> SimulationContext:
     return simulation_states[SIMULATION_EVENT_NAMES.INTRAPARTUM]
 
 
@@ -31,9 +31,9 @@ def test_delivery_facility_proportions(
     pop = intrapartum_state.get_population()
     location = pop[COLUMNS.LOCATION].unique()[0]
     facility_type_mapper = {
-        DELIVERY_FACILITY_TYPES.HOME: NO_CPAP_INTERVENTION.P_HOME,
-        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_INTERVENTION.P_CEmONC,
-        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_INTERVENTION.P_BEmONC,
+        DELIVERY_FACILITY_TYPES.HOME: NO_CPAP_RISK.P_HOME,
+        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CEmONC,
+        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_BEmONC,
     }
     fuzzy_checker.fuzzy_assert_proportion(
         (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type).sum(),
@@ -59,9 +59,9 @@ def test_cpap_availability(
     has_cpap_idx = pop.index[pop[COLUMNS.CPAP_AVAILABLE] == True]
     facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
     facility_type_mapper = {
-        DELIVERY_FACILITY_TYPES.HOME: NO_CPAP_INTERVENTION.P_CPAP_HOME,
-        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_INTERVENTION.P_CPAP_CEmONC,
-        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_INTERVENTION.P_CPAP_BEmONC,
+        DELIVERY_FACILITY_TYPES.HOME: NO_CPAP_RISK.P_CPAP_HOME,
+        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CPAP_CEmONC,
+        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_CPAP_BEmONC,
     }
     fuzzy_checker.fuzzy_assert_proportion(
         len(has_cpap_idx.intersection(facility_idx)),

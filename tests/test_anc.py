@@ -1,5 +1,6 @@
 import pytest
-from vivarium import Artifact, InteractiveContext
+from vivarium import Artifact
+from vivarium.framework.engine import SimulationContext
 from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants.data_keys import ANC
@@ -12,13 +13,13 @@ from vivarium_gates_mncnh.constants.data_values import (
 
 
 @pytest.fixture(scope="module")
-def anc_state(simulation_states) -> InteractiveContext:
+def anc_state(simulation_states) -> SimulationContext:
     return simulation_states[SIMULATION_EVENT_NAMES.PREGNANCY]
 
 
 @pytest.fixture(scope="module")
 def attended_anc_facility_proportion(
-    anc_state: InteractiveContext, artifact: Artifact
+    anc_state: SimulationContext, artifact: Artifact
 ) -> float:
     draw = f"draw_{anc_state.model_specification.configuration.input_data.input_draw_number}"
     # This is loading a one row dataframe we want to get the value depending on the draw
@@ -62,7 +63,7 @@ def test_received_ultrasound_proportions(
     "ultrasound_type", [ULTRASOUND_TYPES.STANDARD, ULTRASOUND_TYPES.AI_ASSISTED]
 )
 def test_ultrasound_type_proportions(
-    ultrasound_type: str, anc_state: InteractiveContext, fuzzy_checker: FuzzyChecker
+    ultrasound_type: str, anc_state: SimulationContext, fuzzy_checker: FuzzyChecker
 ) -> None:
     pop = anc_state.get_population()
     location = pop[COLUMNS.LOCATION].iloc[0]

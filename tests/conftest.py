@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
+from typing import Any, Generator
 
+import dill
 import pytest
 from layered_config_tree import LayeredConfigTree
-from vivarium import Artifact, InteractiveContext
+from vivarium import Artifact
+from vivarium.framework.engine import SimulationContext
 from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
@@ -45,14 +48,27 @@ def model_spec_path() -> Path:
     config_path = repo_path / "model_specifications" / "model_spec.yaml"
     return config_path
 
+@pytest.fixture(scope="session")
+def sim(model_spec_path: Path) -> SimulationContext:
+    simulation = SimulationContext(model_spec_path)
+    return simulation
 
 @pytest.fixture(scope="session")
-def simulation_states(model_spec_path: Path) -> dict[str, InteractiveContext]:
+def simulation_states(sim, model_spec_path: Path, tmpdir_factory) -> dict[str, SimulationContext]:
     # Set up interactive sim
-    sim = InteractiveContext(model_spec_path)
+    sim_states_dir = tmpdir_factory.mktemp("simulation_states_dir")
+    #sim = SimulationContext(model_spec_path)
     sim_states = {}
     for step in SIMULATION_STEPS:
-        sim_states[step] = sim
+        step_backup_path = Path(sim_states_dir / f"{step}.pkl")
+        sim.setup()
+        sim.initialize_simulants()
+        breakpoint()
+        sim.write_backup(step_backup_path)
+        with open(step_backup_path, "rb") as f:
+            sim_backup = dill.load(f)
+        sim_states[step] = sim_backup
+        
         # The simulation starts on the pregnancy time step
         if step == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY:
             continue
@@ -75,7 +91,7 @@ def output_directory() -> str:
 
 
 @pytest.fixture(scope="session")
-def fuzzy_checker(output_directory) -> FuzzyChecker:
+def fuzzy_checker(output_directory) -> Generator[FuzzyChecker, Any, Any]:
     checker = FuzzyChecker()
 
     yield checker
