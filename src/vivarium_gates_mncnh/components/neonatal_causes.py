@@ -41,8 +41,10 @@ class NeonatalCause(Component):
 
     def setup(self, builder: Builder) -> None:
         # This is the ACMR PAF pipeline. For preterm we will get the custom preterm PAF
-        self.paf = self.get_paf(builder)
-        required_pipeline_resources = [self.paf] if isinstance(self.paf, Pipeline) else []
+        self.lbwsg_acmr_paf = self.get_paf(builder)
+        required_pipeline_resources = (
+            [self.lbwsg_acmr_paf] if isinstance(self.lbwsg_acmr_paf, Pipeline) else []
+        )
         # Register csmr pipeline
         self.csmr = builder.value.register_value_producer(
             f"{self.neonatal_cause}.cause_specific_mortality_rate",
@@ -56,13 +58,19 @@ class NeonatalCause(Component):
             component=self,
             required_resources=required_pipeline_resources,
         )
+        # Create CSMR PAF pipeline which will do nothing but is needed for the LBWSGRiskEffect
+        builder.value.register_value_producer(
+            f"{self.neonatal_cause}.cause_specific_mortality_rate.paf",
+            source=builder.lookup.build_table(0),
+            component=self,
+        )
 
     ##################
     # Helper methods #
     ##################
 
     def get_paf(self, builder: Builder) -> Pipeline:
-        return builder.value.get_value(PIPELINES.ACMR_PAF)
+        return builder.value.get_value(PIPELINES.LBWSG_ACMR_PAF_MODIFIER)
 
     def load_csmr(self, builder: Builder) -> pd.DataFrame:
         csmr = builder.data.load(f"cause.{self.neonatal_cause}.cause_specific_mortality_rate")
@@ -73,7 +81,7 @@ class NeonatalCause(Component):
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
         raw_csmr = self.lookup_tables["csmr"](index)
-        normalizing_constant = 1 - self.paf(index)
+        normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
         normalized_csmr = raw_csmr * normalizing_constant
 
         return normalized_csmr
@@ -112,7 +120,7 @@ class PretermBirth(NeonatalCause):
         # PAF for the preterm population. We are accounting for this by
         # dividing the CSMR by the prevalence of the preterm categories
         raw_csmr = self.lookup_tables["csmr"](index)
-        normalizing_constant = 1 - self.paf(index)
+        normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
         prevalence = self.lookup_tables["prevalence"](index)
         normalized_csmr = normalizing_constant * (raw_csmr / prevalence)
 
