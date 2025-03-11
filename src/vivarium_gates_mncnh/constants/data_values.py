@@ -205,8 +205,9 @@ CAUSES_OF_NEONATAL_MORTALITY = [
 
 
 class __Pipelines(NamedTuple):
-    ACMR_PAF = "lbwsg_paf_on_all_causes.cause_specific_mortality_rate"
+    LBWSG_ACMR_PAF_MODIFIER = "lbwsg_paf_on_all_causes.cause_specific_mortality_rate.paf"
     ACMR = "all_causes.cause_specific_mortality_rate"
+    ACMR_PAF = "all_causes.cause_specific_mortality_rate.paf"
     DEATH_IN_AGE_GROUP_PROBABILITY = "death_in_age_group_probability"
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
         "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"

@@ -8,6 +8,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants.data_values import (
@@ -219,13 +220,16 @@ class NeonatalMortality(Component):
         self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
 
         # Register pipelines
+        self.acmr_paf = self.get_acmr_paf_pipeline(builder)
+
         self.all_cause_mortality_rate = builder.value.register_value_producer(
             PIPELINES.ACMR,
-            source=self.lookup_tables["all_cause_mortality_rate"],
+            source=self.get_acmr_pipeline,
             component=self,
             required_resources=get_lookup_columns(
                 [self.lookup_tables["all_cause_mortality_rate"]]
-            ),
+            )
+            + [self.acmr_paf],
         )
         # Modify ACMR pipeline with CSMR for neonatal causes
         self.death_in_age_group = builder.value.register_value_producer(
@@ -326,3 +330,18 @@ class NeonatalMortality(Component):
         )
 
         return cause_of_death
+
+    def get_acmr_pipeline(self, index: pd.Index) -> Pipeline:
+        # NOTE: This will be modified by the LBWSGRiskEffect
+        acmr = self.lookup_tables["all_cause_mortality_rate"](index)
+        paf = self.acmr_paf(index)
+        return acmr * (1 - paf)
+
+    def get_acmr_paf_pipeline(self, builder: Builder) -> Pipeline:
+        acmr_paf = builder.lookup.build_table(0)
+        return builder.value.register_value_producer(
+            PIPELINES.ACMR_PAF,
+            source=lambda index: [acmr_paf(index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
