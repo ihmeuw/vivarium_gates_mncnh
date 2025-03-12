@@ -318,8 +318,14 @@ class NeonatalMortality(Component):
         for cause, pipeline in neonatal_cause_dict.items():
             choices[cause] = pipeline / all_causes_death_rate
         choices["other_causes"] = 1 - choices.sum(axis=1)
+        # TODO: fix temporary hack for negative other_causes probabilities
         if (choices["other_causes"] < 0).any():
-            raise ValueError("Negative probability of death for other causes")
+            negative_idx = choices["other_causes"] < 0
+            choices.loc[negative_idx, "other_causes"] = 0
+            # Scale each cause of death by the sum of the positive probabilities
+            choices.loc[negative_idx] = choices.loc[negative_idx].div(
+                choices.loc[negative_idx].sum(axis=1), axis=0
+            )
 
         # Choose cause of death for each neonate
         cause_of_death = self.randomness.choice(
