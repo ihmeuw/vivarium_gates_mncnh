@@ -53,7 +53,7 @@ class NeonatalCause(Component):
             required_resources=required_pipeline_resources,
         )
         builder.value.register_value_modifier(
-            "death_in_age_group_probability",
+            PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
             modifier=self.modify_death_in_age_group_probability,
             component=self,
             required_resources=required_pipeline_resources,

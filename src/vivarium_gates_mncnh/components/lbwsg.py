@@ -418,11 +418,13 @@ class LBWSGPAFObserver(Component):
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
         # Subset to age group for exposure - have to use np.isclose because age_start is rounded
-        lbwsg_prevalence = lbwsg_prevalence[np.isclose(self.lbwsg_exposure.age_start, age_start, atol=.001)]
+        lbwsg_prevalence = lbwsg_prevalence[
+            np.isclose(self.lbwsg_exposure.age_start, age_start, atol=0.001)
+        ]
         lbwsg_prevalence = lbwsg_prevalence.groupby("lbwsg_category", as_index=False)[
             "prevalence"
         ].sum()
-        
+
         mean_rrs = (
             pd.concat([lbwsg_category, relative_risk], axis=1)
             .groupby("lbwsg_category", as_index=False)
