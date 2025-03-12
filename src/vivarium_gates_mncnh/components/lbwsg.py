@@ -375,7 +375,7 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category", "gestational_age_exposure"]
+        return ["lbwsg_category", "gestational_age_exposure", "age_bin"]
 
     def __init__(self, target: str):
         super().__init__()
@@ -413,9 +413,12 @@ class LBWSGPAFObserver(Component):
         relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
+        age_start = self.population_view.get(x.index).age_bin.iloc[0].left
         lbwsg_prevalence = self.lbwsg_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
+        # Subset to age group for exposure
+        lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["age_start"] == age_start]
         lbwsg_prevalence = lbwsg_prevalence.groupby("lbwsg_category", as_index=False)[
             "prevalence"
         ].sum()
