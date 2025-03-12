@@ -256,17 +256,25 @@ class NeonatalMortality(Component):
         ]:
             return
 
-        #breakpoint()
         pop = self.population_view.get(event.index)
         alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
-        mortality_rates = self.death_in_age_group(alive_idx)
-        mortality_rates = self.death_in_age_group.source(alive_idx)  # I can't figure out where this pipeline is being modified, but I think there is something wrong with the modification
+        mortality_rates1 = self.death_in_age_group(alive_idx)
+        mortality_rates2 = self.death_in_age_group.source(alive_idx)
+        
+        # I can't figure out where this pipeline is being modified, but I think there is something wrong with the modification
+        import numpy as np
+        if not np.allclose(mortality_rates1, mortality_rates2):
+            breakpoint()
+            mortality_rates = mortality_rates2
 
+        else:
+            mortality_rates = mortality_rates1
+            
         # Convert to rates to probability
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
-            duration = .07 / 365.0
+            duration = 7 / 365.0
         else:
-            duration = .21 / 365.0
+            duration = 21 / 365.0
         mortality_risk = rate_to_probability(mortality_rates, duration)
 
         # Determine which neonates die and update metadata

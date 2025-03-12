@@ -195,4 +195,6 @@ def rate_to_probability(
     #rate[rate > 250] = 250.0
     #probability: NumericArray = 1 - np.exp(-rate * duration_scaling_factor)
     probability: NumericArray = rate * duration_scaling_factor
+    #if np.any(probability > 1.0):
+    #    breakpoint()
     return probability

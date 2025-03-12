@@ -438,6 +438,7 @@ class LBWSGPAFObserver(Component):
         lbwsg_prevalence = self.lbwsg_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
+        breakpoint()
         lbwsg_prevalence = lbwsg_prevalence[np.isclose(self.lbwsg_exposure.age_start, age_start, atol=.001)]
 
         mean_rrs = (
