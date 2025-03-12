@@ -210,14 +210,14 @@ class NeonatalMortality(Component):
         self.causes_of_death = CAUSES_OF_NEONATAL_MORTALITY + ["other_causes"]
 
         # Get neonatal csmr pipelines
-        self.preterm_with_rds_csmr = builder.value.get_value(
-            PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
-        )
-        self.preterm_without_rds_csmr = builder.value.get_value(
-            PIPELINES.NEONATAL_PRETERM_BIRTH_WITHOUT_RDS
-        )
-        self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS)
-        self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
+        #self.preterm_with_rds_csmr = builder.value.get_value(
+        #    PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
+        #)
+        #self.preterm_without_rds_csmr = builder.value.get_value(
+        #    PIPELINES.NEONATAL_PRETERM_BIRTH_WITHOUT_RDS
+        #)
+        #self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS)
+        #self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
 
         # Register pipelines
         self.acmr_paf = self.get_acmr_paf_pipeline(builder)
@@ -256,14 +256,17 @@ class NeonatalMortality(Component):
         ]:
             return
 
+        #breakpoint()
         pop = self.population_view.get(event.index)
         alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
         mortality_rates = self.death_in_age_group(alive_idx)
+        mortality_rates = self.death_in_age_group.source(alive_idx)  # I can't figure out where this pipeline is being modified, but I think there is something wrong with the modification
+
         # Convert to rates to probability
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
-            duration = 7 / 365.0
+            duration = .07 / 365.0
         else:
-            duration = 21 / 365.0
+            duration = .21 / 365.0
         mortality_risk = rate_to_probability(mortality_rates, duration)
 
         # Determine which neonates die and update metadata
@@ -306,12 +309,12 @@ class NeonatalMortality(Component):
         choices = pd.DataFrame(index=simulant_idx)
         all_causes_death_rate = self.death_in_age_group(simulant_idx)
         neonatal_cause_dict = {
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: self.preterm_with_rds_csmr(simulant_idx),
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.preterm_without_rds_csmr(
-                simulant_idx
-            ),
-            NEONATAL_CAUSES.NEONATAL_SEPSIS: self.sepsis_csmr(simulant_idx),
-            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: self.encephalopathy_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: 0,#self.preterm_with_rds_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: 0,#self.preterm_without_rds_csmr(
+            #    simulant_idx
+            #),
+            NEONATAL_CAUSES.NEONATAL_SEPSIS: 0,#self.sepsis_csmr(simulant_idx),
+            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: 0,#self.encephalopathy_csmr(simulant_idx),
         }
 
         # Calculate proportional cause of death for each neonatal cause

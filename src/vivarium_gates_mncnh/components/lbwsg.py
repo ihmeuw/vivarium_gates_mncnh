@@ -118,6 +118,26 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         paf_data = builder.data.load(paf_key)
         # Map to child columns
         paf_data = paf_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        print(paf_data)
+        #breakpoint()
+        #paf_data['value'] *= 0
+        #paf_data['value'] += .66
+        #paf_data['value'] = 1-paf_data['value']
+        #age_group     sex     value
+        #0  early_neonatal  Female  0.946601 .827
+        #1  early_neonatal    Male  0.946819 .834
+        #2   late_neonatal  Female  0.915072 .765
+        #3   late_neonatal    Male  0.898963 .743
+#(Pdb++) relative_risk_columns[0].groupby(self.population_view._manager._population.sex_of_child).mean()
+#sex_of_child
+#Female    5.336745
+#Male      6.831572
+#Name: effect_of_low_birth_weight_and_short_gestation_on_early_neonatal_all_causes_relative_risk, dtype: float64
+#(Pdb++) relative_risk_columns[1].groupby(self.population_view._manager._population.sex_of_child).mean()
+#sex_of_child
+#Female    4.249924
+#Male      4.567497
+        paf_data['value'] = [0.826695, 0.764423, 0, 0, 0.834105, 0.743138, 0, 0]
         return paf_data, builder.data.value_columns()(paf_key)
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
@@ -235,6 +255,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         relative_risk_columns = [
             get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
         ]
+        #breakpoint()
         self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
 
@@ -375,7 +396,7 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category", "gestational_age_exposure"]
+        return ["lbwsg_category", "gestational_age_exposure", "age_bin"]
 
     def __init__(self, target: str):
         super().__init__()
@@ -413,12 +434,11 @@ class LBWSGPAFObserver(Component):
         relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
+        age_start = self.population_view.get(x.index).age_bin.iloc[0].left  # TODO: confirm that all age_start values are the same
         lbwsg_prevalence = self.lbwsg_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
-        lbwsg_prevalence = lbwsg_prevalence.groupby("lbwsg_category", as_index=False)[
-            "prevalence"
-        ].sum()
+        lbwsg_prevalence = lbwsg_prevalence[np.isclose(self.lbwsg_exposure.age_start, age_start, atol=.001)]
 
         mean_rrs = (
             pd.concat([lbwsg_category, relative_risk], axis=1)
@@ -428,6 +448,7 @@ class LBWSGPAFObserver(Component):
         mean_rrs = mean_rrs.merge(lbwsg_prevalence, on="lbwsg_category")
 
         mean_rr = np.average(mean_rrs["relative_risk"], weights=mean_rrs["prevalence"])
+        print(mean_rr)
         paf = (mean_rr - 1) / mean_rr
 
         return paf
