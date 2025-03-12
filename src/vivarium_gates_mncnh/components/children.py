@@ -87,10 +87,13 @@ class NewChildren(Component):
         pop = self.population_view.get(event.index)
         alive_children = pop.loc[pop[COLUMNS.CHILD_ALIVE] == "alive"]
         # Update age of children to get correctlookup values - use midpoint of age groups
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
-            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = (7 / 2) / 365.0
-        else:
-            pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = ((28 - 7) / 2) / 365.0
+        age_group_midpoints = {
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: (7 / 2) / 365.0,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY: (7 + (28 - 7) / 2) / 365.0,
+        }
+        pop.loc[alive_children.index, COLUMNS.CHILD_AGE] = age_group_midpoints[
+            self._sim_step_name()
+        ]
 
         self.population_view.update(pop)
 
@@ -112,7 +115,6 @@ class ChildrenBirthExposure(Component):
         return [self.gestational_age, self.birth_weight]
 
     def setup(self, builder: Builder) -> None:
-        # todo get the lbwsg value pipelines
         self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
         self.birth_weight = builder.value.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
 
@@ -125,4 +127,5 @@ class ChildrenBirthExposure(Component):
             },
             index=index,
         )
+
         self.population_view.update(new_children)

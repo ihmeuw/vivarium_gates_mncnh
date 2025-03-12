@@ -46,14 +46,20 @@ class NeonatalCause(Component):
             [self.lbwsg_acmr_paf] if isinstance(self.lbwsg_acmr_paf, Pipeline) else []
         )
         # Register csmr pipeline
-        self.csmr = builder.value.register_value_producer(
+        self.intermediate_csmr = builder.value.register_value_producer(
             f"{self.neonatal_cause}.cause_specific_mortality_rate",
             source=self.get_normalized_csmr,
             component=self,
             required_resources=required_pipeline_resources,
         )
+        self.final_csmr = builder.value.register_value_producer(
+            f"{self.neonatal_cause}.csmr",
+            source=self.intermediate_csmr,
+            component=self,
+        )
+
         builder.value.register_value_modifier(
-            "death_in_age_group_probability",
+            PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
             modifier=self.modify_death_in_age_group_probability,
             component=self,
             required_resources=required_pipeline_resources,
@@ -89,10 +95,11 @@ class NeonatalCause(Component):
     def modify_death_in_age_group_probability(
         self, index: pd.Index, probability_death_in_age_group: pd.Series
     ) -> pd.Series:
-        csmr_pipeline = self.csmr(index)
-        csmr_source = self.get_normalized_csmr(index)
+        intermediate_csmr = self.intermediate_csmr(index)
+        final_csmr = self.final_csmr(index)
         # ACMR = ACMR - CSMR + CSMR
-        modified_acmr = probability_death_in_age_group - csmr_source + csmr_pipeline
+        modified_acmr = probability_death_in_age_group - intermediate_csmr + final_csmr
+
         return modified_acmr
 
 
