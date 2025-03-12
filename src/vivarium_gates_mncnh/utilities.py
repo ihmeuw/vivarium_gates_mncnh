@@ -187,11 +187,7 @@ def get_location(builder: Builder) -> str:
 def rate_to_probability(
     rate: Sequence[float] | NumberLike, duration_scaling_factor: int = 1.0
 ) -> NumericArray:
-    # encountered underflow from rate > 30k
-    # for rates greater than 250, exp(-rate) evaluates to 1e-109
-    # beware machine-specific floating point issues
 
-    rate = np.array(rate)
-    rate[rate > 250] = 250.0
-    probability: NumericArray = 1 - np.exp(-rate * duration_scaling_factor)
+    # TODO: New version of this equation should be documented
+    probability = rate * duration_scaling_factor
     return probability

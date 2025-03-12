@@ -198,6 +198,7 @@ class NeonatalMortality(Component):
         return [
             COLUMNS.CHILD_AGE,
             COLUMNS.CHILD_ALIVE,
+            COLUMNS.GESTATIONAL_AGE,
         ]
 
     #####################
