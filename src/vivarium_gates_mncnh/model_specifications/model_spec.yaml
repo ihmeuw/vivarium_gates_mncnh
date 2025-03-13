@@ -5,15 +5,12 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
-    vivarium_public_health:
-        risks:
-            - LBWSGRisk()
-
     vivarium_gates_mncnh:
         components:
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
-            - Intrapartum()
+            - ChildrenBirthExposure()
+            # - Intrapartum()
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
@@ -21,6 +18,7 @@ components:
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
+            - LBWSGRisk()
             - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
             - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate')
             - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate')
@@ -31,7 +29,7 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - NoCPAPRisk()
+            # - NoCPAPRisk()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -41,7 +39,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/cpap/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/paf/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -61,7 +59,6 @@ configuration:
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'mortality'
-            # - 'neonatal'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
 

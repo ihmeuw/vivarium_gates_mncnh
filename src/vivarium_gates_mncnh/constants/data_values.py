@@ -156,7 +156,6 @@ class __Columns(NamedTuple):
     CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
-    PREGNANCY_DURATION = "pregnancy_duration"
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT = "birth_weight"
     GESTATIONAL_AGE = "gestational_age"
@@ -208,19 +207,20 @@ CAUSES_OF_NEONATAL_MORTALITY = [
 
 
 class __Pipelines(NamedTuple):
-    ACMR_PAF = "lbwsg_paf_on_all_causes.cause_specific_mortality_rate"
+    LBWSG_ACMR_PAF_MODIFIER = "lbwsg_paf_on_all_causes.cause_specific_mortality_rate.paf"
     ACMR = "all_causes.cause_specific_mortality_rate"
+    ACMR_PAF = "all_causes.cause_specific_mortality_rate.paf"
     DEATH_IN_AGE_GROUP_PROBABILITY = "death_in_age_group_probability"
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
-        "cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
     )
     NEONATAL_PRETERM_BIRTH_WITHOUT_RDS = (
-        "cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
     )
     NEONATAL_SEPSIS = (
-        "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
+        "neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
     )
-    NEONATAL_ENCEPHALOPATHY = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+    NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
     PRETERM_WITH_RDS_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk",
     )
@@ -236,6 +236,9 @@ class __Pipelines(NamedTuple):
     ACMR_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_all_causes.cause_specific_mortality_rate",
     )
+    BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
+    GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
+    PREGNANCY_DURATION = "pregnancy_duration"
 
 
 PIPELINES = __Pipelines()

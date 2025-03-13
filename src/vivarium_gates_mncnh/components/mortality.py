@@ -8,6 +8,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants.data_values import (
@@ -219,13 +220,16 @@ class NeonatalMortality(Component):
         self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
 
         # Register pipelines
+        self.acmr_paf = self.get_acmr_paf_pipeline(builder)
+
         self.all_cause_mortality_rate = builder.value.register_value_producer(
             PIPELINES.ACMR,
-            source=self.lookup_tables["all_cause_mortality_rate"],
+            source=self.get_acmr_pipeline,
             component=self,
             required_resources=get_lookup_columns(
                 [self.lookup_tables["all_cause_mortality_rate"]]
-            ),
+            )
+            + [self.acmr_paf],
         )
         # Modify ACMR pipeline with CSMR for neonatal causes
         self.death_in_age_group = builder.value.register_value_producer(
@@ -271,7 +275,7 @@ class NeonatalMortality(Component):
         if not dead_idx.empty:
             pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
             pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = self.determine_cause_of_death(
-                dead_idx, duration
+                dead_idx
             )
             pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
                 "life_expectancy"
@@ -297,9 +301,7 @@ class NeonatalMortality(Component):
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
 
-    def determine_cause_of_death(
-        self, simulant_idx: pd.Index, age_group_duration: float
-    ) -> pd.Series:
+    def determine_cause_of_death(self, simulant_idx: pd.Index) -> pd.Series:
         """Determine the cause of death for neonates."""
         choices = pd.DataFrame(index=simulant_idx)
         all_causes_death_rate = self.death_in_age_group(simulant_idx)
@@ -316,8 +318,14 @@ class NeonatalMortality(Component):
         for cause, pipeline in neonatal_cause_dict.items():
             choices[cause] = pipeline / all_causes_death_rate
         choices["other_causes"] = 1 - choices.sum(axis=1)
+        # TODO: fix temporary hack for negative other_causes probabilities
         if (choices["other_causes"] < 0).any():
-            raise ValueError("Negative probability of death for other causes")
+            negative_idx = choices["other_causes"] < 0
+            choices.loc[negative_idx, "other_causes"] = 0
+            # Scale each cause of death by the sum of the positive probabilities
+            choices.loc[negative_idx] = choices.loc[negative_idx].div(
+                choices.loc[negative_idx].sum(axis=1), axis=0
+            )
 
         # Choose cause of death for each neonate
         cause_of_death = self.randomness.choice(
@@ -328,3 +336,18 @@ class NeonatalMortality(Component):
         )
 
         return cause_of_death
+
+    def get_acmr_pipeline(self, index: pd.Index) -> Pipeline:
+        # NOTE: This will be modified by the LBWSGRiskEffect
+        acmr = self.lookup_tables["all_cause_mortality_rate"](index)
+        paf = self.acmr_paf(index)
+        return acmr * (1 - paf)
+
+    def get_acmr_paf_pipeline(self, builder: Builder) -> Pipeline:
+        acmr_paf = builder.lookup.build_table(0)
+        return builder.value.register_value_producer(
+            PIPELINES.ACMR_PAF,
+            source=lambda index: [acmr_paf(index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
