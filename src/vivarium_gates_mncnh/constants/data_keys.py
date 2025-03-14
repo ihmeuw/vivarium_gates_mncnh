@@ -206,6 +206,7 @@ NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
 
 
 class __NoCPAPRisk(NamedTuple):
+    # TODO: update keys to match group name
     # Keys that will be loaded into the artifact. must have a colon type declaration
     P_RDS: str = "intervention.no_cpap_intervention.p_rds"
     P_HOME: str = "intervention.no_cpap_intervention.probability_home_birth"

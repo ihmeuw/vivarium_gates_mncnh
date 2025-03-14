@@ -55,12 +55,12 @@ class MaternalDisorder(Component):
             )
         ]
         incidence_risk = self.lookup_tables["incidence_risk"](full_term.index)
-        got_sepsis = self.randomness.filter_for_probability(
+        got_disorder = self.randomness.filter_for_probability(
             full_term.index,
             incidence_risk,
             f"got_{self.maternal_disorder}_choice",
         )
-        pop.loc[got_sepsis, self.maternal_disorder] = True
+        pop.loc[got_disorder, self.maternal_disorder] = True
         self.population_view.update(pop)
 
     def load_incidence_risk(self, builder: Builder) -> pd.DataFrame:

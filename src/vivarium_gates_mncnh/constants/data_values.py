@@ -84,7 +84,6 @@ class _SimulationEventNames(NamedTuple):
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
-    NEONATAL = "neonatal"
     MORTALITY = "mortality"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
@@ -161,7 +160,6 @@ class __Columns(NamedTuple):
     GESTATIONAL_AGE = "gestational_age"
     ATTENDED_CARE_FACILITY = "attended_care_facility"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
-    RECEIVED_ULTRASOUND = "received_ultrasound"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
@@ -214,6 +212,7 @@ class __Pipelines(NamedTuple):
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
         "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
     )
+    PRETERM_WITH_RDS_FINAL_CSMR = "neonatal_preterm_birth_with_rds.csmr"
     NEONATAL_PRETERM_BIRTH_WITHOUT_RDS = (
         "neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
     )

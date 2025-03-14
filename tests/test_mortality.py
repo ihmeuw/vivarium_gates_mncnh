@@ -1,8 +1,29 @@
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import pytest
+from vivarium import InteractiveContext
 
 from vivarium_gates_mncnh.components.mortality import MaternalDisordersBurden
-from vivarium_gates_mncnh.constants.data_values import COLUMNS
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+
+from .utilities import get_interactive_context_state
+
+
+@pytest.fixture(scope="module")
+def mortality_state(
+    sim_state_step_mapper: dict[str, int], model_spec_path: Path
+) -> InteractiveContext:
+    sim = InteractiveContext(model_spec_path)
+    return get_interactive_context_state(
+        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.MORTALITY
+    )
+
+
+@pytest.fixture(scope="module")
+def population(mortality_state: InteractiveContext) -> pd.DataFrame:
+    return mortality_state.get_population()
 
 
 def test_get_proportional_case_fatality_rates():
@@ -25,3 +46,21 @@ def test_get_proportional_case_fatality_rates():
         col for col in proportional_cfr_data.columns if "proportional_cfr" in col
     ]
     assert proportional_cfr_data[proportional_cfr_cols].sum(axis=1).all() == 1.0
+
+
+@pytest.mark.parametrize(
+    "cause_of_death_column, alive_column",
+    [
+        (COLUMNS.MOTHER_CAUSE_OF_DEATH, COLUMNS.MOTHER_ALIVE),
+        (COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_ALIVE),
+    ],
+)
+def test_cause_of_death_normalized(
+    cause_of_death_column: str, alive_column: str, population: pd.DataFrame
+) -> None:
+    alive = population.loc[population[alive_column] == "dead"]
+    is_normalized = 0.0
+    for cause_of_death in alive[cause_of_death_column].unique():
+        is_normalized += (alive[cause_of_death_column] == cause_of_death).sum() / len(alive)
+
+    assert np.isclose(is_normalized, 1.0, atol=1e-6)
