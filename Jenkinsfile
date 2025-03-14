@@ -21,4 +21,5 @@ The "_" denotes that all modules will be imported from the shared library.
 reusable_pipeline(scheduled_branches: ["main"],
                   test_types: ["all-tests"], 
                   skip_build: true,
+                  requires_slurm: true,
                   upstream_repos: ["vivarium", "vivarium_inputs", "vivarium_public_health", "vivarium_cluster_tools", "gbd_mapping", "layered_config_tree"])
