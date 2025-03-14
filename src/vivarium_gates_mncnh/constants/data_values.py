@@ -214,6 +214,7 @@ class __Pipelines(NamedTuple):
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
         "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
     )
+    PRETERM_WITH_RDS_FINAL_CSMR = "neonatal_preterm_birth_with_rds.csmr"
     NEONATAL_PRETERM_BIRTH_WITHOUT_RDS = (
         "neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
     )
