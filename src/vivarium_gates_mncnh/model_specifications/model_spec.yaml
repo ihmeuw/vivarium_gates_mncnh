@@ -35,6 +35,7 @@ components:
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
+            - CPAPObserver()
 
 configuration:
     input_data:

@@ -42,7 +42,6 @@ class NoCPAPRisk(Component):
             self.preterm_with_rds_csmr.name,
             self.modify_preterm_with_rds_csmr,
             required_resources=[
-                self.preterm_with_rds_csmr.name,
                 COLUMNS.DELIVERY_FACILITY_TYPE,
                 COLUMNS.CPAP_AVAILABLE,
             ],
