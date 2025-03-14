@@ -13,6 +13,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_INITIALIZATION_AGE,
     COLUMNS,
+    DELIVERY_FACILITY_TYPES,
     MATERNAL_DISORDERS,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -355,3 +356,50 @@ class NeonatalCauseRelativeRiskObserver(Observer):
         return (self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY) or (
             self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
         )
+
+
+class CPAPObserver(Observer):
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": ["age_group"],
+                    "include": ["delivery_facility_type"],
+                },
+            },
+        }
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.delivery_facility_types = [
+            DELIVERY_FACILITY_TYPES.HOME,
+            DELIVERY_FACILITY_TYPES.BEmONC,
+            DELIVERY_FACILITY_TYPES.CEmONC,
+            DELIVERY_FACILITY_TYPES.NONE,
+        ]
+
+    def get_configuration(self, builder: Builder) -> dict[str, Any]:
+        return builder.configuration["stratification"][self.get_configuration_name()]
+
+    def register_observations(self, builder: Builder) -> None:
+        # Stratify by delivery facility type
+        builder.results.register_stratification(
+            "delivery_facility_type",
+            self.delivery_facility_types,
+            excluded_categories=[DELIVERY_FACILITY_TYPES.NONE],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
+        )
+        builder.results.register_adding_observation(
+            name="cpap_availability",
+            pop_filter="cpap_available == True",
+            requires_columns=[COLUMNS.CPAP_AVAILABLE],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+        )
+
+    def to_observe(self, event: Event) -> bool:
+        # Last time step
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY

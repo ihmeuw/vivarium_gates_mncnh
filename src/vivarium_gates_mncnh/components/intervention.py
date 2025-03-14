@@ -5,7 +5,6 @@ from functools import partial
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
 
 from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
@@ -33,7 +32,7 @@ class NoCPAPRisk(Component):
 
     def __init__(self) -> None:
         super().__init__()
-        self.preterm_csmr_target = PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
+        self.preterm_csmr_target = PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
@@ -43,7 +42,6 @@ class NoCPAPRisk(Component):
             self.preterm_with_rds_csmr.name,
             self.modify_preterm_with_rds_csmr,
             required_resources=[
-                self.preterm_with_rds_csmr.name,
                 COLUMNS.DELIVERY_FACILITY_TYPE,
                 COLUMNS.CPAP_AVAILABLE,
             ],
