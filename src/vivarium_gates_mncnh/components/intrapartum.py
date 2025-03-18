@@ -10,6 +10,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CPAP_ACCESS_PROBABILITIES,
     DELIVERY_FACILITY_TYPE_PROBABILITIES,
     DELIVERY_FACILITY_TYPES,
+    PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.utilities import get_location
@@ -25,6 +26,10 @@ class Intrapartum(Component):
             COLUMNS.DELIVERY_FACILITY_TYPE,
             COLUMNS.CPAP_AVAILABLE,
         ]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.PREGNANCY_OUTCOME]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -46,9 +51,14 @@ class Intrapartum(Component):
             return
 
         pop = self.population_view.get(event.index)
+        pop[COLUMNS.DELIVERY_FACILITY_TYPE] = DELIVERY_FACILITY_TYPES.NONE
+
         # Choose delivery facility type
+        birth_idx = pop.index[
+            pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+        ]
         delivery_facility_type = self.randomness.choice(
-            pop.index,
+            birth_idx,
             [
                 DELIVERY_FACILITY_TYPES.HOME,
                 DELIVERY_FACILITY_TYPES.CEmONC,
@@ -57,7 +67,7 @@ class Intrapartum(Component):
             p=list(DELIVERY_FACILITY_TYPE_PROBABILITIES[self.location].values()),
             additional_key="delivery_facility_type",
         )
-        pop[COLUMNS.DELIVERY_FACILITY_TYPE] = delivery_facility_type
+        pop.loc[birth_idx, COLUMNS.DELIVERY_FACILITY_TYPE] = delivery_facility_type
 
         # Determine if simulant had access to CPAP
         facility_type_mapper = {
