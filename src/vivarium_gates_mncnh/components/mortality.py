@@ -211,7 +211,7 @@ class NeonatalMortality(Component):
 
         # Get neonatal csmr pipelines
         self.preterm_with_rds_csmr = builder.value.get_value(
-            PIPELINES.NEONATAL_PRETERM_BIRTH_WITH_RDS
+            PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR
         )
         self.preterm_without_rds_csmr = builder.value.get_value(
             PIPELINES.NEONATAL_PRETERM_BIRTH_WITHOUT_RDS
