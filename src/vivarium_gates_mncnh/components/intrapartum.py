@@ -45,7 +45,7 @@ class Intrapartum(Component):
         self.population_view.update(anc_data)
 
 
-class CPAPAcess(Component):
+class CPAPAccess(Component):
     """Component for determining if a simulant has access to CPAP."""
 
     @property

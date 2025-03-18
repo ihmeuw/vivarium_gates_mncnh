@@ -9,12 +9,13 @@ from vivarium_gates_mncnh.constants.data_values import (
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
+from vivarium_gates_mncnh.utilities import get_location
 
 
 class DeliveryFacility(Component):
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.DELIVERY_FACILITY_TYPE]
+        return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.PREGNANCY_OUTCOME]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()

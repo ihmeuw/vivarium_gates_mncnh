@@ -30,6 +30,8 @@ components:
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
             - NoCPAPRisk()
+            - DeliveryFacility()
+            - CPAPAccess()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -40,8 +42,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: /home/albrja/scratch/artifacts/ethiopia.hdf
-        # artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/risk/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/risk/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
