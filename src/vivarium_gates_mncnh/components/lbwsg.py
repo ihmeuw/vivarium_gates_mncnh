@@ -383,7 +383,7 @@ class LBWSGPAFObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE)
+        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )

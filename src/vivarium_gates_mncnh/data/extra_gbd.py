@@ -27,7 +27,7 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
 
 @vi_utils.cache
 def load_lbwsg_exposure(location: str):
-    entity = utilities.get_entity(data_keys.LBWSG.EXPOSURE)
+    entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
     location_id = utility_data.get_location_id(location)
     data = vi_utils.get_draws(
         gbd_id_type="rei_id",
