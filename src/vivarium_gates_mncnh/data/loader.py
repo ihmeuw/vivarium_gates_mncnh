@@ -66,7 +66,7 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
-        data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
+        data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
         data_keys.LBWSG.PAF: load_paf_data,
@@ -513,14 +513,16 @@ def load_lbwsg_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
 
-    if key != data_keys.LBWSG.EXPOSURE:
+    if key != data_keys.LBWSG.BIRTH_EXPOSURE:
         raise ValueError(f"Unrecognized key {key}")
 
+    # THis is using the old key due to VPH and VI update
+    exposure_key = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     # Get exposure for all age groups except birth age group
-    all_age_exposure = load_standard_data(key, location, years)
+    all_age_exposure = load_standard_data(exposure_key, location, years)
 
-    entity = utilities.get_entity(data_keys.LBWSG.EXPOSURE)
-    birth_exposure = extra_gbd.load_lbwsg_exposure(location)
+    entity = utilities.get_entity(exposure_key)
+    birth_exposure = extra_gbd.load_lbwsg_exposure(location, exposure_key)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
     birth_exposure = birth_exposure.loc[
@@ -549,7 +551,7 @@ def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # TODO: implement
-    exposure = get_data(data_keys.LBWSG.EXPOSURE, location, years).reset_index()
+    exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
     # Remove birth age group
     exposure = exposure.loc[exposure["age_end"] > 0.0]
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
