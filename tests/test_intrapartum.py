@@ -51,9 +51,10 @@ def test_delivery_facility_proportions(
         DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CEmONC,
         DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_BEmONC,
     }
+    birth_idx = population.index[population[COLUMNS.PREGNANCY_OUTCOME] != "partial_term"]
     fuzzy_checker.fuzzy_assert_proportion(
-        (population[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type).sum(),
-        len(population),
+        (population.loc[birth_idx, COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type).sum(),
+        len(birth_idx),
         DELIVERY_FACILITY_TYPE_PROBABILITIES[location][facility_type_mapper[facility_type]],
         name=f"facility_type_{facility_type}_proportion",
     )
