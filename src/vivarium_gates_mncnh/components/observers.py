@@ -25,6 +25,12 @@ class ResultsStratifier(ResultsStratifier_):
     def setup(self, builder: Builder) -> None:
         self.age_bins = self.get_age_bins(builder)
         self.child_age_bins = self.get_child_age_bins(builder)
+        self.delivery_facility_types = [
+            DELIVERY_FACILITY_TYPES.HOME,
+            DELIVERY_FACILITY_TYPES.BEmONC,
+            DELIVERY_FACILITY_TYPES.CEmONC,
+            DELIVERY_FACILITY_TYPES.NONE,
+        ]
         self.register_stratifications(builder)
 
     def register_stratifications(self, builder: Builder) -> None:
@@ -63,6 +69,13 @@ class ResultsStratifier(ResultsStratifier_):
             mapper=self.map_child_age_groups,
             is_vectorized=True,
             requires_columns=[COLUMNS.CHILD_AGE],
+        )
+        builder.results.register_stratification(
+            "delivery_facility_type",
+            self.delivery_facility_types,
+            excluded_categories=[DELIVERY_FACILITY_TYPES.NONE],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
         )
 
     def get_child_age_bins(self, builder: Builder) -> pd.DataFrame:
@@ -118,17 +131,19 @@ class BirthObserver(Observer):
                 f"or pregnancy_outcome == '{PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME}'"
                 ") "
             ),
-            requires_columns=list(self.COL_MAPPING),
+            requires_columns=list(self.COL_MAPPING) + [COLUMNS.DELIVERY_FACILITY_TYPE],
             results_formatter=self.format,
             to_observe=self.to_observe,
         )
 
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
-        new_births = results[list(self.COL_MAPPING)].rename(columns=self.COL_MAPPING)
+        new_births = results[
+            list(self.COL_MAPPING) + [COLUMNS.DELIVERY_FACILITY_TYPE]
+        ].rename(columns=self.COL_MAPPING)
         return new_births
 
     def to_observe(self, event: Event) -> bool:
-        return self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.INTRAPARTUM
 
 
 class ANCObserver(Observer):
@@ -288,7 +303,7 @@ class NeonatalBurdenObserver(BurdenObserver):
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": ["age_group"],
-                    "include": ["child_age_group", "child_sex"],
+                    "include": ["child_age_group", "child_sex", "cpap_availability"],
                 },
             },
         }
@@ -303,6 +318,11 @@ class NeonatalBurdenObserver(BurdenObserver):
 
     def register_observations(self, builder: Builder) -> None:
         super().register_observations(builder)
+        builder.results.register_stratification(
+            "cpap_availability",
+            [True, False],
+            requires_columns=[COLUMNS.CPAP_AVAILABLE],
+        )
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(
                 name=f"{cause}_death_counts",
@@ -372,25 +392,11 @@ class CPAPObserver(Observer):
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        self.delivery_facility_types = [
-            DELIVERY_FACILITY_TYPES.HOME,
-            DELIVERY_FACILITY_TYPES.BEmONC,
-            DELIVERY_FACILITY_TYPES.CEmONC,
-            DELIVERY_FACILITY_TYPES.NONE,
-        ]
 
     def get_configuration(self, builder: Builder) -> dict[str, Any]:
         return builder.configuration["stratification"][self.get_configuration_name()]
 
     def register_observations(self, builder: Builder) -> None:
-        # Stratify by delivery facility type
-        builder.results.register_stratification(
-            "delivery_facility_type",
-            self.delivery_facility_types,
-            excluded_categories=[DELIVERY_FACILITY_TYPES.NONE],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
-        )
         builder.results.register_adding_observation(
             name="cpap_availability",
             pop_filter="cpap_available == True",
