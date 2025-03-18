@@ -52,7 +52,7 @@ PREGNANCY = __Pregnancy()
 
 class __LowBirthWeightShortGestation(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
+    BIRTH_EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.birth_exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
     RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
@@ -206,17 +206,16 @@ NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
 
 
 class __NoCPAPRisk(NamedTuple):
-    # TODO: update keys to match group name
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    P_RDS: str = "intervention.no_cpap_intervention.p_rds"
-    P_HOME: str = "intervention.no_cpap_intervention.probability_home_birth"
-    P_BEmONC: str = "intervention.no_cpap_intervention.probability_BEMONC_birth"
-    P_CEmONC: str = "intervention.no_cpap_intervention.probability_CEmONC_birth"
-    P_CPAP_BEmONC: str = "intervention.no_cpap_intervention.probability_CPAP_BEMONC"
-    P_CPAP_CEmONC: str = "intervention.no_cpap_intervention.probability_CPAP_CEmONC"
-    P_CPAP_HOME: str = "intervention.no_cpap_intervention.probability_CPAP_home"
-    RELATIVE_RISK: str = "intervention.no_cpap_intervention.relative_risk"
-    PAF: str = "intervention.no_cpap_intervention.population_attributable_fraction"
+    P_RDS: str = "intervention.no_cpap_risk.p_rds"
+    P_HOME: str = "intervention.no_cpap_risk.probability_home_birth"
+    P_BEmONC: str = "intervention.no_cpap_risk.probability_BEMONC_birth"
+    P_CEmONC: str = "intervention.no_cpap_risk.probability_CEmONC_birth"
+    P_CPAP_BEmONC: str = "intervention.no_cpap_risk.probability_CPAP_BEMONC"
+    P_CPAP_CEmONC: str = "intervention.no_cpap_risk.probability_CPAP_CEmONC"
+    P_CPAP_HOME: str = "intervention.no_cpap_risk.probability_CPAP_home"
+    RELATIVE_RISK: str = "intervention.no_cpap_risk.relative_risk"
+    PAF: str = "intervention.no_cpap_risk.population_attributable_fraction"
 
     @property
     def name(self):
