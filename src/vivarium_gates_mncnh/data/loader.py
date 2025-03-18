@@ -516,11 +516,13 @@ def load_lbwsg_exposure(
     if key != data_keys.LBWSG.BIRTH_EXPOSURE:
         raise ValueError(f"Unrecognized key {key}")
 
+    # THis is using the old key due to VPH and VI update
+    exposure_key = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     # Get exposure for all age groups except birth age group
-    all_age_exposure = load_standard_data(key, location, years)
+    all_age_exposure = load_standard_data(exposure_key, location, years)
 
-    entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
-    birth_exposure = extra_gbd.load_lbwsg_exposure(location)
+    entity = utilities.get_entity(exposure_key)
+    birth_exposure = extra_gbd.load_lbwsg_exposure(location, exposure_key)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
     birth_exposure = birth_exposure.loc[
