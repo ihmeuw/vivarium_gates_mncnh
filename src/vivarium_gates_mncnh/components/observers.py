@@ -110,23 +110,12 @@ class ResultsStratifier(ResultsStratifier_):
 
 
 class BirthObserver(Observer):
-    # @property
-    # def configuration_defaults(self) -> dict[str, Any]:
-    #     return {
-    #         "stratification": {
-    #             self.get_configuration_name(): {
-    #                 "exclude": [],
-    #                 "include": ["delivery_facility_type"],
-    #             },
-    #         },
-    #     }
 
     COL_MAPPING = {
         "sex_of_child": "sex",
         "birth_weight": "birth_weight",
         "gestational_age": "gestational_age",
         "pregnancy_outcome": "pregnancy_outcome",
-        # "delivery_facility_type": "delivery_facility_type",
     }
 
     def setup(self, builder: Builder) -> None:
