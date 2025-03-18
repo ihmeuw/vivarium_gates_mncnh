@@ -143,7 +143,7 @@ class BirthObserver(Observer):
         return new_births
 
     def to_observe(self, event: Event) -> bool:
-        return self._sim_step_name() == SIMULATION_EVENT_NAMES.INTRAPARTUM
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.CPAP_ACCESS
 
 
 class ANCObserver(Observer):
