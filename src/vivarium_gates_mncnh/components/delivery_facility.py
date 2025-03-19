@@ -13,6 +13,8 @@ from vivarium_gates_mncnh.utilities import get_location
 
 
 class DeliveryFacility(Component):
+    """ "Component that stores functionality for the delivery facility choice model."""
+
     @property
     def columns_required(self) -> list[str]:
         return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.PREGNANCY_OUTCOME]
