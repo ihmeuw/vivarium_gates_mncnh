@@ -214,10 +214,12 @@ class NeonatalMortality(Component):
             PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR
         )
         self.preterm_without_rds_csmr = builder.value.get_value(
-            PIPELINES.NEONATAL_PRETERM_BIRTH_WITHOUT_RDS
+            PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR
         )
-        self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS)
-        self.encephalopathy_csmr = builder.value.get_value(PIPELINES.NEONATAL_ENCEPHALOPATHY)
+        self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR)
+        self.encephalopathy_csmr = builder.value.get_value(
+            PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR
+        )
 
         # Register pipelines
         self.acmr_paf = self.get_acmr_paf_pipeline(builder)

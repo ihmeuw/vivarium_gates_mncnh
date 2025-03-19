@@ -8,28 +8,22 @@ from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     CPAP_ACCESS_PROBABILITIES,
-    DELIVERY_FACILITY_TYPE_PROBABILITIES,
     DELIVERY_FACILITY_TYPES,
-    PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class Intrapartum(Component):
-    """This component functions to make key decisions about events in the intrapartum step of the model.
-    Specifically, it determines the delivery facility type and whether or not CPAP is available to the simulant."""
+class CPAPAccess(Component):
+    """Component for determining if a simulant has access to CPAP."""
 
     @property
     def columns_created(self) -> list[str]:
-        return [
-            COLUMNS.DELIVERY_FACILITY_TYPE,
-            COLUMNS.CPAP_AVAILABLE,
-        ]
+        return [COLUMNS.CPAP_AVAILABLE]
 
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.PREGNANCY_OUTCOME]
+        return [COLUMNS.DELIVERY_FACILITY_TYPE]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -39,7 +33,6 @@ class Intrapartum(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
-                COLUMNS.DELIVERY_FACILITY_TYPE: DELIVERY_FACILITY_TYPES.NONE,
                 COLUMNS.CPAP_AVAILABLE: False,
             },
             index=pop_data.index,
@@ -47,33 +40,15 @@ class Intrapartum(Component):
         self.population_view.update(anc_data)
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.INTRAPARTUM:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.CPAP_ACCESS:
             return
 
         pop = self.population_view.get(event.index)
-        pop[COLUMNS.DELIVERY_FACILITY_TYPE] = DELIVERY_FACILITY_TYPES.NONE
-
-        # Choose delivery facility type
-        birth_idx = pop.index[
-            pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
-        ]
-        delivery_facility_type = self.randomness.choice(
-            birth_idx,
-            [
-                DELIVERY_FACILITY_TYPES.HOME,
-                DELIVERY_FACILITY_TYPES.CEmONC,
-                DELIVERY_FACILITY_TYPES.BEmONC,
-            ],
-            p=list(DELIVERY_FACILITY_TYPE_PROBABILITIES[self.location].values()),
-            additional_key="delivery_facility_type",
-        )
-        pop.loc[birth_idx, COLUMNS.DELIVERY_FACILITY_TYPE] = delivery_facility_type
-
-        # Determine if simulant had access to CPAP
         facility_type_mapper = {
             DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_CPAP_BEmONC,
             DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CPAP_CEmONC,
         }
+
         for facility_type in [
             DELIVERY_FACILITY_TYPES.BEmONC,
             DELIVERY_FACILITY_TYPES.CEmONC,

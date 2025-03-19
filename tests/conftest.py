@@ -4,7 +4,7 @@ from typing import Any, Generator
 
 import pytest
 from layered_config_tree import LayeredConfigTree
-from vivarium import Artifact, InteractiveContext
+from vivarium import Artifact
 from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
@@ -12,7 +12,8 @@ from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 
 SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.PREGNANCY,
-    SIMULATION_EVENT_NAMES.INTRAPARTUM,
+    SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
+    SIMULATION_EVENT_NAMES.CPAP_ACCESS,
     SIMULATION_EVENT_NAMES.MATERNAL_SEPSIS,
     SIMULATION_EVENT_NAMES.MATERNAL_HEMORRHAGE,
     SIMULATION_EVENT_NAMES.OBSTRUCTED_LABOR,

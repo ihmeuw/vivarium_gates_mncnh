@@ -10,7 +10,6 @@ components:
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ChildrenBirthExposure()
-            - Intrapartum()
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
@@ -30,6 +29,8 @@ components:
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
             - NoCPAPRisk()
+            - DeliveryFacility()
+            - CPAPAccess()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -55,7 +56,8 @@ configuration:
             day: 1
         simulation_events: 
             - 'pregnancy'
-            - 'intrapartum'
+            - 'delivery_facility'
+            - 'cpap_access'
             - 'maternal_obstructed_labor_and_uterine_rupture'
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
