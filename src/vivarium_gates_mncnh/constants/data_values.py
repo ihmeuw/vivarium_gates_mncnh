@@ -80,7 +80,8 @@ NUM_DRAWS = 500
 class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
     PREGNANCY = "pregnancy"
-    INTRAPARTUM = "intrapartum"
+    DELIVERY_FACILITY = "delivery_facility"
+    CPAP_ACCESS = "cpap_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -220,6 +221,11 @@ class __Pipelines(NamedTuple):
         "neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
     )
     NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+    PRETERM_WITHOUT_RDS_FINAL_CSMR = "neonatal_preterm_birth_without_rds.csmr"
+    NEONATAL_SEPSIS_FINAL_CSMR = "neonatal_sepsis_and_other_neonatal_infections.csmr"
+    NEONATAL_ENCEPHALOPATHY_FINAL_CSMR = (
+        "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.csmr"
+    )
     PRETERM_WITH_RDS_RR = (
         "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk",
     )
