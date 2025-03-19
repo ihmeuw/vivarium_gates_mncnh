@@ -4,7 +4,7 @@ from typing import Any, Generator
 
 import pytest
 from layered_config_tree import LayeredConfigTree
-from vivarium import Artifact, InteractiveContext
+from vivarium import Artifact
 from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths

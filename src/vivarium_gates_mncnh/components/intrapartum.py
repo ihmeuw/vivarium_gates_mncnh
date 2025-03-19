@@ -14,20 +14,16 @@ from vivarium_gates_mncnh.constants.data_values import (
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class Intrapartum(Component):
-    """Component for creating columns necessary for decisions made on time steps that are
-    part of the intrapartum model."""
+class CPAPAccess(Component):
+    """Component for determining if a simulant has access to CPAP."""
 
     @property
     def columns_created(self) -> list[str]:
-        return [
-            COLUMNS.DELIVERY_FACILITY_TYPE,
-            COLUMNS.CPAP_AVAILABLE,
-        ]
+        return [COLUMNS.CPAP_AVAILABLE]
 
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.PREGNANCY_OUTCOME]
+        return [COLUMNS.DELIVERY_FACILITY_TYPE]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -37,25 +33,11 @@ class Intrapartum(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
-                COLUMNS.DELIVERY_FACILITY_TYPE: DELIVERY_FACILITY_TYPES.NONE,
                 COLUMNS.CPAP_AVAILABLE: False,
             },
             index=pop_data.index,
         )
         self.population_view.update(anc_data)
-
-
-class CPAPAccess(Component):
-    """Component for determining if a simulant has access to CPAP."""
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.CPAP_AVAILABLE]
-
-    def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
-        self.randomness = builder.randomness.get_stream(self.name)
-        self.location = get_location(builder)
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.CPAP_ACCESS:
