@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import NamedTuple
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
+from vivarium_gates_mncnh.constants.data_keys import FACILITY_CHOICE, NO_CPAP_RISK
 
 ############################
 # Disease Model Parameters #
@@ -265,19 +265,19 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_RISK.P_HOME: 0.683,
-        NO_CPAP_RISK.P_CEmONC: 0.266,
-        NO_CPAP_RISK.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME: 0.683,
+        FACILITY_CHOICE.P_CEmONC: 0.266,
+        FACILITY_CHOICE.P_BEmONC: 0.051,
     },
     "Nigeria": {
-        NO_CPAP_RISK.P_HOME: 0.683,
-        NO_CPAP_RISK.P_CEmONC: 0.266,
-        NO_CPAP_RISK.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME: 0.683,
+        FACILITY_CHOICE.P_CEmONC: 0.266,
+        FACILITY_CHOICE.P_BEmONC: 0.051,
     },
     "Pakistan": {
-        NO_CPAP_RISK.P_HOME: 0.683,
-        NO_CPAP_RISK.P_CEmONC: 0.266,
-        NO_CPAP_RISK.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME: 0.683,
+        FACILITY_CHOICE.P_CEmONC: 0.266,
+        FACILITY_CHOICE.P_BEmONC: 0.051,
     },
 }
 # Probability each of these facility types has access to CPAP
