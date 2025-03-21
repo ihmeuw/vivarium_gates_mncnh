@@ -210,8 +210,8 @@ class __NoCPAPRisk(NamedTuple):
     P_RDS: str = "intervention.no_cpap_risk.p_rds"
     P_CPAP_BEmONC: str = "intervention.no_cpap_risk.probability_CPAP_BEMONC"
     P_CPAP_CEmONC: str = "intervention.no_cpap_risk.probability_CPAP_CEmONC"
-    P_CPAP_HOME: str = "intertvention.no_cpap_risk.probability_CPAP_home"
-    RELATIVE_RISK: str = "inervention.no_cpap_risk.relative_risk"
+    P_CPAP_HOME: str = "intervention.no_cpap_risk.probability_CPAP_home"
+    RELATIVE_RISK: str = "intervention.no_cpap_risk.relative_risk"
     PAF: str = "intervention.no_cpap_risk.population_attributable_fraction"
 
     @property
