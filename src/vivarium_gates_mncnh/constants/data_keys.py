@@ -208,13 +208,10 @@ NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
 class __NoCPAPRisk(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     P_RDS: str = "intervention.no_cpap_risk.p_rds"
-    P_HOME: str = "intervention.no_cpap_risk.probability_home_birth"
-    P_BEmONC: str = "intervention.no_cpap_risk.probability_BEMONC_birth"
-    P_CEmONC: str = "intervention.no_cpap_risk.probability_CEmONC_birth"
     P_CPAP_BEmONC: str = "intervention.no_cpap_risk.probability_CPAP_BEMONC"
     P_CPAP_CEmONC: str = "intervention.no_cpap_risk.probability_CPAP_CEmONC"
-    P_CPAP_HOME: str = "intervention.no_cpap_risk.probability_CPAP_home"
-    RELATIVE_RISK: str = "intervention.no_cpap_risk.relative_risk"
+    P_CPAP_HOME: str = "intertvention.no_cpap_risk.probability_CPAP_home"
+    RELATIVE_RISK: str = "inervention.no_cpap_risk.relative_risk"
     PAF: str = "intervention.no_cpap_risk.population_attributable_fraction"
 
     @property
@@ -227,6 +224,23 @@ class __NoCPAPRisk(NamedTuple):
 
 
 NO_CPAP_RISK = __NoCPAPRisk()
+
+
+class __FacilityChoice(NamedTuple):
+    P_HOME: str = "cause.facility_choice.probability_home_birth"
+    P_BEmONC: str = "cause.facility_choice.probability_BEMONC_birth"
+    P_CEmONC: str = "cause.facility_choice.probability_CEmONC_birth"
+
+    @property
+    def name(self):
+        return "facility_choices"
+
+    @property
+    def log_name(self):
+        return "facility choices"
+
+
+FACILITY_CHOICE = __FacilityChoice()
 
 
 MAKE_ARTIFACT_KEY_GROUPS = [
@@ -242,4 +256,5 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NEONATAL_SEPSIS,
     NEONATAL_ENCEPHALOPATHY,
     NO_CPAP_RISK,
+    FACILITY_CHOICE,
 ]
