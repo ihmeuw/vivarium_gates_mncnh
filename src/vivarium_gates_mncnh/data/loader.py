@@ -457,9 +457,9 @@ def load_no_cpap_paf(
 
     # Get all no_cpap data for calculations
     p_rds = get_data(data_keys.NO_CPAP_RISK.P_RDS, location, years)
-    p_home = get_data(data_keys.NO_CPAP_RISK.P_HOME, location, years)
-    p_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_BEmONC, location, years)
-    p_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CEmONC, location, years)
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
     p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
     p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEmONC, location, years)
     p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEmONC, location, years)
