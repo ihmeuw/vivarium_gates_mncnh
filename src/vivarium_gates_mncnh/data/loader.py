@@ -94,6 +94,11 @@ def get_data(
         data_keys.NO_CPAP_RISK.P_CPAP_CEmONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_facility_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: load_antibiotic_facility_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: load_antibiotic_facility_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK: load_no_antibiotics_relative_risk,
+        data_keys.NO_ANTIBIOTICS_RISK.PAF: load_no_antibiotics_paf,
     }
     return mapping[lookup_key](lookup_key, location, years)
 
@@ -569,6 +574,66 @@ def load_preterm_prevalence(
     sum_exposure = preterm_exposure.groupby(metadata.ARTIFACT_INDEX_COLUMNS)[draw_cols].sum()
 
     return sum_exposure
+
+
+def load_antibiotic_facility_probability(
+    key: str,
+    location: str,
+    years: Optional[Union[int, str, List[int]]] = None,
+) -> pd.DataFrame:
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    facility_uniform_dist = data_values.ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION[location][key]
+    draws = utilities.get_random_variable_draws(
+        metadata.ARTIFACT_INDEX_COLUMNS, key, facility_uniform_dist
+    )
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+
+    return data
+
+
+def load_no_antibiotics_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    rr_dist = data_values.ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = utilities.get_random_variable_draws(metadata.ARTIFACT_INDEX_COLUMNS, key, rr_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+
+    return data
+
+
+def load_no_antibiotics_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # Get all no_cpap data for calculations
+    csmr = get_data(data_keys.NEONATAL_SEPSIS.CSMR, location, years)
+    p_sepsis = csmr.copy()
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
+    p_antibiotic_home = get_data(
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME, location, years
+    )
+    p_antibiotic_BEmONC = get_data(
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC, location, years
+    )
+    p_antibiotic_CEmONC = get_data(
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC, location, years
+    )
+    relative_risk = get_data(data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK, location, years)
+    # This is derived in the CPAP PAF calculation
+    p_sepsis_antibiotic = p_sepsis / (
+        (p_home * (1 - p_antibiotic_home) * relative_risk)
+        + (p_home * p_antibiotic_home)
+        + (p_BEmONC * (1 - p_antibiotic_BEmONC) * relative_risk)
+        + (p_CEmONC * (1 - p_antibiotic_CEmONC) * relative_risk)
+        + (p_BEmONC * p_antibiotic_BEmONC)
+        + (p_CEmONC * p_antibiotic_CEmONC)
+    )
+    paf_no_antibiotic = 1 - (p_sepsis_antibiotic / p_sepsis)
+    paf_no_antibiotic = paf_no_antibiotic.fillna(0.0)
+
+    return paf_no_antibiotic
 
 
 def reshape_to_vivarium_format(df, location):

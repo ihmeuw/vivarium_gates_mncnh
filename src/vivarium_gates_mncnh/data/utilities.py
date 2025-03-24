@@ -2,6 +2,7 @@ from typing import Union
 
 import pandas as pd
 from gbd_mapping import ModelableEntity, causes, covariates, risk_factors
+from scipy import stats
 from vivarium.framework.artifact import EntityKey
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
@@ -67,3 +68,20 @@ def parse_short_gestation_description(description: str) -> pd.Interval:
         closed="left",
     )
     return endpoints
+
+
+def get_norm_from_quantiles(
+    mean: float, lower: float, upper: float, quantiles: Tuple[float, float] = (0.025, 0.975)
+) -> stats.norm:
+    stdnorm_quantiles = stats.norm.ppf(quantiles)
+    sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
+    return stats.norm(loc=mean, scale=sd)
+
+
+def get_norm(
+    mean: float,
+    sd: float = None,
+    ninety_five_pct_confidence_interval: tuple[float, float] = None,
+) -> stats.norm:
+    sd = _get_standard_deviation(mean, sd, ninety_five_pct_confidence_interval)
+    return stats.norm(loc=mean, scale=sd)
