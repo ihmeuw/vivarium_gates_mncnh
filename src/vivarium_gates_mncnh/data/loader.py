@@ -584,7 +584,7 @@ def load_antibiotic_facility_probability(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     facility_uniform_dist = data_values.ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION[location][key]
     draws = utilities.get_random_variable_draws(
-        metadata.ARTIFACT_INDEX_COLUMNS, key, facility_uniform_dist
+        metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist
     )
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
 
@@ -596,7 +596,7 @@ def load_no_antibiotics_relative_risk(
 ) -> pd.DataFrame:
     rr_dist = data_values.ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
-    draws = utilities.get_random_variable_draws(metadata.ARTIFACT_INDEX_COLUMNS, key, rr_dist)
+    draws = utilities.get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
 
     return data
