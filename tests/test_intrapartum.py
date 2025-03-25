@@ -5,7 +5,7 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium_testing_utils import FuzzyChecker
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
+from vivarium_gates_mncnh.constants.data_keys import FACILITY_CHOICE, NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     CPAP_ACCESS_PROBABILITIES,
@@ -47,9 +47,9 @@ def test_delivery_facility_proportions(
 ) -> None:
     location = population[COLUMNS.LOCATION].unique()[0]
     facility_type_mapper = {
-        DELIVERY_FACILITY_TYPES.HOME: NO_CPAP_RISK.P_HOME,
-        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CEmONC,
-        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_BEmONC,
+        DELIVERY_FACILITY_TYPES.HOME: FACILITY_CHOICE.P_HOME,
+        DELIVERY_FACILITY_TYPES.CEmONC: FACILITY_CHOICE.P_CEmONC,
+        DELIVERY_FACILITY_TYPES.BEmONC: FACILITY_CHOICE.P_BEmONC,
     }
     birth_idx = population.index[population[COLUMNS.PREGNANCY_OUTCOME] != "partial_term"]
     fuzzy_checker.fuzzy_assert_proportion(
