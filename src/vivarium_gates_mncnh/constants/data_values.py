@@ -6,7 +6,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
     NO_ANTIBIOTICS_RISK,
     NO_CPAP_RISK,
 )
-from vivarium_gates_mncnh.data.utilities import (
+from vivarium_gates_mncnh.utilities import (
     get_norm,
     get_uniform_distribution_from_limits,
 )

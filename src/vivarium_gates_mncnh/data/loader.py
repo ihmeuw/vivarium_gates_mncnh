@@ -31,6 +31,7 @@ from vivarium_inputs.mapping_extension import alternative_risk_factors
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
+from vivarium_gates_mncnh.utilities import get_random_variable_draws
 
 
 def get_data(
@@ -583,9 +584,7 @@ def load_antibiotic_facility_probability(
 ) -> pd.DataFrame:
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     facility_uniform_dist = data_values.ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION[location][key]
-    draws = utilities.get_random_variable_draws(
-        metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist
-    )
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
 
@@ -597,7 +596,7 @@ def load_no_antibiotics_relative_risk(
 ) -> pd.DataFrame:
     rr_dist = data_values.ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
-    draws = utilities.get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
 
