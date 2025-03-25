@@ -589,7 +589,7 @@ def load_antibiotic_facility_probability(
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
 
-    return data
+    return utilities.set_non_neonnatal_values(data, 0.0)
 
 
 def load_no_antibiotics_relative_risk(
@@ -601,7 +601,7 @@ def load_no_antibiotics_relative_risk(
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
 
-    return data
+    return utilities.set_non_neonnatal_values(data, 1.0)
 
 
 def load_no_antibiotics_paf(
@@ -635,7 +635,7 @@ def load_no_antibiotics_paf(
     paf_no_antibiotic = 1 - (p_sepsis_antibiotic / p_sepsis)
     paf_no_antibiotic = paf_no_antibiotic.fillna(0.0)
 
-    return paf_no_antibiotic
+    return utilities.set_non_neonnatal_values(paf_no_antibiotic, 0.0)
 
 
 def reshape_to_vivarium_format(df, location):
