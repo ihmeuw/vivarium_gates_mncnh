@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import NamedTuple
 
 #############
@@ -5,25 +6,31 @@ from typing import NamedTuple
 #############
 
 
+@dataclass
 class InterventionScenario:
-    def __init__(
-        self,
-        name: str,
-        # todo add additional interventions
-        # has_treatment_one: bool = False,
-        # has_treatment_two: bool = False,
-    ):
-        self.name = name
-        # self.has_treatment_one = has_treatment_one
-        # self.has_treatment_two = has_treatment_two
+    name: str
+    bemonc_cpap_access: str = "baseline"
+    cemonc_cpap_access: str = "baseline"
 
 
 class __InterventionScenarios(NamedTuple):
     BASELINE: InterventionScenario = InterventionScenario("baseline")
     # todo add additional intervention scenarios
+    FULL_CPAP_BEMONC: InterventionScenario = InterventionScenario(
+        "full_cpap_bemonc", "full", "baseline"
+    )
+    FULL_CPAP_CEMONC: InterventionScenario = InterventionScenario(
+        "full_cpap_cemonc", "baseline", "full"
+    )
+    FULL_CPAP_ALL: InterventionScenario = InterventionScenario(
+        "full_cpap_all", "full", "full"
+    )
 
-    def __get_item__(self, item):
-        return self._asdict()[item]
+    def __getitem__(self, item) -> InterventionScenario:
+        for scenario in self:
+            if scenario.name == item:
+                return scenario
+        raise KeyError(item)
 
 
 INTERVENTION_SCENARIOS = __InterventionScenarios()
