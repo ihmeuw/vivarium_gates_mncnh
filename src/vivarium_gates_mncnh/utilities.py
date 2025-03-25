@@ -175,8 +175,7 @@ def get_random_variable_draws(columns: pd.Index, seed: str, distribution) -> pd.
     )
 
 
-def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> float:
-    seed, distribution = seeded_distribution
+def get_random_variable(draw: int, seed: str, distribution) -> pd.Series:
     np.random.seed(get_hash(f"{seed}_draw_{draw}"))
     return distribution.rvs()
 
