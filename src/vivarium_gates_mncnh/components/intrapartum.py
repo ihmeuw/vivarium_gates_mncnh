@@ -53,7 +53,6 @@ class CPAPAccess(Component):
 
         for facility_type in self.delivery_facility_access_probabilities:
             facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
-            breakpoint()
             cpap_access_idx = self.randomness.filter_for_probability(
                 facility_idx,
                 self.coverage_values[facility_type],
