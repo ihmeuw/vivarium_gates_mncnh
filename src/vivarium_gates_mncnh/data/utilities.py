@@ -1,9 +1,15 @@
 from typing import Union
 
 import pandas as pd
-from gbd_mapping import ModelableEntity, causes, covariates, risk_factors
+from gbd_mapping import causes, covariates, risk_factors
 from vivarium.framework.artifact import EntityKey
+from vivarium.framework.randomness import get_hash
 from vivarium_inputs.mapping_extension import alternative_risk_factors
+
+from vivarium_gates_mncnh.constants.metadata import (
+    ARTIFACT_COLUMNS,
+    ARTIFACT_INDEX_COLUMNS,
+)
 
 
 def get_entity(key: Union[str, EntityKey]):
@@ -67,3 +73,11 @@ def parse_short_gestation_description(description: str) -> pd.Interval:
         closed="left",
     )
     return endpoints
+
+
+def set_non_neonnatal_values(data: pd.DataFrame, value: float) -> pd.DataFrame:
+    # Sets values outside neonatal age groups to a constant value to indicate that
+    # these age groups are not impacted in the model.
+    data = data.reset_index()
+    data.loc[data["age_start"] > 7 / 365.0, ARTIFACT_COLUMNS] = value
+    return data.set_index(ARTIFACT_INDEX_COLUMNS)

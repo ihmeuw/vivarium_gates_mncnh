@@ -168,14 +168,14 @@ def get_lognorm_from_quantiles(
     return stats.lognorm(s=sigma, scale=median)
 
 
-def get_random_variable_draws(
-    number: int, seeded_distribution: SeededDistribution
-) -> np.array:
-    return np.array([get_random_variable(x, seeded_distribution) for x in range(number)])
+def get_random_variable_draws(columns: pd.Index, seed: str, distribution) -> pd.Series:
+    return pd.Series(
+        [get_random_variable(x, seed, distribution) for x in range(0, columns.size)],
+        index=columns,
+    )
 
 
-def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> float:
-    seed, distribution = seeded_distribution
+def get_random_variable(draw: int, seed: str, distribution) -> pd.Series:
     np.random.seed(get_hash(f"{seed}_draw_{draw}"))
     return distribution.rvs()
 
@@ -191,3 +191,18 @@ def rate_to_probability(
     # TODO: New version of this equation should be documented
     probability = rate * duration_scaling_factor
     return probability
+
+
+def get_norm_from_quantiles(
+    mean: float, lower: float, upper: float, quantiles: tuple[float, float] = (0.025, 0.975)
+) -> stats.norm:
+    stdnorm_quantiles = stats.norm.ppf(quantiles)
+    sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
+    return stats.norm(loc=mean, scale=sd)
+
+
+def get_uniform_distribution_from_limits(lower_limit, upper_limit) -> stats.uniform:
+    # stats.uniform is over [loc, loc+scal]
+    loc = lower_limit
+    scale = upper_limit - lower_limit
+    return stats.uniform(loc=loc, scale=scale)

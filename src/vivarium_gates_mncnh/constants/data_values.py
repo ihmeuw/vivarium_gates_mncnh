@@ -1,7 +1,15 @@
 from datetime import datetime
 from typing import NamedTuple
 
-from vivarium_gates_mncnh.constants.data_keys import FACILITY_CHOICE, NO_CPAP_RISK
+from vivarium_gates_mncnh.constants.data_keys import (
+    FACILITY_CHOICE,
+    NO_ANTIBIOTICS_RISK,
+    NO_CPAP_RISK,
+)
+from vivarium_gates_mncnh.utilities import (
+    get_norm,
+    get_uniform_distribution_from_limits,
+)
 
 ############################
 # Disease Model Parameters #
@@ -298,3 +306,35 @@ CPAP_ACCESS_PROBABILITIES = {
         NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
 }
+
+
+ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
+    "Ethiopia": {
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: get_uniform_distribution_from_limits(
+            0.302, 0.529
+        ),
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: get_uniform_distribution_from_limits(
+            0.768, 0.972
+        ),
+    },
+    "Nigeria": {
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: get_uniform_distribution_from_limits(
+            0.302, 0.529
+        ),
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: get_uniform_distribution_from_limits(
+            0.768, 0.972
+        ),
+    },
+    "Pakistan": {
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: get_uniform_distribution_from_limits(
+            0.302, 0.529
+        ),
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: get_uniform_distribution_from_limits(
+            0.768, 0.972
+        ),
+    },
+}
+ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION = get_norm(1.39, 0.08**2)
