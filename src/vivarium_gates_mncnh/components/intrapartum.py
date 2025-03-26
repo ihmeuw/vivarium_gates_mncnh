@@ -11,7 +11,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
-from vivarium_gates_mncnh.utilities import get_location
 
 
 class CPAPAccess(Component):
@@ -28,7 +27,6 @@ class CPAPAccess(Component):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
-        self.location = get_location(builder)
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
         self.delivery_facility_access_probabilities = {
             DELIVERY_FACILITY_TYPES.BEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_BEmONC),

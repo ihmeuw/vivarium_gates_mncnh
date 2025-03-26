@@ -28,7 +28,8 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - NoCPAPRisk()
+            - NeonatalNoInterventionRisk('no_cpap_risk', 'cpap_available', 'neonatal_preterm_birth_with_rds.csmr')
+            - NeonatalNoInterventionRisk('no_antibiotics_risk', 'antibiotics_available', 'neonatal_sepsis_and_other_neonatal_infections.csmr')
             - DeliveryFacility()
             - CPAPAccess()
             # Add model observers below here
