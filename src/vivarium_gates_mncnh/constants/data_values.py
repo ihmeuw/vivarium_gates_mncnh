@@ -90,6 +90,7 @@ class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
     DELIVERY_FACILITY = "delivery_facility"
     CPAP_ACCESS = "cpap_access"
+    ANTIBIOTICS_ACCESS = "antibiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"

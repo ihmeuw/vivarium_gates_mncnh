@@ -208,9 +208,9 @@ NEONATAL_ENCEPHALOPATHY = __NeonatalEncephalopath()
 class __NoCPAPRisk(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     P_RDS: str = "intervention.no_cpap_risk.p_rds"
-    P_CPAP_BEmONC: str = "intervention.no_cpap_risk.probability_CPAP_BEMONC"
-    P_CPAP_CEmONC: str = "intervention.no_cpap_risk.probability_CPAP_CEmONC"
-    P_CPAP_HOME: str = "intervention.no_cpap_risk.probability_CPAP_home"
+    P_CPAP_BEmONC: str = "intervention.no_cpap_risk.probability_cpap_BEMONC"
+    P_CPAP_CEmONC: str = "intervention.no_cpap_risk.probability_cpap_CEmONC"
+    P_CPAP_HOME: str = "intervention.no_cpap_risk.probability_cpap_home"
     RELATIVE_RISK: str = "intervention.no_cpap_risk.relative_risk"
     PAF: str = "intervention.no_cpap_risk.population_attributable_fraction"
 
@@ -244,9 +244,13 @@ FACILITY_CHOICE = __FacilityChoice()
 
 
 class __NoAntibioticsRisk(NamedTuple):
-    P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.p_antibiotic_home"
-    P_ANTIBIOTIC_BEmONC: str = "intervention.no_antibiotics_risk.p_antibiotic_BEmONC"
-    P_ANTIBIOTIC_CEmONC: str = "intervention.no_antibiotics_risk.p_antibiotic_CEmONC"
+    P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotic_home"
+    P_ANTIBIOTIC_BEmONC: str = (
+        "intervention.no_antibiotics_risk.probability_antibiotic_BEmONC"
+    )
+    P_ANTIBIOTIC_CEmONC: str = (
+        "intervention.no_antibiotics_risk.probability_antibiotic_CEmONC"
+    )
     RELATIVE_RISK: str = "intervention.no_antibiotics_risk.relative_risk"
     PAF: str = "intervention.no_antibiotics_risk.population_attributable_fraction"
 
