@@ -45,10 +45,10 @@ class NeonatalNoInterventionRisk(Component):
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
         self.csmr_target_pipeline_name = self.get_target_pipeline_name()
-        self.csmr_target_pipeline = builder.value.get_value(self.csmr_target_pipeline_name)
         builder.value.register_value_modifier(
-            self.csmr_target_pipeline,
-            self.modify_preterm_with_rds_csmr,
+            self.csmr_target_pipeline_name,
+            self.modify_csmr_pipeline,
+            component=self,
             required_resources=[
                 COLUMNS.DELIVERY_FACILITY_TYPE,
                 self.col_required,
@@ -77,8 +77,8 @@ class NeonatalNoInterventionRisk(Component):
         data = data.rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
         return data
 
-    def modify_preterm_with_rds_csmr(
-        self, index: pd.Index, preterm_with_rds_csmr: pd.Series[float]
+    def modify_csmr_pipeline(
+        self, index: pd.Index, csmr_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
         # No CPAP access is like a dichotomous risk factor, meaning those that have access to CPAP will
         # not have their CSMR modify by no CPAP RR
@@ -90,6 +90,6 @@ class NeonatalNoInterventionRisk(Component):
         paf = self.lookup_tables["paf"](index)
 
         # Modify the CSMR pipeline
-        modified_csmr = preterm_with_rds_csmr * (1 - paf)
+        modified_csmr = csmr_pipeline * (1 - paf)
         modified_csmr.loc[no_intervention_idx] = modified_csmr * no_intervention_rr
         return modified_csmr
