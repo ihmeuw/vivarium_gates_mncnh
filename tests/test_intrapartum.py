@@ -80,8 +80,8 @@ def test_cpap_availability(
     ]
     facility_type_mapper = {
         DELIVERY_FACILITY_TYPES.HOME: NO_CPAP_RISK.P_CPAP_HOME,
-        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CPAP_CEmONC,
-        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_CPAP_BEmONC,
+        DELIVERY_FACILITY_TYPES.CEmONC: NO_CPAP_RISK.P_CPAP_CEMONC,
+        DELIVERY_FACILITY_TYPES.BEmONC: NO_CPAP_RISK.P_CPAP_BEMONC,
     }
     fuzzy_checker.fuzzy_assert_proportion(
         len(has_cpap_idx.intersection(facility_idx)),

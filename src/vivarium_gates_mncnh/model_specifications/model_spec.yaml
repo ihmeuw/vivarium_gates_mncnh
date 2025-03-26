@@ -29,10 +29,10 @@ components:
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
             - NeonatalNoInterventionRisk('cpap')
-            - NeonatalNoInterventionRisk('antibiotics')
+            # - NeonatalNoInterventionRisk('antibiotics')
             - DeliveryFacility()
-            - CPAP()
-            - Antibiotics()
+            - NeonatalInterventionAccess('cpap')
+            - NeonatalInterventionAccess('antibiotics')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()

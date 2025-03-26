@@ -66,10 +66,10 @@ class NeonatalInterventionAccess(Component):
     ) -> dict[str, float]:
         return {
             DELIVERY_FACILITY_TYPES.BEmONC: builder.data.load(
-                f"intervention._no_{self.intervention}.probability_{self.intervention}_BEMONC"
+                f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_bemonc"
             ),
             DELIVERY_FACILITY_TYPES.CEmONC: builder.data.load(
-                f"intervention._no_{self.intervention}.probability_{self.intervention}_CEMONC"
+                f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_cemonc"
             ),
         }
 
@@ -88,37 +88,3 @@ class NeonatalInterventionAccess(Component):
             DELIVERY_FACILITY_TYPES.BEmONC: bemonc_cpap_access,
             DELIVERY_FACILITY_TYPES.CEmONC: cemonc_cpap_access,
         }
-
-
-class CPAP(NeonatalInterventionAccess):
-    """Component for determining if a simulant has access to CPAP."""
-
-    def get_delivery_facility_access_probabilities(
-        self, builder: Builder
-    ) -> dict[str, float]:
-        return {
-            DELIVERY_FACILITY_TYPES.BEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_BEmONC),
-            DELIVERY_FACILITY_TYPES.CEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_CEmONC),
-        }
-
-    def get_coverage_values(self) -> dict[str, float]:
-        bemonc_cpap_access = (
-            1.0
-            if self.scenario.bemonc_cpap_access == "full"
-            else self.delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.BEmONC]
-        )
-        cemonc_cpap_access = (
-            1.0
-            if self.scenario.cemonc_cpap_access == "full"
-            else self.delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
-        )
-        return {
-            DELIVERY_FACILITY_TYPES.BEmONC: bemonc_cpap_access,
-            DELIVERY_FACILITY_TYPES.CEmONC: cemonc_cpap_access,
-        }
-
-
-class Antibiotics(NeonatalInterventionAccess):
-    """Component for determining if a simulant has access to antibiotics."""
-
-    pass
