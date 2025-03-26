@@ -32,7 +32,7 @@ components:
             # - NeonatalNoInterventionRisk('antibiotics')
             - DeliveryFacility()
             - NeonatalInterventionAccess('cpap')
-            - NeonatalInterventionAccess('antibiotics')
+            # - NeonatalInterventionAccess('antibiotics')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()

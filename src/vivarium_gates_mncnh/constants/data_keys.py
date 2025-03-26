@@ -228,8 +228,8 @@ NO_CPAP_RISK = __NoCPAPRisk()
 
 class __FacilityChoice(NamedTuple):
     P_HOME: str = "cause.facility_choice.probability_home_birth"
-    P_BEmONC: str = "cause.facility_choice.probability_BEMONC_birth"
-    P_CEmONC: str = "cause.facility_choice.probability_CEmONC_birth"
+    P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
+    P_CEmONC: str = "cause.facility_choice.probability_cemonc_birth"
 
     @property
     def name(self):
@@ -244,12 +244,12 @@ FACILITY_CHOICE = __FacilityChoice()
 
 
 class __NoAntibioticsRisk(NamedTuple):
-    P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotic_home"
+    P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotics_home"
     P_ANTIBIOTIC_BEMONC: str = (
-        "intervention.no_antibiotics_risk.probability_antibiotic_bemonc"
+        "intervention.no_antibiotics_risk.probability_antibiotics_bemonc"
     )
     P_ANTIBIOTIC_CEMONC: str = (
-        "intervention.no_antibiotics_risk.probability_antibiotic_cemonc"
+        "intervention.no_antibiotics_risk.probability_antibiotics_cemonc"
     )
     RELATIVE_RISK: str = "intervention.no_antibiotics_risk.relative_risk"
     PAF: str = "intervention.no_antibiotics_risk.population_attributable_fraction"
