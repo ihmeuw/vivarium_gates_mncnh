@@ -243,6 +243,25 @@ class __FacilityChoice(NamedTuple):
 FACILITY_CHOICE = __FacilityChoice()
 
 
+class __NoAntibioticsRisk(NamedTuple):
+    P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.p_antibiotic_home"
+    P_ANTIBIOTIC_BEmONC: str = "intervention.no_antibiotics_risk.p_antibiotic_BEmONC"
+    P_ANTIBIOTIC_CEmONC: str = "intervention.no_antibiotics_risk.p_antibiotic_CEmONC"
+    RELATIVE_RISK: str = "intervention.no_antibiotics_risk.relative_risk"
+    PAF: str = "intervention.no_antibiotics_risk.population_attributable_fraction"
+
+    @property
+    def name(self):
+        return "no_antibiotics_risk"
+
+    @property
+    def log_name(self):
+        return "no antibiotics risk"
+
+
+NO_ANTIBIOTICS_RISK = __NoAntibioticsRisk()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -257,4 +276,5 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NEONATAL_ENCEPHALOPATHY,
     NO_CPAP_RISK,
     FACILITY_CHOICE,
+    NO_ANTIBIOTICS_RISK,
 ]
