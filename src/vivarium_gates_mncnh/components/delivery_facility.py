@@ -4,9 +4,9 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
+from vivarium_gates_mncnh.constants.data_keys import FACILITY_CHOICE
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
-    DELIVERY_FACILITY_TYPE_PROBABILITIES,
     DELIVERY_FACILITY_TYPES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -29,6 +29,11 @@ class DeliveryFacility(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
+        self.delivery_facility_probabilities = {
+            DELIVERY_FACILITY_TYPES.HOME: builder.data.load(FACILITY_CHOICE.P_HOME),
+            DELIVERY_FACILITY_TYPES.BEmONC: builder.data.load(FACILITY_CHOICE.P_BEmONC),
+            DELIVERY_FACILITY_TYPES.CEmONC: builder.data.load(FACILITY_CHOICE.P_CEmONC),
+        }
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
@@ -50,12 +55,8 @@ class DeliveryFacility(Component):
         ]
         delivery_facility_type = self.randomness.choice(
             birth_idx,
-            [
-                DELIVERY_FACILITY_TYPES.HOME,
-                DELIVERY_FACILITY_TYPES.CEmONC,
-                DELIVERY_FACILITY_TYPES.BEmONC,
-            ],
-            p=list(DELIVERY_FACILITY_TYPE_PROBABILITIES[self.location].values()),
+            list(self.delivery_facility_probabilities.keys()),
+            p=list(self.delivery_facility_probabilities.values()),
             additional_key="delivery_facility_type",
         )
         pop.loc[birth_idx, COLUMNS.DELIVERY_FACILITY_TYPE] = delivery_facility_type
