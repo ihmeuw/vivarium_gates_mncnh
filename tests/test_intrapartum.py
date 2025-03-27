@@ -8,7 +8,6 @@ from vivarium_testing_utils import FuzzyChecker
 from vivarium_gates_mncnh.constants.data_keys import FACILITY_CHOICE, NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
-    DELIVERY_FACILITY_TYPE_PROBABILITIES,
     DELIVERY_FACILITY_TYPES,
     SIMULATION_EVENT_NAMES,
 )
