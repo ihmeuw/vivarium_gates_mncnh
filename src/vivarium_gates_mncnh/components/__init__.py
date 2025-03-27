@@ -19,10 +19,10 @@ from vivarium_gates_mncnh.components.neonatal_causes import NeonatalCause, Prete
 from vivarium_gates_mncnh.components.observers import (
     ANCObserver,
     BirthObserver,
-    CPAPObserver,
     MaternalDisordersBurdenObserver,
     NeonatalBurdenObserver,
     NeonatalCauseRelativeRiskObserver,
+    NeonatalInterventionObserver,
     ResultsStratifier,
 )
 from vivarium_gates_mncnh.components.population import (
