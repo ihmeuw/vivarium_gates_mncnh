@@ -30,10 +30,6 @@ class CPAPAccess(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
-        self.delivery_facility_access_probabilities = {
-            DELIVERY_FACILITY_TYPES.BEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_BEmONC),
-            DELIVERY_FACILITY_TYPES.CEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_CEmONC),
-        }
         self.coverage_values = self.get_coverage_values()
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -51,27 +47,34 @@ class CPAPAccess(Component):
 
         pop = self.population_view.get(event.index)
 
-        for facility_type in self.delivery_facility_access_probabilities:
+        for (
+            facility_type,
+            coverage_value,
+        ) in self.delivery_facility_access_probabilities.items():
             facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
             cpap_access_idx = self.randomness.filter_for_probability(
                 facility_idx,
-                self.coverage_values[facility_type],
+                coverage_value,
                 f"cpap_access_{facility_type}",
             )
             pop.loc[cpap_access_idx, COLUMNS.CPAP_AVAILABLE] = True
 
         self.population_view.update(pop)
 
-    def get_coverage_values(self) -> dict[str, float]:
+    def get_coverage_values(self, builder: Builder) -> dict[str, float]:
+        delivery_facility_access_probabilities = {
+            DELIVERY_FACILITY_TYPES.BEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_BEmONC),
+            DELIVERY_FACILITY_TYPES.CEmONC: builder.data.load(NO_CPAP_RISK.P_CPAP_CEmONC),
+        }
         bemonc_cpap_access = (
             1.0
             if self.scenario.bemonc_cpap_access == "full"
-            else self.delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.BEmONC]
+            else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.BEmONC]
         )
         cemonc_cpap_access = (
             1.0
             if self.scenario.cemonc_cpap_access == "full"
-            else self.delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
+            else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
         )
         return {
             DELIVERY_FACILITY_TYPES.BEmONC: bemonc_cpap_access,
