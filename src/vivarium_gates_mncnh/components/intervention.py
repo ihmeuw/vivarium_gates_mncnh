@@ -32,6 +32,10 @@ class NeonatalNoInterventionRisk(Component):
     def columns_required(self) -> list[str]:
         return [self.col_required]
 
+    @property
+    def csmr_target_pipeline_name(self) -> str:
+        return self.INTERVENTION_PIPELINE_MODIFIERS_MAP[self.lack_of_intervention_risk]
+
     def __init__(
         self,
         lack_of_intervention_risk: str,
@@ -42,13 +46,14 @@ class NeonatalNoInterventionRisk(Component):
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
-        self.csmr_target_pipeline_name = self.get_target_pipeline_name()
         builder.value.register_value_modifier(
             self.csmr_target_pipeline_name,
             self.modify_csmr_pipeline,
             component=self,
             required_resources=[
                 COLUMNS.DELIVERY_FACILITY_TYPE,
+                COLUMNS.SEX_OF_CHILD,
+                COLUMNS.CHILD_AGE,
                 self.col_required,
             ],
         )
@@ -56,9 +61,6 @@ class NeonatalNoInterventionRisk(Component):
     ##################
     # Helper nethods #
     ##################
-
-    def get_target_pipeline_name(self) -> str:
-        return self.INTERVENTION_PIPELINE_MODIFIERS_MAP[self.lack_of_intervention_risk]
 
     def load_relative_risk_data(self, builder: Builder) -> pd.DataFrame:
         data = builder.data.load(
