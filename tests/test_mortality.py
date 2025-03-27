@@ -16,8 +16,9 @@ def mortality_state(
     sim_state_step_mapper: dict[str, int], model_spec_path: Path
 ) -> InteractiveContext:
     sim = InteractiveContext(model_spec_path)
+    # Use last time step of mortality to have both mother and neonatal deaths
     return get_interactive_context_state(
-        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.MORTALITY
+        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
     )
 
 
@@ -58,9 +59,9 @@ def test_get_proportional_case_fatality_rates():
 def test_cause_of_death_normalized(
     cause_of_death_column: str, alive_column: str, population: pd.DataFrame
 ) -> None:
-    alive = population.loc[population[alive_column] == "dead"]
+    dead = population.loc[population[alive_column] == "dead"]
     is_normalized = 0.0
-    for cause_of_death in alive[cause_of_death_column].unique():
-        is_normalized += (alive[cause_of_death_column] == cause_of_death).sum() / len(alive)
+    for cause_of_death in dead[cause_of_death_column].unique():
+        is_normalized += (dead[cause_of_death_column] == cause_of_death).sum() / len(dead)
 
     assert np.isclose(is_normalized, 1.0, atol=1e-6)

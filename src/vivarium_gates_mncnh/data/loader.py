@@ -91,13 +91,13 @@ def get_data(
         data_keys.FACILITY_CHOICE.P_CEmONC: load_probability_birth_facility_type,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_RISK.P_CPAP_BEmONC: load_cpap_facility_access_probability,
-        data_keys.NO_CPAP_RISK.P_CPAP_CEmONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.P_CPAP_BEMONC: load_cpap_facility_access_probability,
+        data_keys.NO_CPAP_RISK.P_CPAP_CEMONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_facility_probability,
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: load_antibiotic_facility_probability,
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: load_antibiotic_facility_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: load_antibiotic_facility_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_facility_probability,
         data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK: load_no_antibiotics_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.PAF: load_no_antibiotics_paf,
     }
@@ -467,8 +467,8 @@ def load_no_cpap_paf(
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
     p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
     p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
-    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEmONC, location, years)
-    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEmONC, location, years)
+    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEMONC, location, years)
+    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEMONC, location, years)
     relative_risk = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
     # rr_cpap = 1 / relative_risk)
     # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
@@ -616,10 +616,10 @@ def load_no_antibiotics_paf(
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME, location, years
     )
     p_antibiotic_BEmONC = get_data(
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC, location, years
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC, location, years
     )
     p_antibiotic_CEmONC = get_data(
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC, location, years
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC, location, years
     )
     relative_risk = get_data(data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK, location, years)
     # This is derived in the CPAP PAF calculation

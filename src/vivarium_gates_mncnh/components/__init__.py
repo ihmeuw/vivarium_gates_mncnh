@@ -1,8 +1,8 @@
 from vivarium_gates_mncnh.components.antenatal_care import AntenatalCare
 from vivarium_gates_mncnh.components.children import ChildrenBirthExposure
 from vivarium_gates_mncnh.components.delivery_facility import DeliveryFacility
-from vivarium_gates_mncnh.components.intervention import NoCPAPRisk
-from vivarium_gates_mncnh.components.intrapartum import CPAPAccess
+from vivarium_gates_mncnh.components.intervention import NeonatalNoInterventionRisk
+from vivarium_gates_mncnh.components.intrapartum import NeonatalInterventionAccess
 from vivarium_gates_mncnh.components.lbwsg import (
     LBWSGPAFCalculationExposure,
     LBWSGPAFCalculationRiskEffect,
