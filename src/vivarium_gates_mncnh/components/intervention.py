@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from functools import partial
-
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder

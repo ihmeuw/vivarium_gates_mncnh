@@ -4,7 +4,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants.data_keys import NO_CPAP_RISK
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, DELIVERY_FACILITY_TYPES
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 
