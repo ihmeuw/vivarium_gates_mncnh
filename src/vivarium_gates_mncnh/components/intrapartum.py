@@ -30,7 +30,7 @@ class CPAPAccess(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
-        self.coverage_values = self.get_coverage_values()
+        self.coverage_values = self.get_coverage_values(builder)
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
