@@ -90,6 +90,7 @@ class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
     DELIVERY_FACILITY = "delivery_facility"
     CPAP_ACCESS = "cpap_access"
+    ANTIBIOTICS_ACCESS = "antibiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -291,18 +292,18 @@ DELIVERY_FACILITY_TYPE_PROBABILITIES = {
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_BEMONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEMONC: 0.393,
         NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
     "Nigeria": {
-        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_BEMONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEMONC: 0.393,
         NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
     "Pakistan": {
-        NO_CPAP_RISK.P_CPAP_BEmONC: 0.075,
-        NO_CPAP_RISK.P_CPAP_CEmONC: 0.393,
+        NO_CPAP_RISK.P_CPAP_BEMONC: 0.075,
+        NO_CPAP_RISK.P_CPAP_CEMONC: 0.393,
         NO_CPAP_RISK.P_CPAP_HOME: 0.0,
     },
 }
@@ -311,28 +312,28 @@ CPAP_ACCESS_PROBABILITIES = {
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
     "Ethiopia": {
         NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: get_uniform_distribution_from_limits(
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
             0.302, 0.529
         ),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: get_uniform_distribution_from_limits(
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: get_uniform_distribution_from_limits(
             0.768, 0.972
         ),
     },
     "Nigeria": {
         NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: get_uniform_distribution_from_limits(
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
             0.302, 0.529
         ),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: get_uniform_distribution_from_limits(
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: get_uniform_distribution_from_limits(
             0.768, 0.972
         ),
     },
     "Pakistan": {
         NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEmONC: get_uniform_distribution_from_limits(
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
             0.302, 0.529
         ),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEmONC: get_uniform_distribution_from_limits(
+        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: get_uniform_distribution_from_limits(
             0.768, 0.972
         ),
     },
