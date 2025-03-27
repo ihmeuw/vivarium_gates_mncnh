@@ -61,6 +61,13 @@ def test_delivery_facility_proportions(
 
 
 @pytest.mark.parametrize(
+    "intervention",
+    [
+        "antibiotics",
+        "cpap",
+    ],
+)
+@pytest.mark.parametrize(
     "facility_type",
     [
         DELIVERY_FACILITY_TYPES.HOME,
@@ -69,6 +76,7 @@ def test_delivery_facility_proportions(
     ],
 )
 def test_intervention_availability(
+    intervention: str,
     facility_type: str,
     artifact: Artifact,
     intrapartum_state: InteractiveContext,
@@ -79,33 +87,32 @@ def test_intervention_availability(
     facility_idx = population.index[
         population[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type
     ]
-    for intervention in ["antibiotics", "cpap"]:
-        intervention_access_idx = population.index[
-            population[f"{intervention}_available"] == True
-        ]
-        facility_type_probability_mapper = {
-            DELIVERY_FACILITY_TYPES.HOME: artifact.load(
-                f"intervention.no_{intervention}_risk.probability_{intervention}_home"
-            ),
-            DELIVERY_FACILITY_TYPES.CEmONC: artifact.load(
-                f"intervention.no_{intervention}_risk.probability_{intervention}_cemonc"
-            ),
-            DELIVERY_FACILITY_TYPES.BEmONC: artifact.load(
-                f"intervention.no_{intervention}_risk.probability_{intervention}_bemonc"
-            ),
-        }
-        facility_access_probability = facility_type_probability_mapper[facility_type]
+    intervention_access_idx = population.index[
+        population[f"{intervention}_available"] == True
+    ]
+    facility_type_probability_mapper = {
+        DELIVERY_FACILITY_TYPES.HOME: artifact.load(
+            f"intervention.no_{intervention}_risk.probability_{intervention}_home"
+        ),
+        DELIVERY_FACILITY_TYPES.CEmONC: artifact.load(
+            f"intervention.no_{intervention}_risk.probability_{intervention}_cemonc"
+        ),
+        DELIVERY_FACILITY_TYPES.BEmONC: artifact.load(
+            f"intervention.no_{intervention}_risk.probability_{intervention}_bemonc"
+        ),
+    }
+    facility_access_probability = facility_type_probability_mapper[facility_type]
 
-        # Antibiotics is a dataframe of draws that have the same value for the neonatal age
-        # groups. This is a simple workaround to get the value instead of having to set up
-        # a bunch of code to get the lookup table from the antibiotics component
-        if isinstance(facility_access_probability, pd.DataFrame):
-            # THe first value will be the early neonatal age group for females
-            facility_access_probability = facility_access_probability[draw].iloc[0]
+    # Antibiotics is a dataframe of draws that have the same value for the neonatal age
+    # groups. This is a simple workaround to get the value instead of having to set up
+    # a bunch of code to get the lookup table from the antibiotics component
+    if isinstance(facility_access_probability, pd.DataFrame):
+        # THe first value will be the early neonatal age group for females
+        facility_access_probability = facility_access_probability[draw].iloc[0]
 
-        fuzzy_checker.fuzzy_assert_proportion(
-            len(intervention_access_idx.intersection(facility_idx)),
-            len(facility_idx),
-            facility_access_probability,
-            name=f"{intervention}_availability_{facility_type}_proportion",
-        )
+    fuzzy_checker.fuzzy_assert_proportion(
+        len(intervention_access_idx.intersection(facility_idx)),
+        len(facility_idx),
+        facility_access_probability,
+        name=f"{intervention}_availability_{facility_type}_proportion",
+    )

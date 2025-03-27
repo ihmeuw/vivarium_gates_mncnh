@@ -74,7 +74,6 @@ def test_received_ultrasound_proportions(
 )
 def test_ultrasound_type_proportions(
     ultrasound_type: str,
-    anc_state: InteractiveContext,
     population: pd.DataFrame,
     fuzzy_checker: FuzzyChecker,
 ) -> None:
