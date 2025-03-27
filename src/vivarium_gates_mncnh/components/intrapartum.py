@@ -41,9 +41,6 @@ class NeonatalInterventionAccess(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
-        self.delivery_facility_access_probabilities = (
-            self.get_delivery_facility_access_probabilities()
-        )
         self.coverage_values = self.get_coverage_values()
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -61,37 +58,38 @@ class NeonatalInterventionAccess(Component):
 
         pop = self.population_view.get(event.index)
 
-        for facility_type in self.delivery_facility_access_probabilities:
+        for (
+            facility_type,
+            coverage_value,
+        ) in self.coverage_values.items():
             facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
             get_intervention_idx = self.randomness.filter_for_probability(
                 facility_idx,
-                self.coverage_values[facility_type](facility_idx),
-                f"intervention_access_for_{facility_type}",
+                coverage_value(facility_idx),
+                f"cpap_access_{facility_type}",
             )
             pop.loc[get_intervention_idx, self.intervention_column] = True
 
         self.population_view.update(pop)
 
-    def get_delivery_facility_access_probabilities(self) -> dict[str, float]:
-        return {
+    def get_coverage_values(self) -> dict[str, float]:
+        delivery_facility_access_probabilities = {
             DELIVERY_FACILITY_TYPES.BEmONC: self.lookup_tables["bemonc_access_probability"],
             DELIVERY_FACILITY_TYPES.CEmONC: self.lookup_tables["cemonc_access_probability"],
         }
-
-    def get_coverage_values(self) -> dict[str, float]:
         bemonc_scenario = getattr(self.scenario, f"bemonc_{self.intervention}_access")
         cemonc_scenario = getattr(self.scenario, f"cemonc_{self.intervention}_access")
-        bemonc_cpap_access = (
+        bemonc_intervention_access = (
             1.0
             if bemonc_scenario == "full"
-            else self.delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.BEmONC]
+            else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.BEmONC]
         )
-        cemonc_cpap_access = (
+        cemonc_intervention_access = (
             1.0
             if cemonc_scenario == "full"
-            else self.delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
+            else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
         )
         return {
-            DELIVERY_FACILITY_TYPES.BEmONC: bemonc_cpap_access,
-            DELIVERY_FACILITY_TYPES.CEmONC: cemonc_cpap_access,
+            DELIVERY_FACILITY_TYPES.BEmONC: bemonc_intervention_access,
+            DELIVERY_FACILITY_TYPES.CEmONC: cemonc_intervention_access,
         }
