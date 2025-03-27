@@ -2,6 +2,9 @@ input_draw_count: 10
 random_seed_count: 10
 
 branches:
-# TODO change to name of intervention
-  - placeholder_branch_name:
-      scenario: ['baseline']
+  - intervention:
+      scenario: 
+        - 'baseline' 
+        - "full_cpap_bemonc"
+        - "full_cpap_cemonc" 
+        - "full_cpap_all"
