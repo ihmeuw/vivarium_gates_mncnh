@@ -50,7 +50,7 @@ class CPAPAccess(Component):
         for (
             facility_type,
             coverage_value,
-        ) in self.delivery_facility_access_probabilities.items():
+        ) in self.coverage_values.items():
             facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
             cpap_access_idx = self.randomness.filter_for_probability(
                 facility_idx,
