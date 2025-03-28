@@ -1,10 +1,17 @@
+from functools import partial
+
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, DELIVERY_FACILITY_TYPES
+from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_LOOKUP_COLUMN_MAPPER,
+    COLUMNS,
+    DELIVERY_FACILITY_TYPES,
+)
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 
 
@@ -16,8 +23,13 @@ class NeonatalInterventionAccess(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "bemonc_access_probability": f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_bemonc",
-                    "cemonc_access_probability": f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_cemonc",
+                    "bemonc_access_probability": partial(
+                        self.load_coverage_data, key="bemonc"
+                    ),
+                    "cemonc_access_probability": partial(
+                        self.load_coverage_data, key="cemonc"
+                    ),
+                    "home_access_probability": partial(self.load_coverage_data, key="home"),
                 }
             }
         }
@@ -75,6 +87,7 @@ class NeonatalInterventionAccess(Component):
         delivery_facility_access_probabilities = {
             DELIVERY_FACILITY_TYPES.BEmONC: self.lookup_tables["bemonc_access_probability"],
             DELIVERY_FACILITY_TYPES.CEmONC: self.lookup_tables["cemonc_access_probability"],
+            DELIVERY_FACILITY_TYPES.HOME: self.lookup_tables["home_access_probability"],
         }
         bemonc_scenario = getattr(self.scenario, f"bemonc_{self.intervention}_access")
         cemonc_scenario = getattr(self.scenario, f"cemonc_{self.intervention}_access")
@@ -88,7 +101,21 @@ class NeonatalInterventionAccess(Component):
             if cemonc_scenario == "full"
             else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
         )
+        home_intervention_access = delivery_facility_access_probabilities[
+            DELIVERY_FACILITY_TYPES.HOME
+        ]
+
         return {
             DELIVERY_FACILITY_TYPES.BEmONC: bemonc_intervention_access,
             DELIVERY_FACILITY_TYPES.CEmONC: cemonc_intervention_access,
+            DELIVERY_FACILITY_TYPES.HOME: home_intervention_access,
         }
+
+    def load_coverage_data(self, builder: Builder, key: str) -> LookupTable:
+        data = builder.data.load(
+            f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_{key}"
+        )
+        if isinstance(data, pd.DataFrame):
+            data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+
+        return data
