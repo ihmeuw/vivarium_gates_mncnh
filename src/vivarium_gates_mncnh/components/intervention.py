@@ -81,7 +81,7 @@ class NeonatalNoInterventionRisk(Component):
         self, index: pd.Index, csmr_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
         # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
-        # not have their CSMR modify by no CPAP RR
+        # not have their CSMR modify by no intervention RR
         pop = self.population_view.get(index)
         no_intervention_idx = pop.index[pop[self.col_required] == False]
         # NOTE: RR is relative risk for no intervention
