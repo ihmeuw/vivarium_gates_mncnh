@@ -38,7 +38,8 @@ components:
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
-            - CPAPObserver()
+            - NeonatalInterventionObserver('cpap')
+            - NeonatalInterventionObserver('antibiotics')
 
 configuration:
     input_data:

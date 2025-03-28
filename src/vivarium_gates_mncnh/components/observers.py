@@ -303,7 +303,12 @@ class NeonatalBurdenObserver(BurdenObserver):
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": ["age_group"],
-                    "include": ["child_age_group", "child_sex", "cpap_availability"],
+                    "include": [
+                        "child_age_group",
+                        "child_sex",
+                        "cpap_availability",
+                        "antibiotics_availability",
+                    ],
                 },
             },
         }
@@ -322,6 +327,11 @@ class NeonatalBurdenObserver(BurdenObserver):
             "cpap_availability",
             [True, False],
             requires_columns=[COLUMNS.CPAP_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "antibiotics_availability",
+            [True, False],
+            requires_columns=[COLUMNS.ANTIBIOTICS_AVAILABLE],
         )
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(
@@ -378,29 +388,35 @@ class NeonatalCauseRelativeRiskObserver(Observer):
         )
 
 
-class CPAPObserver(Observer):
+class NeonatalInterventionObserver(Observer):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
             "stratification": {
-                self.get_configuration_name(): {
+                f"{self.get_configuration_name()}_{self.intervention}": {
                     "exclude": ["age_group"],
                     "include": ["delivery_facility_type"],
                 },
             },
         }
 
+    def __init__(self, intervention: str) -> None:
+        super().__init__()
+        self.intervention = intervention
+
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
     def get_configuration(self, builder: Builder) -> dict[str, Any]:
-        return builder.configuration["stratification"][self.get_configuration_name()]
+        return builder.configuration["stratification"][
+            f"{self.get_configuration_name()}_{self.intervention}"
+        ]
 
     def register_observations(self, builder: Builder) -> None:
         builder.results.register_adding_observation(
-            name="cpap_availability",
-            pop_filter="cpap_available == True",
-            requires_columns=[COLUMNS.CPAP_AVAILABLE],
+            name=self.intervention,
+            pop_filter=f"{self.intervention}_available == True",
+            requires_columns=[f"{self.intervention}_available"],
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
