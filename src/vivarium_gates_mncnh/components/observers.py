@@ -308,6 +308,7 @@ class NeonatalBurdenObserver(BurdenObserver):
                         "child_sex",
                         "cpap_availability",
                         "antibiotics_availability",
+                        "delivery_facility_type",
                     ],
                 },
             },
