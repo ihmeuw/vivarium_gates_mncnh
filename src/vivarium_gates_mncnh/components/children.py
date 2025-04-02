@@ -11,6 +11,7 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_INITIALIZATION_AGE,
     COLUMNS,
+    DURATIONS,
     INFANT_MALE_PERCENTAGES,
     PIPELINES,
     PREGNANCY_OUTCOMES,
@@ -111,10 +112,20 @@ class ChildrenBirthExposure(Component):
         ]
 
     @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.PREGNANCY_OUTCOME]
+
+    @property
     def initialization_requirements(self):
-        return [self.gestational_age, self.birth_weight]
+        return [
+            self.gestational_age,
+            self.birth_weight,
+            COLUMNS.PREGNANCY_OUTCOME,
+            self.randomness,
+        ]
 
     def setup(self, builder: Builder) -> None:
+        self.randomness = builder.randomness.get_stream(self.name)
         self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
         self.birth_weight = builder.value.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
 
@@ -128,4 +139,29 @@ class ChildrenBirthExposure(Component):
             index=index,
         )
 
+        # Update gestational age for partial term pregnancies
+        pregnancy_outcomes = self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(
+            index
+        )
+        partial_term_idx = pregnancy_outcomes.index[
+            pregnancy_outcomes[COLUMNS.PREGNANCY_OUTCOME]
+            == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+        ]
+        new_children.loc[
+            partial_term_idx, COLUMNS.GESTATIONAL_AGE
+        ] = self.get_partial_term_gestational_age(
+            partial_term_idx,
+        )
+
         self.population_view.update(new_children)
+
+    def get_partial_term_gestational_age(self, index: pd.Index) -> pd.Series:
+        """
+        Get the gestational age for partial term pregnancies.
+        """
+        low, high = DURATIONS.PARTIAL_TERM_LOWER_WEEKS, DURATIONS.PARTIAL_TERM_UPPER_WEEKS
+        draw = self.randomness.get_draw(
+            index, additional_key="partial_term_pregnancy_duration"
+        )
+        durations = pd.Series((low + (high - low) * draw))
+        return durations

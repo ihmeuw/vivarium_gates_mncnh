@@ -3,6 +3,7 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.components.children import ChildrenBirthExposure, NewChildren
@@ -29,16 +30,18 @@ class Pregnancy(Component):
         ]
 
     @property
+    def columns_required(self):
+        return [
+            COLUMNS.GESTATIONAL_AGE,
+        ]
+
+    @property
     def sub_components(self):
         return super().sub_components + [self.new_children]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [],
-            "requires_values": ["birth_outcome_probabilities"],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str, Resource]:
+        return [self.birth_outcome_probabilities]
 
     def __init__(self):
         super().__init__()
@@ -55,7 +58,7 @@ class Pregnancy(Component):
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
         self.birth_outcome_probabilities = builder.value.register_value_producer(
-            "birth_outcome_probabilities",
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             source=self.lookup_tables["birth_outcome_probabilities"],
             requires_columns=get_lookup_columns(
                 [self.lookup_tables["birth_outcome_probabilities"]]
@@ -65,7 +68,7 @@ class Pregnancy(Component):
             PIPELINES.PREGNANCY_DURATION,
             self.get_pregnancy_durations,
             self,
-            requires_columns=[COLUMNS.PREGNANCY_OUTCOME],
+            requires_columns=[COLUMNS.GESTATIONAL_AGE],
         )
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
@@ -144,30 +147,6 @@ class Pregnancy(Component):
         return pregnancy_outcomes
 
     def get_pregnancy_durations(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
-        term_child_map = {
-            PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME: self.sample_full_term_durations,
-            PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME: self.sample_full_term_durations,
-            PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME: self.sample_partial_term_durations,
-        }
-        durations = pd.Series(index=index)
-        for term_length, sampling_function in term_child_map.items():
-            term_pop_idx = pop.index[pop["pregnancy_outcome"] == term_length]
-            durations.loc[term_pop_idx] = sampling_function(term_pop_idx)
-
-        return durations
-
-    def sample_partial_term_durations(self, partial_term_pop_idx: pd.Index) -> pd.Series:
-        low, high = DURATIONS.DETECTION_DAYS, DURATIONS.PARTIAL_TERM_DAYS
-        draw = self.randomness.get_draw(
-            partial_term_pop_idx, additional_key="partial_term_pregnancy_duration"
-        )
-        durations = pd.to_timedelta((low + (high - low) * draw), unit="days")
-        return durations
-
-    def sample_full_term_durations(self, full_term_pop_idx: pd.Index) -> pd.Series:
-        gestational_ages = self.population_view.subview([COLUMNS.GESTATIONAL_AGE])(
-            full_term_pop_idx
-        )
+        gestational_ages = self.population_view.get(index)[COLUMNS.GESTATIONAL_AGE]
         durations = pd.to_timedelta(7 * gestational_ages, unit="days")
         return durations

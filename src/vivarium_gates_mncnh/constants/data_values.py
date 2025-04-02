@@ -70,6 +70,8 @@ class _Durations(NamedTuple):
     DETECTION_DAYS = 6 * 7
     PARTIAL_TERM_DAYS = 24 * 7
     INTERVENTION_DELAY_DAYS = 8 * 7
+    PARTIAL_TERM_LOWER_WEEKS = 6.0
+    PARTIAL_TERM_UPPER_WEEKS = 24.0
 
 
 DURATIONS = _Durations()
@@ -254,6 +256,7 @@ class __Pipelines(NamedTuple):
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
     PREGNANCY_DURATION = "pregnancy_duration"
+    BIRTH_OUTCOME_PROBABILITIES = "birth_outcome_probabilities"
 
 
 PIPELINES = __Pipelines()
