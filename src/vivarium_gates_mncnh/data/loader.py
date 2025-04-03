@@ -575,9 +575,7 @@ def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # TODO: implement
-    exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
-    # Remove birth age group
-    exposure = exposure.loc[exposure["age_end"] > 0.0]
+    exposure = get_data(data_keys.LBWSG.EXPOSURE, location, years).reset_index()
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
     # Get preterm categories
     preterm_cats = []
