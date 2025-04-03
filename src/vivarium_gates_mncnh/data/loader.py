@@ -532,7 +532,7 @@ def load_lbwsg_birth_exposure(
     birth_exposure = birth_exposure.loc[
         birth_exposure["parameter"] != extra_residual_category
     ]
-    idx_cols = ["location_id", "age_group_id", "year_id", "sex_id", "parameter"]
+    idx_cols = ["age_group_id", "year_id", "sex_id", "parameter"]
     birth_exposure = birth_exposure.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
 
     # Sometimes there are data values on the order of 10e-300 that cause
@@ -540,9 +540,7 @@ def load_lbwsg_birth_exposure(
     birth_exposure = birth_exposure.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
 
     # normalize so all categories sum to 1
-    total_exposure = birth_exposure.groupby(
-        ["location_id", "age_group_id", "sex_id"]
-    ).transform("sum")
+    total_exposure = birth_exposure.groupby(["age_group_id", "sex_id"]).transform("sum")
     birth_exposure = (birth_exposure / total_exposure).reset_index()
     birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
     return birth_exposure

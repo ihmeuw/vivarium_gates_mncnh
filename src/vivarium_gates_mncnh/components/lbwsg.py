@@ -10,6 +10,7 @@ from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
@@ -56,17 +57,17 @@ class LBWSGRisk(LBWSGRisk_):
     # Point to the subclass of LBWSGDistribution
     exposure_distributions = {"lbwsg": LBWSGDistribution}
 
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE]
+    # @property
+    # def columns_required(self) -> list[str]:
+    #     return [COLUMNS.SEX_OF_CHILD,]
 
-    @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE],
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    # @property
+    # def initialization_requirements(self) -> dict[str, list[str]]:
+    #     return {
+    #         "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE],
+    #         "requires_values": [],
+    #         "requires_streams": [],
+    #     }
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -80,13 +81,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         return [COLUMNS.CHILD_AGE, COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE]
-            + self.lbwsg_exposure_column_names,
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
 
     def setup(self, builder: Builder) -> None:
         # Paf pipeline needs to be registered before the super setup is called
