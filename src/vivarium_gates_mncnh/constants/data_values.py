@@ -168,8 +168,8 @@ class __Columns(NamedTuple):
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
     SEX_OF_CHILD = "sex_of_child"
-    BIRTH_WEIGHT = "birth_weight"
-    GESTATIONAL_AGE = "gestational_age"
+    BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
+    GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
     ATTENDED_CARE_FACILITY = "attended_care_facility"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
@@ -181,6 +181,7 @@ class __Columns(NamedTuple):
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     CPAP_AVAILABLE = "cpap_available"
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
+    PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
 
 
 COLUMNS = __Columns()
