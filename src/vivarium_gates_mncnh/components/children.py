@@ -12,7 +12,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_INITIALIZATION_AGE,
     COLUMNS,
     INFANT_MALE_PERCENTAGES,
-    PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
@@ -96,36 +95,3 @@ class NewChildren(Component):
         ]
 
         self.population_view.update(pop)
-
-
-class ChildrenBirthExposure(Component):
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> list[str]:
-        return [
-            COLUMNS.GESTATIONAL_AGE,
-            COLUMNS.BIRTH_WEIGHT,
-        ]
-
-    @property
-    def initialization_requirements(self):
-        return [self.gestational_age, self.birth_weight]
-
-    def setup(self, builder: Builder) -> None:
-        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
-        self.birth_weight = builder.value.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
-
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        index = pop_data.index
-        new_children = pd.DataFrame(
-            {
-                COLUMNS.GESTATIONAL_AGE: self.gestational_age(index),
-                COLUMNS.BIRTH_WEIGHT: self.birth_weight(index),
-            },
-            index=index,
-        )
-
-        self.population_view.update(new_children)

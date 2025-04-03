@@ -19,7 +19,7 @@ from vivarium_gates_mncnh.constants.data_values import (
 class NeonatalCause(Component):
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.GESTATIONAL_AGE]
+        return [COLUMNS.GESTATIONAL_AGE_EXPOSURE]
 
     @property
     def configuration_defaults(self) -> dict:
@@ -120,7 +120,7 @@ class PretermBirth(NeonatalCause):
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
-        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE] >= 37
+        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] >= 37
 
         # CSMR = (1 - PAF) * RR * (CSMR / PRETERM_PREVALENCE)
         # NOTE: This isn't technically a traditional PAF but it is the

@@ -9,7 +9,6 @@ components:
         components:
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
-            - ChildrenBirthExposure()
             - ResultsStratifier()
             - BirthObserver()
             - AntenatalCare()
