@@ -547,7 +547,8 @@ def load_lbwsg_birth_exposure(
         (birth_exposure / total_exposure).reset_index().drop(columns=["age_group_id"])
     )
     birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
-    return birth_exposure
+
+    return utilities.rename_child_data_index_names(birth_exposure)
 
 
 def load_lbwsg_exposure(
@@ -565,7 +566,7 @@ def load_lbwsg_exposure(
     exposure = (
         (exposure / total_exposure)
         .reset_index()
-        .set_index(metadata.ARTIFACT_INDEX_COLUMNS)
+        .set_index(metadata.ARTIFACT_INDEX_COLUMNS + ["parameter"])
         .sort_index()
     )
     return exposure
