@@ -523,8 +523,10 @@ def load_lbwsg_birth_exposure(
     if key != data_keys.LBWSG.BIRTH_EXPOSURE:
         raise ValueError(f"Unrecognized key {key}")
 
-    entity = utilities.get_entity(key)
-    birth_exposure = load_standard_data(key, location, years)
+    # THis is using the old key due to VPH and VI update
+    exposure_key = "risk_factor.low_birth_weight_and_short_gestation.exposure"
+    entity = utilities.get_entity(exposure_key)
+    birth_exposure = extra_gbd.load_lbwsg_exposure(location)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
     birth_exposure = birth_exposure.loc[
@@ -561,7 +563,7 @@ def load_lbwsg_exposure(
     exposure = (
         (exposure / total_exposure)
         .reset_index()
-        .set_index(ARTIFACT_INDEX_COLUMNS)
+        .set_index(metadata.ARTIFACT_INDEX_COLUMNS)
         .sort_index()
     )
     return exposure
