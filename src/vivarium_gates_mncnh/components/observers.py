@@ -112,10 +112,10 @@ class ResultsStratifier(ResultsStratifier_):
 class BirthObserver(Observer):
 
     COL_MAPPING = {
-        "sex_of_child": "sex",
-        "birth_weight": "birth_weight",
-        "gestational_age": "gestational_age",
-        "pregnancy_outcome": "pregnancy_outcome",
+        COLUMNS.SEX_OF_CHILD: "sex",
+        COLUMNS.BIRTH_WEIGHT_EXPOSURE: "birth_weight",
+        COLUMNS.GESTATIONAL_AGE_EXPOSURE: "gestational_age",
+        COLUMNS.PREGNANCY_OUTCOME: "pregnancy_outcome",
     }
 
     def setup(self, builder: Builder) -> None:
@@ -158,7 +158,7 @@ class ANCObserver(Observer):
                 COLUMNS.MOTHER_AGE,
                 COLUMNS.ATTENDED_CARE_FACILITY,
                 COLUMNS.ULTRASOUND_TYPE,
-                COLUMNS.GESTATIONAL_AGE,
+                COLUMNS.GESTATIONAL_AGE_EXPOSURE,
                 COLUMNS.STATED_GESTATIONAL_AGE,
                 COLUMNS.PREGNANCY_OUTCOME,
             ],

@@ -50,8 +50,8 @@ class AntenatalCare(Component):
     @property
     def columns_required(self):
         return [
-            COLUMNS.GESTATIONAL_AGE,
-            COLUMNS.BIRTH_WEIGHT,
+            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+            COLUMNS.BIRTH_WEIGHT_EXPOSURE,
             COLUMNS.SEX_OF_CHILD,
         ]
 
@@ -127,7 +127,7 @@ class AntenatalCare(Component):
 
     def _calculate_stated_gestational_age(self, pop: pd.DataFrame) -> pd.Series:
         # Apply standard deviation based on ultrasound type
-        gestational_age = pop[COLUMNS.GESTATIONAL_AGE]
+        gestational_age = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE]
         measurement_errors = self.lookup_tables["stated_gestational_age_standa_deviation"](
             pop.index
         )
@@ -140,7 +140,7 @@ class AntenatalCare(Component):
 
     def _determine_lbw_identification(self, pop: pd.DataFrame) -> pd.Series:
         identification = pd.Series(False, index=pop.index)
-        lbw_index = pop.index[pop[COLUMNS.BIRTH_WEIGHT] < LOW_BIRTH_WEIGHT_THRESHOLD]
+        lbw_index = pop.index[pop[COLUMNS.BIRTH_WEIGHT_EXPOSURE] < LOW_BIRTH_WEIGHT_THRESHOLD]
         identification_rates = self.lookup_tables["low_birth_weight_identification_rates"](
             lbw_index
         )
