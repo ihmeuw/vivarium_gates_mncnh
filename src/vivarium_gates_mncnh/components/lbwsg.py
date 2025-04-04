@@ -15,10 +15,6 @@ from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
-from vivarium_public_health.risks.distributions import RiskExposureDistribution
-from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
-    LBWSGDistribution as LBWSGDistribution_,
-)
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
 )
@@ -42,32 +38,18 @@ BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
 
 
-class LBWSGDistribution(LBWSGDistribution_):
-    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
-        if self._exposure_data is not None:
-            return self._exposure_data
-        data = self.get_data(builder, self.configuration["data_sources"]["exposure"])
-        renamed_data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-
-        return renamed_data
-
-
 class LBWSGRisk(LBWSGRisk_):
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.SEX_OF_CHILD,
+        ]
 
-    # Point to the subclass of LBWSGDistribution
-    exposure_distributions = {"lbwsg": LBWSGDistribution}
-
-    # @property
-    # def columns_required(self) -> list[str]:
-    #     return [COLUMNS.SEX_OF_CHILD,]
-
-    # @property
-    # def initialization_requirements(self) -> dict[str, list[str]]:
-    #     return {
-    #         "requires_columns": [COLUMNS.SEX_OF_CHILD, COLUMNS.CHILD_AGE],
-    #         "requires_values": [],
-    #         "requires_streams": [],
-    #     }
+    @property
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [
+            COLUMNS.SEX_OF_CHILD,
+        ]
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -253,6 +235,17 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
             "lbwsg_category",
             "age_bin",
         ]
+
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        configuration_defaults = super().configuration_defaults
+        # Use the exposure for neonatal age groups instead of birth exposure
+        # TODO: remove when VPH is updated to handle this behavior
+        configuration_defaults[self.name]["data_sources"][
+            "exposure"
+        ] = f"{self.risk}.exposure"
+        configuration_defaults[self.name]["distribution_type"] = "lbwsg"
+        return configuration_defaults
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
