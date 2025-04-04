@@ -67,7 +67,8 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
-        data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_exposure,
+        data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
+        data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
         data_keys.LBWSG.PAF: load_paf_data,
@@ -515,7 +516,7 @@ def load_no_cpap_paf(
     return paf_no_cpap
 
 
-def load_lbwsg_exposure(
+def load_lbwsg_birth_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
 
@@ -524,32 +525,50 @@ def load_lbwsg_exposure(
 
     # THis is using the old key due to VPH and VI update
     exposure_key = "risk_factor.low_birth_weight_and_short_gestation.exposure"
-    # Get exposure for all age groups except birth age group
-    all_age_exposure = load_standard_data(exposure_key, location, years)
-
     entity = utilities.get_entity(exposure_key)
-    birth_exposure = extra_gbd.load_lbwsg_exposure(location, exposure_key)
+    birth_exposure = extra_gbd.load_lbwsg_exposure(location)
     # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
     birth_exposure = birth_exposure.loc[
         birth_exposure["parameter"] != extra_residual_category
     ]
-    birth_exposure = birth_exposure.set_index(
-        ["location_id", "year_id", "sex_id", "parameter"]
-    )[vi_globals.DRAW_COLUMNS]
+    idx_cols = ["location_id", "age_group_id", "year_id", "sex_id", "parameter"]
+    birth_exposure = birth_exposure.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
+
     # Sometimes there are data values on the order of 10e-300 that cause
     # floating point headaches, so clip everything to reasonable values
     birth_exposure = birth_exposure.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
-    birth_exposure = reshape_to_vivarium_format(birth_exposure, location).reset_index()
-    birth_exposure["age_start"] = (0 - 7) / 365.0
-    birth_exposure["age_end"] = 0.0
-    idx_cols = ["sex", "age_start", "age_end", "year_start", "year_end", "parameter"]
-    exposure = pd.concat([all_age_exposure.reset_index(), birth_exposure])
-    exposure = exposure.set_index(idx_cols)[vi_globals.DRAW_COLUMNS]
+
+    # normalize so all categories sum to 1
+    total_exposure = birth_exposure.groupby(
+        ["location_id", "age_group_id", "sex_id"]
+    ).transform("sum")
+    birth_exposure = (
+        (birth_exposure / total_exposure).reset_index().drop(columns=["age_group_id"])
+    )
+    birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
+
+    return utilities.rename_child_data_index_names(birth_exposure)
+
+
+def load_lbwsg_exposure(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+
+    # Get exposure for all age groups except birth age group
+    exposure = load_standard_data(key, location, years)
+    # Sometimes there are data values on the order of 10e-300 that cause
+    # floating point headaches, so clip everything to reasonable values
+    exposure = exposure.clip(lower=vi_globals.MINIMUM_EXPOSURE_VALUE)
 
     # normalize so all categories sum to 1
     total_exposure = exposure.groupby(["age_start", "age_end", "sex"]).transform("sum")
-    exposure = (exposure / total_exposure).reset_index().set_index(idx_cols).sort_index()
+    exposure = (
+        (exposure / total_exposure)
+        .reset_index()
+        .set_index(metadata.ARTIFACT_INDEX_COLUMNS + ["parameter"])
+        .sort_index()
+    )
     return exposure
 
 
@@ -557,9 +576,7 @@ def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # TODO: implement
-    exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
-    # Remove birth age group
-    exposure = exposure.loc[exposure["age_end"] > 0.0]
+    exposure = get_data(data_keys.LBWSG.EXPOSURE, location, years).reset_index()
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
     # Get preterm categories
     preterm_cats = []

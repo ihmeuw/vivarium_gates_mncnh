@@ -81,3 +81,15 @@ def set_non_neonnatal_values(data: pd.DataFrame, value: float) -> pd.DataFrame:
     data = data.reset_index()
     data.loc[data["age_start"] > 7 / 365.0, ARTIFACT_COLUMNS] = value
     return data.set_index(ARTIFACT_INDEX_COLUMNS)
+
+
+def rename_child_data_index_names(data: pd.DataFrame) -> pd.DataFrame:
+    # Renames index names in artifact data for child age and sex
+    for column in ["sex", "age_start", "age_end"]:
+        if column not in data.index.names:
+            continue
+        if column == "sex":
+            data.index.rename({column: "sex_of_child"}, inplace=True)
+        else:
+            data.index.rename(index={column: f"child_{column}"}, inplace=True)
+    return data
