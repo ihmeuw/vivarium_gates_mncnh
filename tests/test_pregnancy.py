@@ -57,9 +57,7 @@ def test_pregnancy_duration_pipeline(
     ]
     partial_ga = population.loc[partial_term_idx, COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
     non_partial_idx = population.index.difference(partial_term_idx)
-    non_partial_ga = pregnancy_state.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)(
-        non_partial_idx
-    )
+    non_partial_ga = population.loc[non_partial_idx, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
     gestational_age = pd.concat([partial_ga, non_partial_ga]).sort_index()
     unit_converted_ga = pd.to_timedelta(7 * gestational_age, unit="days")
     pregnancy_duration = pregnancy_state.get_value(PIPELINES.PREGNANCY_DURATION)(
