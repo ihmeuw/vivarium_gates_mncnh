@@ -21,7 +21,7 @@ env_type="simulation"
 make_new="no"
 install_git_lfs="no"
 
-# Process input options - inputs must be listed in alphabetical order
+# Process input options
 while getopts ":hflt:" option; do
    case $option in
       h) # display help
