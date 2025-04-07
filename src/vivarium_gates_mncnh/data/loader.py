@@ -344,7 +344,16 @@ def load_lbwsg_interpolated_rr(
     )
     rr = (
         rr.sort_values("parameter")
-        .set_index(metadata.ARTIFACT_INDEX_COLUMNS + ["parameter"])
+        .set_index(
+            [
+                "sex_of_child",
+                "child_age_start",
+                "child_age_end",
+                "year_start",
+                "year_end",
+                "parameter",
+            ]
+        )
         .stack()
         .unstack("parameter")
         .apply(np.log)
