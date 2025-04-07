@@ -93,7 +93,7 @@ def rename_child_data_index_names(data: pd.DataFrame) -> pd.DataFrame:
         if column == "sex":
             data.index.rename({column: "sex_of_child"}, inplace=True)
         else:
-            data.index.rename(index={column: f"child_{column}"}, inplace=True)
+            data.index.rename({column: f"child_{column}"}, inplace=True)
     return data
 
 
