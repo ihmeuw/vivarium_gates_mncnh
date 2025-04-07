@@ -28,10 +28,7 @@ from vivarium_public_health.utilities import (
 )
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import (
-    CHILD_LOOKUP_COLUMN_MAPPER,
-    COLUMNS,
-)
+from vivarium_gates_mncnh.constants.data_values import COLUMNS
 
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
@@ -89,21 +86,9 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             required_resources=required_columns,
         )
 
-    def get_population_attributable_fraction_source(
-        self, builder: Builder
-    ) -> tuple[pd.DataFrame, list[str]]:
-        paf_key = f"{self.risk}.population_attributable_fraction"
-        paf_data = builder.data.load(paf_key)
-        # Map to child columns
-        paf_data = paf_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return paf_data, builder.data.value_columns()(paf_key)
-
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
         relative_risks = builder.data.load(f"{self.risk}.relative_risk")
-        # Map to child columns
-        age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        relative_risks = relative_risks.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
 
         # Filter groups where all 'value' entries are not equal to 1
         filtered_groups = relative_risks.groupby("child_age_start").filter(
@@ -135,8 +120,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
         # get relative risk data for target
         interpolators = builder.data.load(f"{self.risk}.relative_risk_interpolator")
-        # Map to child columns
-        interpolators = interpolators.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         interpolators = (
             # isolate RRs for target and drop non-neonatal age groups since they have RR == 1.0
             interpolators[

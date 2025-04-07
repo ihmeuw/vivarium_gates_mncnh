@@ -183,7 +183,7 @@ class NeonatalMortality(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "all_cause_mortality_rate": self.load_acmr,
+                    "all_cause_mortality_rate": "cause.all_causes.cause_specific_mortality_rate",
                     "life_expectancy": self.load_life_expectancy_data,
                 }
             }
@@ -289,17 +289,12 @@ class NeonatalMortality(Component):
     # Helper methods #
     ##################
 
-    def load_acmr(self, builder: Builder) -> pd.DataFrame:
-        """Load all-cause mortality rate data."""
-        acmr = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
-        child_acmr = acmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return child_acmr
-
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
         life_expectancy = builder.data.load(
             "population.theoretical_minimum_risk_life_expectancy"
         )
+        # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
 

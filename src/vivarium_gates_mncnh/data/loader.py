@@ -36,7 +36,7 @@ from vivarium_gates_mncnh.utilities import get_random_variable_draws
 
 def get_data(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
+) -> pd.DataFrame | float | str:
     """Retrieves data from an appropriate source.
 
     Parameters
@@ -102,7 +102,12 @@ def get_data(
         data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK: load_no_antibiotics_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.PAF: load_no_antibiotics_paf,
     }
-    return mapping[lookup_key](lookup_key, location, years)
+
+    data = mapping[lookup_key](lookup_key, location, years)
+    to_remap = utilities.determine_if_remap_group(lookup_key)
+    if to_remap:
+        data = utilities.rename_child_data_index_names(data)
+    return data
 
 
 def load_population_location(
@@ -548,7 +553,7 @@ def load_lbwsg_birth_exposure(
     )
     birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
 
-    return utilities.rename_child_data_index_names(birth_exposure)
+    return birth_exposure
 
 
 def load_lbwsg_exposure(

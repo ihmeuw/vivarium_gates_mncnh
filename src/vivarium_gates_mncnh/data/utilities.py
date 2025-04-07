@@ -6,6 +6,7 @@ from vivarium.framework.artifact import EntityKey
 from vivarium.framework.randomness import get_hash
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
+from vivarium_gates_mncnh.constants.data_keys import REMAP_KEY_GROUPS
 from vivarium_gates_mncnh.constants.metadata import (
     ARTIFACT_COLUMNS,
     ARTIFACT_INDEX_COLUMNS,
@@ -84,6 +85,7 @@ def set_non_neonnatal_values(data: pd.DataFrame, value: float) -> pd.DataFrame:
 
 
 def rename_child_data_index_names(data: pd.DataFrame) -> pd.DataFrame:
+
     # Renames index names in artifact data for child age and sex
     for column in ["sex", "age_start", "age_end"]:
         if column not in data.index.names:
@@ -93,3 +95,12 @@ def rename_child_data_index_names(data: pd.DataFrame) -> pd.DataFrame:
         else:
             data.index.rename(index={column: f"child_{column}"}, inplace=True)
     return data
+
+
+def determine_if_remap_group(key: str) -> bool:
+    """Determine whether the artifact key is in a key group that needs to be remapped
+    for the children demographic columns."""
+
+    group = key.split(".")[0]
+    remap = [True if group in REMAP_KEY_GROUPS else False]
+    return remap
