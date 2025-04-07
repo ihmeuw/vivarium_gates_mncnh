@@ -603,7 +603,9 @@ def load_preterm_prevalence(
     preterm_exposure = exposure.loc[exposure["parameter"].isin(preterm_cats)]
     preterm_exposure = preterm_exposure.drop(columns=["parameter"])
     draw_cols = [col for col in preterm_exposure.columns if "draw" in col]
-    sum_exposure = preterm_exposure.groupby(metadata.ARTIFACT_INDEX_COLUMNS)[draw_cols].sum()
+    sum_exposure = preterm_exposure.groupby(
+        "sex_of_child", "child_age_start", "child_age_end", "year_start", "year_end"
+    )[draw_cols].sum()
 
     return sum_exposure
 
