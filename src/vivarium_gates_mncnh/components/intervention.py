@@ -4,7 +4,6 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
-from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
 
 
