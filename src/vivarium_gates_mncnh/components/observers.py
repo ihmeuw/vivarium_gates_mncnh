@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     MATERNAL_DISORDERS,
+    PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
@@ -158,10 +159,10 @@ class ANCObserver(Observer):
                 COLUMNS.MOTHER_AGE,
                 COLUMNS.ATTENDED_CARE_FACILITY,
                 COLUMNS.ULTRASOUND_TYPE,
-                COLUMNS.GESTATIONAL_AGE_EXPOSURE,
                 COLUMNS.STATED_GESTATIONAL_AGE,
                 COLUMNS.PREGNANCY_OUTCOME,
             ],
+            requires_values=[PIPELINES.PREGNANCY_DURATION],
             to_observe=self.to_observe,
         )
 
