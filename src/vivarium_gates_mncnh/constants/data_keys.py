@@ -180,7 +180,7 @@ class __NeonatalSepsis(NamedTuple):
 
     @property
     def name(self):
-        return "neonatal_sepsis"
+        return "neonatal_sepsis_and_other_neonatal_infections"
 
     @property
     def log_name(self):
@@ -196,7 +196,7 @@ class __NeonatalEncephalopath(NamedTuple):
 
     @property
     def name(self):
-        return "neonatal_encephalopathy"
+        return "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma"
 
     @property
     def log_name(self):
@@ -217,11 +217,11 @@ class __NoCPAPRisk(NamedTuple):
 
     @property
     def name(self):
-        return "no_CPAP_intervention"
+        return "no_cpap_risk"
 
     @property
     def log_name(self):
-        return "no CPAP intervention"
+        return "no CPAP risk"
 
 
 NO_CPAP_RISK = __NoCPAPRisk()

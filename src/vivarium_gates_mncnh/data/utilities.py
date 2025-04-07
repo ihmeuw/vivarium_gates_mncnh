@@ -101,6 +101,5 @@ def determine_if_remap_group(key: str) -> bool:
     """Determine whether the artifact key is in a key group that needs to be remapped
     for the children demographic columns."""
 
-    group = key.split(".")[0]
-    remap = True if group in REMAP_KEY_GROUPS else False
-    return remap
+    to_remap = any(group.name in key for group in REMAP_KEY_GROUPS)
+    return to_remap
