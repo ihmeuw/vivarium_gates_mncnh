@@ -28,7 +28,10 @@ from vivarium_public_health.utilities import (
 )
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import COLUMNS
+from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_LOOKUP_COLUMN_MAPPER,
+    COLUMNS,
+)
 
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
@@ -88,6 +91,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
+        # Map to child column. Can't map in artifact since it is used for both mothers and children
+        age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         relative_risks = builder.data.load(f"{self.risk}.relative_risk")
 
         # Filter groups where all 'value' entries are not equal to 1
@@ -152,11 +157,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 age_group_mask, self.relative_risk_column_name(age_group)
             ]
         return relative_risk
-
-    def load_child_data_from_artifact(self, builder: Builder, data_key: str) -> pd.DataFrame:
-        data = builder.data.load(data_key)
-        data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return data
 
     ########################
     # Event-driven methods #
