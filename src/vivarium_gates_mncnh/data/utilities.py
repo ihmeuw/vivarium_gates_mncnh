@@ -102,5 +102,5 @@ def determine_if_remap_group(key: str) -> bool:
     for the children demographic columns."""
 
     group = key.split(".")[0]
-    remap = [True if group in REMAP_KEY_GROUPS else False]
+    remap = True if group in REMAP_KEY_GROUPS else False
     return remap
