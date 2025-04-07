@@ -32,9 +32,7 @@ class Pregnancy(Component):
 
     @property
     def columns_required(self):
-        return [
-            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
-        ]
+        return [COLUMNS.GESTATIONAL_AGE_EXPOSURE]
 
     @property
     def sub_components(self):

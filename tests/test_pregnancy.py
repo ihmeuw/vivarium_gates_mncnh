@@ -2,8 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from vivarium import Artifact, InteractiveContext
-from vivarium_testing_utils import FuzzyChecker
+from vivarium import InteractiveContext
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
