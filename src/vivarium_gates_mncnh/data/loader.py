@@ -105,7 +105,7 @@ def get_data(
 
     data = mapping[lookup_key](lookup_key, location, years)
     to_remap = utilities.determine_if_remap_group(lookup_key)
-    if to_remap:
+    if to_remap and isinstance(data, pd.DataFrame):
         data = utilities.rename_child_data_index_names(data)
     return data
 
