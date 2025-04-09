@@ -29,6 +29,7 @@ components:
             - NeonatalMortality()
             - NeonatalNoInterventionRisk('cpap')
             - NeonatalNoInterventionRisk('antibiotics')
+            - NeonatalNoInterventionRisk('probiotics')
             - DeliveryFacility()
             - NeonatalInterventionAccess('cpap')
             - NeonatalInterventionAccess('antibiotics')
