@@ -267,7 +267,7 @@ class __NoAntibioticsRisk(NamedTuple):
 NO_ANTIBIOTICS_RISK = __NoAntibioticsRisk()
 
 
-class __NoProbioticsRisk(TargetString):
+class __NoProbioticsRisk(NamedTuple):
     P_PROBIOTIC_HOME: str = "intervention.no_probiotics_risk.probability_antibiotics_home"
     P_PROBIOTIC_BEMONC: str = "intervention.no_probiotics_risk.probability_antibiotics_bemonc"
     P_PROBIOTIC_CEMONC: str = "intervention.no_probiotics_risk.probability_antibiotics_cemonc"
