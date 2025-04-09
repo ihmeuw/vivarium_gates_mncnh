@@ -64,6 +64,7 @@ configuration:
             - 'delivery_facility'
             - 'cpap_access'
             - 'antibiotics_access'
+            - 'probiotics_access'
             - 'maternal_obstructed_labor_and_uterine_rupture'
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
