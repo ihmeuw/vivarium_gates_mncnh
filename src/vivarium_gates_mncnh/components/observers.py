@@ -255,7 +255,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         super().register_observations(builder)
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(
-                name=f"{cause}_death_counts",
+                name=f"{cause}_counts",
                 pop_filter=f"{cause} == True",
                 requires_columns=[cause],
                 additional_stratifications=self.configuration.include,
