@@ -32,6 +32,7 @@ components:
             - DeliveryFacility()
             - NeonatalInterventionAccess('cpap')
             - NeonatalInterventionAccess('antibiotics')
+            - NeonatalInterventionAccess('probiotics')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -39,6 +40,7 @@ components:
             - NeonatalCauseRelativeRiskObserver()
             - NeonatalInterventionObserver('cpap')
             - NeonatalInterventionObserver('antibiotics')
+            - NeonatalInterventionObserver('probiotics')
 
 configuration:
     input_data:

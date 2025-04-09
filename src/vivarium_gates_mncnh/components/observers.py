@@ -309,6 +309,7 @@ class NeonatalBurdenObserver(BurdenObserver):
                         "child_sex",
                         "cpap_availability",
                         "antibiotics_availability",
+                        "probiotics_availability",
                         "delivery_facility_type",
                     ],
                 },
@@ -334,6 +335,11 @@ class NeonatalBurdenObserver(BurdenObserver):
             "antibiotics_availability",
             [True, False],
             requires_columns=[COLUMNS.ANTIBIOTICS_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "probiotics_availability",
+            [True, False],
+            requires_columns=[COLUMNS.PROBIOTICS_AVAILABLE],
         )
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(

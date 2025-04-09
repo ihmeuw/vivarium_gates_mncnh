@@ -13,6 +13,8 @@ class InterventionScenario:
     cemonc_cpap_access: str = "baseline"
     bemonc_antibiotics_access: str = "baseline"
     cemonc_antibiotics_access: str = "baseline"
+    bemonc_probiotics_access: str = "baseline"
+    cemonc_probiotics_access: str = "baseline"
 
 
 class __InterventionScenarios(NamedTuple):
@@ -43,6 +45,19 @@ class __InterventionScenarios(NamedTuple):
         "full_antibiotics_all",
         bemonc_antibiotics_access="full",
         cemonc_antibiotics_access="full",
+    )
+    FULL_PROBIOTICS_BEMONC: InterventionScenario = InterventionScenario(
+        "full_probiotics_bemonc",
+        bemonc_probiotics_access="full",
+    )
+    FULL_PROBIOTICS_CEMONC: InterventionScenario = InterventionScenario(
+        "full_probiotics_cemonc",
+        cemonc_probiotics_access="full",
+    )
+    FULL_PROBIOTICS_ALL: InterventionScenario = InterventionScenario(
+        "full_probiotics_all",
+        bemonc_probiotics_access="full",
+        cemonc_probiotics_access="full",
     )
 
     def __getitem__(self, item) -> InterventionScenario:

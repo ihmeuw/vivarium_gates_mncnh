@@ -14,6 +14,7 @@ class NeonatalNoInterventionRisk(Component):
     INTERVENTION_PIPELINE_MODIFIERS_MAP = {
         "cpap": PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
         "antibiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        "probiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
     }
 
     @property
