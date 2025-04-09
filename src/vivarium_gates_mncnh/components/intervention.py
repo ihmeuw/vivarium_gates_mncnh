@@ -4,7 +4,6 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
-from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
 
 
@@ -22,8 +21,8 @@ class NeonatalNoInterventionRisk(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": self.load_relative_risk_data,
-                    "paf": self.load_paf_data,
+                    "relative_risk": f"intervention.no_{self.lack_of_intervention_risk}_risk.relative_risk",
+                    "paf": f"intervention.no_{self.lack_of_intervention_risk}_risk.population_attributable_fraction",
                 }
             }
         }
@@ -61,21 +60,6 @@ class NeonatalNoInterventionRisk(Component):
     ##################
     # Helper nethods #
     ##################
-
-    def load_relative_risk_data(self, builder: Builder) -> pd.DataFrame:
-        data = builder.data.load(
-            f"intervention.no_{self.lack_of_intervention_risk}_risk.relative_risk"
-        )
-        if isinstance(data, pd.DataFrame):
-            data = data.rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
-        return data
-
-    def load_paf_data(self, builder: Builder) -> pd.DataFrame:
-        data = builder.data.load(
-            f"intervention.no_{self.lack_of_intervention_risk}_risk.population_attributable_fraction"
-        )
-        data = data.rename(columns=data_values.CHILD_LOOKUP_COLUMN_MAPPER)
-        return data
 
     def modify_csmr_pipeline(
         self, index: pd.Index, csmr_pipeline: pd.Series[float]

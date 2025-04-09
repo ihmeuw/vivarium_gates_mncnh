@@ -29,6 +29,14 @@ ARTIFACT_INDEX_COLUMNS = [
     "year_start",
     "year_end",
 ]
+CHILDREN_INDEX_COLUMNS = [
+    "sex_of_child",
+    "child_age_start",
+    "child_age_end",
+    "year_start",
+    "year_end",
+]
+
 
 DRAW_COUNT = 500
 ARTIFACT_COLUMNS = pd.Index([f"draw_{i}" for i in range(DRAW_COUNT)])

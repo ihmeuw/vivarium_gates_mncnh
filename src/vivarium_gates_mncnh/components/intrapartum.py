@@ -7,11 +7,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
-from vivarium_gates_mncnh.constants.data_values import (
-    CHILD_LOOKUP_COLUMN_MAPPER,
-    COLUMNS,
-    DELIVERY_FACILITY_TYPES,
-)
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, DELIVERY_FACILITY_TYPES
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 
 
@@ -120,7 +116,5 @@ class NeonatalInterventionAccess(Component):
         data = builder.data.load(
             f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_{key}"
         )
-        if isinstance(data, pd.DataFrame):
-            data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
 
         return data
