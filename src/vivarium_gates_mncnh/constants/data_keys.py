@@ -268,9 +268,9 @@ NO_ANTIBIOTICS_RISK = __NoAntibioticsRisk()
 
 
 class __NoProbioticsRisk(NamedTuple):
-    P_PROBIOTIC_HOME: str = "intervention.no_probiotics_risk.probability_antibiotics_home"
-    P_PROBIOTIC_BEMONC: str = "intervention.no_probiotics_risk.probability_antibiotics_bemonc"
-    P_PROBIOTIC_CEMONC: str = "intervention.no_probiotics_risk.probability_antibiotics_cemonc"
+    P_PROBIOTIC_HOME: str = "intervention.no_probiotics_risk.probability_probiotics_home"
+    P_PROBIOTIC_BEMONC: str = "intervention.no_probiotics_risk.probability_probiotics_bemonc"
+    P_PROBIOTIC_CEMONC: str = "intervention.no_probiotics_risk.probability_probiotics_cemonc"
     RELATIVE_RISK: str = "intervention.no_probiotics_risk.relative_risk"
     PAF: str = "intervention.no_probiotics_risk.population_attributable_fraction"
 
