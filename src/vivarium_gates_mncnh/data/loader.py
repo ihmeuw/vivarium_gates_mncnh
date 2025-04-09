@@ -36,7 +36,7 @@ from vivarium_gates_mncnh.utilities import get_random_variable_draws
 
 def get_data(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
+) -> pd.DataFrame | float | str:
     """Retrieves data from an appropriate source.
 
     Parameters
@@ -102,7 +102,12 @@ def get_data(
         data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK: load_no_antibiotics_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.PAF: load_no_antibiotics_paf,
     }
-    return mapping[lookup_key](lookup_key, location, years)
+
+    data = mapping[lookup_key](lookup_key, location, years)
+    to_remap = utilities.determine_if_remap_group(lookup_key)
+    if to_remap and isinstance(data, pd.DataFrame):
+        data = utilities.rename_child_data_index_names(data)
+    return data
 
 
 def load_population_location(
@@ -339,7 +344,7 @@ def load_lbwsg_interpolated_rr(
     )
     rr = (
         rr.sort_values("parameter")
-        .set_index(metadata.ARTIFACT_INDEX_COLUMNS + ["parameter"])
+        .set_index(metadata.CHILDREN_INDEX_COLUMNS + ["parameter"])
         .stack()
         .unstack("parameter")
         .apply(np.log)
@@ -548,7 +553,7 @@ def load_lbwsg_birth_exposure(
     )
     birth_exposure = reshape_to_vivarium_format(birth_exposure, location)
 
-    return utilities.rename_child_data_index_names(birth_exposure)
+    return birth_exposure
 
 
 def load_lbwsg_exposure(
@@ -589,7 +594,7 @@ def load_preterm_prevalence(
     preterm_exposure = exposure.loc[exposure["parameter"].isin(preterm_cats)]
     preterm_exposure = preterm_exposure.drop(columns=["parameter"])
     draw_cols = [col for col in preterm_exposure.columns if "draw" in col]
-    sum_exposure = preterm_exposure.groupby(metadata.ARTIFACT_INDEX_COLUMNS)[draw_cols].sum()
+    sum_exposure = preterm_exposure.groupby(metadata.CHILDREN_INDEX_COLUMNS)[draw_cols].sum()
 
     return sum_exposure
 

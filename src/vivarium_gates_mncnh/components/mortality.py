@@ -300,6 +300,7 @@ class NeonatalMortality(Component):
         life_expectancy = builder.data.load(
             "population.theoretical_minimum_risk_life_expectancy"
         )
+        # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
 

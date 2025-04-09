@@ -89,21 +89,11 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             required_resources=required_columns,
         )
 
-    def get_population_attributable_fraction_source(
-        self, builder: Builder
-    ) -> tuple[pd.DataFrame, list[str]]:
-        paf_key = f"{self.risk}.population_attributable_fraction"
-        paf_data = builder.data.load(paf_key)
-        # Map to child columns
-        paf_data = paf_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return paf_data, builder.data.value_columns()(paf_key)
-
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
-        relative_risks = builder.data.load(f"{self.risk}.relative_risk")
-        # Map to child columns
+        # Map to child column. Can't map in artifact since it is used for both mothers and children
         age_bins = age_bins.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        relative_risks = relative_risks.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        relative_risks = builder.data.load(f"{self.risk}.relative_risk")
 
         # Filter groups where all 'value' entries are not equal to 1
         filtered_groups = relative_risks.groupby("child_age_start").filter(
@@ -135,8 +125,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
         # get relative risk data for target
         interpolators = builder.data.load(f"{self.risk}.relative_risk_interpolator")
-        # Map to child columns
-        interpolators = interpolators.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         interpolators = (
             # isolate RRs for target and drop non-neonatal age groups since they have RR == 1.0
             interpolators[
@@ -169,11 +157,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 age_group_mask, self.relative_risk_column_name(age_group)
             ]
         return relative_risk
-
-    def load_child_data_from_artifact(self, builder: Builder, data_key: str) -> pd.DataFrame:
-        data = builder.data.load(data_key)
-        data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return data
 
     ########################
     # Event-driven methods #

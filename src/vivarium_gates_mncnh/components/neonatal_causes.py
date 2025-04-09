@@ -8,7 +8,6 @@ from vivarium.framework.values import Pipeline
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
-    CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     NEONATAL_CAUSES,
     PIPELINES,
@@ -26,7 +25,7 @@ class NeonatalCause(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "csmr": self.load_csmr,
+                    "csmr": f"cause.{self.neonatal_cause}.cause_specific_mortality_rate",
                 }
             }
         }
@@ -77,11 +76,6 @@ class NeonatalCause(Component):
 
     def get_paf(self, builder: Builder) -> Pipeline:
         return builder.value.get_value(PIPELINES.LBWSG_ACMR_PAF_MODIFIER)
-
-    def load_csmr(self, builder: Builder) -> pd.DataFrame:
-        csmr = builder.data.load(f"cause.{self.neonatal_cause}.cause_specific_mortality_rate")
-        csmr = csmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return csmr
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         # CSMR = CSMR * (1-PAF) * RR
@@ -149,5 +143,4 @@ class PretermBirth(NeonatalCause):
         }
         art_key = key_mapper[key]
         data = builder.data.load(art_key)
-        data = data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return data
