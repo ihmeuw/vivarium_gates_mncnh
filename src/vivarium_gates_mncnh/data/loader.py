@@ -668,7 +668,7 @@ def load_probiotics_facility_probability(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
     # Currently no coverage
-    return 0.0
+    return data_values.PROBIOTICS_BASELINE_COVERAGE_PROABILITY
 
 
 def load_no_probiotics_relative_risk(
