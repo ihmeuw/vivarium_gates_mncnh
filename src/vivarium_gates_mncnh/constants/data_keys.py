@@ -267,6 +267,25 @@ class __NoAntibioticsRisk(NamedTuple):
 NO_ANTIBIOTICS_RISK = __NoAntibioticsRisk()
 
 
+class __NoProbioticsRisk(NamedTuple):
+    P_PROBIOTIC_HOME: str = "intervention.no_probiotics_risk.probability_probiotics_home"
+    P_PROBIOTIC_BEMONC: str = "intervention.no_probiotics_risk.probability_probiotics_bemonc"
+    P_PROBIOTIC_CEMONC: str = "intervention.no_probiotics_risk.probability_probiotics_cemonc"
+    RELATIVE_RISK: str = "intervention.no_probiotics_risk.relative_risk"
+    PAF: str = "intervention.no_probiotics_risk.population_attributable_fraction"
+
+    @property
+    def name(self):
+        return "no_probiotics_risk"
+
+    @property
+    def log_name(self):
+        return "no probiotics risk"
+
+
+NO_PROBIOTICS_RISK = __NoProbioticsRisk()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -282,6 +301,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_CPAP_RISK,
     FACILITY_CHOICE,
     NO_ANTIBIOTICS_RISK,
+    NO_PROBIOTICS_RISK,
 ]
 
 
@@ -292,4 +312,5 @@ REMAP_KEY_GROUPS = [
     NEONATAL_ENCEPHALOPATHY,
     NO_CPAP_RISK,
     NO_ANTIBIOTICS_RISK,
+    NO_PROBIOTICS_RISK,
 ]
