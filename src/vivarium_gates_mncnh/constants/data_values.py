@@ -93,6 +93,7 @@ class _SimulationEventNames(NamedTuple):
     DELIVERY_FACILITY = "delivery_facility"
     CPAP_ACCESS = "cpap_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
+    PROBIOTICS_ACCESS = "probiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -182,6 +183,7 @@ class __Columns(NamedTuple):
     CPAP_AVAILABLE = "cpap_available"
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
+    PROBIOTICS_AVAILABLE = "probiotics_available"
 
 
 COLUMNS = __Columns()

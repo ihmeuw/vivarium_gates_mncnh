@@ -70,14 +70,14 @@ class NeonatalInterventionAccess(Component):
             coverage_value,
         ) in self.coverage_values.items():
             facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
-            coverage_vlaue = (
+            coverage_value = (
                 coverage_value
                 if isinstance(coverage_value, float)
                 else coverage_value(facility_idx)
             )
             get_intervention_idx = self.randomness.filter_for_probability(
                 facility_idx,
-                coverage_vlaue,
+                coverage_value,
                 f"cpap_access_{facility_type}",
             )
             pop.loc[get_intervention_idx, self.intervention_column] = True
