@@ -64,6 +64,7 @@ def test_delivery_facility_proportions(
     [
         "antibiotics",
         "cpap",
+        "probiotics",
     ],
 )
 @pytest.mark.parametrize(

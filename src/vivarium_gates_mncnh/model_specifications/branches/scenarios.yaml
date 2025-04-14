@@ -11,3 +11,6 @@ branches:
         - "full_antibiotics_bemonc"
         - "full_antibiotics_cemonc"
         - "full_antibiotics_all"
+        - "full_probiotics_bemonc"
+        - "full_probiotics_cemonc"
+        - "full_probiotics_all"
