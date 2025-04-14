@@ -101,6 +101,11 @@ def get_data(
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_facility_probability,
         data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK: load_no_antibiotics_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.PAF: load_no_antibiotics_paf,
+        data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_HOME: load_probiotics_facility_probability,
+        data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_BEMONC: load_probiotics_facility_probability,
+        data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_CEMONC: load_probiotics_facility_probability,
+        data_keys.NO_PROBIOTICS_RISK.RELATIVE_RISK: load_no_probiotics_relative_risk,
+        data_keys.NO_PROBIOTICS_RISK.PAF: load_no_probiotics_paf,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -657,6 +662,61 @@ def load_no_antibiotics_paf(
     paf_no_antibiotic = paf_no_antibiotic.fillna(0.0)
 
     return utilities.set_non_neonnatal_values(paf_no_antibiotic, 0.0)
+
+
+def load_probiotics_facility_probability(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    # Currently no coverage
+    return data_values.PROBIOTICS_BASELINE_COVERAGE_PROABILITY
+
+
+def load_no_probiotics_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # Relative risk for no receieving intervention
+    rr_dist = data_values.PROBIOTICS_RELATIVE_RISK_DISTRIBUTION
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    return utilities.set_non_neonnatal_values(data, 1.0)
+
+
+def load_no_probiotics_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+
+    # Get all no_cpap data for calculations
+    csmr = get_data(data_keys.NEONATAL_SEPSIS.CSMR, location, years)
+    p_sepsis = csmr.copy()
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
+    p_probiotic_home = get_data(
+        data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_HOME, location, years
+    )
+    p_probiotic_BEmONC = get_data(
+        data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_BEMONC, location, years
+    )
+    p_probiotic_CEmONC = get_data(
+        data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_CEMONC, location, years
+    )
+    relative_risk = get_data(data_keys.NO_PROBIOTICS_RISK.RELATIVE_RISK, location, years)
+    # This is derived in the CPAP PAF calculation
+    p_sepsis_probiotic = p_sepsis / (
+        (p_home * (1 - p_probiotic_home) * relative_risk)
+        + (p_home * p_probiotic_home)
+        + (p_BEmONC * (1 - p_probiotic_BEmONC) * relative_risk)
+        + (p_CEmONC * (1 - p_probiotic_CEmONC) * relative_risk)
+        + (p_BEmONC * p_probiotic_BEmONC)
+        + (p_CEmONC * p_probiotic_CEmONC)
+    )
+    paf_no_probiotic = 1 - (p_sepsis_probiotic / p_sepsis)
+    paf_no_probiotic = paf_no_probiotic.fillna(0.0)
+
+    return utilities.set_non_neonnatal_values(paf_no_probiotic, 0.0)
 
 
 def reshape_to_vivarium_format(df, location):
