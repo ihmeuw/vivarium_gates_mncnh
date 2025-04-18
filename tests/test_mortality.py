@@ -201,11 +201,11 @@ def test_neonatal_csmr(
         len(enn_death_idx),
         len(enn_live_birth_idx),
         enn_csmr,
-        name=f"early_neonatal_{sex}_neonatal_acmr",
+        name=f"early_neonatal_{sex}_neonatal_{cause_of_death}",
     )
     fuzzy_checker.fuzzy_assert_proportion(
         len(lnn_death_idx),
         len(lnn_live_birth_idx),
         lnn_csmr,
-        name=f"late_neonatal_{sex}_neonatal_acmr",
+        name=f"late_neonatal_{sex}_neonatal_{cause_of_death}",
     )
