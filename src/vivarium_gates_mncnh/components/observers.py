@@ -67,6 +67,7 @@ class ResultsStratifier(ResultsStratifier_):
         builder.results.register_stratification(
             "child_age_group",
             self.child_age_bins["age_group_name"].to_list(),
+            excluded_categories=["stillbirth"],
             mapper=self.map_child_age_groups,
             is_vectorized=True,
             requires_columns=[COLUMNS.CHILD_AGE],
@@ -177,12 +178,14 @@ class BurdenObserver(Observer):
         alive_column: str,
         ylls_column: str,
         cause_of_death_column: str,
+        excluded_causes: list[str] = [],
     ):
         super().__init__()
         self.burden_disorders = burden_disorders
         self.alive_column = alive_column
         self.ylls_column = ylls_column
         self.cause_of_death_column = cause_of_death_column
+        self.excluded_causes = excluded_causes
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -195,7 +198,7 @@ class BurdenObserver(Observer):
         builder.results.register_stratification(
             name=f"{self.name}_cause_of_death",
             categories=self.burden_disorders + ["not_dead"],
-            excluded_categories=["not_dead"],
+            excluded_categories=["not_dead"] + self.excluded_causes,
             requires_columns=[self.cause_of_death_column],
         )
 
@@ -205,7 +208,7 @@ class BurdenObserver(Observer):
             requires_columns=[self.alive_column],
             additional_stratifications=self.configuration.include
             + [f"{self.name}_cause_of_death"],
-            excluded_stratifications=self.configuration.exclude,
+            excluded_stratifications=self.configuration.exclude + self.excluded_causes,
             to_observe=self.to_observe,
         )
         builder.results.register_adding_observation(
@@ -214,7 +217,7 @@ class BurdenObserver(Observer):
             requires_columns=[self.alive_column, self.ylls_column],
             additional_stratifications=self.configuration.include
             + [f"{self.name}_cause_of_death"],
-            excluded_stratifications=self.configuration.exclude,
+            excluded_stratifications=self.configuration.exclude + self.excluded_causes,
             to_observe=self.to_observe,
             aggregator=self.calculate_ylls,
         )
@@ -318,10 +321,19 @@ class NeonatalBurdenObserver(BurdenObserver):
 
     def __init__(self):
         super().__init__(
-            burden_disorders=CAUSES_OF_NEONATAL_MORTALITY + ["other_causes"],
+            burden_disorders=CAUSES_OF_NEONATAL_MORTALITY
+            + ["other_causes"]
+            + [
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+            ],
             alive_column=COLUMNS.CHILD_ALIVE,
             ylls_column=COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
             cause_of_death_column=COLUMNS.CHILD_CAUSE_OF_DEATH,
+            excluded_causes=[
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+            ],
         )
 
     def register_observations(self, builder: Builder) -> None:
@@ -347,7 +359,7 @@ class NeonatalBurdenObserver(BurdenObserver):
                 pop_filter=f"{self.cause_of_death_column} == '{cause}'",
                 requires_columns=[self.cause_of_death_column],
                 additional_stratifications=self.configuration.include,
-                excluded_stratifications=self.configuration.exclude,
+                excluded_stratifications=self.configuration.exclude + self.excluded_causes,
                 to_observe=self.to_observe,
             )
 
