@@ -1,0 +1,88 @@
+plugins:
+    required:
+        clock:
+            controller: vivarium_gates_mncnh.plugins.time.EventClock
+            builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
+
+components:
+    vivarium_gates_mncnh:
+        components:
+            - AgelessPopulation("population.scaling_factor")
+            - Pregnancy()
+            - ResultsStratifier()
+            - BirthObserver()
+            - AntenatalCare()
+            - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
+            - MaternalDisorder("maternal_hemorrhage")
+            - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - MaternalDisordersBurden()
+            - LBWSGRisk()
+            - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate')
+            - PretermBirth('neonatal_preterm_birth_with_rds')
+            - PretermBirth('neonatal_preterm_birth_without_rds')
+            - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
+            - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
+            - NeonatalMortality()
+            # - NeonatalNoInterventionRisk('cpap')
+            # - NeonatalNoInterventionRisk('antibiotics')
+            # - NeonatalNoInterventionRisk('probiotics')
+            - DeliveryFacility()
+            # - NeonatalInterventionAccess('cpap')
+            # - NeonatalInterventionAccess('antibiotics')
+            # - NeonatalInterventionAccess('probiotics')
+            # Add model observers below here
+            - ANCObserver()
+            - MaternalDisordersBurdenObserver()
+            - NeonatalBurdenObserver()
+            - NeonatalCauseRelativeRiskObserver()
+            # - NeonatalInterventionObserver('cpap')
+            # - NeonatalInterventionObserver('antibiotics')
+            # - NeonatalInterventionObserver('probiotics')
+
+configuration:
+    input_data:
+        input_draw_number: 0
+        artifact_path: /home/albrja/scratch/artifacts/ethiopia.hdf
+        # artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/probiotics/ethiopia.hdf"
+    interpolation:
+        order: 0
+        extrapolate: True
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time', 'age']
+        random_seed: 0
+    time:
+        start:
+            year: 2025
+            month: 1
+            day: 1
+        simulation_events: 
+            - 'pregnancy'
+            - 'delivery_facility'
+            - 'cpap_access'
+            - 'antibiotics_access'
+            - 'probiotics_access'
+            - 'maternal_obstructed_labor_and_uterine_rupture'
+            - 'maternal_hemorrhage'
+            - 'maternal_sepsis_and_other_maternal_infections'
+            - 'mortality'
+            - 'early_neonatal_mortality'
+            - 'late_neonatal_mortality'
+
+    population:
+        population_size: 200_000
+        initialization_age_min: 10
+        initialization_age_max: 54
+        include_sex: "Female"
+    
+    stratification:
+        default:
+            - 'age_group'
+
+    intervention:
+        scenario:
+            'baseline'

@@ -310,9 +310,9 @@ class NeonatalBurdenObserver(BurdenObserver):
                     "include": [
                         "child_age_group",
                         "child_sex",
-                        "cpap_availability",
-                        "antibiotics_availability",
-                        "probiotics_availability",
+                        # "cpap_availability",
+                        # "antibiotics_availability",
+                        # "probiotics_availability",
                         "delivery_facility_type",
                     ],
                 },
@@ -338,21 +338,21 @@ class NeonatalBurdenObserver(BurdenObserver):
 
     def register_observations(self, builder: Builder) -> None:
         super().register_observations(builder)
-        builder.results.register_stratification(
-            "cpap_availability",
-            [True, False],
-            requires_columns=[COLUMNS.CPAP_AVAILABLE],
-        )
-        builder.results.register_stratification(
-            "antibiotics_availability",
-            [True, False],
-            requires_columns=[COLUMNS.ANTIBIOTICS_AVAILABLE],
-        )
-        builder.results.register_stratification(
-            "probiotics_availability",
-            [True, False],
-            requires_columns=[COLUMNS.PROBIOTICS_AVAILABLE],
-        )
+        # builder.results.register_stratification(
+        #     "cpap_availability",
+        #     [True, False],
+        #     requires_columns=[COLUMNS.CPAP_AVAILABLE],
+        # )
+        # builder.results.register_stratification(
+        #     "antibiotics_availability",
+        #     [True, False],
+        #     requires_columns=[COLUMNS.ANTIBIOTICS_AVAILABLE],
+        # )
+        # builder.results.register_stratification(
+        #     "probiotics_availability",
+        #     [True, False],
+        #     requires_columns=[COLUMNS.PROBIOTICS_AVAILABLE],
+        # )
         for cause in self.burden_disorders:
             builder.results.register_adding_observation(
                 name=f"{cause}_death_counts",
