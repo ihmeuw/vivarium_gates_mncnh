@@ -394,6 +394,8 @@ class NeonatalCauseRelativeRiskObserver(Observer):
         for cause in self.neonatal_causes:
             builder.results.register_adding_observation(
                 name=f"{cause}_relative_risk",
+                pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+                requires_columns=[COLUMNS.PREGNANCY_OUTCOME],
                 requires_values=[
                     f"effect_of_low_birth_weight_and_short_gestation_on_{cause}.relative_risk"
                 ],
