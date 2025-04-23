@@ -189,11 +189,7 @@ def rate_to_probability(
 ) -> NumericArray:
 
     # TODO: New version of this equation should be documented
-    # probability = rate * duration_scaling_factor
-    # Old version
-    rate = np.array(rate)
-    rate[rate > 250] = 250.0
-    probability: NumericArray = 1 - np.exp(-rate * duration_scaling_factor)
+    probability = rate * duration_scaling_factor
     return probability
 
 
