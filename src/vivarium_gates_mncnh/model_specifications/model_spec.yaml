@@ -36,7 +36,7 @@ components:
             - NeonatalInterventionAccess('probiotics')
             # Add model observers below here
             - ANCObserver()
-            # - MaternalDisordersBurdenObserver()
+            - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
             - NeonatalInterventionObserver('cpap')
