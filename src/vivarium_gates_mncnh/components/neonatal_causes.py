@@ -5,6 +5,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.values import Pipeline
+from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
@@ -49,7 +50,8 @@ class NeonatalCause(Component):
             f"{self.neonatal_cause}.cause_specific_mortality_rate",
             source=self.get_normalized_csmr,
             component=self,
-            required_resources=required_pipeline_resources,
+            required_resources=get_lookup_columns([self.lookup_tables["csmr"]])
+            + required_pipeline_resources,
         )
         self.final_csmr = builder.value.register_value_producer(
             f"{self.neonatal_cause}.csmr",
@@ -80,11 +82,11 @@ class NeonatalCause(Component):
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
-        raw_csmr = self.lookup_tables["csmr"](index)
-        normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
-        normalized_csmr = raw_csmr * normalizing_constant
+        return self.lookup_tables["csmr"](index)
+        # normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
+        # normalized_csmr = raw_csmr * normalizing_constant
 
-        return normalized_csmr
+        # return normalized_csmr
 
     def modify_death_in_age_group_probability(
         self, index: pd.Index, probability_death_in_age_group: pd.Series

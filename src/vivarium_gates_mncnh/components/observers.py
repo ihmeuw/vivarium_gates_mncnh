@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     MATERNAL_DISORDERS,
+    NEONATAL_CAUSES,
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -382,7 +383,10 @@ class NeonatalCauseRelativeRiskObserver(Observer):
 
     def __init__(self):
         super().__init__()
-        self.neonatal_causes = CAUSES_OF_NEONATAL_MORTALITY + ["all_causes"]
+        self.neonatal_causes = [
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS,
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS,
+        ] + ["all_causes"]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
