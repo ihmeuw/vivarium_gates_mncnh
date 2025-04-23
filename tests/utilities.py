@@ -23,6 +23,6 @@ def get_births_and_deaths_idx(
     pop = pop.query(pop_filters[step_name])
     live_birth_idx = pop.index[
         pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
-    ]
+    ] 
     death_idx = pop.index[pop[COLUMNS.CHILD_CAUSE_OF_DEATH].isin(causes_of_death)]
     return death_idx, live_birth_idx
