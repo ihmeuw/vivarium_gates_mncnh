@@ -36,6 +36,11 @@ from vivarium_gates_mncnh.constants.data_values import (
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
+REVERSE_CHILD_LOOKUP_COLUMN_MAPPER = {
+    "sex_of_child": "sex",
+    "child_age_start": "age_start",
+    "child_age_end": "age_end",
+}
 
 
 class LBWSGRisk(LBWSGRisk_):
@@ -203,6 +208,55 @@ class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
     """Risk effect component for calculating PAFs for LBWSG. This is only used in a
     separate simulation to calculate the PAFs for the LBWSG risk effect."""
 
+    def get_interpolator(self, builder: Builder) -> pd.Series:
+        age_start_to_age_group_name_map = {
+            interval.left: to_snake_case(age_group_name)
+            for age_group_name, interval in self.age_intervals.items()
+        }
+
+        # get relative risk data for target
+        interpolators = builder.data.load(f"{self.risk}.relative_risk_interpolator")
+        # Remap columns
+        interpolators = interpolators.rename(columns=REVERSE_CHILD_LOOKUP_COLUMN_MAPPER)
+        interpolators = (
+            # isolate RRs for target and drop non-neonatal age groups since they have RR == 1.0
+            interpolators[
+                interpolators["age_start"].isin(
+                    [interval.left for interval in self.age_intervals.values()]
+                )
+            ]
+            .drop(columns=["age_end", "year_start", "year_end"])
+            .set_index(["sex", "value"])
+            .apply(lambda row: (age_start_to_age_group_name_map[row["age_start"]]), axis=1)
+            .rename("age_group_name")
+            .reset_index()
+            .set_index(["sex", "age_group_name"])
+        )["value"]
+
+        interpolators = interpolators.apply(lambda x: pickle.loads(bytes.fromhex(x)))
+        return interpolators
+
+    def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
+        age_bins = builder.data.load("population.age_bins").set_index("age_start")
+        # Map to child column. Can't map in artifact since it is used for both mothers and children
+        relative_risks = builder.data.load(f"{self.risk}.relative_risk")
+        # Have to remap relative risk data to be normal age/sex columns
+        relative_risks = relative_risks.rename(columns=REVERSE_CHILD_LOOKUP_COLUMN_MAPPER)
+
+        # Filter groups where all 'value' entries are not equal to 1
+        filtered_groups = relative_risks.groupby("age_start").filter(
+            lambda x: (x["value"] != 1).any()
+        )
+        # Get unique 'age_start' values from the filtered groups
+        exposed_age_group_starts = filtered_groups["age_start"].unique()
+
+        return {
+            to_snake_case(age_bins.loc[age_start, "age_group_name"]): pd.Interval(
+                age_start, age_bins.loc[age_start, "age_end"]
+            )
+            for age_start in exposed_age_group_starts
+        }
+
     def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
         return 0, []
 
@@ -355,7 +409,9 @@ class LBWSGPAFObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
+        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE).rename(
+            columns=REVERSE_CHILD_LOOKUP_COLUMN_MAPPER
+        )
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
