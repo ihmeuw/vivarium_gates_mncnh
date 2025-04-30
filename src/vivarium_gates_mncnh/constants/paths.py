@@ -10,4 +10,4 @@ ARTIFACT_ROOT = Path(
 )
 
 CLUSTER_DATA_DIR = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data")
-PAF_DIR = CLUSTER_DATA_DIR / "lbwsg_paf/outputs"
+PAF_DIR = CLUSTER_DATA_DIR / "lbwsg_paf/test_new_paf"
