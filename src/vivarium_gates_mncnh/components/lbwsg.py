@@ -204,6 +204,11 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
 
+####################################
+# LBWSG PAF Calculation Components #
+####################################
+
+
 class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
     """Risk effect component for calculating PAFs for LBWSG. This is only used in a
     separate simulation to calculate the PAFs for the LBWSG risk effect."""
@@ -280,7 +285,7 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
         # TODO: remove when VPH is updated to handle this behavior
         configuration_defaults[self.name]["data_sources"][
             "exposure"
-        ] = f"{self.risk}.exposure"
+        ] = self._get_exposure_data
         configuration_defaults[self.name]["distribution_type"] = "lbwsg"
         return configuration_defaults
 
@@ -288,6 +293,12 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
         super().setup(builder)
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
         self.age_bins = builder.data.load(data_keys.POPULATION.AGE_BINS)
+
+    def _get_exposure_data(self, builder: Builder) -> pd.DataFrame:
+        # Use neonatal exposure for PAF calculation
+        exposure_data = builder.data.load(data_keys.LBWSG.EXPOSURE)
+        exposure_data = exposure_data.rename(columns=REVERSE_CHILD_LOOKUP_COLUMN_MAPPER)
+        return exposure_data
 
     def get_birth_exposure_pipelines(self, builder: Builder) -> dict[str, Pipeline]:
         def get_pipeline(axis_: str):
@@ -442,6 +453,7 @@ class LBWSGPAFObserver(Component):
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
         age_start = self.population_view.get(x.index).age_bin.iloc[0].left
+        sex = x["sex"].unique()[0]
         lbwsg_prevalence = self.lbwsg_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
@@ -449,9 +461,10 @@ class LBWSGPAFObserver(Component):
         lbwsg_prevalence = lbwsg_prevalence[
             np.isclose(self.lbwsg_exposure.age_start, age_start, atol=0.001)
         ]
-        lbwsg_prevalence = lbwsg_prevalence.groupby("lbwsg_category", as_index=False)[
-            "prevalence"
-        ].sum()
+        lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex"] == sex]
+        # lbwsg_prevalence = lbwsg_prevalence.groupby("lbwsg_category", as_index=False)[
+        #     "prevalence"
+        # ].sum()
 
         mean_rrs = (
             pd.concat([lbwsg_category, relative_risk], axis=1)
