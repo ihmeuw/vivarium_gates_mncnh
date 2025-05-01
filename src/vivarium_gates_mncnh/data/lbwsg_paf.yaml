@@ -1,9 +1,7 @@
 components:
-    vivarium_public_health:
-        results:
-            - ResultsStratifier()
     vivarium_gates_mncnh:
         components:
+            - PAFResultsStratifier()
             - EvenlyDistributedPopulation()
             - LBWSGPAFCalculationExposure()
             - LBWSGPAFCalculationRiskEffect('cause.all_causes.cause_specific_mortality_rate')
@@ -19,7 +17,7 @@ configuration:
         extrapolate: True
     randomness:
         map_size: 1_000_000
-        key_columns: ['entrance_time', 'age']
+        key_columns: ['entrance_time', 'child_age']
         random_seed: 0
     time:
         start:
@@ -42,5 +40,5 @@ configuration:
 
     stratification:
         default:
-            - 'age_group'
-            - 'sex'
+            - 'child_age_group'
+            - 'child_sex'

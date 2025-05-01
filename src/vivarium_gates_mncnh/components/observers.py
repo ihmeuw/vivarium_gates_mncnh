@@ -11,7 +11,6 @@ from vivarium_public_health.results import ResultsStratifier as ResultsStratifie
 
 from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
-    CHILD_INITIALIZATION_AGE,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     MATERNAL_DISORDERS,
@@ -20,12 +19,13 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
+from vivarium_gates_mncnh.utilities import get_child_age_bins
 
 
 class ResultsStratifier(ResultsStratifier_):
     def setup(self, builder: Builder) -> None:
         self.age_bins = self.get_age_bins(builder)
-        self.child_age_bins = self.get_child_age_bins(builder)
+        self.child_age_bins = get_child_age_bins(builder)
         self.delivery_facility_types = [
             DELIVERY_FACILITY_TYPES.HOME,
             DELIVERY_FACILITY_TYPES.BEmONC,
@@ -80,25 +80,37 @@ class ResultsStratifier(ResultsStratifier_):
             requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
         )
 
-    def get_child_age_bins(self, builder: Builder) -> pd.DataFrame:
-        age_bins_data = {
-            "child_age_start": [
-                0.0,
-                CHILD_INITIALIZATION_AGE,
-                7 / 365.0,
-            ],
-            "child_age_end": [
-                CHILD_INITIALIZATION_AGE,
-                7 / 365.0,
-                28 / 365.0,
-            ],
-            "age_group_name": [
-                "stillbirth",
-                "early_neonatal",
-                "late_neonatal",
-            ],
-        }
-        return pd.DataFrame(age_bins_data)
+    def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
+        # Overwriting to use child_age_bins
+        bins = self.child_age_bins["child_age_start"].to_list() + [
+            self.child_age_bins["child_age_end"].iloc[-1]
+        ]
+        labels = self.child_age_bins["age_group_name"].to_list()
+        age_group = pd.cut(pop.squeeze(axis=1), bins, labels=labels).rename("child_age_group")
+
+        return age_group
+
+
+class PAFResultsStratifier(ResultsStratifier_):
+    def setup(self, builder: Builder) -> None:
+        self.child_age_bins = get_child_age_bins(builder)
+        self.register_stratifications(builder)
+
+    def register_stratifications(self, builder: Builder) -> None:
+        builder.results.register_stratification(
+            "child_sex",
+            ["Female", "Male", "invalid"],
+            ["invalid"],
+            requires_columns=[COLUMNS.SEX_OF_CHILD],
+        )
+        builder.results.register_stratification(
+            "child_age_group",
+            self.child_age_bins["age_group_name"].to_list(),
+            excluded_categories=["stillbirth"],
+            mapper=self.map_child_age_groups,
+            is_vectorized=True,
+            requires_columns=[COLUMNS.CHILD_AGE],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
