@@ -37,6 +37,7 @@ CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
 
+
 class LBWSGRisk(LBWSGRisk_):
     @property
     def columns_required(self) -> list[str]:
