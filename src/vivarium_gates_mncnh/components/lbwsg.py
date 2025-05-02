@@ -367,7 +367,7 @@ class LBWSGPAFObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE)
+        self.lbwsg_exposure = self._load_custom_paf_exposure(builder)
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
@@ -419,3 +419,23 @@ class LBWSGPAFObserver(Component):
         paf = (mean_rr - 1) / mean_rr
 
         return paf
+
+    def _load_custom_paf_exposure(self, builder: Builder) -> pd.DataFrame:
+        """Loads custom exposure data for the PAF simulation. This swaps the birth
+        exposure with the early neonatal exposure for the early neonatal age group.
+        TODO: potentially switch ENN for LNN exposure depending on how this validates.
+        """
+        birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
+        neonatal_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE)
+        col_order = neonatal_exposure.columns.tolist()
+        enn_exposure = neonatal_exposure.loc[neonatal_exposure["child_age_end"] < 8 / 365.0]
+        enn_exposure = enn_exposure.drop(columns=["value"])
+        new_enn_exposure = pd.merge(
+            birth_exposure,
+            enn_exposure,
+            on=["sex_of_child", "year_start", "year_end", "parameter"],
+        )
+        exposure = neonatal_exposure.loc[neonatal_exposure["child_age_start"] > 6 / 365.0]
+
+        final_exposure = pd.concat([new_enn_exposure, exposure])
+        return final_exposure[col_order]
