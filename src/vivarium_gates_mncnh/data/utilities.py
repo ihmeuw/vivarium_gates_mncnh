@@ -6,7 +6,7 @@ from vivarium.framework.artifact import EntityKey
 from vivarium.framework.randomness import get_hash
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
-from vivarium_gates_mncnh.constants.data_keys import LBWSG, REMAP_KEY_GROUPS
+from vivarium_gates_mncnh.constants.data_keys import REMAP_KEY_GROUPS
 from vivarium_gates_mncnh.constants.metadata import (
     ARTIFACT_COLUMNS,
     ARTIFACT_INDEX_COLUMNS,
@@ -110,8 +110,5 @@ def determine_if_remap_group(key: str) -> bool:
     """Determine whether the artifact key is in a key group that needs to be remapped
     for the children demographic columns."""
 
-    # Special case LBWSG PAFs
-    if key == LBWSG.PAF:
-        return True
     to_remap = any(group.name in key for group in REMAP_KEY_GROUPS)
     return to_remap
