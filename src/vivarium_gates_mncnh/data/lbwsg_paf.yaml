@@ -1,9 +1,7 @@
 components:
-    vivarium_public_health:
-        results:
-            - ResultsStratifier()
     vivarium_gates_mncnh:
         components:
+            - PAFResultsStratifier()
             - EvenlyDistributedPopulation()
             - LBWSGPAFCalculationExposure()
             - LBWSGPAFCalculationRiskEffect('cause.all_causes.cause_specific_mortality_rate')
@@ -13,13 +11,13 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/paf/nigeria.hdf'
+        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/probiotics/ethiopia.hdf'
     interpolation:
         order: 0
         extrapolate: True
     randomness:
         map_size: 1_000_000
-        key_columns: ['entrance_time', 'age']
+        key_columns: ['entrance_time', 'child_age']
         random_seed: 0
     time:
         start:
@@ -32,7 +30,7 @@ configuration:
             day: 2
         step_size: 3 # Days
     population:
-        population_size: 195_112
+        population_size: 389_992
         initialization_age_min: 0
         initialization_age_max: 0.03835616 # 14 days
         untracking_age: 0.03835616 # 14 days
@@ -42,5 +40,5 @@ configuration:
 
     stratification:
         default:
-            - 'age_group'
-            - 'sex'
+            - 'child_age_group'
+            - 'child_sex'

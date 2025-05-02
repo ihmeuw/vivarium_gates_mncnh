@@ -18,6 +18,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
     PIPELINES,
+    PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
@@ -198,6 +199,13 @@ class NeonatalMortality(Component):
         return [
             COLUMNS.CHILD_AGE,
             COLUMNS.CHILD_ALIVE,
+            COLUMNS.PREGNANCY_OUTCOME,
+        ]
+
+    @property
+    def initialization_requirements(self):
+        return [
+            COLUMNS.PREGNANCY_OUTCOME,
         ]
 
     #####################
@@ -249,6 +257,17 @@ class NeonatalMortality(Component):
             },
             index=pop_data.index,
         )
+        pregnancy_outcomes = self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(
+            pop_data.index
+        )
+        for outcome in [
+            PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+            PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+        ]:
+            outcome_idx = pregnancy_outcomes.index[
+                pregnancy_outcomes[COLUMNS.PREGNANCY_OUTCOME] == outcome
+            ]
+            pop_update.loc[outcome_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = outcome
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:

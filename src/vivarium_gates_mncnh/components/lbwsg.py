@@ -199,7 +199,12 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
 
-class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
+####################################
+# LBWSG PAF Calculation Components #
+####################################
+
+
+class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect):
     """Risk effect component for calculating PAFs for LBWSG. This is only used in a
     separate simulation to calculate the PAFs for the LBWSG risk effect."""
 
@@ -207,10 +212,10 @@ class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect_):
         return 0, []
 
 
-class LBWSGPAFCalculationExposure(LBWSGRisk_):
+class LBWSGPAFCalculationExposure(LBWSGRisk):
     @property
     def columns_required(self) -> list[str] | None:
-        return ["age", "sex"]
+        return ["child_age", "sex_of_child"]
 
     @property
     def columns_created(self) -> list[str]:
@@ -240,7 +245,7 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
             return builder.value.register_value_producer(
                 self.birth_exposure_pipeline_name(axis_),
                 source=lambda index: self.get_birth_exposure(axis_, index),
-                requires_columns=["age", "sex"],
+                requires_columns=["child_age", "sex_of_child"],
                 preferred_post_processor=get_exposure_post_processor(builder, self.risk),
             )
 
@@ -253,9 +258,9 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        pop = self.population_view.subview(["age", "sex"]).get(pop_data.index)
-        pop["age_bin"] = pd.cut(pop["age"], self.age_bins["age_start"])
-        pop = pop.sort_values(["sex", "age"])
+        pop = self.population_view.subview(["child_age", "sex_of_child"]).get(pop_data.index)
+        pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
+        pop = pop.sort_values(["sex_of_child", "child_age"])
 
         lbwsg_categories = self.lbwsg_categories.keys()
         num_repeats, remainder = divmod(len(pop), 2 * len(lbwsg_categories))
@@ -283,7 +288,9 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
     ##################################
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        pop = self.population_view.subview(["age_bin", "sex", "lbwsg_category"]).get(index)
+        pop = self.population_view.subview(["age_bin", "sex_of_child", "lbwsg_category"]).get(
+            index
+        )
         lbwsg_categories = self.lbwsg_categories.keys()
         num_simulants_in_category = int(len(pop) / (len(lbwsg_categories) * 4))
         num_points_in_interval = int(math.sqrt(num_simulants_in_category))
@@ -328,7 +335,7 @@ class LBWSGPAFCalculationExposure(LBWSGRisk_):
             subset_index = pop[
                 (pop["lbwsg_category"] == cat)
                 & (pop["age_bin"] == age_bin)
-                & (pop["sex"] == sex)
+                & (pop["sex_of_child"] == sex)
             ].index
             exposure_values.loc[subset_index] = lbwsg_exposures[axis].values
 
@@ -355,7 +362,7 @@ class LBWSGPAFObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
+        self.lbwsg_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE)
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
@@ -363,9 +370,9 @@ class LBWSGPAFObserver(Component):
 
         builder.results.register_adding_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
-            pop_filter='alive == "alive"',
+            pop_filter='child_alive == "alive"',
             aggregator=self.calculate_paf,
-            requires_columns=["alive"],
+            requires_columns=["child_alive"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
@@ -373,9 +380,9 @@ class LBWSGPAFObserver(Component):
         # Add observer to get paf for preterm birth population
         builder.results.register_adding_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
-            pop_filter='alive == "alive" and gestational_age_exposure < 37',
+            pop_filter='child_alive == "alive" and gestational_age_exposure < 37',
             aggregator=self.calculate_paf,
-            requires_columns=["alive", "gestational_age_exposure"],
+            requires_columns=["child_alive", "gestational_age_exposure"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
@@ -386,16 +393,15 @@ class LBWSGPAFObserver(Component):
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
         age_start = self.population_view.get(x.index).age_bin.iloc[0].left
+        sex = x["sex_of_child"].unique()[0]
         lbwsg_prevalence = self.lbwsg_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
         # Subset to age group for exposure - have to use np.isclose because age_start is rounded
         lbwsg_prevalence = lbwsg_prevalence[
-            np.isclose(self.lbwsg_exposure.age_start, age_start, atol=0.001)
+            np.isclose(self.lbwsg_exposure.child_age_start, age_start, atol=0.001)
         ]
-        lbwsg_prevalence = lbwsg_prevalence.groupby("lbwsg_category", as_index=False)[
-            "prevalence"
-        ].sum()
+        lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex_of_child"] == sex]
 
         mean_rrs = (
             pd.concat([lbwsg_category, relative_risk], axis=1)
