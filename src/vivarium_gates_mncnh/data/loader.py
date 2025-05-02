@@ -431,7 +431,7 @@ def load_paf_data(
     df["age_end"] = df["child_age_group"].replace(age_end_dict)
     df["year_start"] = 2021
     df["year_end"] = 2022
-    df = df.drop("age_group", axis=1)
+    df = df.drop("child_age_group", axis=1)
     df = df.rename(columns={"child_sex": "sex_of_child"})
     index_columns = [
         "sex)of_child",
