@@ -241,21 +241,11 @@ class __Pipelines(NamedTuple):
     NEONATAL_ENCEPHALOPATHY_FINAL_CSMR = (
         "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.csmr"
     )
-    PRETERM_WITH_RDS_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk",
-    )
-    PRETERM_WITHOUT_RDS_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk",
-    )
-    NEONATAL_SEPSIS_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk",
-    )
-    NEONATAL_ENCEPHALOPATHY_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk",
-    )
-    ACMR_RR = (
-        "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_all_causes.cause_specific_mortality_rate",
-    )
+    PRETERM_WITH_RDS_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk"
+    PRETERM_WITHOUT_RDS_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk"
+    NEONATAL_SEPSIS_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk"
+    NEONATAL_ENCEPHALOPATHY_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk"
+    ACMR_RR = "effect_of_low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
     PREGNANCY_DURATION = "pregnancy_duration"

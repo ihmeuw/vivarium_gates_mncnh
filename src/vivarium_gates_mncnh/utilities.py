@@ -206,3 +206,26 @@ def get_uniform_distribution_from_limits(lower_limit, upper_limit) -> stats.unif
     loc = lower_limit
     scale = upper_limit - lower_limit
     return stats.uniform(loc=loc, scale=scale)
+
+
+def get_child_age_bins(_: Builder) -> pd.DataFrame:
+    from vivarium_gates_mncnh.constants.data_values import CHILD_INITIALIZATION_AGE
+
+    age_bins_data = {
+        "child_age_start": [
+            0.0,
+            CHILD_INITIALIZATION_AGE,
+            7 / 365.0,
+        ],
+        "child_age_end": [
+            CHILD_INITIALIZATION_AGE,
+            7 / 365.0,
+            28 / 365.0,
+        ],
+        "age_group_name": [
+            "stillbirth",
+            "early_neonatal",
+            "late_neonatal",
+        ],
+    }
+    return pd.DataFrame(age_bins_data)
