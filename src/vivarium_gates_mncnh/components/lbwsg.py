@@ -36,11 +36,6 @@ from vivarium_gates_mncnh.constants.data_values import (
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
-REVERSE_CHILD_LOOKUP_COLUMN_MAPPER = {
-    "sex_of_child": "sex",
-    "child_age_start": "age_start",
-    "child_age_end": "age_end",
-}
 
 
 class LBWSGRisk(LBWSGRisk_):
