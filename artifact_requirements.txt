@@ -11,6 +11,7 @@ pandas
 pyyaml
 scipy
 tables
+# Make sure you use the new version of vivarium_inputs
 vivarium_inputs>=5.0.0
 # Note viv_in is not install with [data] extra because we might need to specify the branch
 # for viv_in for the data requirements
