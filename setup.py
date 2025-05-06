@@ -9,6 +9,7 @@ from setuptools import find_packages, setup
 with open("python_versions.json", "r") as f:
     supported_python_versions = json.load(f)
 
+# Parse the python versions the project can use
 python_versions = [parse(v) for v in supported_python_versions]
 min_version = min(python_versions)
 max_version = max(python_versions)
