@@ -81,6 +81,44 @@ configuration:
     stratification:
         default:
             - 'age_group'
+        birth:
+            exclude:
+                - 'age_group'
+            include:
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'pregnancy_outcome'
+        neonatal_burden:
+            exclude:
+                - 'age_group'
+            include:
+                - 'child_age_group'
+                - 'child_sex'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'delivery_facility_type'
+        neonatal_cause_relative_risk:
+            exclude:
+                - 'age_group'
+            include:
+                - 'child_age_group'
+                - 'child_sex'
+        neonatal_intervention_cpap:
+            exclude:
+                - 'age_group'
+            include:
+                - 'delivery_facility_type'
+        neonatal_intervention_antibiotics:
+            exclude:
+                - 'age_group'
+            include:
+                - 'delivery_facility_type'
+        neonatal_intervention_probiotics:
+            exclude:
+                - 'age_group'
+            include:
+                - 'delivery_facility_type'
 
     intervention:
         scenario:

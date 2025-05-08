@@ -124,16 +124,16 @@ class PAFResultsStratifier(ResultsStratifier_):
 
 
 class BirthObserver(Observer):
-    @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        return {
-            "stratification": {
-                self.get_configuration_name(): {
-                    "exclude": ["age_group"],
-                    "include": ["child_sex", "pregnancy_outcome", "delivery_facility_type"],
-                },
-            },
-        }
+    # @property
+    # def configuration_defaults(self) -> dict[str, Any]:
+    #     return {
+    #         "stratification": {
+    #             self.get_configuration_name(): {
+    #                 "exclude": ["age_group"],
+    #                 "include": ["child_sex", "pregnancy_outcome", "delivery_facility_type"],
+    #             },
+    #         },
+    #     }
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -311,15 +311,8 @@ class NeonatalBurdenObserver(BurdenObserver):
         return {
             "stratification": {
                 self.get_configuration_name(): {
-                    "exclude": ["age_group"],
-                    "include": [
-                        "child_age_group",
-                        "child_sex",
-                        "cpap_availability",
-                        "antibiotics_availability",
-                        "probiotics_availability",
-                        "delivery_facility_type",
-                    ],
+                    "exclude": [],
+                    "include": [],
                 },
             },
         }
@@ -379,8 +372,8 @@ class NeonatalCauseRelativeRiskObserver(Observer):
         return {
             "stratification": {
                 self.get_configuration_name(): {
-                    "exclude": ["age_group"],
-                    "include": ["child_age_group", "child_sex"],
+                    "exclude": [],
+                    "include": [],
                 },
             },
         }
@@ -421,8 +414,8 @@ class NeonatalInterventionObserver(Observer):
         return {
             "stratification": {
                 f"{self.get_configuration_name()}_{self.intervention}": {
-                    "exclude": ["age_group"],
-                    "include": ["delivery_facility_type"],
+                    "exclude": [],
+                    "include": [],
                 },
             },
         }
