@@ -427,12 +427,19 @@ def load_paf_data(
 
     age_start_dict = {"early_neonatal": 0.0, "late_neonatal": 0.01917808}
     age_end_dict = {"early_neonatal": 0.01917808, "late_neonatal": 0.07671233}
-    df["age_start"] = df["age_group"].replace(age_start_dict)
-    df["age_end"] = df["age_group"].replace(age_end_dict)
+    df["age_start"] = df["child_age_group"].replace(age_start_dict)
+    df["age_end"] = df["child_age_group"].replace(age_end_dict)
     df["year_start"] = 2021
     df["year_end"] = 2022
-    df = df.drop("age_group", axis=1)
-    index_columns = ["sex", "age_start", "age_end", "year_start", "year_end"]
+    df = df.drop("child_age_group", axis=1)
+    df = df.rename(columns={"child_sex": "sex"})
+    index_columns = [
+        "sex",
+        "age_start",
+        "age_end",
+        "year_start",
+        "year_end",
+    ]
     df = df.set_index(index_columns)
     unaffected_age_groups = [(0.07671233, 1.0), (1.0, 5.0)]
     for age_start, age_end in unaffected_age_groups:
