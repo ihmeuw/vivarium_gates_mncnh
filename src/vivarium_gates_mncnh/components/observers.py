@@ -124,37 +124,30 @@ class PAFResultsStratifier(ResultsStratifier_):
 
 
 class BirthObserver(Observer):
-
-    COL_MAPPING = {
-        COLUMNS.SEX_OF_CHILD: "sex",
-        COLUMNS.BIRTH_WEIGHT_EXPOSURE: "birth_weight",
-        COLUMNS.GESTATIONAL_AGE_EXPOSURE: "gestational_age",
-        COLUMNS.PREGNANCY_OUTCOME: "pregnancy_outcome",
-    }
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": ["age_group"],
+                    "include": ["child_sex", "pregnancy_outcome", "delivery_facility_type"],
+                },
+            },
+        }
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
+    def get_configuration(self, builder: Builder) -> dict[str, Any]:
+        return builder.configuration["stratification"][self.get_configuration_name()]
+
     def register_observations(self, builder: Builder) -> None:
-        # TODO: update this to adding observation when docs are ready
-        builder.results.register_concatenating_observation(
+        builder.results.register_adding_observation(
             name="births",
-            pop_filter=(
-                "("
-                f"pregnancy_outcome == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}' "
-                f"or pregnancy_outcome == '{PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME}'"
-                ") "
-            ),
-            requires_columns=list(self.COL_MAPPING) + [COLUMNS.DELIVERY_FACILITY_TYPE],
-            results_formatter=self.format,
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
         )
-
-    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
-        new_births = results[
-            list(self.COL_MAPPING) + [COLUMNS.DELIVERY_FACILITY_TYPE]
-        ].rename(columns=self.COL_MAPPING)
-        return new_births
 
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.CPAP_ACCESS
