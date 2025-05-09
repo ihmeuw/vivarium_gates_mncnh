@@ -191,9 +191,10 @@ def rate_to_probability(
     # for rates greater than 250, exp(-rate) evaluates to 1e-109
     # beware machine-specific floating point issues
 
-    rate = np.array(rate)
-    rate[rate > 250] = 250.0
-    probability: NumericArray = 1 - np.exp(-rate * duration_scaling_factor)
+    # rate = np.array(rate)
+    # rate[rate > 250] = 250.0
+    # probability: NumericArray = 1 - np.exp(-rate * duration_scaling_factor)
+    probability = rate * duration_scaling_factor
 
     return probability
 
