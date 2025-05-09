@@ -79,18 +79,15 @@ configuration:
         include_sex: "Female"
     
     stratification:
-        default:
-            - 'age_group'
         birth:
-            exclude:
-                - 'age_group'
             include:
-                - 'child_age_group'
+                - 'child_sex'
                 - 'delivery_facility_type'
                 - 'pregnancy_outcome'
-        neonatal_burden:
-            exclude:
+        maternal_disorders_burden:
+            include:
                 - 'age_group'
+        neonatal_burden:
             include:
                 - 'child_age_group'
                 - 'child_sex'
@@ -99,24 +96,16 @@ configuration:
                 - 'probiotics_availability'
                 - 'delivery_facility_type'
         neonatal_cause_relative_risk:
-            exclude:
-                - 'age_group'
             include:
                 - 'child_age_group'
                 - 'child_sex'
         neonatal_intervention_cpap:
-            exclude:
-                - 'age_group'
             include:
                 - 'delivery_facility_type'
         neonatal_intervention_antibiotics:
-            exclude:
-                - 'age_group'
             include:
                 - 'delivery_facility_type'
-        neonatal_intervention_probiotics:
-            exclude:
-                - 'age_group'
+        neonatal_intervention_probiotics: 
             include:
                 - 'delivery_facility_type'
 

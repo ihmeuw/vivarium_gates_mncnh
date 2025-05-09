@@ -3,6 +3,7 @@ from functools import partial
 from typing import Any
 
 import pandas as pd
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.results import Observer
@@ -52,7 +53,7 @@ class ResultsStratifier(ResultsStratifier_):
                     PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
                 ]
             ),
-            requires_columns=["pregnancy_outcome"],
+            requires_columns=[COLUMNS.PREGNANCY_OUTCOME],
         )
 
         builder.results.register_stratification(
@@ -75,7 +76,6 @@ class ResultsStratifier(ResultsStratifier_):
         builder.results.register_stratification(
             "delivery_facility_type",
             self.delivery_facility_types,
-            excluded_categories=[DELIVERY_FACILITY_TYPES.NONE],
             is_vectorized=True,
             requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
         )
@@ -124,17 +124,6 @@ class PAFResultsStratifier(ResultsStratifier_):
 
 
 class BirthObserver(Observer):
-    # @property
-    # def configuration_defaults(self) -> dict[str, Any]:
-    #     return {
-    #         "stratification": {
-    #             self.get_configuration_name(): {
-    #                 "exclude": ["age_group"],
-    #                 "include": ["child_sex", "pregnancy_outcome", "delivery_facility_type"],
-    #             },
-    #         },
-    #     }
-
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
@@ -150,7 +139,7 @@ class BirthObserver(Observer):
         )
 
     def to_observe(self, event: Event) -> bool:
-        return self._sim_step_name() == SIMULATION_EVENT_NAMES.CPAP_ACCESS
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
 class ANCObserver(Observer):
@@ -306,17 +295,6 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
 class NeonatalBurdenObserver(BurdenObserver):
     """Observer to capture death counts and ylls for neonatal sub causes."""
 
-    @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        return {
-            "stratification": {
-                self.get_configuration_name(): {
-                    "exclude": [],
-                    "include": [],
-                },
-            },
-        }
-
     def __init__(self):
         super().__init__(
             burden_disorders=CAUSES_OF_NEONATAL_MORTALITY
@@ -351,13 +329,13 @@ class NeonatalBurdenObserver(BurdenObserver):
             [True, False],
             requires_columns=[COLUMNS.PROBIOTICS_AVAILABLE],
         )
-        for cause in self.burden_disorders:
+        for cause in set(self.burden_disorders) - set(self.excluded_causes):
             builder.results.register_adding_observation(
                 name=f"{cause}_death_counts",
                 pop_filter=f"{self.cause_of_death_column} == '{cause}'",
                 requires_columns=[self.cause_of_death_column],
                 additional_stratifications=self.configuration.include,
-                excluded_stratifications=self.configuration.exclude + self.excluded_causes,
+                excluded_stratifications=self.configuration.exclude,
                 to_observe=self.to_observe,
             )
 
@@ -367,17 +345,6 @@ class NeonatalBurdenObserver(BurdenObserver):
 
 
 class NeonatalCauseRelativeRiskObserver(Observer):
-    @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        return {
-            "stratification": {
-                self.get_configuration_name(): {
-                    "exclude": [],
-                    "include": [],
-                },
-            },
-        }
-
     def __init__(self):
         super().__init__()
         self.neonatal_causes = CAUSES_OF_NEONATAL_MORTALITY + ["all_causes"]
@@ -411,13 +378,15 @@ class NeonatalCauseRelativeRiskObserver(Observer):
 class NeonatalInterventionObserver(Observer):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """A dictionary containing the defaults for any configurations managed by
+        this component.
+        """
         return {
             "stratification": {
-                f"{self.get_configuration_name()}_{self.intervention}": {
-                    "exclude": [],
-                    "include": [],
-                },
-            },
+                f"neonatal_intervention_{self.intervention}": super().configuration_defaults[
+                    "stratification"
+                ][self.get_configuration_name()]
+            }
         }
 
     def __init__(self, intervention: str) -> None:
@@ -427,8 +396,19 @@ class NeonatalInterventionObserver(Observer):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
-    def get_configuration(self, builder: Builder) -> dict[str, Any]:
-        return builder.configuration["stratification"][
+    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+        """Get the stratification configuration for this observer.
+
+        Parameters
+        ----------
+        builder
+            The builder object for the simulation.
+
+        Returns
+        -------
+            The stratification configuration for this observer.
+        """
+        return builder.configuration.stratification[
             f"{self.get_configuration_name()}_{self.intervention}"
         ]
 
