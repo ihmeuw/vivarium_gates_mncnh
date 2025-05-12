@@ -79,8 +79,35 @@ configuration:
         include_sex: "Female"
     
     stratification:
-        default:
-            - 'age_group'
+        birth:
+            include:
+                - 'child_sex'
+                - 'delivery_facility_type'
+                - 'pregnancy_outcome'
+        maternal_disorders_burden:
+            include:
+                - 'age_group'
+        neonatal_burden:
+            include:
+                - 'child_age_group'
+                - 'child_sex'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'delivery_facility_type'
+        neonatal_cause_relative_risk:
+            include:
+                - 'child_age_group'
+                - 'child_sex'
+        neonatal_intervention_cpap:
+            include:
+                - 'delivery_facility_type'
+        neonatal_intervention_antibiotics:
+            include:
+                - 'delivery_facility_type'
+        neonatal_intervention_probiotics: 
+            include:
+                - 'delivery_facility_type'
 
     intervention:
         scenario:
