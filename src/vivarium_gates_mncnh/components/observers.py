@@ -18,6 +18,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
+    ULTRASOUND_TYPES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_child_age_bins
@@ -78,6 +79,22 @@ class ResultsStratifier(ResultsStratifier_):
             self.delivery_facility_types,
             is_vectorized=True,
             requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
+        )
+        builder.results.register_stratification(
+            "anc_coverage",
+            [True, False],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.ATTENDED_CARE_FACILITY],
+        )
+        builder.results.register_stratification(
+            "ultrasound_type",
+            [
+                ULTRASOUND_TYPES.STANDARD,
+                ULTRASOUND_TYPES.AI_ASSISTED,
+                ULTRASOUND_TYPES.NO_ULTRASOUND,
+            ],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.ULTRASOUND_TYPE],
         )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
@@ -146,23 +163,19 @@ class ANCObserver(Observer):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
+    def get_configuration(self, builder: Builder) -> dict[str, Any]:
+        return builder.configuration["stratification"][self.get_configuration_name()]
+
     def register_observations(self, builder: Builder) -> None:
-        # TODO: update this to adding observation when docs are ready
-        builder.results.register_concatenating_observation(
+        builder.results.register_adding_observation(
             name="anc",
-            requires_columns=[
-                COLUMNS.MOTHER_AGE,
-                COLUMNS.ATTENDED_CARE_FACILITY,
-                COLUMNS.ULTRASOUND_TYPE,
-                COLUMNS.STATED_GESTATIONAL_AGE,
-                COLUMNS.PREGNANCY_OUTCOME,
-            ],
-            requires_values=[PIPELINES.PREGNANCY_DURATION],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
         )
 
     def to_observe(self, event: Event) -> bool:
-        return self._sim_step_name() == SIMULATION_EVENT_NAMES.PREGNANCY
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
 class BurdenObserver(Observer):
