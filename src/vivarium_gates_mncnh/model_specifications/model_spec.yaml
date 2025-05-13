@@ -79,6 +79,12 @@ configuration:
         include_sex: "Female"
     
     stratification:
+        anc:
+            include:
+                - 'age_group'
+                - 'pregnancy_outcome'
+                - 'anc_coverage'
+                - 'ultrasound_type'
         birth:
             include:
                 - 'child_sex'
