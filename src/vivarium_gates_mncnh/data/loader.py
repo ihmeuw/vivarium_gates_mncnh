@@ -599,7 +599,7 @@ def load_preterm_prevalence(
     preterm_cats = []
     for cat, description in categories.items():
         i = utilities.parse_short_gestation_description(description)
-        if i.right < 37:
+        if i.right < metadata.PRETERM_AGE_CUTOFF:
             preterm_cats.append(cat)
 
     # Subset exposure to preterm categories
