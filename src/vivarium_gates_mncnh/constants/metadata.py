@@ -48,3 +48,6 @@ class __Scenarios(NamedTuple):
 
 
 SCENARIOS = __Scenarios()
+
+
+PRETERM_AGE_CUTOFF = 37.0  # weeks

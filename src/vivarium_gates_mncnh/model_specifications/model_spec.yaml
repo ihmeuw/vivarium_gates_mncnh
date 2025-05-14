@@ -54,11 +54,12 @@ configuration:
         map_size: 1_000_000
         key_columns: ['entrance_time', 'age']
         random_seed: 0
+        rate_conversion_type: 'exponential'
     time:
         start:
             year: 2025
             month: 1
-            day: 1
+            day: 1 
         simulation_events: 
             - 'pregnancy'
             - 'delivery_facility'

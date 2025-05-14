@@ -13,6 +13,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     PIPELINES,
     PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY,
 )
+from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 
 
 class NeonatalCause(Component):
@@ -114,7 +115,7 @@ class PretermBirth(NeonatalCause):
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
-        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] >= 37
+        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] >= PRETERM_AGE_CUTOFF
 
         # CSMR = (1 - PAF) * RR * (CSMR / PRETERM_PREVALENCE)
         # NOTE: This isn't technically a traditional PAF but it is the
