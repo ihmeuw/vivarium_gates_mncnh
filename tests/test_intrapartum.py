@@ -11,6 +11,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DELIVERY_FACILITY_TYPES,
     SIMULATION_EVENT_NAMES,
 )
+from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 
 from .utilities import get_interactive_context_state
 
@@ -21,7 +22,7 @@ def intrapartum_state(
 ) -> InteractiveContext:
     sim = InteractiveContext(model_spec_path)
     return get_interactive_context_state(
-        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.ANTIBIOTICS_ACCESS
+        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.PROBIOTICS_ACCESS
     )
 
 
@@ -116,3 +117,11 @@ def test_intervention_availability(
         facility_access_probability,
         name=f"{intervention}_availability_{facility_type}_proportion",
     )
+
+
+def test_probiotics_access(population: pd.DataFrame) -> None:
+    # Probiotics is only available for preterm births
+    not_preterm_idx = population.index[
+        population[COLUMNS.GESTATIONAL_AGE_EXPOSURE] >= PRETERM_AGE_CUTOFF
+    ]
+    assert (population.loc[not_preterm_idx, COLUMNS.PROBIOTICS_AVAILABLE] == False).all()

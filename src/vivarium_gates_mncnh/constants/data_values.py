@@ -340,3 +340,12 @@ ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION = get_norm(1.39, 0.08**2)
 
 PROBIOTICS_BASELINE_COVERAGE_PROABILITY = 0.0
 PROBIOTICS_RELATIVE_RISK_DISTRIBUTION = get_norm(1.67, 0.08**2)
+
+
+class __NeonatalInterventions(NamedTuple):
+    CPAP: str = "cpap"
+    ANTIBIOTICS: str = "antibiotics"
+    PROBIOTICS: str = "probiotics"
+
+
+NEONATAL_INTERVENTIONS = __NeonatalInterventions()
