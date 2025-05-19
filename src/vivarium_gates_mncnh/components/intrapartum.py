@@ -11,6 +11,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     NEONATAL_INTERVENTIONS,
+    PREGNANCY_OUTCOMES,
 )
 from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
@@ -41,7 +42,11 @@ class NeonatalInterventionAccess(Component):
 
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
+        return [
+            COLUMNS.DELIVERY_FACILITY_TYPE,
+            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+            COLUMNS.PREGNANCY_OUTCOME,
+        ]
 
     def __init__(self, intervention: str) -> None:
         super().__init__()
@@ -69,6 +74,8 @@ class NeonatalInterventionAccess(Component):
             return
 
         pop = self.population_view.get(event.index)
+        # Only live births are considered for intervention access
+        pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
         # If intervention is probiotics, filter for preterm births
         if self.intervention == NEONATAL_INTERVENTIONS.PROBIOTICS:
             pop = pop.loc[pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] < PRETERM_AGE_CUTOFF]
