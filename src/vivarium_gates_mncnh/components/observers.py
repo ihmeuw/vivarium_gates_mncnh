@@ -15,12 +15,14 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     MATERNAL_DISORDERS,
-    PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
 )
-from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
+from vivarium_gates_mncnh.constants.metadata import (
+    ARTIFACT_INDEX_COLUMNS,
+    PRETERM_AGE_CUTOFF,
+)
 from vivarium_gates_mncnh.utilities import get_child_age_bins
 
 
@@ -96,6 +98,28 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_columns=[COLUMNS.ULTRASOUND_TYPE],
         )
+        builder.results.register_stratification(
+            "cpap_availability",
+            [True, False],
+            requires_columns=[COLUMNS.CPAP_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "antibiotics_availability",
+            [True, False],
+            requires_columns=[COLUMNS.ANTIBIOTICS_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "probiotics_availability",
+            [True, False],
+            requires_columns=[COLUMNS.PROBIOTICS_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "preterm_birth",
+            [True, False],
+            mapper=self.map_preterm_birth,
+            is_vectorized=True,
+            requires_columns=[COLUMNS.GESTATIONAL_AGE_EXPOSURE],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
@@ -106,6 +130,12 @@ class ResultsStratifier(ResultsStratifier_):
         age_group = pd.cut(pop.squeeze(axis=1), bins, labels=labels).rename("child_age_group")
 
         return age_group
+
+    def map_preterm_birth(self, pop: pd.DataFrame) -> pd.Series:
+        # Overwriting to use child_age_bins
+        gestational_age = pop.squeeze(axis=1)
+        preterm_births = gestational_age < PRETERM_AGE_CUTOFF
+        return preterm_births.rename("preterm_birth")
 
 
 class PAFResultsStratifier(ResultsStratifier_):
@@ -327,21 +357,6 @@ class NeonatalBurdenObserver(BurdenObserver):
 
     def register_observations(self, builder: Builder) -> None:
         super().register_observations(builder)
-        builder.results.register_stratification(
-            "cpap_availability",
-            [True, False],
-            requires_columns=[COLUMNS.CPAP_AVAILABLE],
-        )
-        builder.results.register_stratification(
-            "antibiotics_availability",
-            [True, False],
-            requires_columns=[COLUMNS.ANTIBIOTICS_AVAILABLE],
-        )
-        builder.results.register_stratification(
-            "probiotics_availability",
-            [True, False],
-            requires_columns=[COLUMNS.PROBIOTICS_AVAILABLE],
-        )
         for cause in set(self.burden_disorders) - set(self.excluded_causes):
             builder.results.register_adding_observation(
                 name=f"{cause}_death_counts",
@@ -428,7 +443,7 @@ class NeonatalInterventionObserver(Observer):
     def register_observations(self, builder: Builder) -> None:
         builder.results.register_adding_observation(
             name=self.intervention,
-            pop_filter=f"{self.intervention}_available == True",
+            pop_filter=f"{self.intervention}_available == True & pregnancy_outcome == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
             requires_columns=[f"{self.intervention}_available"],
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
