@@ -91,6 +91,7 @@ configuration:
                 - 'child_sex'
                 - 'delivery_facility_type'
                 - 'pregnancy_outcome'
+                - 'preterm_birth'
         maternal_disorders_burden:
             include:
                 - 'age_group'
@@ -102,6 +103,7 @@ configuration:
                 - 'antibiotics_availability'
                 - 'probiotics_availability'
                 - 'delivery_facility_type'
+                - 'preterm_birth'
         neonatal_cause_relative_risk:
             include:
                 - 'child_age_group'
@@ -115,6 +117,7 @@ configuration:
         neonatal_intervention_probiotics: 
             include:
                 - 'delivery_facility_type'
+                - 'preterm_birth'
 
     intervention:
         scenario:
