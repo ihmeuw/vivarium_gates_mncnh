@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     data_requirements = ["vivarium_inputs[data]>=5.0.5"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
-    test_requirements = ["pytest", "pytest-cov", "vivarium_testing_utils"]
+    test_requirements = ["pytest", "pytest-mock", "pytest-cov", "vivarium_testing_utils"]
     lint_requirements = ["black==22.3.0", "isort==5.13.2"]
 
     setup(
