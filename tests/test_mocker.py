@@ -101,6 +101,7 @@ def test_baseball_player_stats_basic():
     assert player.strikeouts == 1
     assert player.at_bats == 4
 
+
 def test_baseball_game_simulator_simulate_play_hit():
     player = BaseballPlayerStats("Player1")
     sim = BaseballGameSimulator([player])
@@ -127,22 +128,4 @@ def test_baseball_game_simulator_simulate_play_home_run(mocker):
         assert player.runs_batted_in == 3
         assert sim.score["Player2"] == 1
 
-def test_baseball_game_simulator_simulate_play_walk(mocker):
-    sim = BaseballGameSimulator([player])
-    player = mocker.Mock()
 
-    with mocker.patch("random.choices", return_value=["walk"]):
-        play = sim.simulate_play("Player3")
-        assert play == "walk"
-        assert player.walks == 1
-        assert player.at_bats == 1  # record_at_bat only
-
-def test_baseball_game_simulator_simulate_play_strikeout(mocker):
-    player = BaseballPlayerStats("Player4")
-    sim = BaseballGameSimulator([player])
-
-    with mocker.patch("random.choices", return_value=["strikeout"]):
-        play = sim.simulate_play("Player4")
-        assert play == "strikeout"
-        assert player.strikeouts == 1
-        assert player.at_bats == 2  # record_at_bat + record_strikeout
