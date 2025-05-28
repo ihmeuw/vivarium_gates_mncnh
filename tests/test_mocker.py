@@ -45,6 +45,7 @@ class BaseballGameSimulator:
     def __init__(self, players):
         self.players = {player.name: player for player in players}
         self.inning = 1
+        self.inning_outs = 0
         self.score = {player.name: 0 for player in players}
 
     def simulate_play(self, player_name):
@@ -72,7 +73,12 @@ class BaseballGameSimulator:
 
     def simulate_inning(self):
         for player_name in self.players:
-            self.simulate_play(player_name)
+            play_result = self.simulate_play(player_name)
+            if play_result == 'out':
+                self.inning_outs += 1
+                if self.inning_outs == 3:
+                    self.inning_outs = 0
+                    break
         self.inning += 1
 
 
