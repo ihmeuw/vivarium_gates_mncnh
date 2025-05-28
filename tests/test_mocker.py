@@ -102,12 +102,12 @@ def test_baseball_player_stats_basic():
     assert player.at_bats == 4
 
 
-def test_baseball_game_simulator_simulate_play_hit():
+def test_baseball_game_simulator_simulate_play_hit(mocker):
     player = BaseballPlayerStats("Player1")
     sim = BaseballGameSimulator([player])
 
-    with mock.patch("random.choices", return_value=["hit"]), \
-         mock.patch("random.randint", return_value=1):
+    with mocker.patch("random.choices", return_value=["hit"]), \
+         mocker.patch("random.randint", return_value=1):
         play = sim.simulate_play("Player1")
         assert play == "hit"
         assert player.hits == 1
