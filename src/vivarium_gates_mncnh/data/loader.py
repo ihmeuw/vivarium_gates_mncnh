@@ -593,7 +593,7 @@ def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # TODO: implement
-    exposure = get_data(data_keys.LBWSG.EXPOSURE, location, years).reset_index()
+    exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
     # Get preterm categories
     preterm_cats = []
@@ -606,7 +606,9 @@ def load_preterm_prevalence(
     preterm_exposure = exposure.loc[exposure["parameter"].isin(preterm_cats)]
     preterm_exposure = preterm_exposure.drop(columns=["parameter"])
     draw_cols = [col for col in preterm_exposure.columns if "draw" in col]
-    sum_exposure = preterm_exposure.groupby(metadata.CHILDREN_INDEX_COLUMNS)[draw_cols].sum()
+    sum_exposure = preterm_exposure.groupby(["sex_of_child", "year_start", "year_end"])[
+        draw_cols
+    ].sum()
 
     return sum_exposure
 
