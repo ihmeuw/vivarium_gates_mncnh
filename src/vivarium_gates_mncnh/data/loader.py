@@ -60,6 +60,7 @@ def get_data(
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         data_keys.POPULATION.ACMR: load_standard_data,
+        data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
         # TODO - add appropriate mappings
         data_keys.PREGNANCY.ASFR: load_asfr,
         data_keys.PREGNANCY.SBR: load_sbr,
@@ -85,8 +86,11 @@ def get_data(
         data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
         data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
+        data_keys.PRETERM_BIRTH.MORTALITY_RISK: load_mortality_risk,
         data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
+        data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
         data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
+        data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_CEmONC: load_probability_birth_facility_type,
@@ -726,6 +730,42 @@ def load_no_probiotics_paf(
     paf_no_probiotic = paf_no_probiotic.fillna(0.0)
 
     return utilities.set_non_neonnatal_values(paf_no_probiotic, 0.0)
+
+
+def load_mortality_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    if key == data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK:
+        gbd_id = 294  # All causes neonatal mortality
+    else:
+        entity = utilities.get_entity(key)
+        gbd_id = entity.gbd_id
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+    # Get birth counts
+    births = extra_gbd.get_birth_counts(location)
+    births = vi_utils.scrub_gbd_conventions(births, location)
+    births.index = births.index.droplevel("location")
+    # Pull early and late neonatal death counts
+    enn_deaths = extra_gbd.get_mortality_death_counts(
+        location=location, age_group_id=2, gbd_id=gbd_id
+    )
+    enn_deaths = enn_deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
+        draw_columns
+    ]
+    enn_deaths = reshape_to_vivarium_format(enn_deaths, location)
+    lnn_deaths = extra_gbd.get_mortality_death_counts(
+        location=location, age_group_id=3, gbd_id=gbd_id
+    )
+    lnn_deaths = lnn_deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
+        draw_columns
+    ]
+    lnn_deaths = reshape_to_vivarium_format(lnn_deaths, location)
+
+    # Build mortality risk dataframe
+    enn_mortality_risk = enn_deaths / births
+    lnn_mortality_risk = lnn_deaths / (births - enn_deaths)
+    mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk])
+    return mortality_risk
 
 
 def reshape_to_vivarium_format(df, location):
