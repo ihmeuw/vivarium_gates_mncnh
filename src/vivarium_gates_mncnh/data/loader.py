@@ -744,6 +744,9 @@ def load_mortality_risk(
     # Get birth counts
     births = extra_gbd.get_birth_counts(location)
     births = vi_utils.scrub_gbd_conventions(births, location)
+    births = vi_utils.split_interval(
+        births, interval_column="year", split_column_prefix="year"
+    )
     births.index = births.index.droplevel("location")
     # Pull early and late neonatal death counts
     enn_deaths = extra_gbd.get_mortality_death_counts(
@@ -753,6 +756,7 @@ def load_mortality_risk(
         draw_columns
     ]
     enn_deaths = reshape_to_vivarium_format(enn_deaths, location)
+    enn_no_age_group = enn_deaths.drop(["age_start", "age_end"], axis=0)
     lnn_deaths = extra_gbd.get_mortality_death_counts(
         location=location, age_group_id=3, gbd_id=gbd_id
     )
@@ -763,7 +767,7 @@ def load_mortality_risk(
 
     # Build mortality risk dataframe
     enn_mortality_risk = enn_deaths / births
-    lnn_mortality_risk = lnn_deaths / (births - enn_deaths)
+    lnn_mortality_risk = lnn_deaths / (births - enn_no_age_group)
     mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk])
     return mortality_risk
 
