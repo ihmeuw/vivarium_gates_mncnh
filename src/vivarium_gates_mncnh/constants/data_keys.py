@@ -16,7 +16,7 @@ class __Population(NamedTuple):
     DEMOGRAPHY: str = "population.demographic_dimensions"
     TMRLE: str = "population.theoretical_minimum_risk_life_expectancy"
     SCALING_FACTOR: str = "population.scaling_factor"
-    ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
+    # ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
     ALL_CAUSES_MORTALITY_RISK: str = "population.all_causes_mortality_risk"
 
     @property
@@ -157,7 +157,7 @@ OBSTRUCTED_LABOR = __ObstructedLabor()
 
 class __NeonatalPretermBirth(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
+    # CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
     PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
     PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
     MORTALITY_RISK: str = "cause.neonatal_preterm_birth.mortality_risk"
@@ -176,9 +176,9 @@ PRETERM_BIRTH = __NeonatalPretermBirth()
 
 class __NeonatalSepsis(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    CSMR: str = (
-        "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
-    )
+    # CSMR: str = (
+    #     "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
+    # )
     MORTALITY_RISK: str = "cause.neonatal_sepsis_and_other_neonatal_infections.mortality_risk"
 
     @property
@@ -195,7 +195,7 @@ NEONATAL_SEPSIS = __NeonatalSepsis()
 
 class __NeonatalEncephalopath(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    CSMR: str = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+    # CSMR: str = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
     MORTALITY_RISK: str = (
         "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.mortality_risk"
     )

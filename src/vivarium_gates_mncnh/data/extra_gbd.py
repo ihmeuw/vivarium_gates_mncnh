@@ -57,7 +57,6 @@ def get_birth_counts(location: str) -> pd.DataFrame:
     births = births.drop(["run_id", "age_group_id"], axis=1).set_index(
         ["location_id", "sex_id", "year_id"]
     )
-    births = births.rename(columns={"population": "value"})
 
     return births
 

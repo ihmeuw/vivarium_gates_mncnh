@@ -59,7 +59,7 @@ def get_data(
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
-        data_keys.POPULATION.ACMR: load_standard_data,
+        # data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
         # TODO - add appropriate mappings
         data_keys.PREGNANCY.ASFR: load_asfr,
@@ -83,13 +83,13 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
-        data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
+        # data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
         data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.PRETERM_BIRTH.MORTALITY_RISK: load_mortality_risk,
-        data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
+        # data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
-        data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
+        # data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_probability_birth_facility_type,
@@ -766,8 +766,12 @@ def load_mortality_risk(
     lnn_deaths = reshape_to_vivarium_format(lnn_deaths, location)
 
     # Build mortality risk dataframe
-    enn_mortality_risk = enn_deaths / births
-    lnn_mortality_risk = lnn_deaths / (births - enn_no_age_group)
+    enn = enn_deaths.merge(births, on=["sex", "year_start", "year_end"])
+    enn_mortality_risk = enn.filter(like="draw").div(enn.population, axis=0)
+    # Get denominator for late neonatal mortality risk
+    population_array = np.array(enn["population"]).reshape(-1, 1)
+    denominator = population_array - enn[draw_columns]
+    lnn_mortality_risk = lnn_deaths / denominator
     mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk])
     return mortality_risk
 
