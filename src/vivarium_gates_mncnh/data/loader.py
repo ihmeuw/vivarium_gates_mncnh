@@ -765,7 +765,7 @@ def load_mortality_risk(
     lnn_deaths = reshape_to_vivarium_format(lnn_deaths, location)
 
     # Build mortality risk dataframe
-    enn = enn_deaths.merge(births, on=["sex", "year_start", "year_end"])
+    enn = enn_deaths.merge(births, left_index=True, right_index=True)
     enn_mortality_risk = enn.filter(like="draw").div(enn.population, axis=0)
     # Get denominator for late neonatal mortality risk
     population_array = np.array(enn["population"]).reshape(-1, 1)
