@@ -756,7 +756,6 @@ def load_mortality_risk(
         draw_columns
     ]
     enn_deaths = reshape_to_vivarium_format(enn_deaths, location)
-    enn_no_age_group = enn_deaths.droplevel(["age_start", "age_end"])
     lnn_deaths = extra_gbd.get_mortality_death_counts(
         location=location, age_group_id=3, gbd_id=gbd_id
     )
