@@ -71,6 +71,7 @@ def get_mortality_death_counts(location: str, age_group_id: int, gbd_id: int) ->
         age_group_id=age_group_id,
         gbd_id_type="cause_id",
         gbd_id=gbd_id,
+        measure_id=vi_globals.MEASURES["Deaths"],
         source=gbd_constants.SOURCES.CODCORRECT,
         year_id=2021,
     )
