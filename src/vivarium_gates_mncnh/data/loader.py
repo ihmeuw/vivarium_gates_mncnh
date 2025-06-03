@@ -770,7 +770,7 @@ def load_mortality_risk(
     # Get denominator for late neonatal mortality risk
     population_array = np.array(enn["population"]).reshape(-1, 1)
     denominator = population_array - enn[draw_columns]
-    denominator = denominator.droplevel(["sex", "year_start", "year_end"])
+    denominator = denominator.droplevel(["year_start", "year_end"])
     lnn_mortality_risk = lnn_deaths / denominator
     mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk]).reorder_levels(
         ["sex", "age_start", "age_end", "year_start", "year_end"]
