@@ -11,6 +11,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.utilities import get_lookup_columns
 
+from vivarium_gates_mncnh.constants.data_keys import POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_LOOKUP_COLUMN_MAPPER,
@@ -21,7 +22,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
-from vivarium_gates_mncnh.constants.data_keys import POPULATION
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location, rate_to_probability
 
@@ -185,7 +185,7 @@ class NeonatalMortality(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "all_cause_mortality_rate": self.load_all_causes_mortality_data,
+                    "all_cause_mortality_risk": self.load_all_causes_mortality_data,
                     "life_expectancy": self.load_life_expectancy_data,
                 }
             }
@@ -238,7 +238,7 @@ class NeonatalMortality(Component):
             source=self.get_acmr_pipeline,
             component=self,
             required_resources=get_lookup_columns(
-                [self.lookup_tables["all_cause_mortality_rate"]]
+                [self.lookup_tables["all_cause_mortality_risk"]]
             )
             + [self.acmr_paf],
         )
@@ -280,13 +280,7 @@ class NeonatalMortality(Component):
 
         pop = self.population_view.get(event.index)
         alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
-        mortality_rates = self.death_in_age_group(alive_idx)
-        # Convert to rates to probability
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
-            duration = 7 / 365.0
-        else:
-            duration = 21 / 365.0
-        mortality_risk = rate_to_probability(mortality_rates, duration)
+        mortality_risk = self.death_in_age_group(alive_idx)
 
         # Determine which neonates die and update metadata
         dead_idx = self.randomness.filter_for_probability(
@@ -362,7 +356,7 @@ class NeonatalMortality(Component):
 
     def get_acmr_pipeline(self, index: pd.Index) -> Pipeline:
         # NOTE: This will be modified by the LBWSGRiskEffect
-        acmr = self.lookup_tables["all_cause_mortality_rate"](index)
+        acmr = self.lookup_tables["all_cause_mortality_risk"](index)
         paf = self.acmr_paf(index)
         return acmr * (1 - paf)
 
