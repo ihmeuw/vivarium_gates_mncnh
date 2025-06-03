@@ -456,7 +456,7 @@ def load_paf_data(
 def load_p_rds(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    csmr = get_data(data_keys.PRETERM_BIRTH.CSMR, location, years)
+    csmr = get_data(data_keys.PRETERM_BIRTH.MORTALITY_RISK, location, years)
     p_rds = csmr * data_values.PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
     return p_rds
 
@@ -647,7 +647,7 @@ def load_no_antibiotics_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # Get all no_cpap data for calculations
-    csmr = get_data(data_keys.NEONATAL_SEPSIS.CSMR, location, years)
+    csmr = get_data(data_keys.NEONATAL_SEPSIS.MORTALITY_RISK, location, years)
     p_sepsis = csmr.copy()
     p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
@@ -702,7 +702,7 @@ def load_no_probiotics_paf(
 ) -> pd.DataFrame:
 
     # Get all no_cpap data for calculations
-    csmr = get_data(data_keys.NEONATAL_SEPSIS.CSMR, location, years)
+    csmr = get_data(data_keys.NEONATAL_SEPSIS.MORTALITY_RISK, location, years)
     p_sepsis = csmr.copy()
     p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
