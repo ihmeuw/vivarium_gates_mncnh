@@ -17,7 +17,7 @@ components:
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - MaternalDisordersBurden()
             - LBWSGRisk()
-            - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_rate')
+            - LBWSGRiskEffect('cause.all_causes.cause_specific_mortality_risk')
             - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate')
             - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_rate')
             - LBWSGRiskEffect('cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_rate')
@@ -46,7 +46,8 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model7.0.2/ethiopia.hdf"
+        artifact_path: /home/albrja/scratch/artifacts/ethiopia.hdf
+        # artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model7.0.2/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True

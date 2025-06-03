@@ -21,6 +21,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
+from vivarium_gates_mncnh.constants.data_keys import POPULATION
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location, rate_to_probability
 
@@ -184,7 +185,7 @@ class NeonatalMortality(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "all_cause_mortality_rate": self.load_acmr,
+                    "all_cause_mortality_rate": self.load_all_causes_mortality_data,
                     "life_expectancy": self.load_life_expectancy_data,
                 }
             }
@@ -308,11 +309,11 @@ class NeonatalMortality(Component):
     # Helper methods #
     ##################
 
-    def load_acmr(self, builder: Builder) -> pd.DataFrame:
+    def load_all_causes_mortality_data(self, builder: Builder) -> pd.DataFrame:
         """Load all-cause mortality rate data."""
-        acmr = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
-        child_acmr = acmr.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
-        return child_acmr
+        acmrisk = builder.data.load(POPULATION.ALL_CAUSES_MORTALITY_RISK)
+        child_acmrisk = acmrisk.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return child_acmrisk
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
