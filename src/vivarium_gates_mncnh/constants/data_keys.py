@@ -16,7 +16,7 @@ class __Population(NamedTuple):
     DEMOGRAPHY: str = "population.demographic_dimensions"
     TMRLE: str = "population.theoretical_minimum_risk_life_expectancy"
     SCALING_FACTOR: str = "population.scaling_factor"
-    # ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
+    ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
     ALL_CAUSES_MORTALITY_RISK: str = "population.all_causes_mortality_risk"
 
     @property
