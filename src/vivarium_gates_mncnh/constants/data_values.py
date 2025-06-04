@@ -305,7 +305,7 @@ CPAP_ACCESS_PROBABILITIES = {
         NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
 }
-CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles((0.83 - 0.34) / 2, 0.34, 0.83)
+CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles((0.83 + 0.34) / 2, 0.34, 0.83)
 
 
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
