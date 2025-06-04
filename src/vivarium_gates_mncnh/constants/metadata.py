@@ -51,3 +51,4 @@ SCENARIOS = __Scenarios()
 
 
 PRETERM_AGE_CUTOFF = 37.0  # weeks
+GBD_BIRTH_AGE_GROUP_ID = 164

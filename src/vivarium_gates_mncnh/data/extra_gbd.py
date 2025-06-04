@@ -5,6 +5,7 @@ from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants.metadata import GBD_BIRTH_AGE_GROUP_ID
 from vivarium_gates_mncnh.data import utilities
 
 
@@ -50,7 +51,7 @@ def get_birth_counts(location: str) -> pd.DataFrame:
     births = get_population(
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
         location_id=location_id,
-        age_group_id=164,
+        age_group_id=GBD_BIRTH_AGE_GROUP_ID,
         year_id=2021,
         sex_id=[1, 2],
     )
