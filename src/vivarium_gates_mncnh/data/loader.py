@@ -480,11 +480,11 @@ def load_cpap_facility_access_probability(
 
 
 def load_no_cpap_relative_risk(
-    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     rr_distribution = data_values.CPAP_RELATIVE_RISK_DISTRIBUTION
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_distribution)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
 
