@@ -490,7 +490,7 @@ def load_no_cpap_relative_risk(
 
     # We want the relative risk of no cpap
     no_cpap_rr = (1 / data).fillna(0.0)
-    return utilities.set_non_neonnatal_values(no_cpap_rr, 0.0)
+    return utilities.set_non_neonnatal_values(no_cpap_rr, 1.0)
 
 
 def load_no_cpap_paf(
