@@ -468,15 +468,29 @@ def load_probability_birth_facility_type(
 
 
 def load_cpap_facility_access_probability(
-    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    return data_values.CPAP_ACCESS_PROBABILITIES[location][lookup_key]
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    facility_uniform_dist = data_values.CPAP_ACCESS_PROBABILITIES[location][key]
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    return utilities.set_non_neonnatal_values(data, 0.0)
 
 
 def load_no_cpap_relative_risk(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    return 1 / 0.53
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    rr_distribution = data_values.CPAP_RELATIVE_RISK_DISTRIBUTION
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    # We want the relative risk of no cpap
+    no_cpap_rr = (1 / data).fillna(0.0)
+    return utilities.set_non_neonnatal_values(no_cpap_rr, 0.0)
 
 
 def load_no_cpap_paf(

@@ -7,6 +7,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
     NO_CPAP_RISK,
 )
 from vivarium_gates_mncnh.utilities import (
+    get_lognorm_from_quantiles,
     get_norm,
     get_uniform_distribution_from_limits,
 )
@@ -289,21 +290,22 @@ DELIVERY_FACILITY_TYPE_PROBABILITIES = {
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
-        NO_CPAP_RISK.P_CPAP_BEMONC: 0.075,
-        NO_CPAP_RISK.P_CPAP_CEMONC: 0.393,
-        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEMONC: get_norm(0.075, 0.02**2),
+        NO_CPAP_RISK.P_CPAP_CEMONC: get_norm(0.393, 0.05**2),
+        NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
     "Nigeria": {
-        NO_CPAP_RISK.P_CPAP_BEMONC: 0.075,
-        NO_CPAP_RISK.P_CPAP_CEMONC: 0.393,
-        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEMONC: get_norm(0.075, 0.02**2),
+        NO_CPAP_RISK.P_CPAP_CEMONC: get_norm(0.393, 0.05**2),
+        NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
     "Pakistan": {
-        NO_CPAP_RISK.P_CPAP_BEMONC: 0.075,
-        NO_CPAP_RISK.P_CPAP_CEMONC: 0.393,
-        NO_CPAP_RISK.P_CPAP_HOME: 0.0,
+        NO_CPAP_RISK.P_CPAP_BEMONC: get_norm(0.075, 0.02**2),
+        NO_CPAP_RISK.P_CPAP_CEMONC: get_norm(0.393, 0.05**2),
+        NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
 }
+CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles((0.83 - 0.34) / 2, 0.34, 0.83)
 
 
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
