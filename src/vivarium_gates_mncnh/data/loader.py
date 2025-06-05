@@ -826,8 +826,8 @@ def load_no_azithromycin_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # Get all required data for calculations
-    csmr = get_data(data_keys.NEONATAL_SEPSIS.MORTALITY_RISK, location, years)
-    p_sepsis = csmr.copy()
+    incidence_rate = get_data(data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE, location, years)
+    p_sepsis = incidence_rate.copy()
     p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
     p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
