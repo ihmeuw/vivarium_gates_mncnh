@@ -110,10 +110,10 @@ def get_data(
         data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_CEMONC: load_probiotics_facility_probability,
         data_keys.NO_PROBIOTICS_RISK.RELATIVE_RISK: load_no_probiotics_relative_risk,
         data_keys.NO_PROBIOTICS_RISK.PAF: load_no_probiotics_paf,
-        data.keys.NO_AZITHROMYCIN_RISK.P_AZITH_HOME: load_azithromycin_facility_probability,
-        data.keys.NO_AZITHROMYCIN_RISK.P_AZITH_BEMONC: load_azithromycin_facility_probability,
-        data.keys.NO_AZITHROMYCIN_RISK.P_AZITH_CEMONC: load_azithromycin_facility_probability,
-        data.keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK: load_no_azithromycin_relative_risk,
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME: load_azithromycin_facility_probability,
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC: load_azithromycin_facility_probability,
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC: load_azithromycin_facility_probability,
+        data_keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK: load_no_azithromycin_relative_risk,
         data_keys.NO_AZITHROMYCIN_RISK.PAF: load_no_azithromycin_paf,
     }
 
