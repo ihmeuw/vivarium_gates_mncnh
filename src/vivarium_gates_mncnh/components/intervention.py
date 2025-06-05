@@ -7,14 +7,18 @@ from vivarium.framework.engine import Builder
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
 
 
-class NeonatalNoInterventionRisk(Component):
+class InterventionRisk(Component):
     """Component that modifies a neonatal CSMR pipeline based on the lack of an intervention.
     This is the implementation of the RiskEffect for these dichoctomous risks."""
 
     INTERVENTION_PIPELINE_MODIFIERS_MAP = {
+        # TODO: add neonatal interventions below here
         "cpap": PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
         "antibiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
         "probiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        # TODO: add maternal interventions below here
+        # TODO: make interventions constant
+        "azithromycin": PIPELINES.MATERNAL_SEPSIS_INCIDENCE_RISK,
     }
 
     @property
@@ -46,6 +50,7 @@ class NeonatalNoInterventionRisk(Component):
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
+        # TODO: rename and handle required resources
         builder.value.register_value_modifier(
             self.csmr_target_pipeline_name,
             self.modify_csmr_pipeline,
@@ -65,6 +70,7 @@ class NeonatalNoInterventionRisk(Component):
     def modify_csmr_pipeline(
         self, index: pd.Index, csmr_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
+        # TODO: rename and update names
         # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
         # not have their CSMR modify by no intervention RR
         pop = self.population_view.get(index)

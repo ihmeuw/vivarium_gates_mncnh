@@ -27,13 +27,13 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - NeonatalNoInterventionRisk('cpap')
-            - NeonatalNoInterventionRisk('antibiotics')
-            - NeonatalNoInterventionRisk('probiotics')
+            - InterventionRisk('cpap')
+            - InterventionRisk('antibiotics')
+            - InterventionRisk('probiotics')
             - DeliveryFacility()
-            - NeonatalInterventionAccess('cpap')
-            - NeonatalInterventionAccess('antibiotics')
-            - NeonatalInterventionAccess('probiotics')
+            - InterventionAccess('cpap')
+            - InterventionAccess('antibiotics')
+            - InterventionAccess('probiotics')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -46,7 +46,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model7.1.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model8.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True

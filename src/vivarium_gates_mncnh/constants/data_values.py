@@ -252,6 +252,9 @@ class __Pipelines(NamedTuple):
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
     PREGNANCY_DURATION = "pregnancy_duration"
     BIRTH_OUTCOME_PROBABILITIES = "birth_outcome_probabilities"
+    MATERNAL_SEPSIS_INCIDENCE_RISK = (
+        "maternal_sepsis_and_other_maternal_infections.incidence_risk"
+    )
 
 
 PIPELINES = __Pipelines()

@@ -6,6 +6,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
+from vivarium_public_health.utilities import get_lookup_columns
+
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
@@ -32,7 +34,12 @@ class MaternalDisorder(Component):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
-        self.location = get_location(builder)
+        self.incidence_risk = builder.value.register_value_producer(
+            f"{self.maternal_disorder}.incidence_rate",
+            self.lookup_tables["incidence_risk"],
+            component=self,
+            required_resources=get_lookup_columns([self.lookup_tables["incidence_risk"]]),
+        )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
@@ -54,7 +61,7 @@ class MaternalDisorder(Component):
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
         ]
-        incidence_risk = self.lookup_tables["incidence_risk"](full_term.index)
+        incidence_risk = self.incidence_risk(full_term.index)
         got_disorder = self.randomness.filter_for_probability(
             full_term.index,
             incidence_risk,
