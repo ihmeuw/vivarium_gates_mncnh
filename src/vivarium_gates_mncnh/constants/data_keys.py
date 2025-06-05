@@ -292,6 +292,31 @@ class __NoProbioticsRisk(NamedTuple):
 NO_PROBIOTICS_RISK = __NoProbioticsRisk()
 
 
+class __NoAzithromycinRisk(NamedTuple):
+    P_AZITHROMYCIN_HOME: str = (
+        "intervention.no_azithromycin_risk.probability_azithromycin_home"
+    )
+    P_AZITHROMYCIN_BEMONC: str = (
+        "intervention.no_azithromycin_risk.probability_azithromycin_bemonc"
+    )
+    P_AZITHROMYCIN_CEMONC: str = (
+        "intervention.no_azithromycin_risk.probability_azithromycin_cemonc"
+    )
+    RELATIVE_RISK: str = "intervention.no_azithromycin_risk.relative_risk"
+    PAF: str = "intervention.no_azithromycin_risk.population_attributable_fraction"
+
+    @property
+    def name(self):
+        return "no_azithromycin_risk"
+
+    @property
+    def log_name(self):
+        return "no azithromycin risk"
+
+
+NO_AZITHROMYCIN_RISK = __NoAzithromycinRisk()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -308,6 +333,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     FACILITY_CHOICE,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
+    NO_AZITHROMYCIN_RISK,
 ]
 
 
