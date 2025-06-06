@@ -121,6 +121,11 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_columns=[COLUMNS.GESTATIONAL_AGE_EXPOSURE],
         )
+        builder.results.register_stratification(
+            "azithromycin_availability",
+            [True, False],
+            requires_columns=[COLUMNS.AZITHROMYCIN_AVAILABLE],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins

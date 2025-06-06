@@ -187,6 +187,7 @@ class __Columns(NamedTuple):
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
     PROBIOTICS_AVAILABLE = "probiotics_available"
+    AZITHROMYCIN_AVAILABLE = "azithromycin_available"
 
 
 COLUMNS = __Columns()

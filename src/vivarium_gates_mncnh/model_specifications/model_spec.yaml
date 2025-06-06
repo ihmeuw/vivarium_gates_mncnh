@@ -99,6 +99,7 @@ configuration:
         maternal_disorders_burden:
             include:
                 - 'age_group'
+                - 'azithromycin_availability'
         neonatal_burden:
             include:
                 - 'child_age_group'
