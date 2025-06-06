@@ -135,13 +135,13 @@ class InterventionAccess(Component):
         return data
 
 
-class MaternalInterventionAccess(Component):
+class MaternalInterventionAccess(InterventionAccess):
     """Component for determining if a simulant has access to maternal interventions."""
 
     @property
     def columns_required(self) -> list[str]:
         # TODO: this will likely need to be updated with the next maternal intervention
-        return [COLUMNS.DELIVERY_FACILITY_TYPE]
+        return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.MOTHER_AGE]
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         simulants = pd.DataFrame(
