@@ -156,6 +156,8 @@ class MaternalInterventionAccess(InterventionAccess):
         if self._sim_step_name() != self.time_step:
             return
 
+        # This method is the same as the super class but we are not currently not subsetting the 
+        #population since all mothers are eligible
         pop = self.population_view.get(event.index)
         for (
             facility_type,

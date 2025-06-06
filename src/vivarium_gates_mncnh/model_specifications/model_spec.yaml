@@ -34,6 +34,8 @@ components:
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
             - InterventionAccess('probiotics')
+            - InterventionRiskEffect('azithromycin')
+            - MaternalInterventionAccess('azithromycin')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
