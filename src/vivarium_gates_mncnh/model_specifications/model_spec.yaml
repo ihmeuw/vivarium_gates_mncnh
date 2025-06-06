@@ -27,26 +27,29 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - NeonatalNoInterventionRisk('cpap')
-            - NeonatalNoInterventionRisk('antibiotics')
-            - NeonatalNoInterventionRisk('probiotics')
+            - InterventionRiskEffect('cpap')
+            - InterventionRiskEffect('antibiotics')
+            - InterventionRiskEffect('probiotics')
             - DeliveryFacility()
-            - NeonatalInterventionAccess('cpap')
-            - NeonatalInterventionAccess('antibiotics')
-            - NeonatalInterventionAccess('probiotics')
+            - InterventionAccess('cpap')
+            - InterventionAccess('antibiotics')
+            - InterventionAccess('probiotics')
+            - InterventionRiskEffect('azithromycin')
+            - MaternalInterventionAccess('azithromycin')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
-            - NeonatalInterventionObserver('cpap')
-            - NeonatalInterventionObserver('antibiotics')
-            - NeonatalInterventionObserver('probiotics')
+            - InterventionObserver('cpap')
+            - InterventionObserver('antibiotics')
+            - InterventionObserver('probiotics')
+            - InterventionObserver('azithromycin')
 
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model7.1.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model8.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -63,6 +66,7 @@ configuration:
         simulation_events: 
             - 'pregnancy'
             - 'delivery_facility'
+            - 'azithromycin_access'
             - 'cpap_access'
             - 'antibiotics_access'
             - 'probiotics_access'
@@ -95,6 +99,7 @@ configuration:
         maternal_disorders_burden:
             include:
                 - 'age_group'
+                - 'azithromycin_availability'
         neonatal_burden:
             include:
                 - 'child_age_group'
@@ -108,16 +113,20 @@ configuration:
             include:
                 - 'child_age_group'
                 - 'child_sex'
-        neonatal_intervention_cpap:
+        intervention_cpap:
             include:
                 - 'delivery_facility_type'
-        neonatal_intervention_antibiotics:
+        intervention_antibiotics:
             include:
                 - 'delivery_facility_type'
-        neonatal_intervention_probiotics: 
+        intervention_probiotics: 
             include:
                 - 'delivery_facility_type'
                 - 'preterm_birth'
+        intervention_azithromycin:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
 
     intervention:
         scenario:
