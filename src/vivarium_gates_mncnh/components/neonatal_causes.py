@@ -26,7 +26,7 @@ class NeonatalCause(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "csmr": f"cause.{self.neonatal_cause}.cause_specific_mortality_rate",
+                    "csmrisk": f"cause.{self.neonatal_cause}.mortality_risk",
                 }
             }
         }
@@ -47,7 +47,7 @@ class NeonatalCause(Component):
         )
         # Register csmr pipeline
         self.intermediate_csmr = builder.value.register_value_producer(
-            f"{self.neonatal_cause}.cause_specific_mortality_rate",
+            f"{self.neonatal_cause}.cause_specific_mortality_risk",
             source=self.get_normalized_csmr,
             component=self,
             required_resources=required_pipeline_resources,
@@ -66,7 +66,7 @@ class NeonatalCause(Component):
         )
         # Create CSMR PAF pipeline which will do nothing but is needed for the LBWSGRiskEffect
         builder.value.register_value_producer(
-            f"{self.neonatal_cause}.cause_specific_mortality_rate.paf",
+            f"{self.neonatal_cause}.cause_specific_mortality_risk.paf",
             source=builder.lookup.build_table(0),
             component=self,
         )
@@ -81,7 +81,7 @@ class NeonatalCause(Component):
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
-        raw_csmr = self.lookup_tables["csmr"](index)
+        raw_csmr = self.lookup_tables["csmrisk"](index)
         normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
         normalized_csmr = raw_csmr * normalizing_constant
 
@@ -105,7 +105,7 @@ class PretermBirth(NeonatalCause):
             self.name: {
                 "data_sources": {
                     key: partial(self.load_lookup_data, key=key)
-                    for key in ["csmr", "paf", "prevalence"]
+                    for key in ["csmrisk", "paf", "prevalence"]
                 }
             }
         }
@@ -121,7 +121,7 @@ class PretermBirth(NeonatalCause):
         # NOTE: This isn't technically a traditional PAF but it is the
         # PAF for the preterm population. We are accounting for this by
         # dividing the CSMR by the prevalence of the preterm categories
-        raw_csmr = self.lookup_tables["csmr"](index)
+        raw_csmr = self.lookup_tables["csmrisk"](index)
         normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
         prevalence = self.lookup_tables["prevalence"](index)
         normalized_csmr = normalizing_constant * (raw_csmr / prevalence)
@@ -138,7 +138,7 @@ class PretermBirth(NeonatalCause):
     def load_lookup_data(self, builder: Builder, key: str) -> pd.DataFrame:
         # Hard codes preterm csmr key since it is the same for both preterm subcauses
         key_mapper = {
-            "csmr": data_keys.PRETERM_BIRTH.CSMR,
+            "csmrisk": data_keys.PRETERM_BIRTH.MORTALITY_RISK,
             "paf": data_keys.PRETERM_BIRTH.PAF,
             "prevalence": data_keys.PRETERM_BIRTH.PREVALENCE,
         }
