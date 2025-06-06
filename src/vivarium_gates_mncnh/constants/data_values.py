@@ -221,21 +221,21 @@ CAUSES_OF_NEONATAL_MORTALITY = [
 
 
 class __Pipelines(NamedTuple):
-    LBWSG_ACMR_PAF_MODIFIER = "lbwsg_paf_on_all_causes.cause_specific_mortality_rate.paf"
-    ACMR = "all_causes.cause_specific_mortality_rate"
-    ACMR_PAF = "all_causes.cause_specific_mortality_rate.paf"
+    LBWSG_ACMR_PAF_MODIFIER = "lbwsg_paf_on_all_causes.all_cause_mortality_risk.paf"
+    ACMR = "all_causes.all_cause_mortality_risk"
+    ACMR_PAF = "all_causes.all_cause_mortality_risk.paf"
     DEATH_IN_AGE_GROUP_PROBABILITY = "death_in_age_group_probability"
     NEONATAL_PRETERM_BIRTH_WITH_RDS = (
-        "neonatal_preterm_birth_with_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_with_rds.cause_specific_mortality_risk"
     )
     PRETERM_WITH_RDS_FINAL_CSMR = "neonatal_preterm_birth_with_rds.csmr"
     NEONATAL_PRETERM_BIRTH_WITHOUT_RDS = (
-        "neonatal_preterm_birth_without_rds.cause_specific_mortality_rate"
+        "neonatal_preterm_birth_without_rds.cause_specific_mortality_risk"
     )
     NEONATAL_SEPSIS = (
-        "neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
+        "neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk"
     )
-    NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
+    NEONATAL_ENCEPHALOPATHY = "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk"
     PRETERM_WITHOUT_RDS_FINAL_CSMR = "neonatal_preterm_birth_without_rds.csmr"
     NEONATAL_SEPSIS_FINAL_CSMR = "neonatal_sepsis_and_other_neonatal_infections.csmr"
     NEONATAL_ENCEPHALOPATHY_FINAL_CSMR = (
