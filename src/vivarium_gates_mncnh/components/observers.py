@@ -14,6 +14,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
+    INTERVENTIONS,
     MATERNAL_DISORDERS,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -403,7 +404,7 @@ class NeonatalCauseRelativeRiskObserver(Observer):
         )
 
 
-class NeonatalInterventionObserver(Observer):
+class InterventionObserver(Observer):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         """A dictionary containing the defaults for any configurations managed by
@@ -411,7 +412,7 @@ class NeonatalInterventionObserver(Observer):
         """
         return {
             "stratification": {
-                f"neonatal_intervention_{self.intervention}": super().configuration_defaults[
+                f"intervention_{self.intervention}": super().configuration_defaults[
                     "stratification"
                 ][self.get_configuration_name()]
             }
@@ -441,9 +442,16 @@ class NeonatalInterventionObserver(Observer):
         ]
 
     def register_observations(self, builder: Builder) -> None:
+        pop_filter = f"{self.intervention}_available == True"
+        if self.intervention in [
+            INTERVENTIONS.CPAP,
+            INTERVENTIONS.ANTIBIOTICS,
+            INTERVENTIONS.PROBIOTICS,
+        ]:
+            pop_filter += f" & pregnancy_outcome == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'"
         builder.results.register_adding_observation(
             name=self.intervention,
-            pop_filter=f"{self.intervention}_available == True & pregnancy_outcome == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+            pop_filter=pop_filter,
             requires_columns=[f"{self.intervention}_available"],
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,

@@ -34,7 +34,7 @@ class MaternalDisorder(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.incidence_risk = builder.value.register_value_producer(
-            f"{self.maternal_disorder}.incidence_rate",
+            f"{self.maternal_disorder}.incidence_risk",
             self.lookup_tables["incidence_risk"],
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables["incidence_risk"]]),

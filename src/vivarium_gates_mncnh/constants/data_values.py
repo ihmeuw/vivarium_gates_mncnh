@@ -93,6 +93,7 @@ class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
     PREGNANCY = "pregnancy"
     DELIVERY_FACILITY = "delivery_facility"
+    AZITHROMYCIN_ACCESS = "azithromycin_access"
     CPAP_ACCESS = "cpap_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
