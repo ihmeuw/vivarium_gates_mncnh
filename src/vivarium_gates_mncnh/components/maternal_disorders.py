@@ -5,7 +5,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants import data_keys

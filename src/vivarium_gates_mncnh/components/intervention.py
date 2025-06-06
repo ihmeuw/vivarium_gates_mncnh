@@ -5,7 +5,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium_public_health.utilities import get_lookup_columns
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
+from vivarium_gates_mncnh.constants.data_values import INTERVENTIONS, PIPELINES
 
 
 class InterventionRiskEffect(Component):
@@ -14,12 +14,11 @@ class InterventionRiskEffect(Component):
 
     INTERVENTION_PIPELINE_MODIFIERS_MAP = {
         # TODO: add neonatal interventions below here
-        "cpap": PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
-        "antibiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
-        "probiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        INTERVENTIONS.CPAP: PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+        INTERVENTIONS.ANTIBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        INTERVENTIONS.PROBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
         # TODO: add maternal interventions below here
-        # TODO: make interventions constant
-        "azithromycin": PIPELINES.MATERNAL_SEPSIS_INCIDENCE_RISK,
+        INTERVENTIONS.AZITHROMYCIN: PIPELINES.MATERNAL_SEPSIS_INCIDENCE_RISK,
     }
 
     @property
@@ -55,9 +54,10 @@ class InterventionRiskEffect(Component):
             self.target_pipeline_name,
             self.modify_target_pipeline,
             component=self,
-            required_resources=[self.col_required] + get_lookup_columns(
+            required_resources=[self.col_required]
+            + get_lookup_columns(
                 [self.lookup_tables["paf"], self.lookup_tables["relative_risk"]]
-            )
+            ),
         )
 
     ##################

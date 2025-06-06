@@ -10,7 +10,7 @@ from vivarium.framework.population import SimulantData
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
-    NEONATAL_INTERVENTIONS,
+    INTERVENTIONS,
     PREGNANCY_OUTCOMES,
 )
 from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
@@ -77,7 +77,7 @@ class InterventionAccess(Component):
         # Only live births are considered for intervention access
         pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
         # If intervention is probiotics, filter for preterm births
-        if self.intervention == NEONATAL_INTERVENTIONS.PROBIOTICS:
+        if self.intervention == INTERVENTIONS.PROBIOTICS:
             pop = pop.loc[pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] < PRETERM_AGE_CUTOFF]
 
         for (
@@ -156,8 +156,8 @@ class MaternalInterventionAccess(InterventionAccess):
         if self._sim_step_name() != self.time_step:
             return
 
-        # This method is the same as the super class but we are not currently not subsetting the 
-        #population since all mothers are eligible
+        # This method is the same as the super class but we are not currently not subsetting the
+        # population since all mothers are eligible
         pop = self.population_view.get(event.index)
         for (
             facility_type,

@@ -348,13 +348,14 @@ PROBIOTICS_BASELINE_COVERAGE_PROABILITY = 0.0
 PROBIOTICS_RELATIVE_RISK_DISTRIBUTION = get_norm(1.67, 0.08**2)
 
 
-class __NeonatalInterventions(NamedTuple):
+class __Interventions(NamedTuple):
     CPAP: str = "cpap"
     ANTIBIOTICS: str = "antibiotics"
     PROBIOTICS: str = "probiotics"
+    AZITHROMYCIN: str = "azithromycin"
 
 
-NEONATAL_INTERVENTIONS = __NeonatalInterventions()
+INTERVENTIONS = __Interventions()
 
 
 AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
