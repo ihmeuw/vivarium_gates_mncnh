@@ -110,6 +110,11 @@ def get_data(
         data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_CEMONC: load_probiotics_facility_probability,
         data_keys.NO_PROBIOTICS_RISK.RELATIVE_RISK: load_no_probiotics_relative_risk,
         data_keys.NO_PROBIOTICS_RISK.PAF: load_no_probiotics_paf,
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME: load_azithromycin_facility_probability,
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC: load_azithromycin_facility_probability,
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC: load_azithromycin_facility_probability,
+        data_keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK: load_no_azithromycin_relative_risk,
+        data_keys.NO_AZITHROMYCIN_RISK.PAF: load_no_azithromycin_paf,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -790,6 +795,66 @@ def load_mortality_risk(
         ["sex", "age_start", "age_end", "year_start", "year_end"]
     )
     return mortality_risk
+
+
+def load_azithromycin_facility_probability(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    facility_uniform_dist = data_values.AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION[location][key]
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    return data
+
+
+def load_no_azithromycin_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # Relative risk for not receiving intervention
+    rr_dist = data_values.AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    return data
+
+
+def load_no_azithromycin_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # Get all required data for calculations
+    incidence_rate = get_data(data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE, location, years)
+    p_sepsis = incidence_rate.copy()
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
+    p_azith_home = get_data(
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME, location, years
+    )
+    p_azith_BEmONC = get_data(
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC, location, years
+    )
+    p_azith_CEmONC = get_data(
+        data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC, location, years
+    )
+    # Relative risk of no azithromycin
+    relative_risk = get_data(data_keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK, location, years)
+    # This is derived in the CPAP PAF calculation
+    p_sepsis_azith = p_sepsis / (
+        (p_home * (1 - p_azith_home) * relative_risk)
+        + (p_home * p_azith_home)
+        + (p_BEmONC * (1 - p_azith_BEmONC) * relative_risk)
+        + (p_CEmONC * (1 - p_azith_CEmONC) * relative_risk)
+        + (p_BEmONC * p_azith_BEmONC)
+        + (p_CEmONC * p_azith_CEmONC)
+    )
+    paf_no_azith = 1 - (p_sepsis_azith / p_sepsis)
+    paf_no_azith = paf_no_azith.fillna(0.0)
+
+    return paf_no_azith
 
 
 def reshape_to_vivarium_format(df, location):

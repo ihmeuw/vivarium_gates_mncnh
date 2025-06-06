@@ -4,6 +4,7 @@ from typing import NamedTuple
 from vivarium_gates_mncnh.constants.data_keys import (
     FACILITY_CHOICE,
     NO_ANTIBIOTICS_RISK,
+    NO_AZITHROMYCIN_RISK,
     NO_CPAP_RISK,
 )
 from vivarium_gates_mncnh.utilities import (
@@ -351,3 +352,26 @@ class __NeonatalInterventions(NamedTuple):
 
 
 NEONATAL_INTERVENTIONS = __NeonatalInterventions()
+
+
+AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
+    "Ethiopia": {
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME: get_norm(0.0, 0.00**2),
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC: get_norm(0.0, 0.00**2),
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC: get_norm(0.0, 0.00**2),
+    },
+    "Nigeria": {
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME: get_norm(0.0, 0.00**2),
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC: get_norm(0.0, 0.00**2),
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC: get_norm(0.0, 0.00**2),
+    },
+    "Pakistan": {
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME: get_norm(0.0, 0.00**2),
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC: get_norm(0.0, 0.00**2),
+        NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC: get_uniform_distribution_from_limits(
+            0.153, 0.253
+        ),
+    },
+}
+# RR of no azithromycin intervention
+AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
