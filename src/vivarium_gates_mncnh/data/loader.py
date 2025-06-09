@@ -343,6 +343,8 @@ def load_lbwsg_rr(
     data = load_standard_data(key, location, years)
     data = data.query("year_start == 2021").droplevel(["affected_entity", "affected_measure"])
     data = data[~data.index.duplicated()]
+    cap_mask = df > 100.0
+    df[cap_mask] = 100.0
     return data
 
 
