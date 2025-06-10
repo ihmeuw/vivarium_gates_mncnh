@@ -100,9 +100,9 @@ def get_data(
         data_keys.NO_CPAP_RISK.P_CPAP_CEMONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_facility_probability,
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: load_antibiotic_facility_probability,
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_facility_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_coverage_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: load_antibiotic_coverage_probability,
+        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK: load_no_antibiotics_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.PAF: load_no_antibiotics_paf,
         data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_HOME: load_probiotics_facility_probability,
@@ -638,18 +638,18 @@ def load_preterm_prevalence(
     return sum_exposure
 
 
-def load_antibiotic_facility_probability(
+def load_antibiotic_coverage_probability(
     key: str,
     location: str,
     years: Optional[Union[int, str, List[int]]] = None,
 ) -> pd.DataFrame:
-    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
-    facility_uniform_dist = data_values.ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION[location][key]
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
-    data.index = data.index.droplevel("location")
-
-    return utilities.set_non_neonnatal_values(data, 0.0)
+    # Model 8.3 sets coverage values at population level and not birth facility/location level
+    coverage_dict = {
+        "Ethiopia": 0.5,
+        "Nigeria": 0.0,
+        "Pakistan": 0.0,
+    }
+    return coverage_dict[location]
 
 
 def load_no_antibiotics_relative_risk(
@@ -660,6 +660,8 @@ def load_no_antibiotics_relative_risk(
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
+    # Update to distribution for model 8.3 requires invering the rrs
+    data = (1 / data).fillna(0.0)
 
     return utilities.set_non_neonnatal_values(data, 1.0)
 
@@ -667,35 +669,16 @@ def load_no_antibiotics_relative_risk(
 def load_no_antibiotics_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    # Get all no_cpap data for calculations
-    csmr = get_data(data_keys.NEONATAL_SEPSIS.MORTALITY_RISK, location, years)
-    p_sepsis = csmr.copy()
-    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
-    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
-    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
-    p_antibiotic_home = get_data(
+    relative_risk = get_data(data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK, location, years)
+    # Only location specific coverage now
+    p_antibiotics_coverage = get_data(
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME, location, years
     )
-    p_antibiotic_BEmONC = get_data(
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC, location, years
-    )
-    p_antibiotic_CEmONC = get_data(
-        data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC, location, years
-    )
-    relative_risk = get_data(data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK, location, years)
-    # This is derived in the CPAP PAF calculation
-    p_sepsis_antibiotic = p_sepsis / (
-        (p_home * (1 - p_antibiotic_home) * relative_risk)
-        + (p_home * p_antibiotic_home)
-        + (p_BEmONC * (1 - p_antibiotic_BEmONC) * relative_risk)
-        + (p_CEmONC * (1 - p_antibiotic_CEmONC) * relative_risk)
-        + (p_BEmONC * p_antibiotic_BEmONC)
-        + (p_CEmONC * p_antibiotic_CEmONC)
-    )
-    paf_no_antibiotic = 1 - (p_sepsis_antibiotic / p_sepsis)
-    paf_no_antibiotic = paf_no_antibiotic.fillna(0.0)
-
-    return utilities.set_non_neonnatal_values(paf_no_antibiotic, 0.0)
+    # mean_rr = rr_no_antibiotics * (1 - p_antibiotics_coverage) + p_antibiotics_coverage
+    mean_rr = relative_risk * (1 - p_antibiotics_coverage) + p_antibiotics_coverage
+    # paf = (mean_rr - 1) / mean_rr
+    paf = (mean_rr - 1) / mean_rr
+    return paf
 
 
 def load_probiotics_facility_probability(
