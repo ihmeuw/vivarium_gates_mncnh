@@ -143,15 +143,6 @@ class MaternalInterventionAccess(InterventionAccess):
         # TODO: this will likely need to be updated with the next maternal intervention
         return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.MOTHER_AGE]
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        simulants = pd.DataFrame(
-            {
-                self.intervention_column: False,
-            },
-            index=pop_data.index,
-        )
-        self.population_view.update(simulants)
-
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.time_step:
             return
