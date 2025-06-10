@@ -3,18 +3,22 @@ from __future__ import annotations
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium_public_health.utilities import get_lookup_columns
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, PIPELINES
+from vivarium_gates_mncnh.constants.data_values import INTERVENTIONS, PIPELINES
 
 
-class NeonatalNoInterventionRisk(Component):
+class InterventionRiskEffect(Component):
     """Component that modifies a neonatal CSMR pipeline based on the lack of an intervention.
     This is the implementation of the RiskEffect for these dichoctomous risks."""
 
     INTERVENTION_PIPELINE_MODIFIERS_MAP = {
-        "cpap": PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
-        "antibiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
-        "probiotics": PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        # TODO: add neonatal interventions below here
+        INTERVENTIONS.CPAP: PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+        INTERVENTIONS.ANTIBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        INTERVENTIONS.PROBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+        # TODO: add maternal interventions below here
+        INTERVENTIONS.AZITHROMYCIN: PIPELINES.MATERNAL_SEPSIS_INCIDENCE_RISK,
     }
 
     @property
@@ -33,7 +37,7 @@ class NeonatalNoInterventionRisk(Component):
         return [self.col_required]
 
     @property
-    def csmr_target_pipeline_name(self) -> str:
+    def target_pipeline_name(self) -> str:
         return self.INTERVENTION_PIPELINE_MODIFIERS_MAP[self.lack_of_intervention_risk]
 
     def __init__(
@@ -47,24 +51,23 @@ class NeonatalNoInterventionRisk(Component):
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
         builder.value.register_value_modifier(
-            self.csmr_target_pipeline_name,
-            self.modify_csmr_pipeline,
+            self.target_pipeline_name,
+            self.modify_target_pipeline,
             component=self,
-            required_resources=[
-                COLUMNS.DELIVERY_FACILITY_TYPE,
-                COLUMNS.SEX_OF_CHILD,
-                COLUMNS.CHILD_AGE,
-                self.col_required,
-            ],
+            required_resources=[self.col_required]
+            + get_lookup_columns(
+                [self.lookup_tables["paf"], self.lookup_tables["relative_risk"]]
+            ),
         )
 
     ##################
     # Helper nethods #
     ##################
 
-    def modify_csmr_pipeline(
-        self, index: pd.Index, csmr_pipeline: pd.Series[float]
+    def modify_target_pipeline(
+        self, index: pd.Index, target_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
+        # TODO: rename and update names
         # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
         # not have their CSMR modify by no intervention RR
         pop = self.population_view.get(index)
@@ -74,7 +77,7 @@ class NeonatalNoInterventionRisk(Component):
         # NOTE: PAF is for no intervention
         paf = self.lookup_tables["paf"](index)
 
-        # Modify the CSMR pipeline
-        modified_csmr = csmr_pipeline * (1 - paf)
-        modified_csmr.loc[no_intervention_idx] = modified_csmr * no_intervention_rr
-        return modified_csmr
+        # Modify the pipeline
+        modified_pipeline = target_pipeline * (1 - paf)
+        modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
+        return modified_pipeline

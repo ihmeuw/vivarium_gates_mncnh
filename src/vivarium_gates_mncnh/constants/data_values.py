@@ -93,6 +93,7 @@ class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
     PREGNANCY = "pregnancy"
     DELIVERY_FACILITY = "delivery_facility"
+    AZITHROMYCIN_ACCESS = "azithromycin_access"
     CPAP_ACCESS = "cpap_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
@@ -186,6 +187,7 @@ class __Columns(NamedTuple):
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
     PROBIOTICS_AVAILABLE = "probiotics_available"
+    AZITHROMYCIN_AVAILABLE = "azithromycin_available"
 
 
 COLUMNS = __Columns()
@@ -252,6 +254,9 @@ class __Pipelines(NamedTuple):
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
     PREGNANCY_DURATION = "pregnancy_duration"
     BIRTH_OUTCOME_PROBABILITIES = "birth_outcome_probabilities"
+    MATERNAL_SEPSIS_INCIDENCE_RISK = (
+        "maternal_sepsis_and_other_maternal_infections.incidence_risk"
+    )
 
 
 PIPELINES = __Pipelines()
@@ -345,13 +350,14 @@ PROBIOTICS_BASELINE_COVERAGE_PROABILITY = 0.0
 PROBIOTICS_RELATIVE_RISK_DISTRIBUTION = get_norm(1.67, 0.08**2)
 
 
-class __NeonatalInterventions(NamedTuple):
+class __Interventions(NamedTuple):
     CPAP: str = "cpap"
     ANTIBIOTICS: str = "antibiotics"
     PROBIOTICS: str = "probiotics"
+    AZITHROMYCIN: str = "azithromycin"
 
 
-NEONATAL_INTERVENTIONS = __NeonatalInterventions()
+INTERVENTIONS = __Interventions()
 
 
 AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
