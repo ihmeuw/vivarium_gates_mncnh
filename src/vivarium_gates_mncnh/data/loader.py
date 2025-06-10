@@ -660,7 +660,7 @@ def load_no_antibiotics_relative_risk(
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
-    # Update to distribution for model 8.3 requires invering the rrs
+    # Update to distribution for model 8.3 requires inverting the rrs
     data = (1 / data).fillna(0.0)
 
     return utilities.set_non_neonnatal_values(data, 1.0)
