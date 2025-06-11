@@ -94,6 +94,7 @@ class _SimulationEventNames(NamedTuple):
     PREGNANCY = "pregnancy"
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
+    MISOPROSTOL_ACCESS = "misoprostol_access"
     CPAP_ACCESS = "cpap_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
@@ -188,6 +189,7 @@ class __Columns(NamedTuple):
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
+    MISOPROSTOL_AVAILABLE = "misoprostol_available"
 
 
 COLUMNS = __Columns()
@@ -257,6 +259,7 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
+    MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
 
 
 PIPELINES = __Pipelines()
@@ -356,6 +359,7 @@ class __Interventions(NamedTuple):
     ANTIBIOTICS: str = "antibiotics"
     PROBIOTICS: str = "probiotics"
     AZITHROMYCIN: str = "azithromycin"
+    MISOPROSTOL: str = "misoprostol"
 
 
 INTERVENTIONS = __Interventions()
