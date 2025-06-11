@@ -317,6 +317,30 @@ class __NoAzithromycinRisk(NamedTuple):
 NO_AZITHROMYCIN_RISK = __NoAzithromycinRisk()
 
 
+# Misoprostol risk keys
+class __NoMisoprostolRisk(NamedTuple):
+    P_MISOPROSTOL_HOME: str = "intervention.no_misoprostol_risk.probability_misoprostol_home"
+    P_MISOPROSTOL_BEMONC: str = (
+        "intervention.no_misoprostol_risk.probability_misoprostol_bemonc"
+    )
+    P_MISOPROSTOL_CEMONC: str = (
+        "intervention.no_misoprostol_risk.probability_misoprostol_cemonc"
+    )
+    RELATIVE_RISK: str = "intervention.no_misoprostol_risk.relative_risk"
+    PAF: str = "intervention.no_misoprostol_risk.population_attributable_fraction"
+
+    @property
+    def name(self):
+        return "no_misoprostol_risk"
+
+    @property
+    def log_name(self):
+        return "no misoprostol risk"
+
+
+NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -334,6 +358,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
+    NO_MISOPROSTOL_RISK,
 ]
 
 

@@ -115,6 +115,11 @@ def get_data(
         data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC: load_azithromycin_facility_probability,
         data_keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK: load_no_azithromycin_relative_risk,
         data_keys.NO_AZITHROMYCIN_RISK.PAF: load_no_azithromycin_paf,
+        data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_HOME: load_misoprostol_coverage_probability,
+        data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_BEMONC: load_misoprostol_coverage_probability,
+        data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_CEMONC: load_misoprostol_coverage_probability,
+        data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
+        data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -842,6 +847,49 @@ def load_no_azithromycin_paf(
     paf_no_azith = paf_no_azith.fillna(0.0)
 
     return paf_no_azith
+
+
+def load_misoprostol_coverage_probability(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    # Mean coverate is 0. For the intervention component we have delivery facility specific coverage
+    # values but this is at a location level and only at home births that received ANC are eligible
+    coverage_dict = {
+        "Ethiopia": 0.0,
+        "Nigeria": 0.0,
+        "Pakistan": 0.0,
+    }
+    return coverage_dict[location]
+
+
+def load_no_misoprostol_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # Relative risk for not receiving intervention
+    rr_dist = data_values.MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+    # Need to invert the relative risk to be a risk of no intervention
+    data = (1 / data).fillna(0.0)
+
+    return data
+
+
+def load_no_misoprostol_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    relative_risk = get_data(data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK, location, years)
+    # Only location specific coverage
+    p_misoprostol_coverage = get_data(
+        data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_HOME, location, years
+    )
+    # mean_rr = rr_no_intervention * (1 - p_intervention_coverage) + p_intervention_coverage
+    mean_rr = relative_risk * (1 - p_misoprostol_coverage) + p_misoprostol_coverage
+    # paf = (mean_rr - 1) / mean_rr
+    paf = (mean_rr - 1) / mean_rr
+    return paf
 
 
 def reshape_to_vivarium_format(df, location):
