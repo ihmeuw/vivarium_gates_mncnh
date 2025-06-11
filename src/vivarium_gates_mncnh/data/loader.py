@@ -697,6 +697,8 @@ def load_no_probiotics_relative_risk(
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
     data.index = data.index.droplevel("location")
+    # model 8.2 requires inverting the relative risks since the distribution has been updated
+    data = (1 / data).fillna(0.0)
 
     return utilities.set_non_neonnatal_values(data, 1.0)
 
