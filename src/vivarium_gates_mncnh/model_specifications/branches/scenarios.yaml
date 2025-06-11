@@ -8,8 +8,6 @@ branches:
         - "full_cpap_bemonc"
         - "full_cpap_cemonc" 
         - "full_cpap_all"
-        - "full_antibiotics_bemonc"
-        - "full_antibiotics_cemonc"
         - "full_antibiotics_all"
         - "full_probiotics_bemonc"
         - "full_probiotics_cemonc"

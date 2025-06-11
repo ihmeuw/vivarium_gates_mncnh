@@ -315,6 +315,7 @@ CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
 
 
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
+    # NOTE: This is not being used as of model 8.3
     "Ethiopia": {
         NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
         NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
@@ -343,7 +344,7 @@ ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
         ),
     },
 }
-ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION = get_norm(1.39, 0.08**2)
+ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.78, 0.60, 1.00)
 
 
 PROBIOTICS_BASELINE_COVERAGE_PROABILITY = 0.0
