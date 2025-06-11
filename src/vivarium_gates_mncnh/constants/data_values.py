@@ -382,3 +382,4 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
 }
 # RR of no azithromycin intervention
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
+MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
