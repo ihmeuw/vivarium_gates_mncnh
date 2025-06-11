@@ -35,14 +35,6 @@ class __InterventionScenarios(NamedTuple):
         bemonc_cpap_access="full",
         cemonc_cpap_access="full",
     )
-    FULL_ANTIBIOTICS_BEMONC: InterventionScenario = InterventionScenario(
-        "full_antibiotics_bemonc",
-        bemonc_antibiotics_access="full",
-    )
-    FULL_ANTIBIOTICS_CEMONC: InterventionScenario = InterventionScenario(
-        "full_antibiotics_cemonc",
-        cemonc_antibiotics_access="full",
-    )
     FULL_ANTIBIOTICS_ALL: InterventionScenario = InterventionScenario(
         "full_antibiotics_all",
         bemonc_antibiotics_access="full",
