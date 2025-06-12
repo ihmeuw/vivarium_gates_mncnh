@@ -13,6 +13,7 @@ class InterventionScenario:
     cemonc_cpap_access: str = "baseline"
     bemonc_antibiotics_access: str = "baseline"
     cemonc_antibiotics_access: str = "baseline"
+    home_antibiotics_access: str = "baseline"
     bemonc_probiotics_access: str = "baseline"
     cemonc_probiotics_access: str = "baseline"
     bemonc_azithromycin_access: str = "baseline"
@@ -40,6 +41,11 @@ class __InterventionScenarios(NamedTuple):
         "full_antibiotics_all",
         bemonc_antibiotics_access="full",
         cemonc_antibiotics_access="full",
+        home_antibiotics_access="full",
+    )
+    FULL_ANTIBIOTICS_HOME: InterventionScenario = InterventionScenario(
+        "full_antibiotics_home",
+        home_antibiotics_access="full",
     )
     FULL_PROBIOTICS_BEMONC: InterventionScenario = InterventionScenario(
         "full_probiotics_bemonc",
