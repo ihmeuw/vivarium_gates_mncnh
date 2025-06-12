@@ -95,6 +95,8 @@ configuration:
                 - 'anc_coverage'
                 - 'ultrasound_type'
                 - 'delivery_facility_type'
+                - 'azithromycin_availability'
+                - 'misoprostol_availability'
         birth:
             include:
                 - 'child_sex'
