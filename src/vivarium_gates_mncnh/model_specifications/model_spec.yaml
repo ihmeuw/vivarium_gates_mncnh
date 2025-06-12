@@ -30,12 +30,14 @@ components:
             - InterventionRiskEffect('cpap')
             - InterventionRiskEffect('antibiotics')
             - InterventionRiskEffect('probiotics')
+            - InterventionRiskEffect('azithromycin')
+            - InterventionRiskEffect('misoprostol')
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
-            - InterventionAccess('probiotics')
-            - InterventionRiskEffect('azithromycin')
+            - InterventionAccess('probiotics')        
             - MaternalInterventionAccess('azithromycin')
+            - MaternalInterventionAccess('misoprostol')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -45,11 +47,12 @@ components:
             - InterventionObserver('antibiotics')
             - InterventionObserver('probiotics')
             - InterventionObserver('azithromycin')
+            - InterventionObserver('misoprostol')
 
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model8.2/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model9.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -67,6 +70,7 @@ configuration:
             - 'pregnancy'
             - 'delivery_facility'
             - 'azithromycin_access'
+            - 'misoprostol_access'
             - 'cpap_access'
             - 'antibiotics_access'
             - 'probiotics_access'
@@ -90,6 +94,9 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
                 - 'ultrasound_type'
+                - 'delivery_facility_type'
+                - 'azithromycin_availability'
+                - 'misoprostol_availability'
         birth:
             include:
                 - 'child_sex'
@@ -100,6 +107,7 @@ configuration:
             include:
                 - 'age_group'
                 - 'azithromycin_availability'
+                - 'misoprostol_availability'
         neonatal_burden:
             include:
                 - 'child_age_group'
@@ -124,6 +132,10 @@ configuration:
                 - 'delivery_facility_type'
                 - 'preterm_birth'
         intervention_azithromycin:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
+        intervention_misoprostol:
             include:
                 - 'age_group'
                 - 'delivery_facility_type'
