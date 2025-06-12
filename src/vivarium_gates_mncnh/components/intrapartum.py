@@ -10,11 +10,25 @@ from vivarium.framework.population import SimulantData
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
+    INTERVENTION_TYPE_MAPPER,
     INTERVENTIONS,
     PREGNANCY_OUTCOMES,
 )
 from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
+
+INTERVENTION_TYPE_COLUMN_MAP = {
+    "maternal": [
+        COLUMNS.DELIVERY_FACILITY_TYPE,
+        COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+        COLUMNS.PREGNANCY_OUTCOME,
+    ],
+    "external": [
+        COLUMNS.DELIVERY_FACILITY_TYPE,
+        COLUMNS.MOTHER_AGE,
+        COLUMNS.ATTENDED_CARE_FACILITY,
+    ],
+}
 
 
 class InterventionAccess(Component):
@@ -42,11 +56,7 @@ class InterventionAccess(Component):
 
     @property
     def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.DELIVERY_FACILITY_TYPE,
-            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
-            COLUMNS.PREGNANCY_OUTCOME,
-        ]
+        return INTERVENTION_TYPE_COLUMN_MAP[INTERVENTION_TYPE_MAPPER[self.intervention]]
 
     def __init__(self, intervention: str) -> None:
         super().__init__()
@@ -144,14 +154,6 @@ class InterventionAccess(Component):
 
 class MaternalInterventionAccess(InterventionAccess):
     """Component for determining if a simulant has access to maternal interventions."""
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.DELIVERY_FACILITY_TYPE,
-            COLUMNS.MOTHER_AGE,
-            COLUMNS.ATTENDED_CARE_FACILITY,
-        ]
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.time_step:
