@@ -36,8 +36,8 @@ components:
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
             - InterventionAccess('probiotics')        
-            - MaternalInterventionAccess('azithromycin')
-            - MaternalInterventionAccess('misoprostol')
+            - InterventionAccess('azithromycin')
+            - InterventionAccess('misoprostol')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
