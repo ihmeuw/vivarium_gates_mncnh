@@ -94,6 +94,7 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
                 - 'ultrasound_type'
+                - 'delivery_facility_type'
         birth:
             include:
                 - 'child_sex'
