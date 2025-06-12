@@ -105,8 +105,14 @@ class InterventionAccess(Component):
             DELIVERY_FACILITY_TYPES.CEmONC: self.lookup_tables["cemonc_access_probability"],
             DELIVERY_FACILITY_TYPES.HOME: self.lookup_tables["home_access_probability"],
         }
-        bemonc_scenario = getattr(self.scenario, f"bemonc_{self.intervention}_access")
-        cemonc_scenario = getattr(self.scenario, f"cemonc_{self.intervention}_access")
+        bemonc_scenario = getattr(
+            self.scenario, f"bemonc_{self.intervention}_access", "baseline"
+        )
+        cemonc_scenario = getattr(
+            self.scenario, f"cemonc_{self.intervention}_access", "baseline"
+        )
+        # As of model 9.0, misoprostol is the only intervention where we have a home scale up
+        home_scenario = getattr(self.scenario, f"home_{self.intervention}_access", "baseline")
         bemonc_intervention_access = (
             1.0
             if bemonc_scenario == "full"
@@ -117,10 +123,11 @@ class InterventionAccess(Component):
             if cemonc_scenario == "full"
             else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
         )
-        home_intervention_access = delivery_facility_access_probabilities[
-            DELIVERY_FACILITY_TYPES.HOME
-        ]
-
+        home_intervention_access = (
+            1.0
+            if home_scenario == "full"
+            else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.HOME]
+        )
         return {
             DELIVERY_FACILITY_TYPES.BEmONC: bemonc_intervention_access,
             DELIVERY_FACILITY_TYPES.CEmONC: cemonc_intervention_access,
@@ -140,16 +147,26 @@ class MaternalInterventionAccess(InterventionAccess):
 
     @property
     def columns_required(self) -> list[str]:
-        # TODO: this will likely need to be updated with the next maternal intervention
-        return [COLUMNS.DELIVERY_FACILITY_TYPE, COLUMNS.MOTHER_AGE]
+        return [
+            COLUMNS.DELIVERY_FACILITY_TYPE,
+            COLUMNS.MOTHER_AGE,
+            COLUMNS.ATTENDED_CARE_FACILITY,
+        ]
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.time_step:
             return
 
-        # This method is the same as the super class but we are not currently not subsetting the
-        # population since all mothers are eligible
+        # This method and columns_required are the only differences between this and the super class.
+        # For this method, we will handle subsetting for maternal interventions.
         pop = self.population_view.get(event.index)
+        # Misoprostol is only available to mothers who attended ANC and gave birth at home
+        if self.intervention == INTERVENTIONS.MISOPROSTOL:
+            pop = pop.loc[
+                (pop[COLUMNS.ATTENDED_CARE_FACILITY] == True)
+                & (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
+            ]
+
         for (
             facility_type,
             coverage_value,
