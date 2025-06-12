@@ -18,12 +18,12 @@ from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 
 INTERVENTION_TYPE_COLUMN_MAP = {
-    "maternal": [
+    "neonatal": [
         COLUMNS.DELIVERY_FACILITY_TYPE,
         COLUMNS.GESTATIONAL_AGE_EXPOSURE,
         COLUMNS.PREGNANCY_OUTCOME,
     ],
-    "external": [
+    "maternal": [
         COLUMNS.DELIVERY_FACILITY_TYPE,
         COLUMNS.MOTHER_AGE,
         COLUMNS.ATTENDED_CARE_FACILITY,
