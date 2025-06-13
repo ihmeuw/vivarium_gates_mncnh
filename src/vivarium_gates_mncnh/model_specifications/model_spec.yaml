@@ -82,7 +82,7 @@ configuration:
             - 'late_neonatal_mortality'
 
     population:
-        population_size: 200_000
+        population_size: 20_000
         initialization_age_min: 10
         initialization_age_max: 54
         include_sex: "Female"

@@ -43,10 +43,6 @@ class __InterventionScenarios(NamedTuple):
         cemonc_antibiotics_access="full",
         home_antibiotics_access="full",
     )
-    FULL_ANTIBIOTICS_HOME: InterventionScenario = InterventionScenario(
-        "full_antibiotics_home",
-        home_antibiotics_access="full",
-    )
     FULL_PROBIOTICS_BEMONC: InterventionScenario = InterventionScenario(
         "full_probiotics_bemonc",
         bemonc_probiotics_access="full",
