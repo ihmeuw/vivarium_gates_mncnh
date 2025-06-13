@@ -82,7 +82,7 @@ configuration:
             - 'late_neonatal_mortality'
 
     population:
-        population_size: 20_000
+        population_size: 200_000
         initialization_age_min: 10
         initialization_age_max: 54
         include_sex: "Female"
@@ -106,6 +106,8 @@ configuration:
         maternal_disorders_burden:
             include:
                 - 'age_group'
+                - 'delivery_facility_type'
+                - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
         neonatal_burden:
