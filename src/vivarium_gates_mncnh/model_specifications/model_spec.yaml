@@ -106,6 +106,8 @@ configuration:
         maternal_disorders_burden:
             include:
                 - 'age_group'
+                - 'delivery_facility_type'
+                - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
         neonatal_burden:
