@@ -10,11 +10,25 @@ from vivarium.framework.population import SimulantData
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
+    INTERVENTION_TYPE_MAPPER,
     INTERVENTIONS,
     PREGNANCY_OUTCOMES,
 )
 from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
+
+INTERVENTION_TYPE_COLUMN_MAP = {
+    "neonatal": [
+        COLUMNS.DELIVERY_FACILITY_TYPE,
+        COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+        COLUMNS.PREGNANCY_OUTCOME,
+    ],
+    "maternal": [
+        COLUMNS.DELIVERY_FACILITY_TYPE,
+        COLUMNS.MOTHER_AGE,
+        COLUMNS.ATTENDED_CARE_FACILITY,
+    ],
+}
 
 
 class InterventionAccess(Component):
@@ -42,17 +56,14 @@ class InterventionAccess(Component):
 
     @property
     def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.DELIVERY_FACILITY_TYPE,
-            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
-            COLUMNS.PREGNANCY_OUTCOME,
-        ]
+        return INTERVENTION_TYPE_COLUMN_MAP[self.intervention_type]
 
     def __init__(self, intervention: str) -> None:
         super().__init__()
         self.intervention = intervention
         self.intervention_column = f"{self.intervention}_available"
         self.time_step = f"{self.intervention}_access"
+        self.intervention_type = INTERVENTION_TYPE_MAPPER[self.intervention]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -74,11 +85,7 @@ class InterventionAccess(Component):
             return
 
         pop = self.population_view.get(event.index)
-        # Only live births are considered for intervention access
-        pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
-        # If intervention is probiotics, filter for preterm births
-        if self.intervention == INTERVENTIONS.PROBIOTICS:
-            pop = pop.loc[pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] < PRETERM_AGE_CUTOFF]
+        pop = self.filter_pop_for_intervention(pop)
 
         for (
             facility_type,
@@ -138,50 +145,21 @@ class InterventionAccess(Component):
         data = builder.data.load(
             f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_{key}"
         )
-
         return data
 
-
-class MaternalInterventionAccess(InterventionAccess):
-    """Component for determining if a simulant has access to maternal interventions."""
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.DELIVERY_FACILITY_TYPE,
-            COLUMNS.MOTHER_AGE,
-            COLUMNS.ATTENDED_CARE_FACILITY,
-        ]
-
-    def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != self.time_step:
-            return
-
-        # This method and columns_required are the only differences between this and the super class.
-        # For this method, we will handle subsetting for maternal interventions.
-        pop = self.population_view.get(event.index)
+    def filter_pop_for_intervention(self, pop: pd.DataFrame) -> pd.DataFrame:
+        # Only live births are considered for neonatal interventions
+        if self.intervention_type == "neonatal":
+            pop = pop.loc[
+                pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+            ]
+        # If intervention is probiotics, filter for preterm births
+        if self.intervention == INTERVENTIONS.PROBIOTICS:
+            pop = pop.loc[pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] < PRETERM_AGE_CUTOFF]
         # Misoprostol is only available to mothers who attended ANC and gave birth at home
         if self.intervention == INTERVENTIONS.MISOPROSTOL:
             pop = pop.loc[
                 (pop[COLUMNS.ATTENDED_CARE_FACILITY] == True)
                 & (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
             ]
-
-        for (
-            facility_type,
-            coverage_value,
-        ) in self.coverage_values.items():
-            facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
-            coverage_value = (
-                coverage_value
-                if isinstance(coverage_value, float)
-                else coverage_value(facility_idx)
-            )
-            get_intervention_idx = self.randomness.filter_for_probability(
-                facility_idx,
-                coverage_value,
-                f"{self.intervention}_access_{facility_type}",
-            )
-            pop.loc[get_intervention_idx, self.intervention_column] = True
-
-        self.population_view.update(pop)
+        return pop
