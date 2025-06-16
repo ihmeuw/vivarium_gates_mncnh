@@ -29,6 +29,10 @@ INTERVENTION_TYPE_COLUMN_MAP = {
         COLUMNS.ATTENDED_CARE_FACILITY,
     ],
 }
+INTERVENTION_SCENARIO_ACCESS_MAP = {
+    "full": 1.0,
+    "scale_up": 0.5,
+}
 
 
 class InterventionAccess(Component):
@@ -121,18 +125,18 @@ class InterventionAccess(Component):
         # As of model 9.0, misoprostol is the only intervention where we have a home scale up
         home_scenario = getattr(self.scenario, f"home_{self.intervention}_access", "baseline")
         bemonc_intervention_access = (
-            1.0
-            if bemonc_scenario == "full"
+            INTERVENTION_SCENARIO_ACCESS_MAP[bemonc_scenario]
+            if bemonc_scenario != "baseline"
             else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.BEmONC]
         )
         cemonc_intervention_access = (
-            1.0
-            if cemonc_scenario == "full"
+            INTERVENTION_SCENARIO_ACCESS_MAP[cemonc_scenario]
+            if cemonc_scenario != "baseline"
             else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.CEmONC]
         )
         home_intervention_access = (
-            1.0
-            if home_scenario == "full"
+            INTERVENTION_SCENARIO_ACCESS_MAP[home_scenario]
+            if home_scenario != "baseline"
             else delivery_facility_access_probabilities[DELIVERY_FACILITY_TYPES.HOME]
         )
         return {

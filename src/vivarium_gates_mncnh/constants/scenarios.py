@@ -43,10 +43,6 @@ class __InterventionScenarios(NamedTuple):
         cemonc_antibiotics_access="full",
         home_antibiotics_access="full",
     )
-    FULL_ANTIBIOTICS_HOME: InterventionScenario = InterventionScenario(
-        "full_antibiotics_home",
-        home_antibiotics_access="full",
-    )
     FULL_PROBIOTICS_BEMONC: InterventionScenario = InterventionScenario(
         "full_probiotics_bemonc",
         bemonc_probiotics_access="full",
@@ -60,22 +56,14 @@ class __InterventionScenarios(NamedTuple):
         bemonc_probiotics_access="full",
         cemonc_probiotics_access="full",
     )
-    FULL_AZITHROMYCIN_BEMONC: InterventionScenario = InterventionScenario(
-        "full_azithromycin_bemonc",
-        bemonc_azithromycin_access="full",
+    SCALE_UP_AZITHROMYCIN_ALL: InterventionScenario = InterventionScenario(
+        "scale_up_azithromycin_all",
+        bemonc_azithromycin_access="scale_up",
+        cemonc_azithromycin_access="scale_up",
     )
-    FULL_AZITHROMYCIN_CEMONC: InterventionScenario = InterventionScenario(
-        "full_azithromycin_cemonc",
-        cemonc_azithromycin_access="full",
-    )
-    FULL_AZITHROMYCIN_ALL: InterventionScenario = InterventionScenario(
-        "full_azithromycin_all",
-        bemonc_azithromycin_access="full",
-        cemonc_azithromycin_access="full",
-    )
-    FULL_MISOPROSTOL_HOME: InterventionScenario = InterventionScenario(
-        "full_misoprostol_home",
-        home_misoprostol_access="full",
+    SCALE_UP_MISOPROSTOL_HOME: InterventionScenario = InterventionScenario(
+        "scale_up_misoprostol_home",
+        home_misoprostol_access="scale_up",
     )
 
     def __getitem__(self, item) -> InterventionScenario:
