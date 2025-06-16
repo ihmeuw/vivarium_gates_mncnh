@@ -341,6 +341,26 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
+class __PostpartumDepression(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RAW_INCIDENCE_RATE: str = "cause.postpartum_depression.incidence_rate"
+    CASE_FATALITY_RATE: str = "cause.postpartum_depression.case_fatality_rate"
+    CASE_DURATION: str = "cause.postpartum_depression.case_duration"
+    CASE_SEVERITY: str = "cause.postpartum_depression.case_severity"
+    DISABILITY_WEIGHT: str = "cause.postpartum_depression.disability_weight"
+
+    @property
+    def name(self):
+        return "post_partum_depression"
+
+    @property
+    def log_name(self):
+        return "post partum depression"
+
+
+POSTPARTUM_DEPRESSION = __PostpartumDepression()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -359,6 +379,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
+    POSTPARTUM_DEPRESSION,
 ]
 
 
