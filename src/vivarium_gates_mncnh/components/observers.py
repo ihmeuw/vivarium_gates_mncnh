@@ -10,6 +10,7 @@ from vivarium.framework.results import Observer
 from vivarium_public_health.results import COLUMNS
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
+from vivarium_gates_mncnh.constants.data_keys import POSTPARTUM_DEPRESSION
 from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
@@ -470,4 +471,67 @@ class InterventionObserver(Observer):
 
     def to_observe(self, event: Event) -> bool:
         # Last time step
-        return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION
+
+
+class PostpartumDepressionObserver(Observer):
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": [],
+                    "include": [],
+                    "data_sources": {
+                        "disability_weight": POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT
+                    },
+                },
+            },
+        }
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.POSTPARTUM_DEPRESSION,
+            COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE,
+            COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION,
+            COLUMNS.MOTHER_ALIVE,
+        ]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.maternal_disorder = COLUMNS.POSTPARTUM_DEPRESSION
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    def register_observations(self, builder: Builder) -> None:
+        pop_filter = f"{self.maternal_disorder} == True & {COLUMNS.MOTHER_ALIVE} == 'alive'"
+        builder.results.register_adding_observation(
+            name=f"{self.maternal_disorder}_counts",
+            pop_filter=pop_filter,
+            requires_columns=[COLUMNS.MOTHER_ALIVE, COLUMNS.POSTPARTUM_DEPRESSION],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+        )
+        builder.results.register_adding_observation(
+            name=f"{self.maternal_disorder}_ylds",
+            pop_filter=pop_filter,
+            requires_columns=self.columns_required,
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+            aggregator=self.calculate_ylds,
+        )
+
+    def calculate_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate the YLDs for postpartum depression."""
+        case_duration = data[COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION]
+        disability_weight = self.lookup_tables["disability_weight"](data.index)
+        ylds = case_duration * disability_weight
+
+        return ylds.sum()
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION
