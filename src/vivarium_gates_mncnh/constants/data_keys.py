@@ -343,7 +343,7 @@ NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 class __PostpartumDepression(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    RAW_INCIDENCE_RATE: str = "cause.postpartum_depression.incidence_rate"
+    INCIDENCE_RISK: str = "cause.postpartum_depression.incidence_risk"
     CASE_FATALITY_RATE: str = "cause.postpartum_depression.case_fatality_rate"
     CASE_DURATION: str = "cause.postpartum_depression.case_duration"
     CASE_SEVERITY: str = "cause.postpartum_depression.case_severity"
