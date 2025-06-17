@@ -193,6 +193,7 @@ class __Columns(NamedTuple):
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
+    POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
 
 
 COLUMNS = __Columns()
