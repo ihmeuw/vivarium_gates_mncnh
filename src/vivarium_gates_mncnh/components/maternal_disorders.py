@@ -151,7 +151,6 @@ class PostpartumDepression(MaternalDisorder):
             (pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME)
             & (pop[COLUMNS.MOTHER_ALIVE] == "alive")
         ]
-        breakpoint()
         # Choose who gets PPD
         got_disorder_idx = self.randomness.filter_for_probability(
             alive.index,
