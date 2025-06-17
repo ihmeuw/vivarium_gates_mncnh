@@ -82,3 +82,7 @@ class MaternalDisorder(Component):
         birth_rate = (sbr + 1) * asfr
         incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
         return incidence_risk.reset_index()
+
+
+class PostpartumDepression(MaternalDisorder):
+    pass
