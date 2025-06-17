@@ -147,21 +147,15 @@ class PostpartumDepression(MaternalDisorder):
             return
 
         pop = self.population_view.get(event.index)
-        full_term = pop.loc[
-            (
-                pop[COLUMNS.PREGNANCY_OUTCOME].isin(
-                    [
-                        PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
-                        PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
-                    ]
-                )
-            )
+        alive = pop.loc[
+            (pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME)
             & (pop[COLUMNS.MOTHER_ALIVE] == "alive")
         ]
+        breakpoint()
         # Choose who gets PPD
         got_disorder_idx = self.randomness.filter_for_probability(
-            full_term.index,
-            self.incidence_risk(full_term.index),
+            alive.index,
+            self.incidence_risk(alive.index),
             f"got_{self.maternal_disorder}_choice",
         )
         pop.loc[got_disorder_idx, self.maternal_disorder] = True
