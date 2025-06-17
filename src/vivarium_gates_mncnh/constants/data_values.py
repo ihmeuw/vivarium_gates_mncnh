@@ -10,6 +10,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
 from vivarium_gates_mncnh.utilities import (
     get_lognorm_from_quantiles,
     get_norm,
+    get_truncnorm,
     get_uniform_distribution_from_limits,
 )
 
@@ -190,6 +191,9 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    POSTPARTUM_DEPRESSION = "postpartum_depression"
+    POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
+    POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
 
 
 COLUMNS = __Columns()
@@ -394,3 +398,43 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
 # RR of no azithromycin intervention
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
+
+
+# Postpartum depression constants
+POSTPARTUM_DEPRESSION_INCIDENCE_RISK = get_truncnorm(
+    0.12, ninety_five_pct_confidence_interval=(0.04, 0.20)
+)
+# Case duration is in years
+POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
+    0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
+)
+
+
+class __PostpartumDepressionCaseTypes(NamedTuple):
+    ASYMPTOMATIC: str = "asymptomatic"
+    MILD: str = "mild"
+    MODERATE: str = "moderate"
+    SEVERE: str = "severe"
+
+
+POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
+
+
+POSTPARTUM_DEPRESSION_CASE_SEVERITY_PROBABILITIES = {
+    POSTPARTUM_DEPRESSION_CASE_TYPES.ASYMPTOMATIC: 0.14,
+    POSTPARTUM_DEPRESSION_CASE_TYPES.MILD: 0.59,
+    POSTPARTUM_DEPRESSION_CASE_TYPES.MODERATE: 0.17,
+    POSTPARTUM_DEPRESSION_CASE_TYPES.SEVERE: 0.10,
+}
+POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS = {
+    POSTPARTUM_DEPRESSION_CASE_TYPES.ASYMPTOMATIC: get_truncnorm(0.0, 0.00**2),
+    POSTPARTUM_DEPRESSION_CASE_TYPES.MILD: get_truncnorm(
+        0.145, ninety_five_pct_confidence_interval=(0.099, 0.209)
+    ),
+    POSTPARTUM_DEPRESSION_CASE_TYPES.MODERATE: get_truncnorm(
+        0.396, ninety_five_pct_confidence_interval=(0.267, 0.531)
+    ),
+    POSTPARTUM_DEPRESSION_CASE_TYPES.SEVERE: get_truncnorm(
+        0.658, ninety_five_pct_confidence_interval=(0.477, 0.807)
+    ),
+}

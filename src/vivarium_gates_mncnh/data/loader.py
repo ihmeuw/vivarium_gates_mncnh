@@ -120,6 +120,11 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_CEMONC: load_misoprostol_coverage_probability,
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
+        data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
+        data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
+        data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
+        data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY: load_postpartum_depression_case_severity,
+        data_keys.POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT: load_postpartum_depression_disability_weight,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -890,6 +895,73 @@ def load_no_misoprostol_paf(
     # paf = (mean_rr - 1) / mean_rr
     paf = (mean_rr - 1) / mean_rr
     return paf
+
+
+def load_postpartum_depression_raw_incidence_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    dist = data_values.POSTPARTUM_DEPRESSION_INCIDENCE_RISK
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    return data
+
+
+def load_postpartum_depression_case_fatality_rate(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # YLD only disorder
+    return 0
+
+
+def load_postpartum_depression_case_duration(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    dist = data_values.POSTPARTUM_DEPRESSION_CASE_DURATION
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    return data
+
+
+def load_postpartum_depression_case_severity(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    return data_values.POSTPARTUM_DEPRESSION_CASE_SEVERITY_PROBABILITIES
+
+
+def load_postpartum_depression_disability_weight(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    disability_weights_dict = (
+        data_values.POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS
+    )
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+
+    disability_weights = []
+    for case_type, dist in disability_weights_dict.items():
+        draws = get_random_variable_draws(
+            metadata.ARTIFACT_COLUMNS, f"{key}_{case_type}", dist
+        )
+        data = pd.DataFrame(
+            [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+        )
+        data.index = data.index.droplevel("location")
+        data[data_values.COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE] = case_type
+        data = data.set_index(
+            data_values.COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE, append=True
+        )
+        disability_weights.append(data)
+
+    # Each item in the list is a dataframe with our demographic index + the case type so we do not
+    # need to create these distributions on the fly during the simulation
+    disability_weights = pd.concat(disability_weights)
+
+    return disability_weights
 
 
 def reshape_to_vivarium_format(df, location):
