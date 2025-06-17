@@ -9,7 +9,10 @@ from vivarium_gates_mncnh.components.lbwsg import (
     LBWSGRisk,
     LBWSGRiskEffect,
 )
-from vivarium_gates_mncnh.components.maternal_disorders import MaternalDisorder
+from vivarium_gates_mncnh.components.maternal_disorders import (
+    MaternalDisorder,
+    PostpartumDepression,
+)
 from vivarium_gates_mncnh.components.mortality import (
     MaternalDisordersBurden,
     NeonatalMortality,
