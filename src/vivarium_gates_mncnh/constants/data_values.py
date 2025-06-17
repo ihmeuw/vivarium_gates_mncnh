@@ -412,7 +412,6 @@ POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
 
 
 class __PostpartumDepressionCaseTypes(NamedTuple):
-    NONE: str = "none"
     ASYMPTOMATIC: str = "asymptomatic"
     MILD: str = "mild"
     MODERATE: str = "moderate"
