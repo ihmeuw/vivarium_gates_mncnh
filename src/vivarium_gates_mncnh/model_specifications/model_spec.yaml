@@ -49,6 +49,7 @@ components:
             - InterventionObserver('probiotics')
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
+            - PostpartumDepressionObserver()
 
 configuration:
     input_data:
@@ -144,7 +145,14 @@ configuration:
             include:
                 - 'age_group'
                 - 'delivery_facility_type'
-
+        postpartum_depression:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
+                - 'pregnancy_outcome'
+                - 'azithromycin_availability'
+                - 'misoprostol_availability'
+                
     intervention:
         scenario:
             'baseline'

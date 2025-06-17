@@ -111,6 +111,12 @@ class PostpartumDepression(MaternalDisorder):
             COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION,
         ]
 
+    @property
+    def columns_required(self) -> list[str]:
+        return super().columns_required + [
+            COLUMNS.MOTHER_ALIVE,
+        ]
+
     def __init__(self) -> None:
         super().__init__(COLUMNS.POSTPARTUM_DEPRESSION)
 
@@ -142,9 +148,15 @@ class PostpartumDepression(MaternalDisorder):
 
         pop = self.population_view.get(event.index)
         full_term = pop.loc[
-            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
-                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            (
+                pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                    [
+                        PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+                        PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+                    ]
+                )
             )
+            & (pop[COLUMNS.MOTHER_ALIVE] == "alive")
         ]
         # Choose who gets PPD
         got_disorder_idx = self.randomness.filter_for_probability(
