@@ -126,7 +126,7 @@ class PostpartumDepression(MaternalDisorder):
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.case_severity_probabioity = builder.data.load(
+        self.case_severity_probability = builder.data.load(
             data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY
         )
 
@@ -161,8 +161,8 @@ class PostpartumDepression(MaternalDisorder):
         # PPD case type
         case_type = self.randomness.choice(
             got_disorder_idx,
-            list(self.case_severity_probabioity.keys()),
-            list(self.case_severity_probabioity.values()),
+            list(self.case_severity_probability.keys()),
+            list(self.case_severity_probability.values()),
             f"{self.maternal_disorder}_case_type_choice",
         )
         pop.loc[got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE] = case_type
