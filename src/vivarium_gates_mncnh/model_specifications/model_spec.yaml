@@ -38,6 +38,7 @@ components:
             - InterventionAccess('probiotics')        
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
+            - PostpartumDepression()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -48,6 +49,7 @@ components:
             - InterventionObserver('probiotics')
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
+            - PostpartumDepressionObserver()
 
 configuration:
     input_data:
@@ -80,6 +82,7 @@ configuration:
             - 'mortality'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
+            - 'postpartum_depression'
 
     population:
         population_size: 20_000
@@ -141,7 +144,14 @@ configuration:
             include:
                 - 'age_group'
                 - 'delivery_facility_type'
-
+        postpartum_depression:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
+                - 'pregnancy_outcome'
+                - 'azithromycin_availability'
+                - 'misoprostol_availability'
+                
     intervention:
         scenario:
             'baseline'

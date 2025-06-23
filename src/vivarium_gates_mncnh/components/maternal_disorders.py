@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -8,7 +9,11 @@ from vivarium.framework.population import SimulantData
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    POSTPARTUM_DEPRESSION_CASE_TYPES,
+    PREGNANCY_OUTCOMES,
+)
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
 
@@ -82,3 +87,88 @@ class MaternalDisorder(Component):
         birth_rate = (sbr + 1) * asfr
         incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
         return incidence_risk.reset_index()
+
+
+class PostpartumDepression(MaternalDisorder):
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    "incidence_risk": data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK,
+                    "case_fatality_rate": data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE,
+                    "case_duration": data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION,
+                    "disability_weight": data_keys.POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT,
+                }
+            }
+        }
+
+    @property
+    def columns_created(self) -> list[str]:
+        return [
+            self.maternal_disorder,
+            COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE,
+            COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION,
+        ]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return super().columns_required + [
+            COLUMNS.MOTHER_ALIVE,
+        ]
+
+    def __init__(self) -> None:
+        super().__init__(COLUMNS.POSTPARTUM_DEPRESSION)
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.case_severity_probability = builder.data.load(
+            data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY
+        )
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        anc_data = pd.DataFrame(
+            {
+                self.maternal_disorder: False,
+                COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE: POSTPARTUM_DEPRESSION_CASE_TYPES.NONE,
+                COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION: np.nan,
+            },
+            index=pop_data.index,
+        )
+
+        self.population_view.update(anc_data)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != self.maternal_disorder:
+            return
+
+        pop = self.population_view.get(event.index)
+        alive = pop.loc[
+            (pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME)
+            & (pop[COLUMNS.MOTHER_ALIVE] == "alive")
+        ]
+        # Choose who gets PPD
+        got_disorder_idx = self.randomness.filter_for_probability(
+            alive.index,
+            self.incidence_risk(alive.index),
+            f"got_{self.maternal_disorder}_choice",
+        )
+        pop.loc[got_disorder_idx, self.maternal_disorder] = True
+        # PPD case type
+        case_type = self.randomness.choice(
+            got_disorder_idx,
+            list(self.case_severity_probability.keys()),
+            list(self.case_severity_probability.values()),
+            f"{self.maternal_disorder}_case_type_choice",
+        )
+        pop.loc[got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE] = case_type
+        # PPD case duration
+        pop.loc[
+            got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION
+        ] = self.lookup_tables["case_duration"](got_disorder_idx)
+
+        self.population_view.update(pop)
