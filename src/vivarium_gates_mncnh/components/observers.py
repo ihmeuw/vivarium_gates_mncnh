@@ -17,6 +17,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DELIVERY_FACILITY_TYPES,
     INTERVENTIONS,
     MATERNAL_DISORDERS,
+    NEONATAL_CAUSES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
@@ -397,6 +398,9 @@ class NeonatalCauseRelativeRiskObserver(Observer):
 
     def register_observations(self, builder: Builder) -> None:
         for cause in self.neonatal_causes:
+            # Simple hack to skip encephalopathy relative risk for model 10.1 runs
+            if cause == NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY:
+                continue
             builder.results.register_adding_observation(
                 name=f"{cause}_relative_risk",
                 pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",

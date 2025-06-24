@@ -21,7 +21,7 @@ components:
             - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk')
             - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_risk')
             - LBWSGRiskEffect('cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_risk')
-            - LBWSGRiskEffect('cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk')
+            # - LBWSGRiskEffect('cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk')
             - PretermBirth('neonatal_preterm_birth_with_rds')
             - PretermBirth('neonatal_preterm_birth_without_rds')
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
