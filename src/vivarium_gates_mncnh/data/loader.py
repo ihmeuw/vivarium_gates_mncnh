@@ -970,7 +970,7 @@ def load_postpartum_depression_disability_weight(
 def load_hemoglobin_exposure_data(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ):
-    hemoglobin_data = extra_gbd.get_hemoglobin_exposure_data(key, location, me_id=me_id)
+    hemoglobin_data = extra_gbd.get_hemoglobin_exposure_data(key, location)
 
     hemoglobin_data = hemoglobin_data.set_index(metadata.ARTIFACT_INDEX_COLUMNS)
     hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
