@@ -378,6 +378,7 @@ class __Hemoglobin(NamedTuple):
 
 HEMOGLOBIN = __Hemoglobin()
 
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
