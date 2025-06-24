@@ -125,6 +125,9 @@ def get_data(
         data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
         data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY: load_postpartum_depression_case_severity,
         data_keys.POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT: load_postpartum_depression_disability_weight,
+        data_keys.HEMOGLOBIN.EXPOSURE_MEAN: load_hemoglobin_exposure_data,
+        data_keys.HEMOGLOBIN.EXPOSURE_SD: load_hemoglobin_exposure_data,
+        data_keys.HEMOGLOBIN.DISTRIBUTION_WEIGHTS: load_hemoglobin_distribution_weights,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -962,6 +965,22 @@ def load_postpartum_depression_disability_weight(
     disability_weights = pd.concat(disability_weights)
 
     return disability_weights
+
+
+def load_hemoglobin_exposure_data(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    hemoglobin_data = extra_gbd.get_hemoglobin_exposure_data(key, location, me_id=me_id)
+
+    hemoglobin_data = hemoglobin_data.set_index(metadata.ARTIFACT_INDEX_COLUMNS)
+    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
+    return hemoglobin_data
+
+
+def load_hemoglobin_distribution_weights(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    return data_values.HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS
 
 
 def reshape_to_vivarium_format(df, location):

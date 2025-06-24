@@ -440,3 +440,11 @@ POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS = {
         0.658, ninety_five_pct_confidence_interval=(0.477, 0.807)
     ),
 }
+
+
+# Hemoglobin constants
+X_VALUES = {"min": 40, "max": 150}
+HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
+    "gamma": 0.4,
+    "mirror_gumbel": 0.6,
+}
