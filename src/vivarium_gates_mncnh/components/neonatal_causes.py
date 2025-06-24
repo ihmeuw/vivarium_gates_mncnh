@@ -82,6 +82,8 @@ class NeonatalCause(Component):
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
         raw_csmr = self.lookup_tables["csmrisk"](index)
+        if self.neonatal_cause == NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY:
+            return raw_csmr
         normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
         normalized_csmr = raw_csmr * normalizing_constant
 
