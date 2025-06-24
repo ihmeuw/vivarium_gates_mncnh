@@ -13,4 +13,5 @@ branches:
         - "full_probiotics_cemonc"
         - "full_probiotics_all"
         - "scale_up_azithromycin_all"
+        - "full_azithromycin_all"
         - "scale_up_misoprostol_home"
