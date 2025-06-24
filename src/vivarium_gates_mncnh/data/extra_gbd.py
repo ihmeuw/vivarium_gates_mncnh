@@ -83,10 +83,11 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
     """
     Get hemoglobin exposure data for a given location and source.
     """
-    source = {
+    source_map = {
         data_keys.HEMOGLOBIN.EXPOSURE_MEAN: gbd_constants.SOURCES.EXPOSURE,
         data_keys.HEMOGLOBIN.EXPOSURE_SD: gbd_constants.SOURCES.EXPOSURE_SD,
     }
+    source = source_map[key]
     location_id = utility_data.get_location_id(location)
     data = vi_utils.get_draws(
         gbd_id_type="rei_id",
