@@ -91,7 +91,7 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
     location_id = utility_data.get_location_id(location)
     data = vi_utils.get_draws(
         gbd_id_type="rei_id",
-        gbd_id=379,
+        gbd_id=376,
         source=source,
         location_id=location_id,
         year_id=2021,
