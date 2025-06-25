@@ -972,7 +972,16 @@ def load_hemoglobin_exposure_data(
 ):
     hemoglobin_data = extra_gbd.get_hemoglobin_exposure_data(key, location)
     hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
-    hemoglobin_data = hemoglobin_data.set_index(metadata.ARTIFACT_INDEX_COLUMNS)
+    hemoglobin_data = hemoglobin_data.drop_level(
+        [
+            "parameter",
+            "measure_id",
+            "metric_id",
+            "model_version_id",
+            "modelable_entity_id",
+            "rei_id",
+        ]
+    )
     return hemoglobin_data
 
 
