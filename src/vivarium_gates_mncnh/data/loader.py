@@ -979,7 +979,7 @@ def load_hemoglobin_exposure_data(
         "modelable_entity_id",
         "rei_id",
     ]
-    if key == data_keys.HEMOGLOBIN.EXPOSURE:
+    if key == data_keys.HEMOGLOBIN.EXPOSURE_MEAN:
         levels_to_drop.append("parameter")
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
     return hemoglobin_data
