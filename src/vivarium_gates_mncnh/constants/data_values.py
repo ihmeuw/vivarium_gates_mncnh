@@ -195,6 +195,8 @@ class __Columns(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
+    HEMOGLOBIN_DISTRIBUTION_PROPENSITY = "hemoglobin_distribution_propensity"
+    HEMOGLOBIN_VALUE_PROPENSITY = "hemoglobin_value_propensity"
 
 
 COLUMNS = __Columns()
@@ -443,7 +445,8 @@ POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS = {
 
 
 # Hemoglobin constants
-X_VALUES = {"min": 40, "max": 150}
+HEMOGLOBIN_X_MIN = 40
+HEMOGLOBIN_X_MAX = 150
 HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
     "gamma": 0.4,
     "mirror_gumbel": 0.6,
