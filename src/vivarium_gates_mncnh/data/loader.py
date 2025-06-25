@@ -974,7 +974,6 @@ def load_hemoglobin_exposure_data(
     hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
     hemoglobin_data.index = hemoglobin_data.index.droplevel(
         [
-            "parameter",
             "measure_id",
             "metric_id",
             "model_version_id",
