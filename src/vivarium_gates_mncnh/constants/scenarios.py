@@ -61,6 +61,11 @@ class __InterventionScenarios(NamedTuple):
         bemonc_azithromycin_access="scale_up",
         cemonc_azithromycin_access="scale_up",
     )
+    FULL_AZITHROMYCIN_ALL: InterventionScenario = InterventionScenario(
+        "full_azithromycin_all",
+        bemonc_azithromycin_access="full",
+        cemonc_azithromycin_access="full",
+    )
     SCALE_UP_MISOPROSTOL_HOME: InterventionScenario = InterventionScenario(
         "scale_up_misoprostol_home",
         home_misoprostol_access="scale_up",
