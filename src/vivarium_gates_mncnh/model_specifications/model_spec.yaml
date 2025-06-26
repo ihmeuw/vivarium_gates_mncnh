@@ -39,6 +39,7 @@ components:
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
             - PostpartumDepression()
+            - Hemoglobin()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
