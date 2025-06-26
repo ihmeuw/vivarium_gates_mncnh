@@ -25,7 +25,6 @@ class Hemoglobin(Component):
                 "data_sources": {
                     "exposure_mean": HEMOGLOBIN.EXPOSURE_MEAN,
                     "exposure_sd": HEMOGLOBIN.EXPOSURE_SD,
-                    "distribution_weights": HEMOGLOBIN.DISTRIBUTION_WEIGHTS,
                 }
             }
         }
@@ -43,7 +42,7 @@ class Hemoglobin(Component):
 
     @property
     def initialization_requirements(self) -> list[str | Resource]:
-        return [self.name]
+        return [self.randomness]
 
     #####################
     # Lifecycle Methods #
@@ -52,6 +51,7 @@ class Hemoglobin(Component):
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
         self._sim_step_name = builder.time.simulation_event_name()
+        self.distribution_weights = builder.data.load(HEMOGLOBIN.DISTRIBUTION_WEIGHTS)
         self.raw_hemoglobin = builder.value.register_value_producer(
             "hemoglobin.exposure_parameters",
             source=self.get_raw_hemoglobin,
@@ -86,8 +86,8 @@ class Hemoglobin(Component):
         their hemoglobin value from a custom ensemble distribution."""
 
         pop = self.population_view.get(idx)
-        mean = self.lookup_tables["exposure_mean"].get(idx)
-        sd = self.lookup_tables["exposure_sd"].get(idx)
+        mean = self.lookup_tables["exposure_mean"](idx)
+        sd = self.lookup_tables["exposure_sd"](idx)
 
         return self.sample_from_hemoglobin_distribution(
             pop["hemoglobin_distribution_propensity"],
@@ -131,7 +131,7 @@ class Hemoglobin(Component):
         for the selected distribution).
         """
 
-        gamma = propensity_distribution < self.lookup_tables["distribution_weights"]["gamma"]
+        gamma = propensity_distribution < self.distribution_weights["gamma"]
         gumbel = ~gamma
 
         hemoglobin_value = pd.Series(

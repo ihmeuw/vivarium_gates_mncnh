@@ -37,7 +37,7 @@ class NewChildren(Component):
     @property
     def initialization_requirements(self):
         return [
-            COLUMNS.PREGNANCY_OUTCOME,
+            COLUMNS.PREGNANCY_OUTCOME, self.randomness
         ]
 
     @property
