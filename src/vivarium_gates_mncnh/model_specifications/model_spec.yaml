@@ -5,9 +5,9 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
-    ivarium_public_health:
+    vivarium_public_health:
         risks:
-            - Risk('risk_factor.Hemoglobin')
+            - Risk('risk_factor.hemoglobin')
 
     vivarium_gates_mncnh:
         components:
@@ -43,7 +43,6 @@ components:
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
             - PostpartumDepression()
-            - Hemoglobin()
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
