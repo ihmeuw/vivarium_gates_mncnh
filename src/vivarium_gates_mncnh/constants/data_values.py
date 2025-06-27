@@ -449,6 +449,19 @@ HEMOGLOBIN_X_MIN = 40
 HEMOGLOBIN_X_MAX = 150
 HEMOGLOBIN_DISTRIBUTION = "ensemble"
 HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
-    "parameter": ["gamma", "mgumbel"],
-    "value": [0.4, 0.6],
+    "parameter": [
+        "gamma",
+        "mgumbel",
+        "betasr",
+        "exp",
+        "gumbel",
+        "invgamma",
+        "invweibull",
+        "llogis",
+        "lnorm",
+        "mgamma",
+        "norm",
+        "weibull",
+    ],
+    "value": [0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }
