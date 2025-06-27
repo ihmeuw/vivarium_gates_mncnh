@@ -363,9 +363,10 @@ POSTPARTUM_DEPRESSION = __PostpartumDepression()
 
 class __Hemoglobin(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    EXPOSURE_MEAN: str = "risk_factor.hemoglobin.exposure_mean"
-    EXPOSURE_SD: str = "risk_factor.hemoglobin.exposure_sd"
-    DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.distribution_weights"
+    EXPOSURE: str = "risk_factor.hemoglobin.exposure"
+    STANDARD_DEVIATION: str = "risk_factor.hemoglobin.exposure_standard_deviation"
+    DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
+    DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
 
     @property
     def name(self):
