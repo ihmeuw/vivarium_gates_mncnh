@@ -36,9 +36,7 @@ class NewChildren(Component):
 
     @property
     def initialization_requirements(self):
-        return [
-            COLUMNS.PREGNANCY_OUTCOME, self.randomness
-        ]
+        return [COLUMNS.PREGNANCY_OUTCOME, self.randomness]
 
     @property
     def time_step_priority(self) -> int:
