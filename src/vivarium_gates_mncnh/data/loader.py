@@ -1006,6 +1006,7 @@ def load_hemoglobin_distribution_weights(
     idx = demography.index.repeat(len(data))
     weights = weights.set_index(idx)
     weights = weights.set_index("parameter", append=True)
+    weights.index = weights.index.droplevel("location")
 
     return weights
 
