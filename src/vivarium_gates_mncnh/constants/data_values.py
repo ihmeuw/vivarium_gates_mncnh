@@ -195,8 +195,6 @@ class __Columns(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
-    HEMOGLOBIN_DISTRIBUTION_PROPENSITY = "hemoglobin_distribution_propensity"
-    HEMOGLOBIN_VALUE_PROPENSITY = "hemoglobin_value_propensity"
 
 
 COLUMNS = __Columns()
