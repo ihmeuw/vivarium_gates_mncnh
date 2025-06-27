@@ -5,6 +5,10 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
+    vivarium_public_health:
+        risks:
+            - Risk('risk_factor.hemoglobin')
+
     vivarium_gates_mncnh:
         components:
             - AgelessPopulation("population.scaling_factor")
@@ -54,7 +58,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model10.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model11.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
