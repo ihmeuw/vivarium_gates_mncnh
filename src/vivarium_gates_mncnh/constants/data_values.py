@@ -447,7 +447,8 @@ POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS = {
 # Hemoglobin constants
 HEMOGLOBIN_X_MIN = 40
 HEMOGLOBIN_X_MAX = 150
+HEMOGLOBIN_DISTRIBUTION = "ensemble"
 HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
-    "gamma": 0.4,
-    "mirror_gumbel": 0.6,
+    "parameter": ["gamma", "mgumbel"],
+    "value": [0.4, 0.6],
 }
