@@ -1001,11 +1001,10 @@ def load_hemoglobin_distribution_weights(
 ):
     weight_values = data_values.HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
-    weights = pd.DataFrame(
-        [weight_values] * len(demography),
-        index=demography.index,
-        columns=weight_values.keys(),
-    )
+    data = pd.DataFrame(data=weight_values)
+    weights = pd.concat([data] * len(demography), ignore_index=True)
+    idx = demography.index.repeat(len(data))
+    weights = weights.set_index(idx)
     weights = weights.set_index("parameter", append=True)
 
     return weights
