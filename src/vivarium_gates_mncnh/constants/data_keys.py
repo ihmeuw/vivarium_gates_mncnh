@@ -361,6 +361,25 @@ class __PostpartumDepression(NamedTuple):
 POSTPARTUM_DEPRESSION = __PostpartumDepression()
 
 
+class __Hemoglobin(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    EXPOSURE: str = "risk_factor.hemoglobin.exposure"
+    STANDARD_DEVIATION: str = "risk_factor.hemoglobin.exposure_standard_deviation"
+    DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
+    DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
+
+    @property
+    def name(self):
+        return "hemoglobin"
+
+    @property
+    def log_name(self):
+        return "hemoglobin"
+
+
+HEMOGLOBIN = __Hemoglobin()
+
+
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     # TODO: list all key groups here
@@ -380,6 +399,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
     POSTPARTUM_DEPRESSION,
+    HEMOGLOBIN,
 ]
 
 

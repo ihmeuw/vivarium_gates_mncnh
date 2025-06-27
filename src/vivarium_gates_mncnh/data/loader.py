@@ -125,6 +125,10 @@ def get_data(
         data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
         data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY: load_postpartum_depression_case_severity,
         data_keys.POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT: load_postpartum_depression_disability_weight,
+        data_keys.HEMOGLOBIN.EXPOSURE: load_hemoglobin_exposure_data,
+        data_keys.HEMOGLOBIN.STANDARD_DEVIATION: load_hemoglobin_exposure_data,
+        data_keys.HEMOGLOBIN.DISTRIBUTION_WEIGHTS: load_hemoglobin_distribution_weights,
+        data_keys.HEMOGLOBIN.DISTRIBUTION: load_hemoglobin_distribution,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -962,6 +966,55 @@ def load_postpartum_depression_disability_weight(
     disability_weights = pd.concat(disability_weights)
 
     return disability_weights
+
+
+def load_hemoglobin_exposure_data(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    hemoglobin_data = extra_gbd.get_hemoglobin_exposure_data(key, location)
+    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
+    levels_to_drop = [
+        "measure_id",
+        "metric_id",
+        "model_version_id",
+        "modelable_entity_id",
+        "rei_id",
+    ]
+    if key == data_keys.HEMOGLOBIN.EXPOSURE:
+        levels_to_drop.append("parameter")
+    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
+
+    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
+    draw_cols = [col for col in hemoglobin_data.columns if col.startswith("draw_")]
+    expanded_draws = []
+    for i in range(5):
+        df_copy = hemoglobin_data[draw_cols].copy()
+        df_copy.columns = [f"draw_{j}" for j in range(i * 100, (i + 1) * 100)]
+        expanded_draws.append(df_copy)
+    expanded_draws_df = pd.concat(expanded_draws, axis=1)
+
+    return expanded_draws_df
+
+
+def load_hemoglobin_distribution_weights(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    weight_values = data_values.HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    data = pd.DataFrame(data=weight_values)
+    weights = pd.concat([data] * len(demography), ignore_index=True)
+    idx = demography.index.repeat(len(data))
+    weights = weights.set_index(idx)
+    weights = weights.set_index("parameter", append=True)
+    weights.index = weights.index.droplevel("location")
+
+    return weights
+
+
+def load_hemoglobin_distribution(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> str:
+    return data_values.HEMOGLOBIN_DISTRIBUTION
 
 
 def reshape_to_vivarium_format(df, location):
