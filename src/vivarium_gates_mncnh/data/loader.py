@@ -562,7 +562,7 @@ def load_no_cpap_paf(
 
     p_rds_cpap = p_rds / (
         (p_home * relative_risk)
-        + (p_BEmONC * (1 - p_CPAP_CEmONC) * relative_risk)
+        + (p_BEmONC * (1 - p_CPAP_BEmONC) * relative_risk)
         + (p_CEmONC * (1 - p_CPAP_CEmONC) * relative_risk)
         + (p_BEmONC * p_CPAP_BEmONC)
         + (p_CEmONC * p_CPAP_CEmONC)
