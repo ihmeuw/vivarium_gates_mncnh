@@ -51,6 +51,12 @@ class LBWSGRisk(LBWSGRisk_):
             COLUMNS.SEX_OF_CHILD,
         ]
 
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        # We have to override the age_end due to the wide state table and this is easier than
+        # adding an extra population configuratio key
+        self.configuration_age_end = 0.0
+
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
     """Subclass of LBWSGRiskEffect to be compatible with the wide state table, meaning it
