@@ -1,7 +1,7 @@
-input_draw_count: 10
+input_draw_count: 20
 random_seed_count: 10
 
-input_draws: [115, 60, 368, 197, 79, 244, 272, 167, 146, 71, 278, 406, 94, 420, 109, 26, 35, 114, 428, 170] 
+input_draws: [115, 60, 368, 197, 79, 244, 272, 167, 146, 71] 
 
 branches:
   - intervention:
