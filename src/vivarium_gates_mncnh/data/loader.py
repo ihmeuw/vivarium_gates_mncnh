@@ -357,8 +357,11 @@ def load_lbwsg_rr(
     data = load_standard_data(key, location, years)
     data = data.query("year_start == 2021").droplevel(["affected_entity", "affected_measure"])
     data = data[~data.index.duplicated()]
-    cap_mask = data > 100.0
-    data[cap_mask] = 100.0
+    caps = pd.read_csv(paths.LBWSG_RR_CAPS_DIR / f"{location.lower()}.csv")
+    caps = caps.set_index(data.index.names)
+    neonatal_data = data.query("age_start < 8 / 365")
+    capped_neonatal_data = neonatal_data.where(neonatal_data <= caps, other=caps)
+    data.loc[neonatal_data.index] = capped_neonatal_data
     return data
 
 
