@@ -104,22 +104,27 @@ def calculate_maximum_mr_by_draw(
     return mr_max
 
 
-def find_rr_cap(prepped, draw: int, sex: str, age_group: str, location: str) -> float:
+def find_rr_cap(
+    input_data: dict[tuple[str, str], dict[str, pd.DataFrame]],
+    draw: int,
+    sex: str,
+    age_group: str,
+) -> float:
     def objective_function(x):
         rr_cap = x[0] if isinstance(x, (list, np.ndarray)) else x
-        val = calculate_maximum_mr_by_draw(prepped, rr_cap, draw, sex, age_group)
+        val = calculate_maximum_mr_by_draw(input_data, rr_cap, draw, sex, age_group)
         val = val.values[0][0]
         return abs(1 - val)  # minimize distance from 1
 
     def constraint_lower(x):
         rr_cap = x[0] if isinstance(x, (list, np.ndarray)) else x
-        val = calculate_maximum_mr_by_draw(prepped, rr_cap, draw, sex, age_group)
+        val = calculate_maximum_mr_by_draw(input_data, rr_cap, draw, sex, age_group)
         val = val.values[0][0]
         return val  # must be >= 0
 
     def constraint_upper(x):
         rr_cap = x[0] if isinstance(x, (list, np.ndarray)) else x
-        val = calculate_maximum_mr_by_draw(prepped, rr_cap, draw, sex, age_group)
+        val = calculate_maximum_mr_by_draw(input_data, rr_cap, draw, sex, age_group)
         val = val.values[0][0]
         return 1 - val  # must be >= 0 (i.e., val <= 1)
 
@@ -141,7 +146,7 @@ def generate_rr_caps(rr: pd.DataFrame, location: str) -> pd.DataFrame:
     for sex in ["Male", "Female"]:
         for draw in range(data_values.NUM_DRAWS):
             for age_group in ["early_neonatal", "late_neonatal"]:
-                rr_cap = find_rr_cap(input_data, draw, sex, age_group, location)
+                rr_cap = find_rr_cap(input_data, draw, sex, age_group)
                 if age_group == "early_neonatal":
                     age_start, age_end = 0.0, 0.01917808
                 else:
@@ -188,7 +193,7 @@ if __name__ == "__main__":
         "-o",
         "--output-dir",
         type=str,
-        default='/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data/lbwsg_rr_caps',
+        default="/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data/lbwsg_rr_caps",
         help="The output directory where we will write our LBWSG RR caps data.",
     )
     args = parser.parse_args()
