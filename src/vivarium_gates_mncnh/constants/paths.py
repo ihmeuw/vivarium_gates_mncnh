@@ -11,4 +11,4 @@ ARTIFACT_ROOT = Path(
 
 CLUSTER_DATA_DIR = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data")
 PAF_DIR = CLUSTER_DATA_DIR / "lbwsg_paf/outputs"
-LBWSG_RR_CAPS_DIR = CLUSTER_DATA_DIR / "lbwsg_rr_caps"
+LBWSG_RR_CAPS_DIR = Path(__file__).parent.parent / "data" / "lbwsg_rr_caps" / "caps"
