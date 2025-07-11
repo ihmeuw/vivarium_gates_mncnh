@@ -1,7 +1,9 @@
-import pandas as pd, numpy as np, os
-from get_draws.api import get_draws
-from vivarium import Artifact, InteractiveContext
+import os
+
+import numpy as np
+import pandas as pd
 import scipy
+from vivarium import Artifact, InteractiveContext
 
 def load_ptb_rrs():
     """Loads hemoglobin on preterm birth relative risks as provided by hemoglobin team and transforms
