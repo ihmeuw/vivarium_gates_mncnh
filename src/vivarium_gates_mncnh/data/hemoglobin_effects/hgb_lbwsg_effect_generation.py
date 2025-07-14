@@ -106,10 +106,8 @@ def get_lbwsg_birth_exposure(location):
 
 def calculate_shift_from_rr(exp_data, rr_data, location, outcome, sex, draw, exposure_level):
     """Calculates the shift in gestational age or birth weight exposure needed to achieve a target relative risk."""
-    if outcome == 'ptb':
-        exp_sub = exp_data.loc[(exp_data.sex==sex)&(exp_data.draw==draw)].set_index([x for x in exp_data.columns if 'ga' not in x])
-    elif outcome == 'lbw':
-        exp_sub = exp_data.loc[(exp_data.sex==sex)&(exp_data.draw==draw)].set_index([x for x in exp_data.columns if 'bw' not in x])
+    column_filter = 'ga' if outcome == 'ptb' else 'bw'
+    exp_sub = exp_data.loc[(exp_data.sex==sex)&(exp_data.draw==draw)].set_index([x for x in exp_data.columns if column_filter not in x])
     exp_tmrel = exp_sub.reset_index()
     exp_tmrel['frac_preterm'] = np.where(exp_tmrel.ga_end <=37, 1,
                                         np.where(exp_tmrel.ga_start >=37, 0,
