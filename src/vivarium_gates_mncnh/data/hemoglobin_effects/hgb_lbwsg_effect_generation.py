@@ -117,7 +117,7 @@ def calculate_shift_from_rr(exp_data, rr_data, location, outcome, sex, draw, exp
                                                 (2500 - exp_tmrel.bw_start)/(exp_tmrel.bw_end - exp_tmrel.bw_start)))
     tmrel_preterm_prevalence = (exp_tmrel.exposure * exp_tmrel.frac_preterm).sum()
     tmrel_lbw_prevalence = (exp_tmrel.exposure * exp_tmrel.frac_lbw).sum()
-    rr_target = rr_data.loc[(rr_data.exposure == exposure_level)][draw].values[0]
+    rr_target = rr_data.loc[(rr_data.exposure == exposure_level)][draw].iloc[0]
     def ga_shift_optimization(shift):
         exp_exp = (exp_sub + shift).reset_index()
         exp_exp['frac_preterm'] = np.where(exp_exp.ga_end <=37, 1,
