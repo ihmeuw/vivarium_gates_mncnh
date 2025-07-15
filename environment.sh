@@ -93,14 +93,13 @@ else
     jq_exists=$(conda list | grep -w jq)
     if [[ $jq_exists == '' ]]; then
       # Empty string is no return on grep
-      conda install jq -y
+      conda install jq -c anaconda -y
     fi
     echo "Checking framework packages are up to date..."
     # Check if there has been an update to vivarium packages since last modification to requirements file
     # or more reccent than environment creation
     # Note: The lines we will return via grep will look like 'vivarium>=#.#.#' or will be of the format 
     # 'vivarium @ git+https://github.com/ihmeuw/vivarium@SOME_BRANCH'
-    # echo $(grep -E 'vivarium|gbd|risk_distribution|layered_config' $install_file)
     framework_packages=$(grep -E 'vivarium|gbd|risk_distribution|layered_config' $install_file)
     num_packages=$(grep -E 'vivarium|gbd|risk_distribution|layered_config' -c $install_file)
     
@@ -112,12 +111,13 @@ else
           repo_info=(${line//@/ })
           repo=${repo_info[0]}
           repo_branch=${repo_info[2]}
-          last_update_time=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/ihmeuw/$repo/commits?sha=$repo_branch | jq '.[0].commit.committer.date')
+          last_update_time=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/ihmeuw/$repo/commits?sha=$repo_branch | jq .[0].commit.committer.date)
       else
           repo=$(echo "$line" | cut -d '>' -f1)
-          last_update_time=$(curl -s https://pypi.org/pypi/$repo/json | jq '.releases | to_entries | max_by(.key) | .value | .[0].upload_time')
+          last_update_time=$(curl -s https://pypi.org/pypi/$repo/json | jq -r '.releases | to_entries | max_by(.key) | .value | .[0].upload_time')
       fi
-      if [[ $creation_time > $last_commit_time ]]; then
+      last_update_time=$(date -d "$last_update_time" '+%Y-%m-%d %H:%M:%S')
+      if [[ $creation_time < $last_update_time ]]; then
         create_env="yes"
         echo "Last update time for $repo: $last_update_time. Environment is stale. Remaking environment..."
         break
@@ -134,7 +134,7 @@ if [[ $create_env == 'yes' ]]; then
     conda remove -n $env_name --all -y
   fi
   # Create conda environment
-  conda create -n $env_name python=3.11 -y
+  conda create -n $env_name python=3.11 -c anaconda -y
   conda activate $env_name
   # NOTE: update branch name if you update requirements.txt in a branch
   echo "Installing packages for $env_type environment"
@@ -143,7 +143,7 @@ if [[ $create_env == 'yes' ]]; then
   pip install -e .[dev] 
   # Install redis for simulation environments
   if [ $env_type == 'simulation' ]; then
-    conda install redis -y
+    conda install redis -c anaconda -y
   fi
   # Install git lfs if requested
   if [ $install_git_lfs == 'yes' ]; then
