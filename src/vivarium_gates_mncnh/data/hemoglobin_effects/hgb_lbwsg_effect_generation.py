@@ -6,10 +6,8 @@ import scipy
 from vivarium import Artifact, InteractiveContext
 
 
-def load_rrs(outcome):
-    """Loads hemoglobin outcome-specific relative risks as provided by hemoglobin team and transforms
-    them by exponentiating the beta coefficients to get relative risks, rescaling to a tmrel of 120 g/L,
-    and reordering the draws by magnitude of risk at the lowest exposure level."""
+def load_bop_rrs(outcome):
+    """Load burden of proof hemoglobin estimates for specified outcome"""
     # TODO: move these files into model repo?
     rrs = pd.read_csv(f"/mnt/team/anemia/pub/bop/sim_studies/{outcome}/inner_draws.csv")
     rrs = rrs.set_index("risk")
@@ -17,12 +15,44 @@ def load_rrs(outcome):
         rrs
     ).reset_index()  # convert beta coefficients to relative risks by exponentiating
     rrs["outcome"] = outcome
-    exposure_levels = rrs.risk.unique()
-    if outcome == "ptb":
-        index_val = 691
-    elif outcome == "lbw":
-        index_val = 692
-    tmrel = exposure_levels[index_val]  # this corresponds to an exposure level of 120 g/L
+    return rrs
+
+
+def get_gbd_exposure_levels():
+    """Loads the 1,000 exposure estimates used in GBD for the maternal disorders outcomes."""
+    # TODO: read from artifact instead of get draws?
+    from get_draws.api import get_draws
+
+    rrs = get_draws(
+        release_id=16, source="rr", gbd_id_type="rei_id", gbd_id=376, sex_id=2
+    )  # this includes multiple age groups and multiple causes
+    assert (
+        len(rrs.exposure.unique()) == 1000
+    ), f"Expected 1000 unique exposure levels across age groups and causes, but got {len(rrs.exposure.unique())}"
+    exposure_levels = rrs.exposure.unique()
+    return exposure_levels
+
+
+def convert_rrs_to(rrs, exposure_levels):
+    """Using linear interpolation, make a new dataframe with relative risks specific to the exposure levels used in GBD
+    rather than the exposure levels output from the outcome-specific burden of proof models."""
+    from scipy.interpolate import interp1d
+
+    x_new = exposure_levels
+    rrs_interp = pd.DataFrame({"risk": x_new})
+    # Interpolate for each draw column
+    risk = rrs["risk"].values
+    for col in rrs.columns:
+        if col.startswith("draw_"):
+            y = rrs[col].values
+            f = interp1d(risk, y, kind="linear", bounds_error=False, fill_value="extrapolate")
+            rrs_interp[col] = f(x_new)
+    return rrs_interp
+
+
+def transform_and_reorder_rrs(rrs, exposure_levels):
+    """Make relative risks specific to TMREL value of 120 and reorder draws by magnitude of risk at the lowest exposure level."""
+    tmrel = exposure_levels[727]  # this corresponds to an exposure level of 120 g/L
     assert (
         tmrel.round(0) == 120
     ), f"Expected preterm birth tmrel to be 120 g/L, but got {tmrel}"
@@ -51,6 +81,19 @@ def load_rrs(outcome):
     rrs = rrs.set_index(["outcome", "risk", "draw"]).unstack("draw")  # .reset_index()
     rrs.columns = rrs.columns.droplevel()
     rrs = rrs.reset_index()
+    return rrs
+
+
+def load_prepped_rrs(outcome):
+    """Load relative risks of hemoglobin on specific outcome that are:
+    - rescaled to a tmrel of 120 g/L,
+    - interpolated to the exposure levels used in GBD,
+    - reordered by magnitude of risk at the lowest exposure level."""
+    rrs = load_bop_rrs(outcome)
+    exposure_levels = get_gbd_exposure_levels()
+    rrs = convert_rrs_to(rrs, exposure_levels)
+    rrs["outcome"] = outcome
+    rrs = transform_and_reorder_rrs(rrs, exposure_levels)
     return rrs
 
 
@@ -176,16 +219,18 @@ def calculate_shift_from_rr(exp_data, rr_data, location, outcome, sex, draw, exp
     tmrel_exposure_prevalence = (exp_tmrel.exposure * exp_tmrel.frac_exposed).sum()
 
     return scipy.optimize.minimize_scalar(
-        ga_shift_optimization, bounds=bounds, method="bounded"
+        shift_optimization, bounds=bounds, method="bounded"
     )["x"]
 
 
 def get_lbwsg_shifts(draw):
     """For a single draw across all locations and sexes, returns GA and BW shifts for all hemoglobin exposure levels"""
-    ptb_rrs = load_rrs("ptb").rename(columns={"risk": "exposure"})[["exposure", draw]]
-    lbw_rrs = load_rrs("lbw").rename(columns={"risk": "exposure"})[["exposure", draw]]
-    ptb_exposure_levels = ptb_rrs.exposure.unique()
-    lbw_exposure_levels = lbw_rrs.exposure.unique()
+    ptb_rrs = load_prepped_rrs("ptb").rename(columns={"risk": "exposure"})[["exposure", draw]]
+    lbw_rrs = load_prepped_rrs("lbw").rename(columns={"risk": "exposure"})[["exposure", draw]]
+    assert np.all(
+        ptb_rrs.exposure.unique() == lbw_rrs.exposure.unique()
+    ), "Hemoglobin risk exposure values are different between PTB and LBW outcomes"
+    exposure_levels = ptb_rrs.exposure.unique()
 
     results = pd.DataFrame()
     # TODO: specify locations using model spec file or something?
@@ -195,7 +240,7 @@ def get_lbwsg_shifts(draw):
         for sex in ["Male", "Female"]:
             ga_shifts = []
             bw_shifts = []
-            for exposure_level in ptb_exposure_levels:
+            for exposure_level in exposure_levels:
                 ga_shifts.append(
                     calculate_shift_from_rr(
                         exp_data=exp,
@@ -207,7 +252,6 @@ def get_lbwsg_shifts(draw):
                         exposure_level=exposure_level,
                     )
                 )
-            for exposure_level in lbw_exposure_levels:
                 bw_shifts.append(
                     calculate_shift_from_rr(
                         exp_data=exp,
@@ -224,7 +268,7 @@ def get_lbwsg_shifts(draw):
                     "location": location,
                     "sex": sex,
                     "draw": draw,
-                    "exposure": ptb_exposure_levels,
+                    "exposure": exposure_levels,
                     "value": ga_shifts,
                     "outcome": "gestational_age",
                 }
@@ -234,7 +278,7 @@ def get_lbwsg_shifts(draw):
                     "location": location,
                     "sex": sex,
                     "draw": draw,
-                    "exposure": lbw_exposure_levels,
+                    "exposure": exposure_levels,
                     "value": bw_shifts,
                     "outcome": "birth_weight",
                 }
@@ -250,88 +294,51 @@ def scale_lbwsg_to_iv_iron(lbwsg_shifts, draw):
     iv_iron_md = 23  # change in hemoglobin exposure associated with IV iron
     iv_iron_threshold = 100  # maximum hemoglobin exposure level (g/L) eligible for IV iron
 
-    lbwsg_shifts = lbwsg_shifts.reset_index().sort_values(
-        by=[x for x in lbwsg_shifts.columns if x not in ["value", "exposure"]] + ["exposure"]
-    )
+    lbwsg_shifts["exposure"] = lbwsg_shifts["exposure"]
+    exposure_levels = lbwsg_shifts.exposure.unique().tolist()
+
+    # round to the nearest exposure increment
+    exposure_increment = round(exposure_levels[1] - exposure_levels[0], 4)
+    iv_iron_md = round(iv_iron_md / exposure_increment, 0) * exposure_increment
+
     ga_shifts = lbwsg_shifts.loc[lbwsg_shifts.outcome == "gestational_age"]
+    ga_alt = ga_shifts.copy()
+    ga_alt["exposure"] = (ga_alt["exposure"] - iv_iron_md).round(
+        2
+    )  # this is the least amount of rounding that we can get away with
+    ga_shifts["exposure"] = ga_shifts["exposure"].round(2)
+    # merge with "left" method so that we keep all original exposure levels, but not the ones that have the IV iron MD subtracted
+    ga_shifts = ga_shifts.merge(
+        ga_alt,
+        on=["location", "sex", "draw", "exposure", "outcome"],
+        suffixes=("", "_alt"),
+        how="left",
+    )
+    ga_shifts["iv_iron_shift"] = ga_shifts["value_alt"] - ga_shifts["value"]
+
     bw_shifts = lbwsg_shifts.loc[lbwsg_shifts.outcome == "birth_weight"]
-    ptb_exposure_levels = sorted(ga_shifts.exposure.unique())
-    lbw_exposure_levels = sorted(bw_shifts.exposure.unique())
-
-    assert np.all(
-        ga_shifts.loc[
-            (ga_shifts.sex == ga_shifts.sex.unique()[0])
-            & (ga_shifts.location == ga_shifts.location.unique()[0])
-        ].exposure
-        == ptb_exposure_levels
-    ), "PTB exposures not in the right order"
-    assert np.all(
-        bw_shifts.loc[
-            (bw_shifts.sex == bw_shifts.sex.unique()[0])
-            & (bw_shifts.location == bw_shifts.location.unique()[0])
-        ].exposure
-        == lbw_exposure_levels
-    ), "LBW exposures not in the right order"
-    assert np.allclose(
-        ptb_exposure_levels,
-        np.linspace(
-            ptb_exposure_levels[0],
-            ptb_exposure_levels[len(ptb_exposure_levels) - 1],
-            num=len(ptb_exposure_levels),
-        ),
-    ), "PTB exposure levels are not evenly spaced"
-    assert np.allclose(
-        lbw_exposure_levels,
-        np.linspace(
-            lbw_exposure_levels[0],
-            lbw_exposure_levels[len(lbw_exposure_levels) - 1],
-            num=len(lbw_exposure_levels),
-        ),
-    ), "LBW exposure levels are not evenly spaced"
-
-    ptb_exposure_increment = (
-        ptb_exposure_levels[1] - ptb_exposure_levels[0]
-    )  # change in hemoglobin exposure (g/L) per exposure level used in GBD risk curve
-    ptb_iv_iron_exposure_increment = (
-        (iv_iron_md / ptb_exposure_increment).round(0).astype(int)
+    bw_alt = bw_shifts.copy()
+    bw_alt["exposure"] = (bw_alt["exposure"] - iv_iron_md).round(2)
+    bw_shifts["exposure"] = bw_shifts["exposure"].round(2)
+    bw_shifts = bw_shifts.merge(
+        bw_alt,
+        on=["location", "sex", "draw", "exposure", "outcome"],
+        suffixes=("", "_alt"),
+        how="left",
     )
-    lbw_exposure_increment = (
-        lbw_exposure_levels[1] - lbw_exposure_levels[0]
-    )  # change in hemoglobin exposure (g/L) per exposure level used in GBD risk curve
-    lbw_iv_iron_exposure_increment = (
-        (iv_iron_md / lbw_exposure_increment).round(0).astype(int)
-    )
+    bw_shifts["iv_iron_shift"] = bw_shifts["value_alt"] - bw_shifts["value"]
 
-    # ensure that we are not running into issues with shifting beyond the valid exposure range
-    # if these tests fail, it means that for some hemoglobin exposure levels, the IV iron effect moves the expousre level beyond levels that exist in this data frame
-    # and therefore will end up reading data specific to another sex/location demographic group
-    # to fix thise, we would need to add exposure levels to these data frames and make some assumotion about how to fill in the data for them
-    # (probably just assume that they ave the same data as the highest existing exposure level)
-    assert (
-        ptb_exposure_levels[len(ptb_exposure_levels) - 1 - ptb_iv_iron_exposure_increment]
-        > iv_iron_threshold
-    ), "Invalid exposure range for IV iron shifts"
-    assert (
-        lbw_exposure_levels[len(lbw_exposure_levels) - 1 - lbw_iv_iron_exposure_increment]
-        > iv_iron_threshold
-    ), "Invalid exposure range for IV iron shifts"
-
-    # note: this .shift() approach relies highly on the ordering of exposure levels in the ga_shift and bw_shift dataframes
-    # an improved approach would utilize exposure values directly, but for now we run tests to ensure that the ordering is as required before running this function
-    ga_shifts["value"] = (
-        ga_shifts["value"].shift(-ptb_iv_iron_exposure_increment) - ga_shifts["value"]
+    iv_iron_lbwsg_shifts = pd.concat([ga_shifts, bw_shifts], ignore_index=True)
+    iv_iron_lbwsg_shifts = iv_iron_lbwsg_shifts.drop(columns=["value_alt", "value"]).rename(
+        columns={"iv_iron_shift": "value"}
     )
-    bw_shifts["value"] = (
-        bw_shifts["value"].shift(-lbw_iv_iron_exposure_increment) - bw_shifts["value"]
-    )
-    ga_shifts["value"] = np.where(
-        ga_shifts.exposure > iv_iron_threshold, np.nan, ga_shifts["value"]
-    )  # missing values for exposure levels not eligible for IV iron
-    bw_shifts["value"] = np.where(
-        bw_shifts.exposure > iv_iron_threshold, np.nan, bw_shifts["value"]
-    )  # missing values for exposure levels not eligible for IV iron
+    iv_iron_lbwsg_shifts["value"] = np.where(
+        iv_iron_lbwsg_shifts.exposure > iv_iron_threshold,
+        np.nan,
+        iv_iron_lbwsg_shifts["value"],
+    )  # missing values for exposure levels
 
-    iv_iron_lbwsg_shifts = pd.concat([ga_shifts, bw_shifts], ignore_index=True).dropna()
+    iv_iron_lbwsg_shifts.sort_values(by=["location", "sex", "draw", "outcome", "exposure"])
     return iv_iron_lbwsg_shifts
 
 
