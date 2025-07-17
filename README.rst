@@ -16,7 +16,10 @@ We recommend installing `Miniforge <https://github.com/conda-forge/miniforge>`_.
 Once you have conda installed, you should open up your normal shell
 (if you're on linux or OSX) or the ``git bash`` shell if you're on windows.
 You'll then make an environment, clone this repository, then install
-all necessary requirements as follows::
+all necessary requirements. Users can either create an environment bh running
+'source environment.sh' which will automatically create and active a conda envrionment.
+The environment.sh script has extra options for users. To see these options, pass the 
+-h flag. Alternatively, users can manually create and install requirements as follows::
 
   :~$ conda create --name=vivarium_gates_mncnh python=3.11 git git-lfs
   ...conda will download python and base dependencies...
