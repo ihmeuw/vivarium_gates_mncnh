@@ -295,51 +295,55 @@ def scale_lbwsg_to_iv_iron(lbwsg_shifts, draw):
     iv_iron_threshold = 100  # maximum hemoglobin exposure level (g/L) eligible for IV iron
 
     lbwsg_shifts["exposure"] = lbwsg_shifts["exposure"]
-    exposure_levels = lbwsg_shifts.exposure.unique().tolist()
-
-    # round to the nearest exposure increment
-    exposure_increment = round(exposure_levels[1] - exposure_levels[0], 4)
-    iv_iron_md = round(iv_iron_md / exposure_increment, 0) * exposure_increment
-
-    ga_shifts = lbwsg_shifts.loc[lbwsg_shifts.outcome == "gestational_age"]
-    ga_alt = ga_shifts.copy()
-    ga_alt["exposure"] = (ga_alt["exposure"] - iv_iron_md).round(
-        2
-    )  # this is the least amount of rounding that we can get away with
-    ga_shifts["exposure"] = ga_shifts["exposure"].round(2)
-    # merge with "left" method so that we keep all original exposure levels, but not the ones that have the IV iron MD subtracted
-    ga_shifts = ga_shifts.merge(
-        ga_alt,
-        on=["location", "sex", "draw", "exposure", "outcome"],
-        suffixes=("", "_alt"),
-        how="left",
+    lbwsg_shifts = lbwsg_shifts.sort_values(
+        by=[x for x in lbwsg_shifts.columns if x not in ["exposure", "value"]] + ["exposure"]
     )
-    ga_shifts["iv_iron_shift"] = ga_shifts["value_alt"] - ga_shifts["value"]
 
-    bw_shifts = lbwsg_shifts.loc[lbwsg_shifts.outcome == "birth_weight"]
-    bw_alt = bw_shifts.copy()
-    bw_alt["exposure"] = (bw_alt["exposure"] - iv_iron_md).round(2)
-    bw_shifts["exposure"] = bw_shifts["exposure"].round(2)
-    bw_shifts = bw_shifts.merge(
-        bw_alt,
-        on=["location", "sex", "draw", "exposure", "outcome"],
-        suffixes=("", "_alt"),
-        how="left",
+    exposure_levels = sorted(lbwsg_shifts.exposure.unique().tolist())
+    assert np.all(
+        exposure_levels[i] < exposure_levels[i + 1] for i in range(len(exposure_levels) - 1)
+    ), "exposure levels not sorted in ascending order"
+    for location in lbwsg_shifts.location.unique():
+        for sex in lbwsg_shifts.sex.unique():
+            for outcome in lbwsg_shifts.outcome.unique():
+                assert np.all(
+                    lbwsg_shifts.loc[
+                        (lbwsg_shifts.location == location)
+                        & (lbwsg_shifts.sex == sex)
+                        & (lbwsg_shifts.outcome == outcome)
+                    ].exposure.values
+                    == exposure_levels
+                ), "Inconsistencies in exposure level values and/or orders"
+    assert np.allclose(
+        exposure_levels,
+        np.linspace(
+            exposure_levels[0],
+            exposure_levels[len(exposure_levels) - 1],
+            num=len(exposure_levels),
+        ),
+    ), "Exposure levels are not evenly spaced"
+    # round IV iron mean difference to the nearest hemoglobin exposure level increment
+    exposure_increment = exposure_levels[1] - exposure_levels[0]
+    iv_iron_exposure_increment = int(round(iv_iron_md / exposure_increment, 0))
+
+    # ensure that we are not running into issues with shifting beyond the valid exposure range
+    # if this test fail, it means that for some hemoglobin exposure levels, the IV iron effect moves the expousre level beyond levels that exist in this data frame
+    # and therefore will end up reading data specific to another sex/location demographic group
+    # to fix this, we would need to add exposure levels to these data frames and make some assumotion about how to fill in the data for them
+    # (probably just assume that they ave the same data as the highest existing exposure level)
+    assert (
+        exposure_levels[len(exposure_levels) - 1 - iv_iron_exposure_increment]
+        > iv_iron_threshold
+    ), "Invalid exposure range for IV iron shifts"
+
+    lbwsg_shifts["value"] = (
+        lbwsg_shifts["value"].shift(-iv_iron_exposure_increment) - lbwsg_shifts["value"]
     )
-    bw_shifts["iv_iron_shift"] = bw_shifts["value_alt"] - bw_shifts["value"]
+    lbwsg_shifts["value"] = np.where(
+        lbwsg_shifts.exposure > iv_iron_threshold, np.nan, lbwsg_shifts["value"]
+    )  # missing values for exposure levels not eligible for IV iron
 
-    iv_iron_lbwsg_shifts = pd.concat([ga_shifts, bw_shifts], ignore_index=True)
-    iv_iron_lbwsg_shifts = iv_iron_lbwsg_shifts.drop(columns=["value_alt", "value"]).rename(
-        columns={"iv_iron_shift": "value"}
-    )
-    iv_iron_lbwsg_shifts["value"] = np.where(
-        iv_iron_lbwsg_shifts.exposure > iv_iron_threshold,
-        np.nan,
-        iv_iron_lbwsg_shifts["value"],
-    )  # missing values for exposure levels
-
-    iv_iron_lbwsg_shifts.sort_values(by=["location", "sex", "draw", "outcome", "exposure"])
-    return iv_iron_lbwsg_shifts
+    return lbwsg_shifts
 
 
 def calculate_and_save_lbwsg_shifts(results_directory, draw):
