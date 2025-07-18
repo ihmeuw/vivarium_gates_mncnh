@@ -428,11 +428,9 @@ def load_paf_data(
     key: str, location: str, years: Optional[Union[int, str, list[int]]]
 ) -> pd.DataFrame:
     if key == data_keys.LBWSG.PAF:
-        filename = (
-            "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
-        )
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk.parquet"
     else:
-        filename = "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate_preterm.parquet"
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
     location_mapper = {
         "Ethiopia": "ethiopia",
@@ -440,7 +438,7 @@ def load_paf_data(
         "Pakistan": "pakistan",
     }
 
-    output_dir = paths.PAF_DIR / location_mapper[location]
+    output_dir = paths.PAF_DIR / "temp_outputs" / location_mapper[location]
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:

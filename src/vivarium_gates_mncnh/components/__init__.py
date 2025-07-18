@@ -3,6 +3,7 @@ from vivarium_gates_mncnh.components.delivery_facility import DeliveryFacility
 from vivarium_gates_mncnh.components.intervention import InterventionRiskEffect
 from vivarium_gates_mncnh.components.intrapartum import InterventionAccess
 from vivarium_gates_mncnh.components.lbwsg import (
+    LBWSGMortality,
     LBWSGPAFCalculationExposure,
     LBWSGPAFCalculationRiskEffect,
     LBWSGPAFObserver,
