@@ -359,7 +359,7 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category", "gestational_age_exposure", "age_bin", "child_alive", "child_age"]
+        return ["lbwsg_category", "gestational_age_exposure", "age_bin", "child_alive"]
 
     def __init__(self, target: str):
         super().__init__()
