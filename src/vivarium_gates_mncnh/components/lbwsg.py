@@ -286,7 +286,7 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         """Update the age bins to match the simulants' ages."""
         pop = self.population_view.subview(["child_age", "sex_of_child"]).get(event.index)
         pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
-        self.population_view.update(pop['age_bin'])
+        self.population_view.update(pop["age_bin"])
 
     ##################################
     # Pipeline sources and modifiers #
@@ -402,7 +402,7 @@ class LBWSGPAFObserver(Component):
         lbwsg_prevalence = self.lbwsg_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
-        
+
         # Subset to age group for exposure - have to use np.isclose because age_start is rounded
         lbwsg_prevalence = lbwsg_prevalence[
             np.isclose(self.lbwsg_exposure.child_age_start, age_start, atol=0.001)
@@ -413,10 +413,16 @@ class LBWSGPAFObserver(Component):
         # within a given LBWSG category
         # this fraction will be 1 at the first time step because no one has died yet, which is
         # what we want
-        mortality = self.population_view.get(x.index)[['lbwsg_category', 'child_alive']]
-        weights = mortality.groupby('lbwsg_category')['child_alive'].agg(proportion_alive=lambda x: (x == 'alive').mean()).reset_index()
+        mortality = self.population_view.get(x.index)[["lbwsg_category", "child_alive"]]
+        weights = (
+            mortality.groupby("lbwsg_category")["child_alive"]
+            .agg(proportion_alive=lambda x: (x == "alive").mean())
+            .reset_index()
+        )
         lbwsg_prevalence = lbwsg_prevalence.merge(weights)
-        lbwsg_prevalence['prevalence'] = lbwsg_prevalence['prevalence'] * lbwsg_prevalence['proportion_alive']
+        lbwsg_prevalence["prevalence"] = (
+            lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
+        )
         lbwsg_prevalence = lbwsg_prevalence.drop(columns=["proportion_alive"])
 
         mean_rrs = (
@@ -425,7 +431,7 @@ class LBWSGPAFObserver(Component):
             .mean()
         )
         mean_rrs = mean_rrs.merge(lbwsg_prevalence, on="lbwsg_category")
-        
+
         mean_rr = np.average(mean_rrs["relative_risk"], weights=mean_rrs["prevalence"])
         paf = (mean_rr - 1) / mean_rr
         return paf

@@ -428,9 +428,7 @@ def load_paf_data(
     key: str, location: str, years: Optional[Union[int, str, list[int]]]
 ) -> pd.DataFrame:
     if key == data_keys.LBWSG.PAF:
-        filename = (
-            "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk.parquet"
-        )
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk.parquet"
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
