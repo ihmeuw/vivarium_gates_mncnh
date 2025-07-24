@@ -1022,7 +1022,7 @@ def load_hemoglobin_paf(
 
     # hemoglobin PAF-specific processing
     hemoglobin_data = hemoglobin_data.reset_index()
-    # we are using deaths PAF data but for incidence rate
+    # we are using deaths PAF data to define incidence rate
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, 'cause_id')
     index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ['affected_entity', 'affected_measure']
@@ -1093,7 +1093,9 @@ def load_hemoglobin_distribution(
 def load_hemoglobin_tmred(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, str | bool | float]:
-    return {'distribution': 'uniform', 'inverted': False, 'min': 115.0, 'max': 125.0}
+    # we only need min and max values because these are the only attributes that get
+    # used in the risk effect model
+    return {'min': 120.0, 'max': 120.0}
 
 
 def reshape_to_vivarium_format(df, location):
