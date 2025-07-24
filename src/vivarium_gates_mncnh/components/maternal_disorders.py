@@ -96,7 +96,7 @@ class MaternalDisorder(Component):
         birth_rate = (sbr + 1) * asfr
         incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
         return incidence_risk.reset_index()
-    
+
     def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:
         incidence_risk = self.lookup_tables["incidence_risk"](index)
         joint_paf = self.joint_paf(index)

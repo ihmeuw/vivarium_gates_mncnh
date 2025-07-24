@@ -972,75 +972,6 @@ def load_postpartum_depression_disability_weight(
     return disability_weights
 
 
-def load_hemoglobin_relative_risk(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-):
-    hemoglobin_data = extra_gbd.get_hemoglobin_rr_data(key, location)
-    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
-    levels_to_drop = [
-        "metric_id",
-        "model_version_id",
-        "modelable_entity_id",
-        "rei_id",
-    ]
-    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
-
-    # hemoglobin RR-specific processing
-    hemoglobin_data = hemoglobin_data.reset_index()
-    hemoglobin_data["parameter"] = hemoglobin_data["exposure"]
-    hemoglobin_data['affected_measure'] = 'incidence_risk'
-    hemoglobin_data = hemoglobin_data.drop(['exposure', 'morbidity', 'mortality'], axis=1)
-    hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, 'cause_id')
-    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ['affected_entity', 'affected_measure', 'parameter']
-    hemoglobin_data = hemoglobin_data.set_index(index_cols)
-
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    draw_cols = [f"draw_{i}" for i in range(100)]
-    expanded_draws = []
-    
-    for i in range(5):
-        df_copy = hemoglobin_data[draw_cols].copy()
-        df_copy.columns = [f"draw_{j}" for j in range(i * 100, (i + 1) * 100)]
-        expanded_draws.append(df_copy)
-    expanded_draws_df = pd.concat(expanded_draws, axis=1)
-    
-    return expanded_draws_df
-
-
-def load_hemoglobin_paf(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-):
-    hemoglobin_data = extra_gbd.get_hemoglobin_paf_data(key, location)
-    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
-    levels_to_drop = [
-        "metric_id",
-        "measure_id",
-        "rei_id",
-        "version_id"
-    ]
-    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
-
-    # hemoglobin PAF-specific processing
-    hemoglobin_data = hemoglobin_data.reset_index()
-    # we are using deaths PAF data to define incidence rate
-    hemoglobin_data["affected_measure"] = "incidence_risk"
-    hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, 'cause_id')
-    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ['affected_entity', 'affected_measure']
-    hemoglobin_data = hemoglobin_data.set_index(index_cols)
-
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    draw_cols = [f"draw_{i}" for i in range(100)]
-    expanded_draws = []
-    
-    for i in range(5):
-        df_copy = hemoglobin_data[draw_cols].copy()
-        df_copy.columns = [f"draw_{j}" for j in range(i * 100, (i + 1) * 100)]
-        expanded_draws.append(df_copy)
-    expanded_draws_df = pd.concat(expanded_draws, axis=1)
-
-    return expanded_draws_df
-
-
 def load_hemoglobin_exposure_data(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ):
@@ -1058,13 +989,9 @@ def load_hemoglobin_exposure_data(
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
     # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    draw_cols = [col for col in hemoglobin_data.columns if col.startswith("draw_")]
-    expanded_draws = []
-    for i in range(5):
-        df_copy = hemoglobin_data[draw_cols].copy()
-        df_copy.columns = [f"draw_{j}" for j in range(i * 100, (i + 1) * 100)]
-        expanded_draws.append(df_copy)
-    expanded_draws_df = pd.concat(expanded_draws, axis=1)
+    expanded_draws_df = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=5
+    )
 
     return expanded_draws_df
 
@@ -1090,12 +1017,70 @@ def load_hemoglobin_distribution(
     return data_values.HEMOGLOBIN_DISTRIBUTION
 
 
+def load_hemoglobin_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    hemoglobin_data = extra_gbd.get_hemoglobin_rr_data(key, location)
+    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
+    levels_to_drop = [
+        "metric_id",
+        "model_version_id",
+        "modelable_entity_id",
+        "rei_id",
+    ]
+    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
+
+    # hemoglobin RR-specific processing
+    hemoglobin_data = hemoglobin_data.reset_index()
+    hemoglobin_data["parameter"] = hemoglobin_data["exposure"]
+    hemoglobin_data["affected_measure"] = "incidence_risk"
+    hemoglobin_data = hemoglobin_data.drop(["exposure", "morbidity", "mortality"], axis=1)
+    hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+        "parameter",
+    ]
+    hemoglobin_data = hemoglobin_data.set_index(index_cols)
+
+    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
+    expanded_draws_df = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=5
+    )
+
+    return expanded_draws_df
+
+
+def load_hemoglobin_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    hemoglobin_data = extra_gbd.get_hemoglobin_paf_data(key, location)
+    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
+    levels_to_drop = ["metric_id", "measure_id", "rei_id", "version_id"]
+    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
+
+    # hemoglobin PAF-specific processing
+    hemoglobin_data = hemoglobin_data.reset_index()
+    # we are pulling PAF data for deaths to define incidence risk
+    hemoglobin_data["affected_measure"] = "incidence_risk"
+    hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+    hemoglobin_data = hemoglobin_data.set_index(index_cols)
+
+    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
+    expanded_draws_df = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=5
+    )
+
+    return expanded_draws_df
+
+
 def load_hemoglobin_tmred(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, str | bool | float]:
     # we only need min and max values because these are the only attributes that get
     # used in the risk effect model
-    return {'min': 120.0, 'max': 120.0}
+    return {"min": 120.0, "max": 120.0}
 
 
 def reshape_to_vivarium_format(df, location):

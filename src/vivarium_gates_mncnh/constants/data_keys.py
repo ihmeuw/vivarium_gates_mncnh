@@ -371,7 +371,6 @@ class __Hemoglobin(NamedTuple):
     PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
 
-
     @property
     def name(self):
         return "hemoglobin"

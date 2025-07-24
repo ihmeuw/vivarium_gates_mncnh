@@ -103,11 +103,30 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
 
 @vi_utils.cache
 def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
-    data = vi_utils.get_draws(release_id=33,gbd_id_type='rei_id',gbd_id=376, source=gbd_constants.SOURCES.RR,sex_id=gbd_constants.SEX.FEMALE, location_id=1, year_id=2022)
+    data = vi_utils.get_draws(
+        release_id=33,
+        gbd_id_type="rei_id",
+        gbd_id=376,
+        source=gbd_constants.SOURCES.RR,
+        sex_id=gbd_constants.SEX.FEMALE,
+        location_id=1,
+        year_id=2022,
+    )
     return data
 
 
 @vi_utils.cache
 def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
-    data = vi_utils.get_draws(release_id=33,version_id=393,gbd_id_type='rei_id',gbd_id=376, source=gbd_constants.SOURCES.BURDENATOR,sex_id=gbd_constants.SEX.FEMALE, location_id=1, year_id=2023, metric_id=vi_globals.METRICS['Percent'], measure_id=vi_globals.MEASURES['Deaths'])
+    data = vi_utils.get_draws(
+        release_id=33,
+        version_id=393,
+        gbd_id_type="rei_id",
+        gbd_id=376,
+        source=gbd_constants.SOURCES.BURDENATOR,
+        sex_id=gbd_constants.SEX.FEMALE,
+        location_id=1,
+        year_id=2023,
+        metric_id=vi_globals.METRICS["Percent"],
+        measure_id=vi_globals.MEASURES["Deaths"],
+    )
     return data
