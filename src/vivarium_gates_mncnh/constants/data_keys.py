@@ -367,6 +367,10 @@ class __Hemoglobin(NamedTuple):
     STANDARD_DEVIATION: str = "risk_factor.hemoglobin.exposure_standard_deviation"
     DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
     DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
+    RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
+    PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
+    TMRED: str = "risk_factor.hemoglobin.tmred"
+
 
     @property
     def name(self):
