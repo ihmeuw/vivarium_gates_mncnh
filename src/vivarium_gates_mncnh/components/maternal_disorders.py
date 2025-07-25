@@ -6,6 +6,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants import data_keys
@@ -40,9 +41,17 @@ class MaternalDisorder(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.incidence_risk = builder.value.register_value_producer(
             f"{self.maternal_disorder}.incidence_risk",
-            self.lookup_tables["incidence_risk"],
+            source=self.calculate_risk_deleted_incidence,
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables["incidence_risk"]]),
+        )
+        paf = builder.lookup.build_table(0)
+        self.joint_paf = builder.value.register_value_producer(
+            f"{self.maternal_disorder}.incidence_risk.paf",
+            source=lambda index: [paf(index)],
+            component=self,
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -87,6 +96,11 @@ class MaternalDisorder(Component):
         birth_rate = (sbr + 1) * asfr
         incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
         return incidence_risk.reset_index()
+
+    def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:
+        incidence_risk = self.lookup_tables["incidence_risk"](index)
+        joint_paf = self.joint_paf(index)
+        return incidence_risk * (1 - joint_paf)
 
 
 class PostpartumDepression(MaternalDisorder):
