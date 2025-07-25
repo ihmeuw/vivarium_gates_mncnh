@@ -1078,9 +1078,7 @@ def load_hemoglobin_paf(
 def load_hemoglobin_tmred(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, str | bool | float]:
-    # we only need min and max values because these are the only attributes that get
-    # used in the risk effect model
-    return {"min": 120.0, "max": 120.0}
+    return {"distribution": "uniform", "min": 120.0, "max": 120.0}
 
 
 def reshape_to_vivarium_format(df, location):
