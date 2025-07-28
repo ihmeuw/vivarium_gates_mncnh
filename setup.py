@@ -42,27 +42,28 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
+        "vivarium_dependencies[pandas,scipy,click,tables,loguru]",
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "gbd_mapping>=4.0.0",
         "layered_config_tree",
-        "vivarium>=3.0.0",
-        "vivarium_public_health>=3.0.0",
+        "vivarium>=3.4.5",
+        "vivarium_public_health>=4.2.2",
         "click",
         "jinja2",
-        "loguru",
         "numpy",
-        "pandas",
         "pyyaml",
-        "scipy",
-        "tables",
     ]
 
     setup_requires = ["setuptools_scm"]
 
     data_requirements = ["vivarium_inputs>=5.0.5"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
-    test_requirements = ["pytest", "pytest-cov", "vivarium_testing_utils"]
-    lint_requirements = ["black==22.3.0", "isort==5.13.2"]
+    test_requirements = [
+        "vivarium_dependencies[testing,vivarium_testing_utils]",
+    ]
+    lint_requirements = [
+        "vivarium_dependencies[linting]",
+    ]
 
     setup(
         name=about["__title__"],
