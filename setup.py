@@ -65,6 +65,9 @@ if __name__ == "__main__":
     lint_requirements = [
         "vivarium_dependencies[formatting]",
     ]
+    interactive_requirements = [
+        "vivarium_dependencies[interactive]",
+    ]
 
     setup(
         name=about["__title__"],
@@ -82,7 +85,11 @@ if __name__ == "__main__":
             "test": test_requirements,
             "cluster": cluster_requirements,
             "data": data_requirements + cluster_requirements,
-            "dev": test_requirements + cluster_requirements + lint_requirements,
+            "interactive": interactive_requirements,
+            "dev": test_requirements
+            + cluster_requirements
+            + lint_requirements
+            + interactive_requirements,
         },
         zip_safe=False,
         use_scm_version={
