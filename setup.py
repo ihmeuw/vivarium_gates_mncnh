@@ -59,7 +59,8 @@ if __name__ == "__main__":
     data_requirements = ["vivarium_inputs>=5.0.5"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
     test_requirements = [
-        "vivarium_dependencies[testing,vivarium_testing_utils]",
+        "vivarium_dependencies[testing]",
+        "vivarium_testing_utils",
     ]
     lint_requirements = [
         "vivarium_dependencies[linting]",
