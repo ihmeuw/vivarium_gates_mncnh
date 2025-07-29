@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from vivarium.framework.engine import Builder
-from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.exposure.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
 
 
