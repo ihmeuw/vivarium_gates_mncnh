@@ -15,31 +15,13 @@ We recommend installing `Miniforge <https://github.com/conda-forge/miniforge>`_.
 
 Once you have conda installed, you should open up your normal shell
 (if you're on linux or OSX) or the ``git bash`` shell if you're on windows.
-You'll then make an environment, clone this repository, then install
-all necessary requirements. Users can either create an environment bh running
-'source environment.sh' which will automatically create and active a conda envrionment.
-The environment.sh script has extra options for users. To see these options, pass the 
--h flag. Alternatively, users can manually create and install requirements as follows::
 
-  :~$ conda create --name=vivarium_gates_mncnh python=3.11 git git-lfs
-  ...conda will download python and base dependencies...
-  :~$ conda activate vivarium_gates_mncnh
-  (vivarium_gates_mncnh) :~$ git clone https://github.com/ihmeuw/vivarium_gates_mncnh.git
+You'll then clone this repository and make the necessary environments.
+The first step is to clone the repo::
+
+  :~$ git clone https://github.com/ihmeuw/vivarium_gates_mncnh.git
   ...git will copy the repository from github and place it in your current directory...
-  (vivarium_gates_mncnh) :~$ cd vivarium_gates_mncnh
-  (vivarium_gates_mncnh) :~$ pip install -e .
-  ...pip will install vivarium and other requirements...
-
-Supported Python versions: 3.10, 3.11
-
-Note the ``-e`` flag that follows pip install. This will install the python
-package in-place, which is important for making the model specifications later.
-
-To install requirements from a provided requirements.txt (e.g. installing an
-archived repository with the exact same requirements it was run with), replace
-`pip install -e .` with the following::
-
-  (vivarium_gates_mncnh) :~$ pip install -r requirements.txt
+  :~$ cd vivarium_gates_mncnh
 
 Cloning the repository should take a fair bit of time as git must fetch
 the data artifact associated with the demo (several GB of data) from the
@@ -47,6 +29,33 @@ large file system storage (``git-lfs``). **If your clone works quickly,
 you are likely only retrieving the checksum file that github holds onto,
 and your simulations will fail.** If you are only retrieving checksum
 files you can explicitly pull the data by executing ``git-lfs pull``.
+
+Users can create environments by running
+``source environment.sh`` and ``source environment.sh -t artifact`` which will automatically create and active conda environments
+for running the simulation and artifact generation respectively.
+The environment.sh script has extra options for users. To see these options, pass the 
+``-h`` flag.
+
+Alternatively, users can manually create the environments as follows::
+
+  :~$ conda create --name=vivarium_gates_mncnh_simulation python=3.11 git git-lfs
+  ...conda will download python and base dependencies...
+  :~$ conda activate vivarium_gates_mncnh_simulation
+  (vivarium_gates_mncnh_simulation) :~$ pip install -r requirements.txt
+  (vivarium_gates_mncnh_simulation) :~$ pip install -e .[dev]
+  ...pip will install vivarium and other requirements...
+  (vivarium_gates_mncnh_simulation) :~$ conda deactivate
+  :~$ conda create --name=vivarium_gates_mncnh_artifact python=3.11 git git-lfs
+  ...conda will download python and base dependencies...
+  :~$ conda activate vivarium_gates_mncnh_artifact
+  (vivarium_gates_mncnh_artifact) :~$ pip install -r artifact_requirements.txt
+  (vivarium_gates_mncnh_artifact) :~$ pip install -e .[dev]
+  ...pip will install vivarium and other requirements...
+
+Supported Python versions: 3.10, 3.11
+
+Note the ``-e`` flag that follows pip install. This will install the python
+package in-place, which is important for making the model specifications later.
 
 Vivarium uses the Hierarchical Data Format (HDF) as the backing storage
 for the data artifacts that supply data to the simulation. You may not have
@@ -107,16 +116,57 @@ You'll find six directories inside the main
 Running Simulations
 -------------------
 
-Before running a simulation, you should have a model specification file.
-A model specification is a complete description of a vivarium model in
-a yaml format.  An example model specification is provided with this repository
-in the ``model_specifications`` directory.
+To run this simulation, the first step is to generate an artifact.
+This will only work on the IHME cluster.:::
 
-With this model specification file and your conda environment active, you can then run simulations by, e.g.::
+  :~$ conda activate vivarium_gates_mncnh_artifact
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/
 
-   (vivarium_gates_mncnh) :~$ simulate run -v /<REPO_INSTALLATION_DIRECTORY>/vivarium_gates_mncnh/src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
+Replace "Pakistan" with the name of the location of interest.
+Only Pakistan, Nigeria, and Ethiopia are supported currently.
+This command will create an artifact file in the ``artifacts/`` directory within the repo;
+omit the ``-o`` argument to output to the default location of ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts``,
+or change to a different path.
+
+The next step is to run an initial simulation to calculate population-attributable fractions (PAFs)
+for low birthweight and short gestation (LBWSG) in the early neonatal period.
+*Edit* the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml`` so that the ``end``
+is only one day after the ``start``, then run:::
+
+  :~$ conda activate vivarium_gates_mncnh_simulation
+  (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
 step. For more ways to run simulations, see the tutorials at
 https://vivarium.readthedocs.io/en/latest/tutorials/running_a_simulation/index.html
 and https://vivarium.readthedocs.io/en/latest/tutorials/exploration.html
+
+This command will output results in the ``paf_sim_results/`` directory within the repo;
+omit the ``-o`` argument to output to the default location in your home directory (``~/vivarium_results/lbwsg_paf/``),
+or change to a different path.
+
+Now *edit* the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
+``Path("<your results dir here>")``, substituting in the results directory from the last line of output of the previous command.
+You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
+
+  :~$ conda activate vivarium_gates_mncnh_artifact
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
+
+Next we'll repeat the process for the late neonatal PAFs.
+*Undo* your edits in the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml``
+and re-run:::
+
+  :~$ conda activate vivarium_gates_mncnh_simulation
+  (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
+
+Edit the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
+``Path("<your results dir here>")``, substituting in the results directory from the last line of output of the previous command.
+You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
+
+  :~$ conda activate vivarium_gates_mncnh_artifact
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
+
+You are now ready to run the main simulation with::
+
+  :~$ conda activate vivarium_gates_mncnh_simulation
+  (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/model_specifications/model_spec.yaml -i artifacts/pakistan.hdf -o sim_results/
