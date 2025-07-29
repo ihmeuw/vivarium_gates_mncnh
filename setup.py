@@ -63,7 +63,7 @@ if __name__ == "__main__":
         "vivarium_testing_utils",
     ]
     lint_requirements = [
-        "vivarium_dependencies[formatting]",
+        "vivarium_dependencies[format]",
     ]
     interactive_requirements = [
         "vivarium_dependencies[interactive]",
