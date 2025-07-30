@@ -8,8 +8,6 @@ components:
     vivarium_public_health:
         risks:
             - Risk('risk_factor.hemoglobin')
-            - NonLogLinearRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
-            - NonLogLinearRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
 
     vivarium_gates_mncnh:
         components:
@@ -45,6 +43,8 @@ components:
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
             - PostpartumDepression()
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
