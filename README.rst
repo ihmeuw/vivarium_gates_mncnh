@@ -116,8 +116,8 @@ You'll find six directories inside the main
 Running Simulations
 -------------------
 
-To run this simulation, the first step is to generate an artifact.
-This will only work on the IHME cluster.:::
+To run this simulation, the first step is to generate an artifact with base GBD data in it.
+This will only work on the IHME cluster, because it pulls draw-level data from internal GBD databases.:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
   (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/
@@ -127,6 +127,10 @@ Only Pakistan, Nigeria, and Ethiopia are supported currently.
 This command will create an artifact file in the ``artifacts/`` directory within the repo;
 omit the ``-o`` argument to output to the default location of ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts``,
 or change to a different path.
+
+.. todo::
+
+  Include how to re-calculate LBWSG RR caps
 
 The next step is to run an initial simulation to calculate population-attributable fractions (PAFs)
 for low birthweight and short gestation (LBWSG) in the early neonatal period.
@@ -145,8 +149,14 @@ This command will output results in the ``paf_sim_results/`` directory within th
 omit the ``-o`` argument to output to the default location in your home directory (``~/vivarium_results/lbwsg_paf/``),
 or change to a different path.
 
+The last line of output will tell you the specific directory to which results were written.
+Make a directory for holding these results, and copy them there, as follows:::
+
+  :~$ mkdir -p calculated_pafs/temp_outputs/pakistan/
+  :~$ cp <your results directory>/*.parquet calculated_pafs/temp_outputs/pakistan/
+
 Now *edit* the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
-``Path("<your results dir here>")``, substituting in the results directory from the last line of output of the previous command.
+``Path("calculated_pafs/")``.
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
@@ -159,8 +169,10 @@ and re-run:::
   :~$ conda activate vivarium_gates_mncnh_simulation
   (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
-Edit the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
-``Path("<your results dir here>")``, substituting in the results directory from the last line of output of the previous command.
+Copy your results to ``calculated_pafs``, overwriting the previous ones:::
+
+  :~$ cp <your results directory>/*.parquet calculated_pafs/temp_outputs/pakistan/
+
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
@@ -170,3 +182,8 @@ You are now ready to run the main simulation with::
 
   :~$ conda activate vivarium_gates_mncnh_simulation
   (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/model_specifications/model_spec.yaml -i artifacts/pakistan.hdf -o sim_results/
+
+Results of the simulation will be written to ``sim_results/``.
+For example, you can check the total deaths due to maternal disorders by
+summing the ``value`` column in the Parquet file at
+``sim_results/pakistan/<timestamp>/results/maternal_disorders_burden_observer_disorder_deaths.parquet``.
