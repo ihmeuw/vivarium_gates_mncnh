@@ -193,53 +193,6 @@ def load_metadata(
     return entity_metadata
 
 
-def load_categorical_paf(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
-    try:
-        risk = {
-            # todo add keys as needed
-            data_keys.KEYGROUP.PAF: data_keys.KEYGROUP,
-        }[key]
-    except KeyError:
-        raise ValueError(f"Unrecognized key {key}")
-
-    distribution_type = get_data(risk.DISTRIBUTION, location)
-
-    if distribution_type != "dichotomous" and "polytomous" not in distribution_type:
-        raise NotImplementedError(
-            f"Unrecognized distribution {distribution_type} for {risk.name}. Only dichotomous and "
-            f"polytomous are recognized categorical distributions."
-        )
-
-    exp = get_data(risk.EXPOSURE, location)
-    rr = get_data(risk.RELATIVE_RISK, location)
-
-    # paf = (sum_categories(exp * rr) - 1) / sum_categories(exp * rr)
-    sum_exp_x_rr = (
-        (exp * rr)
-        .groupby(list(set(rr.index.names) - {"parameter"}))
-        .sum()
-        .reset_index()
-        .set_index(rr.index.names[:-1])
-    )
-    paf = (sum_exp_x_rr - 1) / sum_exp_x_rr
-    return paf
-
-
-def _load_em_from_meid(location, meid, measure):
-    location_id = utility_data.get_location_id(location)
-    data = gbd.get_modelable_entity_draws(meid, location_id)
-    data = data[data.measure_id == vi_globals.MEASURES[measure]]
-    data = vi_utils.normalize(data, fill_value=0)
-    data = data.filter(vi_globals.DEMOGRAPHIC_COLUMNS + vi_globals.DRAW_COLUMNS)
-    data = vi_utils.reshape(data)
-    data = vi_utils.scrub_gbd_conventions(data, location)
-    data = vi_utils.split_interval(data, interval_column="age", split_column_prefix="age")
-    data = vi_utils.split_interval(data, interval_column="year", split_column_prefix="year")
-    return vi_utils.sort_hierarchical_data(data).droplevel("location")
-
-
 # TODO - add project-specific data functions here
 
 
