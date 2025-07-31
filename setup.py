@@ -42,7 +42,7 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium_dependencies[pandas,scipy,click,tables,loguru]",
+        "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "gbd_mapping>=4.0.0",
         "layered_config_tree",
@@ -50,7 +50,6 @@ if __name__ == "__main__":
         "vivarium_public_health>=4.2.2",
         "click",
         "jinja2",
-        "numpy",
         "pyyaml",
     ]
 
