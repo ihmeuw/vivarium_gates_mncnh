@@ -359,7 +359,13 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category", "gestational_age_exposure", "age_bin", "child_alive", "sex_of_child"]
+        return [
+            "lbwsg_category",
+            "gestational_age_exposure",
+            "age_bin",
+            "child_alive",
+            "sex_of_child",
+        ]
 
     def __init__(self, target: str):
         super().__init__()
@@ -392,7 +398,7 @@ class LBWSGPAFObserver(Component):
         # Add observer to get paf for preterm birth population
         builder.results.register_adding_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
-            pop_filter='gestational_age_exposure < 37',
+            pop_filter="gestational_age_exposure < 37",
             aggregator=self.calculate_paf,
             requires_columns=["child_alive", "gestational_age_exposure"],
             additional_stratifications=self.config.include,
@@ -463,9 +469,13 @@ class LBWSGPAFObserver(Component):
         full_index = pd.Index(range(self.pop_size))
         # sex is guaranteed to be the same for all simulants in the index because
         # we stratify by sex of child
-        sex_of_subset = self.population_view.get(index)['sex_of_child'].unique()[0]
-        pop_data = self.population_view.get(full_index)[["lbwsg_category", "child_alive", "sex_of_child"]]
-        pop_data = pop_data[pop_data['sex_of_child'] == sex_of_subset].drop('sex_of_child', axis=1)
+        sex_of_subset = self.population_view.get(index)["sex_of_child"].unique()[0]
+        pop_data = self.population_view.get(full_index)[
+            ["lbwsg_category", "child_alive", "sex_of_child"]
+        ]
+        pop_data = pop_data[pop_data["sex_of_child"] == sex_of_subset].drop(
+            "sex_of_child", axis=1
+        )
         weights = (
             pop_data.groupby("lbwsg_category")["child_alive"]
             .agg(proportion_alive=lambda x: (x == "alive").mean())
