@@ -359,7 +359,7 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category", "gestational_age_exposure", "age_bin", "child_alive"]
+        return ["lbwsg_category", "gestational_age_exposure", "age_bin", "child_alive", "sex_of_child"]
 
     def __init__(self, target: str):
         super().__init__()
@@ -372,10 +372,17 @@ class LBWSGPAFObserver(Component):
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
         self.config = builder.configuration.stratification.lbwsg_paf
+        self.pop_size = builder.configuration.population.population_size
+
+        self.mortality_weights = builder.value.register_value_producer(
+            f"mortality_weights",
+            source=self.calculate_mortality_weights,
+            component=self,
+            required_resources=["lbwsg_category", "child_alive"],
+        )
 
         builder.results.register_adding_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
-            pop_filter='child_alive == "alive"',
             aggregator=self.calculate_paf,
             requires_columns=["child_alive"],
             additional_stratifications=self.config.include,
@@ -385,7 +392,7 @@ class LBWSGPAFObserver(Component):
         # Add observer to get paf for preterm birth population
         builder.results.register_adding_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
-            pop_filter='child_alive == "alive" and gestational_age_exposure < 37',
+            pop_filter='gestational_age_exposure < 37',
             aggregator=self.calculate_paf,
             requires_columns=["child_alive", "gestational_age_exposure"],
             additional_stratifications=self.config.include,
@@ -413,12 +420,7 @@ class LBWSGPAFObserver(Component):
         # within a given LBWSG category
         # this fraction will be 1 at the first time step because no one has died yet, which is
         # what we want
-        mortality = self.population_view.get(x.index)[["lbwsg_category", "child_alive"]]
-        weights = (
-            mortality.groupby("lbwsg_category")["child_alive"]
-            .agg(proportion_alive=lambda x: (x == "alive").mean())
-            .reset_index()
-        )
+        weights = self.mortality_weights(x.index)
         lbwsg_prevalence = lbwsg_prevalence.merge(weights)
         lbwsg_prevalence["prevalence"] = (
             lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
@@ -455,6 +457,21 @@ class LBWSGPAFObserver(Component):
 
         final_exposure = pd.concat([new_enn_exposure, exposure])
         return final_exposure[col_order]
+
+    def calculate_mortality_weights(self, index: pd.Index) -> pd.Series:
+        """Calculate percentage of simulants alive within a LBWSG category."""
+        full_index = pd.Index(range(self.pop_size))
+        # sex is guaranteed to be the same for all simulants in the index because
+        # we stratify by sex of child
+        sex_of_subset = self.population_view.get(index)['sex_of_child'].unique()[0]
+        pop_data = self.population_view.get(full_index)[["lbwsg_category", "child_alive", "sex_of_child"]]
+        pop_data = pop_data[pop_data['sex_of_child'] == sex_of_subset].drop('sex_of_child', axis=1)
+        weights = (
+            pop_data.groupby("lbwsg_category")["child_alive"]
+            .agg(proportion_alive=lambda x: (x == "alive").mean())
+            .reset_index()
+        )
+        return weights
 
 
 class LBWSGMortality(Component):
