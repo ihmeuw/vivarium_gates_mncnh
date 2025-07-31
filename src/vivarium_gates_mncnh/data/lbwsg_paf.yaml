@@ -28,7 +28,7 @@ configuration:
         end:
             year: 2022
             month: 1
-            day: 2
+            day: 10
         step_size: 8 # Days
     population:
         population_size: 194_996
