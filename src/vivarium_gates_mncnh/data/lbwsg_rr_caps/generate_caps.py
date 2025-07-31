@@ -13,7 +13,7 @@ Arguments:
                       Default: Ethiopia
 
     -o, --output-dir   The output directory where the generated CSV file will be saved.
-                      Default: /ihme/homes/hjafari/artifacts/test_caps/
+                      Default: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data/lbwsg_rr_caps
 
 Example:
     python generate_caps.py -l Nigeria -o /path/to/output_dir
