@@ -45,8 +45,8 @@ if __name__ == "__main__":
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "gbd_mapping>=4.0.0",
         "layered_config_tree",
-        "vivarium>=3.4.7",
-        "vivarium_public_health>=4.2.5",
+        "vivarium>=3.0.0",
+        "vivarium_public_health>=3.0.0",
         "click",
         "jinja2",
         "loguru",
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     setup_requires = ["setuptools_scm"]
 
-    data_requirements = ["vivarium_inputs[data]>=5.0.5"]
+    data_requirements = ["vivarium_inputs>=5.0.5"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
     test_requirements = ["pytest", "pytest-cov", "vivarium_testing_utils"]
     lint_requirements = ["black==22.3.0", "isort==5.13.2"]
