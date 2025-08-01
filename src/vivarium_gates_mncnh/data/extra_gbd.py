@@ -109,7 +109,7 @@ def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
         gbd_id=376,
         source=gbd_constants.SOURCES.RR,
         sex_id=gbd_constants.SEX.FEMALE,
-        location_id=1,
+        location_id=1,  # global data
         year_id=2022,
     )
     return data
@@ -117,6 +117,7 @@ def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
 
 @vi_utils.cache
 def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
+    location_id = utility_data.get_location_id(location)
     data = vi_utils.get_draws(
         release_id=33,
         version_id=393,
@@ -124,7 +125,7 @@ def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
         gbd_id=376,
         source=gbd_constants.SOURCES.BURDENATOR,
         sex_id=gbd_constants.SEX.FEMALE,
-        location_id=1,
+        location_id=location_id,  # location-specific data
         year_id=2023,
         metric_id=vi_globals.METRICS["Percent"],
         measure_id=vi_globals.MEASURES["Deaths"],

@@ -8,8 +8,6 @@ components:
     vivarium_public_health:
         risks:
             - Risk('risk_factor.hemoglobin')
-            - NonLogLinearRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
-            - NonLogLinearRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
 
     vivarium_gates_mncnh:
         components:
@@ -45,6 +43,8 @@ components:
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
             - PostpartumDepression()
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             # Add model observers below here
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -60,7 +60,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
