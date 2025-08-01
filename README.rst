@@ -116,24 +116,33 @@ You'll find six directories inside the main
 Running Simulations
 -------------------
 
-To run this simulation, the first step is to generate an artifact with base GBD data in it.
+You will need to repeat the entire process documented here for each location you want to run for.
+Only Pakistan, Nigeria, and Ethiopia are supported currently.
+In all commands here, we use Pakistan as an example;
+replace "Pakistan" with the name of the location of interest.
+
+To run this simulation, the first step is to analyze GBD data to generate "caps" (maximum values)
+for relative risks of low birthweight and short gestation (LBWSG).
+Note that this takes a while to run (about an hour).
+If you don't want to re-generate the RR caps, you can skip this step and simply use the pre-generated
+files included in this repo.
+Generating the caps is achieved with:::
+
+  :~$ conda activate vivarium_gates_mncnh_artifact
+  (vivarium_gates_mncnh_artifact) :~$ python src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py -l Pakistan -o src/vivarium_gates_mncnh/data/lbwsg_rr_caps/caps/
+
+The next step is to generate an artifact with base GBD data in it.
 This will only work on the IHME cluster, because it pulls draw-level data from internal GBD databases.:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
   (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/
 
-Replace "Pakistan" with the name of the location of interest.
-Only Pakistan, Nigeria, and Ethiopia are supported currently.
 This command will create an artifact file in the ``artifacts/`` directory within the repo;
 omit the ``-o`` argument to output to the default location of ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts``,
 or change to a different path.
 
-.. todo::
-
-  Include how to re-calculate LBWSG RR caps
-
 The next step is to run an initial simulation to calculate population-attributable fractions (PAFs)
-for low birthweight and short gestation (LBWSG) in the early neonatal period.
+for LBWSG in the early neonatal period.
 *Edit* the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml`` so that the ``end``
 is only one day after the ``start``, then run:::
 
