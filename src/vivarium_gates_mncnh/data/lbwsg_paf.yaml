@@ -12,7 +12,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model12.0/pakistan.hdf'
+        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/pakistan.hdf'
     interpolation:
         order: 0
         extrapolate: True
