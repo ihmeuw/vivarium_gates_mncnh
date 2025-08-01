@@ -132,3 +132,6 @@ src/*/_version.py
 # Copilot instructions
 .github/copilot_instructions.md
 .github/prompts/
+
+# Visual Studio Code project settings
+.vscode/
