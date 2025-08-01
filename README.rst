@@ -135,7 +135,7 @@ The next step is to generate an artifact with base GBD data in it.
 This will only work on the IHME cluster, because it pulls draw-level data from internal GBD databases.:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/
 
 This command will create an artifact file in the ``artifacts/`` directory within the repo;
 omit the ``-o`` argument to output to the default location of ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts``,
@@ -147,7 +147,7 @@ for LBWSG in the early neonatal period.
 is only one day after the ``start``, then run:::
 
   :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
+  (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
 step. For more ways to run simulations, see the tutorials at
@@ -169,14 +169,14 @@ Now *edit* the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
 
 Next we'll repeat the process for the late neonatal PAFs.
 *Undo* your edits in the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml``
 and re-run:::
 
   :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
+  (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 Copy your results to ``calculated_pafs``, overwriting the previous ones:::
 
@@ -185,12 +185,12 @@ Copy your results to ``calculated_pafs``, overwriting the previous ones:::
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
 
 You are now ready to run the main simulation with::
 
   :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ simulate run -v src/vivarium_gates_mncnh/model_specifications/model_spec.yaml -i artifacts/pakistan.hdf -o sim_results/
+  (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/model_specifications/model_spec.yaml -i artifacts/pakistan.hdf -o sim_results/
 
 Results of the simulation will be written to ``sim_results/``.
 For example, you can check the total deaths due to maternal disorders by
