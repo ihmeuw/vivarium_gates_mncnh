@@ -373,60 +373,58 @@ class LBWSGPAFObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.lbwsg_exposure = self._load_custom_paf_exposure(builder)
+        self.birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
         self.config = builder.configuration.stratification.lbwsg_paf
         self.pop_size = builder.configuration.population.population_size
 
-        self.mortality_weights = builder.value.register_value_producer(
-            f"mortality_weights",
-            source=self.calculate_mortality_weights,
-            component=self,
-            required_resources=["lbwsg_category", "child_alive"],
-        )
-
-        builder.results.register_adding_observation(
+        builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
             aggregator=self.calculate_paf,
-            requires_columns=["child_alive"],
+            results_updater=self.results_updater,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step",
         )
         # Add observer to get paf for preterm birth population
-        builder.results.register_adding_observation(
+        builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
             pop_filter="gestational_age_exposure < 37",
             aggregator=self.calculate_paf,
-            requires_columns=["child_alive", "gestational_age_exposure"],
+            results_updater=self.results_updater,
+            requires_columns=["gestational_age_exposure"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step",
         )
 
+    def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+        return new
+
     def calculate_paf(self, x: pd.DataFrame) -> float:
         relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
-        age_start = self.population_view.get(x.index).age_bin.min().left
-        sex = x["sex_of_child"].unique()[0]
-        lbwsg_prevalence = self.lbwsg_exposure.rename(
+        unique_sexes = x["sex_of_child"].unique()
+        if len(unique_sexes) != 1:
+            raise ValueError(
+                "Stratified data contains more than one sex, but this observer (LBWSGPAFObserver) needs sex-stratified data."
+            )
+        sex = unique_sexes[0]
+
+        # Use exposure prevalence at birth
+        lbwsg_prevalence = self.birth_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
-
-        # Subset to age group for exposure - have to use np.isclose because age_start is rounded
-        lbwsg_prevalence = lbwsg_prevalence[
-            np.isclose(self.lbwsg_exposure.child_age_start, age_start, atol=0.001)
-        ]
         lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex_of_child"] == sex]
 
         # weight LBWSG prevalence by fraction of simulants who survived to late neonatal period
         # within a given LBWSG category
         # this fraction will be 1 at the first time step because no one has died yet, which is
         # what we want
-        weights = self.mortality_weights(x.index)
+        weights = self.calculate_mortality_weights(sex)
         lbwsg_prevalence = lbwsg_prevalence.merge(weights)
         lbwsg_prevalence["prevalence"] = (
             lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
@@ -442,42 +440,18 @@ class LBWSGPAFObserver(Component):
 
         mean_rr = np.average(mean_rrs["relative_risk"], weights=mean_rrs["prevalence"])
         paf = (mean_rr - 1) / mean_rr
+
         return paf
 
-    def _load_custom_paf_exposure(self, builder: Builder) -> pd.DataFrame:
-        """Loads custom exposure data for the PAF simulation. This swaps the birth
-        exposure with the early neonatal exposure for the early neonatal age group.
-        TODO: potentially switch ENN for LNN exposure depending on how this validates.
-        """
-        birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
-        neonatal_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE)
-        col_order = neonatal_exposure.columns.tolist()
-        enn_exposure = neonatal_exposure.loc[neonatal_exposure["child_age_end"] < 8 / 365.0]
-        enn_exposure = enn_exposure.drop(columns=["value"])
-        new_enn_exposure = pd.merge(
-            birth_exposure,
-            enn_exposure,
-            on=["sex_of_child", "year_start", "year_end", "parameter"],
-        )
-        exposure = neonatal_exposure.loc[neonatal_exposure["child_age_start"] > 6 / 365.0]
-
-        final_exposure = pd.concat([new_enn_exposure, exposure])
-        return final_exposure[col_order]
-
-    def calculate_mortality_weights(self, index: pd.Index) -> pd.Series:
-        """Calculate percentage of simulants alive within a LBWSG category."""
+    def calculate_mortality_weights(self, sex: str) -> pd.Series:
+        """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
         full_index = pd.Index(range(self.pop_size))
-        # sex is guaranteed to be the same for all simulants in the index because
-        # we stratify by sex of child
-        sex_of_subset = self.population_view.get(index)["sex_of_child"].unique()[0]
         pop_data = self.population_view.get(full_index)[
             ["lbwsg_category", "child_alive", "sex_of_child"]
         ]
-        pop_data = pop_data[pop_data["sex_of_child"] == sex_of_subset].drop(
-            "sex_of_child", axis=1
-        )
+        pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
         weights = (
-            pop_data.groupby("lbwsg_category")["child_alive"]
+            pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
             .agg(proportion_alive=lambda x: (x == "alive").mean())
             .reset_index()
         )
