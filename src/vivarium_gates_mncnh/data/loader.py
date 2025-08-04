@@ -588,7 +588,7 @@ def load_lbwsg_exposure(
 def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    # TODO: implement
+    # get early neonatal prevalence from GBD 
     exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
     # Get preterm categories
@@ -605,6 +605,10 @@ def load_preterm_prevalence(
     sum_exposure = preterm_exposure.groupby(["sex_of_child", "year_start", "year_end"])[
         draw_cols
     ].sum()
+
+    # get late neonatal prevalence from our PAF simulation
+    data = pd.read_parquet("~/mncnh_runs/pakistan/2025_08_04_12_39_45/results/calculated_late_neonatal_preterm_prevalence.parquet")
+    breakpoint()
 
     return sum_exposure
 
