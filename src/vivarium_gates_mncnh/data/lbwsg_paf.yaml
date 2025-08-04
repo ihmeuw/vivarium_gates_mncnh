@@ -7,6 +7,7 @@ components:
             - LBWSGPAFCalculationExposure()
             - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk')
             - LBWSGPAFObserver('cause.all_causes.all_cause_mortality_risk')
+            - PretermPrevalenceObserver()
 
 
 configuration:
@@ -43,3 +44,5 @@ configuration:
         default:
             - 'child_age_group'
             - 'child_sex'
+        preterm_prevalence:
+            exclude: ['child_age_group']

@@ -30,12 +30,13 @@ from vivarium_public_health.utilities import (
     to_snake_case,
 )
 
-from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     PIPELINES,
 )
+
 
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
@@ -458,6 +459,92 @@ class LBWSGPAFObserver(Component):
         return weights
 
 
+class PretermPrevalenceObserver(Component):
+    CONFIGURATION_DEFAULTS = {
+        "stratification": {
+            "preterm_prevalence": {
+                "exclude": [],
+                "include": [],
+            }
+        }
+    }
+
+    @property
+    def columns_required(self) -> list[str] | None:
+        return ["gestational_age_exposure", "lbwsg_category", "child_alive", "sex_of_child"]
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self.birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
+        self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
+        self.config = builder.configuration.stratification.preterm_prevalence
+        self.pop_size = builder.configuration.population.population_size
+        
+        builder.results.register_stratified_observation(
+            name=f"calculated_late_neonatal_preterm_prevalence",
+            aggregator=self.calculate_preterm_prevalence,
+            results_updater=self.results_updater,
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="time_step",
+        )
+
+    def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+        return new
+
+    def calculate_preterm_prevalence(self, x: pd.DataFrame) -> float:
+        # weight preterm prevalence by fraction of simulants who survived to late neonatal period
+        # within a given LBWSG category
+        # this fraction will be 1 at the first time step because no one has died yet, which is
+        # what we want
+        unique_sexes = x["sex_of_child"].unique()
+        if len(unique_sexes) != 1:
+            raise ValueError(
+                "Stratified data contains more than one sex, but this observer (LBWSGPAFObserver) needs sex-stratified data."
+            )
+        sex = unique_sexes[0]
+
+        # Use exposure prevalence at birth
+        lbwsg_prevalence = self.birth_exposure.rename(
+            {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
+        )
+        lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex_of_child"] == sex]
+
+        weights = self.calculate_mortality_weights(sex)
+        lbwsg_prevalence = lbwsg_prevalence.merge(weights)
+        lbwsg_prevalence['mortality_weighted_prevalence'] = (
+            lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
+        )
+
+        # Get preterm categories
+        preterm_cats = []
+        for cat, description in self.lbwsg_categories.items():
+            i = parse_short_gestation_description(description)
+            if i.right <= metadata.PRETERM_AGE_CUTOFF:
+                preterm_cats.append(cat)
+                
+        preterm_prevalences = lbwsg_prevalence[
+            lbwsg_prevalence["lbwsg_category"].isin(preterm_cats)
+        ]
+        preterm_prevalence = preterm_prevalences['mortality_weighted_prevalence'].sum() / lbwsg_prevalence['mortality_weighted_prevalence'].sum()
+        return preterm_prevalence
+    
+
+    def calculate_mortality_weights(self, sex: str) -> pd.Series:
+        """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
+        full_index = pd.Index(range(self.pop_size))
+        pop_data = self.population_view.get(full_index)[
+            ["lbwsg_category", "child_alive", "sex_of_child"]
+        ]
+        pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
+        weights = (
+            pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
+            .agg(proportion_alive=lambda x: (x == "alive").mean())
+            .reset_index()
+        )
+        return weights
+
+
 class LBWSGMortality(Component):
     """A component to handle neonatal mortality."""
 
@@ -571,3 +658,20 @@ class LBWSGMortality(Component):
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
+
+
+
+######################
+## Utility functions #
+######################
+
+def parse_short_gestation_description(description: str) -> pd.Interval:
+    # descriptions look like this: 'Birth prevalence - [34, 36) wks, [2000, 2500) g'
+    endpoints = pd.Interval(
+        *[
+            float(val)
+            for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
+        ],
+        closed="left",
+    )
+    return endpoints

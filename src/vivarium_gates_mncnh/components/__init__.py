@@ -10,6 +10,7 @@ from vivarium_gates_mncnh.components.lbwsg import (
     LBWSGPAFObserver,
     LBWSGRisk,
     LBWSGRiskEffect,
+    PretermPrevalenceObserver,
 )
 from vivarium_gates_mncnh.components.maternal_disorders import (
     MaternalDisorder,
