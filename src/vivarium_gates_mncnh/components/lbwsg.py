@@ -379,6 +379,8 @@ class LBWSGPAFObserver(Component):
         )
         self.config = builder.configuration.stratification.lbwsg_paf
         self.pop_size = builder.configuration.population.population_size
+        self.step_size = builder.configuration.time.step_size
+        self.clock = builder.time.clock()
 
         builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
@@ -401,7 +403,18 @@ class LBWSGPAFObserver(Component):
         )
 
     def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
-        return new
+        if self.clock().day < self.step_size:  # early neonatal time step
+            df = new.reset_index()
+        else:  # late neonatal time step
+            # use PAFs from first time step for ENN and second time step for LNN
+            new = new.reset_index()
+            df = pd.concat(
+                [
+                    old[old["child_age_group"] == "early_neonatal"],
+                    new[new["child_age_group"] == "late_neonatal"],
+                ],
+            )
+        return df
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
         relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
