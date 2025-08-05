@@ -379,8 +379,7 @@ class LBWSGPAFObserver(Component):
         )
         self.config = builder.configuration.stratification.lbwsg_paf
         self.pop_size = builder.configuration.population.population_size
-        self.step_size = builder.configuration.time.step_size
-        self.clock = builder.time.clock()
+        self.step_number = 1
 
         builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
@@ -402,8 +401,12 @@ class LBWSGPAFObserver(Component):
             when="time_step",
         )
 
+    def on_time_step_cleanup(self, event: Event) -> None:
+        """Increment step number at the end of each time step."""
+        self.step_number += 1
+
     def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
-        if self.clock().day < self.step_size:  # early neonatal time step
+        if self.step_number == 1:  # early neonatal time step
             df = new.reset_index()
         else:  # late neonatal time step
             # use PAFs from first time step for ENN and second time step for LNN
