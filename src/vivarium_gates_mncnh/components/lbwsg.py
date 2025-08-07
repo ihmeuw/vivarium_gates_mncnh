@@ -37,7 +37,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     PIPELINES,
 )
 
-
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
@@ -408,14 +407,13 @@ class LBWSGPAFObserver(Component):
 
     def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
         if self.step_number == 1:  # early neonatal time step
-            df = new.reset_index()
+            df = new
         else:  # late neonatal time step
             # use PAFs from first time step for ENN and second time step for LNN
-            new = new.reset_index()
             df = pd.concat(
                 [
-                    old[old["child_age_group"] == "early_neonatal"],
-                    new[new["child_age_group"] == "late_neonatal"],
+                    old.query("child_age_group=='early_neonatal'"),
+                    new.query("child_age_group=='late_neonatal'"),
                 ],
             )
         return df
@@ -495,7 +493,8 @@ class PretermPrevalenceObserver(Component):
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
         self.config = builder.configuration.stratification.preterm_prevalence
         self.pop_size = builder.configuration.population.population_size
-        
+        self.step_number = 1
+
         builder.results.register_stratified_observation(
             name=f"calculated_late_neonatal_preterm_prevalence",
             aggregator=self.calculate_preterm_prevalence,
@@ -503,10 +502,12 @@ class PretermPrevalenceObserver(Component):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step",
+            to_observe=self.to_observe,
         )
 
-    def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
-        return new
+    def on_time_step_cleanup(self, event: Event) -> None:
+        """Increment step number at the end of each time step."""
+        self.step_number += 1
 
     def calculate_preterm_prevalence(self, x: pd.DataFrame) -> float:
         # weight preterm prevalence by fraction of simulants who survived to late neonatal period
@@ -528,7 +529,7 @@ class PretermPrevalenceObserver(Component):
 
         weights = self.calculate_mortality_weights(sex)
         lbwsg_prevalence = lbwsg_prevalence.merge(weights)
-        lbwsg_prevalence['mortality_weighted_prevalence'] = (
+        lbwsg_prevalence["mortality_weighted_prevalence"] = (
             lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
         )
 
@@ -538,13 +539,18 @@ class PretermPrevalenceObserver(Component):
             i = parse_short_gestation_description(description)
             if i.right <= metadata.PRETERM_AGE_CUTOFF:
                 preterm_cats.append(cat)
-                
+
         preterm_prevalences = lbwsg_prevalence[
             lbwsg_prevalence["lbwsg_category"].isin(preterm_cats)
         ]
-        preterm_prevalence = preterm_prevalences['mortality_weighted_prevalence'].sum() / lbwsg_prevalence['mortality_weighted_prevalence'].sum()
+        preterm_prevalence = (
+            preterm_prevalences["mortality_weighted_prevalence"].sum()
+            / lbwsg_prevalence["mortality_weighted_prevalence"].sum()
+        )
         return preterm_prevalence
-    
+
+    def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+        return new
 
     def calculate_mortality_weights(self, sex: str) -> pd.Series:
         """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
@@ -559,6 +565,13 @@ class PretermPrevalenceObserver(Component):
             .reset_index()
         )
         return weights
+
+    def to_observe(self, event: Event) -> pd.DataFrame:
+        """Only observe the late neonatal time step."""
+        if self.step_number == 2:
+            return True
+        else:
+            return False
 
 
 class LBWSGMortality(Component):
@@ -676,10 +689,10 @@ class LBWSGMortality(Component):
         )
 
 
-
 ######################
 ## Utility functions #
 ######################
+
 
 def parse_short_gestation_description(description: str) -> pd.Interval:
     # descriptions look like this: 'Birth prevalence - [34, 36) wks, [2000, 2500) g'

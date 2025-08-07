@@ -47,7 +47,7 @@ if __name__ == "__main__":
         "gbd_mapping>=4.0.0",
         "layered_config_tree",
         "vivarium>=3.4.5",
-        "vivarium_public_health>=4.2.2",
+        "vivarium_public_health>=4.3.4",
         "click",
         "jinja2",
         "pyyaml",

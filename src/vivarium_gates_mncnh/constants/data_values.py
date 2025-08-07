@@ -55,6 +55,11 @@ SCREENING_SCALE_UP_DIFFERENCE = (
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
+# Ages (in years) for neonatal period
+EARLY_NEONATAL_AGE_START = 0.0  # 0 days
+LATE_NEONATAL_AGE_START = 0.01917808  # 7 days
+LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
+
 
 class __PregnancyOutcome(NamedTuple):
     PARTIAL_TERM_OUTCOME = "partial_term"
