@@ -178,9 +178,9 @@ and re-run:::
   :~$ conda activate vivarium_gates_mncnh_simulation
   (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
-*edit* the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
-``Path("calculated_pafs/")`` and ``PRETERM_PREVALENCE_DIR`` to ``Path("calculated_preterm_prevalence/")``. 
-Copy your results to ``calculated_pafs``, overwriting the previous ones:::
+*edit* the ``PRETERM_PREVALENCE_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
+``Path("calculated_preterm_prevalence/")``.
+Copy your results to ``calculated_pafs`` and ``calculated_preterm_prevalence``, overwriting the previous results:
 
   :~$ cp <your results directory>/calculated_lbwsg_paf*.parquet calculated_pafs/temp_outputs/pakistan/
   :~$ cp <your results directory>/calculated_late_neonatal_preterm*.parquet calculated_preterm_prevalence/pakistan/
