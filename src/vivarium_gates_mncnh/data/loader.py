@@ -388,13 +388,7 @@ def load_paf_data(
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    location_mapper = {
-        "Ethiopia": "ethiopia",
-        "Nigeria": "nigeria",
-        "Pakistan": "pakistan",
-    }
-
-    output_dir = paths.PAF_DIR / "temp_outputs" / location_mapper[location]
+    output_dir = paths.PAF_DIR / "temp_outputs" / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
@@ -612,12 +606,7 @@ def load_preterm_prevalence(
 
     # get late neonatal prevalence from our PAF simulation
     filename = "calculated_late_neonatal_preterm_prevalence.parquet"
-    location_mapper = {
-        "Ethiopia": "ethiopia",
-        "Nigeria": "nigeria",
-        "Pakistan": "pakistan",
-    }
-    filepath = paths.PRETERM_PREVALENCE_DIR / location_mapper[location] / filename
+    filepath = paths.PRETERM_PREVALENCE_DIR / location.lower() / filename
     data = pd.read_parquet(filepath)
     data = data.drop(["scenario", "random_seed"], axis=1)
     data = data.pivot(index="child_sex", columns="input_draw", values="value")
