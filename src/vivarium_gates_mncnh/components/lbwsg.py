@@ -439,7 +439,7 @@ class LBWSGPAFObserver(Component):
         # within a given LBWSG category
         # this fraction will be 1 at the first time step because no one has died yet, which is
         # what we want
-        weights = self.calculate_mortality_weights(sex)
+        weights = calculate_mortality_weights(self, sex)
         lbwsg_prevalence = lbwsg_prevalence.merge(weights)
         lbwsg_prevalence["prevalence"] = (
             lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
@@ -457,20 +457,6 @@ class LBWSGPAFObserver(Component):
         paf = (mean_rr - 1) / mean_rr
 
         return paf
-
-    def calculate_mortality_weights(self, sex: str) -> pd.Series:
-        """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
-        full_index = pd.Index(range(self.pop_size))
-        pop_data = self.population_view.get(full_index)[
-            ["lbwsg_category", "child_alive", "sex_of_child"]
-        ]
-        pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
-        weights = (
-            pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
-            .agg(proportion_alive=lambda x: (x == "alive").mean())
-            .reset_index()
-        )
-        return weights
 
 
 class PretermPrevalenceObserver(Component):
@@ -527,7 +513,7 @@ class PretermPrevalenceObserver(Component):
         )
         lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex_of_child"] == sex]
 
-        weights = self.calculate_mortality_weights(sex)
+        weights = calculate_mortality_weights(self, sex)
         lbwsg_prevalence = lbwsg_prevalence.merge(weights)
         lbwsg_prevalence["mortality_weighted_prevalence"] = (
             lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
@@ -551,20 +537,6 @@ class PretermPrevalenceObserver(Component):
 
     def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
         return new
-
-    def calculate_mortality_weights(self, sex: str) -> pd.Series:
-        """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
-        full_index = pd.Index(range(self.pop_size))
-        pop_data = self.population_view.get(full_index)[
-            ["lbwsg_category", "child_alive", "sex_of_child"]
-        ]
-        pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
-        weights = (
-            pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
-            .agg(proportion_alive=lambda x: (x == "alive").mean())
-            .reset_index()
-        )
-        return weights
 
     def to_observe(self, event: Event) -> pd.DataFrame:
         """Only observe the late neonatal time step."""
@@ -704,3 +676,18 @@ def parse_short_gestation_description(description: str) -> pd.Interval:
         closed="left",
     )
     return endpoints
+
+
+def calculate_mortality_weights(component: Component, sex: str) -> pd.Series:
+    """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
+    full_index = pd.Index(range(component.pop_size))
+    pop_data = component.population_view.get(full_index)[
+        ["lbwsg_category", "child_alive", "sex_of_child"]
+    ]
+    pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
+    weights = (
+        pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
+        .agg(proportion_alive=lambda x: (x == "alive").mean())
+        .reset_index()
+    )
+    return weights
