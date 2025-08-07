@@ -517,7 +517,7 @@ class PretermPrevalenceObserver(Component):
         unique_sexes = x["sex_of_child"].unique()
         if len(unique_sexes) != 1:
             raise ValueError(
-                "Stratified data contains more than one sex, but this observer (LBWSGPAFObserver) needs sex-stratified data."
+                "Stratified data contains more than one sex, but this observer (PretermPrevalenceObserver) needs sex-stratified data."
             )
         sex = unique_sexes[0]
 
