@@ -388,13 +388,7 @@ def load_paf_data(
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    location_mapper = {
-        "Ethiopia": "ethiopia",
-        "Nigeria": "nigeria",
-        "Pakistan": "pakistan",
-    }
-
-    output_dir = paths.PAF_DIR / "temp_outputs" / location_mapper[location]
+    output_dir = paths.PAF_DIR / "temp_outputs" / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
@@ -588,7 +582,7 @@ def load_lbwsg_exposure(
 def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    # TODO: implement
+    # get early neonatal prevalence from GBD
     exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
     # Get preterm categories
@@ -606,7 +600,31 @@ def load_preterm_prevalence(
         draw_cols
     ].sum()
 
-    return sum_exposure
+    enn_data = sum_exposure.reset_index()
+    enn_data["child_age_start"] = data_values.EARLY_NEONATAL_AGE_START
+    enn_data["child_age_end"] = data_values.LATE_NEONATAL_AGE_START
+
+    # get late neonatal prevalence from our PAF simulation
+    filename = "calculated_late_neonatal_preterm_prevalence.parquet"
+    filepath = paths.PRETERM_PREVALENCE_DIR / location.lower() / filename
+    data = pd.read_parquet(filepath)
+    data = data.drop(["scenario", "random_seed"], axis=1)
+    data = data.pivot(index="child_sex", columns="input_draw", values="value")
+    data.columns = [f"draw_{i}" for i in data.columns]
+
+    lnn_data = data.reset_index().rename({"child_sex": "sex_of_child"}, axis=1)
+    lnn_data["child_age_start"] = data_values.LATE_NEONATAL_AGE_START
+    lnn_data["child_age_end"] = data_values.LATE_NEONATAL_AGE_END
+    lnn_data["year_start"] = enn_data["year_start"]
+    lnn_data["year_end"] = enn_data["year_end"]
+    lnn_data = lnn_data[enn_data.columns]
+
+    df = pd.concat([enn_data, lnn_data], ignore_index=True)
+    df = df.sort_values(metadata.CHILDREN_INDEX_COLUMNS).set_index(
+        metadata.CHILDREN_INDEX_COLUMNS
+    )
+
+    return df
 
 
 def load_antibiotic_coverage_probability(

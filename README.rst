@@ -162,7 +162,7 @@ The last line of output will tell you the specific directory to which results we
 Make a directory for holding these results, and copy them there, as follows:::
 
   :~$ mkdir -p calculated_pafs/temp_outputs/pakistan/
-  :~$ cp <your results directory>/*.parquet calculated_pafs/temp_outputs/pakistan/
+  :~$ cp <your results directory>/calculated_lbwsg_paf*.parquet calculated_pafs/temp_outputs/pakistan/
 
 Now *edit* the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
 ``Path("calculated_pafs/")``.
@@ -171,21 +171,24 @@ You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
   :~$ conda activate vivarium_gates_mncnh_artifact
   (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
 
-Next we'll repeat the process for the late neonatal PAFs.
+Next we'll repeat the process to calculate PAFs and preterm prevalence for late neonatals.
 *Undo* your edits in the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml``
 and re-run:::
 
   :~$ conda activate vivarium_gates_mncnh_simulation
   (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
-Copy your results to ``calculated_pafs``, overwriting the previous ones:::
+*edit* the ``PRETERM_PREVALENCE_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
+``Path("calculated_preterm_prevalence/")``.
+Copy your results to ``calculated_pafs`` and ``calculated_preterm_prevalence``, overwriting the previous results:
 
-  :~$ cp <your results directory>/*.parquet calculated_pafs/temp_outputs/pakistan/
+  :~$ cp <your results directory>/calculated_lbwsg_paf*.parquet calculated_pafs/temp_outputs/pakistan/
+  :~$ cp <your results directory>/calculated_late_neonatal_preterm*.parquet calculated_preterm_prevalence/pakistan/
 
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
   :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
+  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction -r cause.neonatal_preterm_birth.prevalence
 
 You are now ready to run the main simulation with::
 
