@@ -319,11 +319,11 @@ def scale_effects_to_iv_iron(data):
     assert np.all(
         exposure_levels[i] < exposure_levels[i + 1] for i in range(len(exposure_levels) - 1)
     ), "exposure levels not sorted in ascending order"
-    if data.outcome[0] == 'stillbirth':
+    if data.outcome[0] == "stillbirth":
         for draw in data.draw.unique():
-            assert np.all(data.loc[data.draw==draw].exposure.values
-                          == exposure_levels
-                          ), "Inconsistencies in exposure level values and/or orders"
+            assert np.all(
+                data.loc[data.draw == draw].exposure.values == exposure_levels
+            ), "Inconsistencies in exposure level values and/or orders"
     else:
         for location in data.location.unique():
             for sex in data.sex.unique():
@@ -357,14 +357,10 @@ def scale_effects_to_iv_iron(data):
         exposure_levels[len(exposure_levels) - 1 - iv_iron_exposure_increment]
         > iv_iron_threshold
     ), "Invalid exposure range for IV iron shifts"
-    if data.outcome[0] == 'stillbirth':
-        data['value'] = (
-            data['value'].shift(-iv_iron_exposure_increment) / data['value']
-        )
+    if data.outcome[0] == "stillbirth":
+        data["value"] = data["value"].shift(-iv_iron_exposure_increment) / data["value"]
     else:
-        data["value"] = (
-            data["value"].shift(-iv_iron_exposure_increment) - data["value"]
-        )
+        data["value"] = data["value"].shift(-iv_iron_exposure_increment) - data["value"]
     data["value"] = np.where(
         data.exposure > iv_iron_threshold, np.nan, data["value"]
     )  # missing values for exposure levels not eligible for IV iron
@@ -396,20 +392,23 @@ def calculate_and_save_iv_iron_lbwsg_shifts(results_directory, draw):
         results_directory + "iv_iron_lbwsg_shifts/" + draw + ".csv", index=False
     )
 
+
 def calculate_iv_iron_stillbirth_effects():
-    """Calculates relative risk of IV iron on stillbirth specific to 
-    hemoglobin exposure level. Depends on effect size and threshold of 
+    """Calculates relative risk of IV iron on stillbirth specific to
+    hemoglobin exposure level. Depends on effect size and threshold of
     IV iron intervention and hemoglobin team's estimates of hemoglobin's
     effect on stillbirth. Calculates all draws at once and is not location,
     sex, or age specific."""
-    bop_rrs = load_bop_rrs('stillbirth').sort_values(by='risk')
+    bop_rrs = load_bop_rrs("stillbirth").sort_values(by="risk")
     exposure_levels = sorted(get_gbd_exposure_levels())
     rrs = convert_rrs_to_gbd_exposure(bop_rrs, exposure_levels)
-    rrs_prepped = rrs.rename(columns={'risk':'exposure'}).set_index('exposure')
-    rrs_prepped = rrs_prepped.stack().reset_index().rename(columns={'level_1': 'draw', 0: 'value'} )
-    rrs_prepped['outcome'] = 'stillbirth'
+    rrs_prepped = rrs.rename(columns={"risk": "exposure"}).set_index("exposure")
+    rrs_prepped = (
+        rrs_prepped.stack().reset_index().rename(columns={"level_1": "draw", 0: "value"})
+    )
+    rrs_prepped["outcome"] = "stillbirth"
     effects = scale_effects_to_iv_iron(rrs_prepped)
-    effects = effects.pivot_table(index='exposure',
-                                  values='value',
-                                  columns='draw').reset_index()
-    effects.to_csv('iv_iron_stillbirth_rrs.csv')
+    effects = effects.pivot_table(
+        index="exposure", values="value", columns="draw"
+    ).reset_index()
+    effects.to_csv("iv_iron_stillbirth_rrs.csv")
