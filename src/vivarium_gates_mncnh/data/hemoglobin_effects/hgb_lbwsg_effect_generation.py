@@ -6,19 +6,19 @@ import scipy
 from vivarium import Artifact, InteractiveContext
 
 """
-This code is intended to read in the effects of hemoglobin on birth weight
+This code is intended to read in the effects of hemoglobin on stillbirth, birth weight
 and gestational age outcomes as estimated from the IHME Hemoglobin team and 
 prepare them for use in our simulation. 
 
 Specifically, this code:
 - Standardizes the RR exposure levels to be 1,000 equal increments between 40 and 150 g/L
-- Reorders the draws in order of magnitude of risk at the 40 g/L hemoglobin
+- Reorders the draws for GA and BW effects in order of magnitude of risk at the 40 g/L hemoglobin
     - This is in order to make the individual RR estimates follow logical pairings
     between the effect of hemoglobin on LBWSG and the effect of hemoglobin on 
     neonatal sepsis, which is mediated through the effect of hemoglobin on LBWSG
 - Converts the effect of hemoglobin on dichotomous preterm birth and low birth weight
 outcomes to continuous shifts in gestational age and birth weight (and saves these values)
-- Scales the effect of hemoglobin on gestational and and birth weight to the effect of
+- Scales the effect of hemoglobin on stillbirth, gestational age, and birth weight to the effect of
 IV iron and saves these values for ultimate use in our simulation
 
 Note that this code is organized to perform a calculation for all modeled locations
@@ -56,7 +56,7 @@ def get_gbd_exposure_levels():
     return exposure_levels
 
 
-def convert_rrs_to(rrs, exposure_levels):
+def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
     """Using linear interpolation, make a new dataframe with relative risks specific to the exposure levels used in GBD
     rather than the exposure levels output from the outcome-specific burden of proof models."""
     from scipy.interpolate import interp1d
@@ -299,8 +299,8 @@ def get_lbwsg_shifts(draw):
     return results
 
 
-def scale_lbwsg_to_iv_iron(lbwsg_shifts, draw):
-    """Scales hemoglobin effects on GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron"""
+def scale_effects_to_iv_iron(data):
+    """Scales hemoglobin effects on stillbirth or GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron"""
     # TODO: read in IV iron effect size/threshold from the repo/artifact here instead of hard-coding it
     iv_iron_md = 23  # change in hemoglobin exposure associated with IV iron
     iv_iron_threshold = 100  # maximum hemoglobin exposure level (g/L) eligible for IV iron
@@ -310,26 +310,32 @@ def scale_lbwsg_to_iv_iron(lbwsg_shifts, draw):
         "WARNING: using hard coded placeholder effect for IV iron intervention. Needs to be updated to artifact value when ready."
     )
 
-    lbwsg_shifts["exposure"] = lbwsg_shifts["exposure"]
-    lbwsg_shifts = lbwsg_shifts.sort_values(
-        by=[x for x in lbwsg_shifts.columns if x not in ["exposure", "value"]] + ["exposure"]
+    data["exposure"] = data["exposure"]
+    data = data.sort_values(
+        by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
     )
 
-    exposure_levels = sorted(lbwsg_shifts.exposure.unique().tolist())
+    exposure_levels = sorted(data.exposure.unique().tolist())
     assert np.all(
         exposure_levels[i] < exposure_levels[i + 1] for i in range(len(exposure_levels) - 1)
     ), "exposure levels not sorted in ascending order"
-    for location in lbwsg_shifts.location.unique():
-        for sex in lbwsg_shifts.sex.unique():
-            for outcome in lbwsg_shifts.outcome.unique():
-                assert np.all(
-                    lbwsg_shifts.loc[
-                        (lbwsg_shifts.location == location)
-                        & (lbwsg_shifts.sex == sex)
-                        & (lbwsg_shifts.outcome == outcome)
-                    ].exposure.values
-                    == exposure_levels
-                ), "Inconsistencies in exposure level values and/or orders"
+    if data.outcome[0] == 'stillbirth':
+        for draw in data.draw.unique():
+            assert np.all(data.loc[data.draw==draw].exposure.values
+                          == exposure_levels
+                          ), "Inconsistencies in exposure level values and/or orders"
+    else:
+        for location in data.location.unique():
+            for sex in data.sex.unique():
+                for outcome in data.outcome.unique():
+                    assert np.all(
+                        data.loc[
+                            (data.location == location)
+                            & (data.sex == sex)
+                            & (data.outcome == outcome)
+                        ].exposure.values
+                        == exposure_levels
+                    ), "Inconsistencies in exposure level values and/or orders"
     assert np.allclose(
         exposure_levels,
         np.linspace(
@@ -351,15 +357,19 @@ def scale_lbwsg_to_iv_iron(lbwsg_shifts, draw):
         exposure_levels[len(exposure_levels) - 1 - iv_iron_exposure_increment]
         > iv_iron_threshold
     ), "Invalid exposure range for IV iron shifts"
-
-    lbwsg_shifts["value"] = (
-        lbwsg_shifts["value"].shift(-iv_iron_exposure_increment) - lbwsg_shifts["value"]
-    )
-    lbwsg_shifts["value"] = np.where(
-        lbwsg_shifts.exposure > iv_iron_threshold, np.nan, lbwsg_shifts["value"]
+    if data.outcome[0] == 'stillbirth':
+        data['value'] = (
+            data['value'].shift(-iv_iron_exposure_increment) / data['value']
+        )
+    else:
+        data["value"] = (
+            data["value"].shift(-iv_iron_exposure_increment) - data["value"]
+        )
+    data["value"] = np.where(
+        data.exposure > iv_iron_threshold, np.nan, data["value"]
     )  # missing values for exposure levels not eligible for IV iron
 
-    return lbwsg_shifts
+    return data
 
 
 def calculate_and_save_lbwsg_shifts(results_directory, draw):
@@ -381,7 +391,25 @@ def calculate_and_save_iv_iron_lbwsg_shifts(results_directory, draw):
     if f"{draw}.csv" not in os.listdir(results_directory + "lbwsg_shifts/"):
         calculate_and_save_lbwsg_shifts(results_directory, draw)
     lbwsg_shifts = pd.read_csv(results_directory + "lbwsg_shifts/" + draw + ".csv")
-    iv_iron_shifts = scale_lbwsg_to_iv_iron(lbwsg_shifts, draw)
+    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts, draw)
     iv_iron_shifts.to_csv(
         results_directory + "iv_iron_lbwsg_shifts/" + draw + ".csv", index=False
     )
+
+def calculate_iv_iron_stillbirth_effects():
+    """Calculates relative risk of IV iron on stillbirth specific to 
+    hemoglobin exposure level. Depends on effect size and threshold of 
+    IV iron intervention and hemoglobin team's estimates of hemoglobin's
+    effect on stillbirth. Calculates all draws at once and is not location,
+    sex, or age specific."""
+    bop_rrs = load_bop_rrs('stillbirth').sort_values(by='risk')
+    exposure_levels = sorted(get_gbd_exposure_levels())
+    rrs = convert_rrs_to_gbd_exposure(bop_rrs, exposure_levels)
+    rrs_prepped = rrs.rename(columns={'risk':'exposure'}).set_index('exposure')
+    rrs_prepped = rrs_prepped.stack().reset_index().rename(columns={'level_1': 'draw', 0: 'value'} )
+    rrs_prepped['outcome'] = 'stillbirth'
+    effects = scale_effects_to_iv_iron(rrs_prepped)
+    effects = effects.pivot_table(index='exposure',
+                                  values='value',
+                                  columns='draw').reset_index()
+    effects.to_csv('iv_iron_stillbirth_rrs.csv')
