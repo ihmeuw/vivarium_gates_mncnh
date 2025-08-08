@@ -5,11 +5,38 @@ import pandas as pd
 import scipy
 from vivarium import Artifact, InteractiveContext
 
+"""
+This code is intended to read in the effects of hemoglobin on birth weight
+and gestational age outcomes as estimated from the IHME Hemoglobin team and 
+prepare them for use in our simulation. 
+
+Specifically, this code:
+- Standardizes the RR exposure levels to be 1,000 equal increments between 40 and 150 g/L
+- Reorders the draws in order of magnitude of risk at the 40 g/L hemoglobin
+    - This is in order to make the individual RR estimates follow logical pairings
+    between the effect of hemoglobin on LBWSG and the effect of hemoglobin on 
+    neonatal sepsis, which is mediated through the effect of hemoglobin on LBWSG
+- Converts the effect of hemoglobin on dichotomous preterm birth and low birth weight
+outcomes to continuous shifts in gestational age and birth weight (and saves these values)
+- Scales the effect of hemoglobin on gestational and and birth weight to the effect of
+IV iron and saves these values for ultimate use in our simulation
+
+Note that this code is organized to perform a calculation for all modeled locations
+for a single draw and therefore can be parallelized by draw.
+"""
+
+artifact_directory = (
+    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/"
+)
+# This code relies on data specific to:
+# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 13.1)
+# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 13.1)
+# Therefore, it will need to be re-run if either of these are updated
+
 
 def load_bop_rrs(outcome):
     """Load burden of proof hemoglobin estimates for specified outcome"""
-    # TODO: move these files into model repo?
-    rrs = pd.read_csv(f"/mnt/team/anemia/pub/bop/sim_studies/{outcome}/inner_draws.csv")
+    rrs = pd.read_csv(f"{outcome}_bop_rrs.csv")
     rrs = rrs.set_index("risk")
     rrs = np.exp(
         rrs
@@ -20,16 +47,12 @@ def load_bop_rrs(outcome):
 
 def get_gbd_exposure_levels():
     """Loads the 1,000 exposure estimates used in GBD for the maternal disorders outcomes."""
-    # TODO: read from artifact instead of get draws?
-    from get_draws.api import get_draws
-
-    rrs = get_draws(
-        release_id=16, source="rr", gbd_id_type="rei_id", gbd_id=376, sex_id=2
-    )  # this includes multiple age groups and multiple causes
+    art = Artifact(artifact_directory + "ethiopia.hdf")
+    rrs = art.load("risk_factor.hemoglobin.relative_risk").reset_index()
+    exposure_levels = rrs.parameter.unique()
     assert (
-        len(rrs.exposure.unique()) == 1000
+        len(exposure_levels) == 1000
     ), f"Expected 1000 unique exposure levels across age groups and causes, but got {len(rrs.exposure.unique())}"
-    exposure_levels = rrs.exposure.unique()
     return exposure_levels
 
 
@@ -52,7 +75,7 @@ def convert_rrs_to(rrs, exposure_levels):
 
 def transform_and_reorder_rrs(rrs, exposure_levels):
     """Make relative risks specific to TMREL value of 120 and reorder draws by magnitude of risk at the lowest exposure level."""
-    tmrel = exposure_levels[727]  # this corresponds to an exposure level of 120 g/L
+    tmrel = exposure_levels[len([x for x in exposure_levels if x < 120])]
     assert (
         tmrel.round(0) == 120
     ), f"Expected preterm birth tmrel to be 120 g/L, but got {tmrel}"
@@ -101,12 +124,7 @@ def get_lbwsg_metadata():
     """Loads metadata (birth weight and gestational age start/end values) for low birth weight and short gestation exposure categories.
     Note that this function does not return any actual exposure data."""
     # there are hard-coded location/sex/draw values here, but these are not used in actual data generation
-
-    # TODO: is there a better way to load this within the repo?
-    artifact_dir = (
-        "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model10.0/"
-    )
-    art = Artifact(artifact_dir + "ethiopia.hdf")
+    art = Artifact(artifact_directory + "ethiopia.hdf")
     art_exposure = art.load(f"risk_factor.low_birth_weight_and_short_gestation.exposure")[
         "draw_0"
     ].reset_index()
@@ -151,13 +169,7 @@ def get_lbwsg_metadata():
 def get_lbwsg_birth_exposure(location):
     # this will return birth exposure data data for both sexes and all draws for the specified location
     # it will also include metadata for the exposure categories (GA/BW start/end values)
-
-    # TODO: update this to be relative to most recent artifact?
-    # Or pull directly using repo code?
-    artifact_dir = (
-        "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model10.0/"
-    )
-    art = Artifact(artifact_dir + location + ".hdf")
+    art = Artifact(artifact_directory + location + ".hdf")
     exp = art.load(
         "risk_factor.low_birth_weight_and_short_gestation.birth_exposure"
     ).reset_index()
@@ -289,10 +301,14 @@ def get_lbwsg_shifts(draw):
 
 def scale_lbwsg_to_iv_iron(lbwsg_shifts, draw):
     """Scales hemoglobin effects on GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron"""
-
     # TODO: read in IV iron effect size/threshold from the repo/artifact here instead of hard-coding it
     iv_iron_md = 23  # change in hemoglobin exposure associated with IV iron
     iv_iron_threshold = 100  # maximum hemoglobin exposure level (g/L) eligible for IV iron
+    import warnings
+
+    warnings.warn(
+        "WARNING: using hard coded placeholder effect for IV iron intervention. Needs to be updated to artifact value when ready."
+    )
 
     lbwsg_shifts["exposure"] = lbwsg_shifts["exposure"]
     lbwsg_shifts = lbwsg_shifts.sort_values(
