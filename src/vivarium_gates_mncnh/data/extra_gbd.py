@@ -5,7 +5,10 @@ from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.metadata import GBD_BIRTH_AGE_GROUP_ID, ARTIFACT_YEAR_START
+from vivarium_gates_mncnh.constants.metadata import (
+    ARTIFACT_YEAR_START,
+    GBD_BIRTH_AGE_GROUP_ID,
+)
 from vivarium_gates_mncnh.data import utilities
 
 
