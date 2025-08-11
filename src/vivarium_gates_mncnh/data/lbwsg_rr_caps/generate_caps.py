@@ -53,12 +53,14 @@ def prepare_rr_cap_inputs(
         # Late neonatal
         data[(sex, "late_neonatal")] = {
             "exposure": get_data(data_keys.LBWSG.EXPOSURE, location).query(
-                f"child_age_start==0.01917808 & sex_of_child=='{sex}'"
+                f"child_age_start=={data_values.LATE_NEONATAL_AGE_START} & sex_of_child=='{sex}'"
             ),
-            "rrs": rrs.query(f"age_start == 0.01917808 & sex=='{sex}'"),
+            "rrs": rrs.query(
+                f"age_start=={data_values.LATE_NEONATAL_AGE_START} & sex=='{sex}'"
+            ),
             "acmrisk": get_data(
                 data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK, location
-            ).query(f"age_start==0.01917808 & sex=='{sex}'"),
+            ).query(f"age_start=={data_values.LATE_NEONATAL_AGE_START} & sex=='{sex}'"),
         }
     return data
 
@@ -148,9 +150,15 @@ def generate_rr_caps(rr: pd.DataFrame, location: str) -> pd.DataFrame:
             for age_group in ["early_neonatal", "late_neonatal"]:
                 rr_cap = find_rr_cap(input_data, draw, sex, age_group)
                 if age_group == "early_neonatal":
-                    age_start, age_end = 0.0, 0.01917808
+                    age_start, age_end = (
+                        data_values.EARLY_NEONATAL_AGE_START,
+                        data_values.LATE_NEONATAL_AGE_START,
+                    )
                 else:
-                    age_start, age_end = 0.01917808, 0.07671233
+                    age_start, age_end = (
+                        data_values.LATE_NEONATAL_AGE_START,
+                        data_values.LATE_NEONATAL_AGE_END,
+                    )
                 rows.append(
                     {
                         "sex": sex,
