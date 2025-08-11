@@ -69,7 +69,7 @@ class AntenatalCare(Component):
         self.location = get_location(builder)
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        anc_attendance_probability = builder.data.load(ANC.ESTIMATE)
+        anc_attendance_probability = builder.data.load(ANC.ANC1)
         self.lookup_tables["anc_attendance_probability"] = self.build_lookup_table(
             builder=builder,
             data_source=anc_attendance_probability,

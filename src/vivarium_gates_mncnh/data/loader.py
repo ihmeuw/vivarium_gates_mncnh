@@ -284,7 +284,7 @@ def load_anc_proportion(
         return data
     elif key == data_keys.ANC.ANC1 or key == data_keys.ANC.ANC4:
         anc_proportion = load_standard_data(key, location, years)
-        year_start, year_end = 2021, 2022
+        year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
         lower_value = anc_proportion.loc[(year_start, year_end, "lower_value"), "value"]
         mean_value = anc_proportion.loc[(year_start, year_end, "mean_value"), "value"]
         upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]

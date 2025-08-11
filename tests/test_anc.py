@@ -37,7 +37,7 @@ def attended_anc_facility_proportion(
 ) -> float:
     draw = f"draw_{anc_state.model_specification.configuration.input_data.input_draw_number}"
     # This is loading a one row dataframe we want to get the value depending on the draw
-    attended_facility_proportion = artifact.load(ANC.ESTIMATE)[draw].iloc[0]
+    attended_facility_proportion = artifact.load(ANC.ANC1)[draw].iloc[0]
     return attended_facility_proportion
 
 

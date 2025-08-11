@@ -164,8 +164,8 @@ def generate_rr_caps(rr: pd.DataFrame, location: str) -> pd.DataFrame:
                         "sex": sex,
                         "age_start": age_start,
                         "age_end": age_end,
-                        "year_start": 2021,
-                        "year_end": 2022,
+                        "year_start": metadata.ARTIFACT_YEAR_START,
+                        "year_end": metadata.ARTIFACT_YEAR_END,
                         "draw": draw,
                         "value": rr_cap,
                     }
@@ -208,8 +208,8 @@ if __name__ == "__main__":
     location = args.location
     output_dir = args.output_dir
 
-    data = load_standard_data(data_keys.LBWSG.RELATIVE_RISK, location, 2021)
-    data = data.query("year_start == 2021").droplevel(["affected_entity", "affected_measure"])
+    data = load_standard_data(data_keys.LBWSG.RELATIVE_RISK, location, metadata.ARTIFACT_YEAR_START)
+    data = data.query("year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(["affected_entity", "affected_measure"])
     data = data[~data.index.duplicated()]
     rr_caps = generate_rr_caps(data, location)
     rr_caps.to_csv(f"{output_dir}/{location.lower()}.csv")

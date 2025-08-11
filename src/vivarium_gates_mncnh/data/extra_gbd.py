@@ -5,7 +5,7 @@ from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.metadata import GBD_BIRTH_AGE_GROUP_ID
+from vivarium_gates_mncnh.constants.metadata import GBD_BIRTH_AGE_GROUP_ID, ARTIFACT_YEAR_START
 from vivarium_gates_mncnh.data import utilities
 
 
@@ -18,7 +18,7 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
         entity.gbd_id,
         source=gbd_constants.SOURCES.COMO,
         location_id=location_id,
-        year_id=2021,
+        year_id=ARTIFACT_YEAR_START,
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
         measure_id=vi_globals.MEASURES["YLDs"],
         metric_id=vi_globals.METRICS["Rate"],
@@ -35,7 +35,7 @@ def load_lbwsg_exposure(location: str) -> pd.DataFrame:
         gbd_id=entity.gbd_id,
         source=gbd_constants.SOURCES.EXPOSURE,
         location_id=location_id,
-        year_id=2021,
+        year_id=ARTIFACT_YEAR_START,
         sex_id=gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE,
         age_group_id=164,  # Birth prevalence
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
@@ -52,7 +52,7 @@ def get_birth_counts(location: str) -> pd.DataFrame:
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
         location_id=location_id,
         age_group_id=GBD_BIRTH_AGE_GROUP_ID,
-        year_id=2021,
+        year_id=ARTIFACT_YEAR_START,
         sex_id=[1, 2],
     )
     births = births.drop(["run_id", "age_group_id"], axis=1).set_index(
@@ -73,7 +73,7 @@ def get_mortality_death_counts(location: str, age_group_id: int, gbd_id: int) ->
         gbd_id=gbd_id,
         measure_id=vi_globals.MEASURES["Deaths"],
         source=gbd_constants.SOURCES.CODCORRECT,
-        year_id=2021,
+        year_id=ARTIFACT_YEAR_START,
     )
     return data
 
