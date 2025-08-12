@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from vivarium_gates_mncnh.constants import data_keys, data_values
+from vivarium_gates_mncnh.constants import data_keys, data_values, metadata
 from vivarium_gates_mncnh.data.loader import get_data, load_standard_data
 
 
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     data = load_standard_data(
         data_keys.LBWSG.RELATIVE_RISK, location, metadata.ARTIFACT_YEAR_START
     )
-    data = data.query("year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
+    data = data.query(f"year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
         ["affected_entity", "affected_measure"]
     )
     data = data[~data.index.duplicated()]
