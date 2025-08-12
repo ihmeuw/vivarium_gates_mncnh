@@ -45,8 +45,8 @@ components:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
-            # TODO: add back in with ANC observer updates [MIC-6297]
-            # - ANCObserver()
+            # Observers 
+            - ANCObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
@@ -101,8 +101,7 @@ configuration:
             include:
                 - 'age_group'
                 - 'pregnancy_outcome'
-                # TODO: add back in with ANC observer updates [MIC-6297]
-                #- 'anc_coverage'
+                - 'anc_coverage'
                 - 'ultrasound_type'
                 - 'delivery_facility_type'
                 - 'azithromycin_availability'
