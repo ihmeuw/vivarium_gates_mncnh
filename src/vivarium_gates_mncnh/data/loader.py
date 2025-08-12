@@ -331,7 +331,7 @@ def load_lbwsg_rr(
         raise ValueError(f"Unrecognized key {key}")
 
     data = load_standard_data(key, location, years)
-    data = data.query("year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
+    data = data.query(f"year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
         ["affected_entity", "affected_measure"]
     )
     data = data[~data.index.duplicated()]
