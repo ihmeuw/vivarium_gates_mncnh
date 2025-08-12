@@ -169,7 +169,7 @@ class AntenatalCare(Component):
     def create_anc_decision_tree(self) -> TreeMachine:
         initial_state = State("initial")
         # DecisionTreeStates are TransientStates that update
-        # a population column upon transition to a specified value
+        # a population column value upon transition 
         state_A = DecisionTreeState(
             "first_trimester_and_later_pregnancy",
             COLUMNS.ANTENATAL_CARE_ATTENDANCE,
