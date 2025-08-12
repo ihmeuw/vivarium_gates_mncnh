@@ -296,14 +296,15 @@ def load_anc_proportion(
             anc_proportion_draws = get_random_variable_draws(
                 metadata.ARTIFACT_COLUMNS, key, anc_proportion_dist
             )
+            anc_proportion_draws = anc_proportion_draws.values.flatten()
+            # Ensure shape is (1, NUM_DRAWS)
+            anc_proportion_draws = anc_proportion_draws.reshape(1, -1)
         except FloatingPointError:
             print("FloatingPointError encountered, proceeding with caution.")
             anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
 
         draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
-        anc_proportion_draws_df = pd.DataFrame(
-            [anc_proportion_draws.values.flatten()], columns=draw_columns
-        )
+        anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
         anc_proportion_draws_df["year_start"] = year_start
         anc_proportion_draws_df["year_end"] = year_end
         return anc_proportion_draws_df.set_index(["year_start", "year_end"])
