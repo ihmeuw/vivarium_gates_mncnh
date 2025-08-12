@@ -182,7 +182,7 @@ class __Columns(NamedTuple):
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
-    ATTENDED_CARE_FACILITY = "attended_care_facility"
+    ANTENATAL_CARE_ATTENDANCE = "antenatal_care_attendance"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"

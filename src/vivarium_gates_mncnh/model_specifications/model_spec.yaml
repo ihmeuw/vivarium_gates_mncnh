@@ -45,8 +45,8 @@ components:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
-            # Add model observers below here
-            - ANCObserver()
+            # TODO: add back in with ANC observer updates [MIC-6297]
+            # - ANCObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
@@ -60,7 +60,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.3/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model14.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -101,7 +101,8 @@ configuration:
             include:
                 - 'age_group'
                 - 'pregnancy_outcome'
-                - 'anc_coverage'
+                # TODO: add back in with ANC observer updates [MIC-6297]
+                #- 'anc_coverage'
                 - 'ultrasound_type'
                 - 'delivery_facility_type'
                 - 'azithromycin_availability'

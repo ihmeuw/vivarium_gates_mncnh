@@ -16,6 +16,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANC_RATES,
     COLUMNS,
     LOW_BIRTH_WEIGHT_THRESHOLD,
+    PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
 )
@@ -41,7 +42,7 @@ class AntenatalCare(Component):
     @property
     def columns_created(self):
         return [
-            COLUMNS.ATTENDED_CARE_FACILITY,
+            COLUMNS.ANTENATAL_CARE_ATTENDANCE,
             COLUMNS.ULTRASOUND_TYPE,
             COLUMNS.STATED_GESTATIONAL_AGE,
             COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION,
@@ -53,6 +54,7 @@ class AntenatalCare(Component):
             COLUMNS.GESTATIONAL_AGE_EXPOSURE,
             COLUMNS.BIRTH_WEIGHT_EXPOSURE,
             COLUMNS.SEX_OF_CHILD,
+            COLUMNS.PREGNANCY_OUTCOME,
         ]
 
     @property
@@ -69,10 +71,19 @@ class AntenatalCare(Component):
         self.location = get_location(builder)
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        anc_attendance_probability = builder.data.load(ANC.ANC1)
-        self.lookup_tables["anc_attendance_probability"] = self.build_lookup_table(
+        self.lookup_tables["ANCfirst"] = self.build_lookup_table(
             builder=builder,
-            data_source=anc_attendance_probability,
+            data_source=builder.data.load(ANC.ANCfirst),
+            value_columns=["value"],
+        )
+        self.lookup_tables["ANC1"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(ANC.ANC1),
+            value_columns=["value"],
+        )
+        self.lookup_tables["ANC4"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(ANC.ANC4),
             value_columns=["value"],
         )
         stated_ga_standard_deviation = self.format_dict_for_lookup_table(
@@ -80,7 +91,7 @@ class AntenatalCare(Component):
             COLUMNS.ULTRASOUND_TYPE,
         )
         self.lookup_tables[
-            "stated_gestational_age_standa_deviation"
+            "stated_gestational_age_standard_deviation"
         ] = self.build_lookup_table(
             builder=builder,
             data_source=stated_ga_standard_deviation,
@@ -96,9 +107,6 @@ class AntenatalCare(Component):
             value_columns=["value"],
         )
 
-    def get_anc_attendance_rate(self, index: pd.Index) -> pd.Series:
-        return self.lookup_tables["anc_attendance_probability"](index)
-
     def format_dict_for_lookup_table(self, data: dict, column: str) -> pd.DataFrame:
         series = pd.Series(data)
         return series.reset_index().rename(columns={"index": column, 0: "value"})
@@ -106,7 +114,7 @@ class AntenatalCare(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
-                COLUMNS.ATTENDED_CARE_FACILITY: False,
+                COLUMNS.ANTENATAL_CARE_ATTENDANCE: "none",  # no attendance
                 COLUMNS.ULTRASOUND_TYPE: ULTRASOUND_TYPES.NO_ULTRASOUND,
                 COLUMNS.STATED_GESTATIONAL_AGE: np.nan,
                 COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION: False,
@@ -128,7 +136,7 @@ class AntenatalCare(Component):
     def _calculate_stated_gestational_age(self, pop: pd.DataFrame) -> pd.Series:
         # Apply standard deviation based on ultrasound type
         gestational_age = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-        measurement_errors = self.lookup_tables["stated_gestational_age_standa_deviation"](
+        measurement_errors = self.lookup_tables["stated_gestational_age_standard_deviation"](
             pop.index
         )
         measurement_error_draws = self.randomness.get_draw(
@@ -148,38 +156,137 @@ class AntenatalCare(Component):
         identification[lbw_index] = draws < identification_rates
         return identification
 
+    def is_full_term(self, index: pd.Index) -> pd.Series:
+        """Returns a boolean Series indicating if the pregnancy is full term."""
+        pregnancy_outcome = self.population_view.get(index)[COLUMNS.PREGNANCY_OUTCOME]
+        return pregnancy_outcome.isin(
+            [
+                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+            ]
+        )
+
     def create_anc_decision_tree(self) -> TreeMachine:
         initial_state = State("initial")
-        attended_antental_care = DecisionTreeState(
-            "attended_antental_care", COLUMNS.ATTENDED_CARE_FACILITY, True
+        # DecisionTreeStates are TransientStates that update
+        # a population column upon transition to a specified value
+        state_A = DecisionTreeState(
+            "first_trimester_and_later_pregnancy",
+            COLUMNS.ANTENATAL_CARE_ATTENDANCE,
+            "first_trimester_and_later_pregnancy",
         )
+        state_B = DecisionTreeState(
+            "first_trimester_only", COLUMNS.ANTENATAL_CARE_ATTENDANCE, "first_trimester_only"
+        )
+        state_C = DecisionTreeState(
+            "later_pregnancy_only", COLUMNS.ANTENATAL_CARE_ATTENDANCE, "later_pregnancy_only"
+        )
+        state_D = DecisionTreeState("none", COLUMNS.ANTENATAL_CARE_ATTENDANCE, "none")
         gets_ultrasound = TransientState("gets_ultrasound")
         standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
         ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
         end_state = State("end")
 
+        def get_a_transition_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            result = pd.Series(0.0, index=index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            anc4 = self.lookup_tables["ANC4"](index)
+            # Keep as 0 if not full term
+            result[is_full_term] = np.minimum(ancfirst[is_full_term], anc4[is_full_term])
+            return result
+
+        def get_b_transition_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            anc4 = self.lookup_tables["ANC4"](index)
+            result = pd.Series(ancfirst, index=index)
+            # Return ANCfirst if not full term
+            result[is_full_term] = ancfirst[is_full_term] - np.minimum(
+                ancfirst[is_full_term], anc4[is_full_term]
+            )
+            return result
+
+        def get_c_transition_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            result = pd.Series(0.0, index=index)
+            anc1 = self.lookup_tables["ANC1"](index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            # Keep as 0 if not full term
+            result[is_full_term] = anc1[is_full_term] - ancfirst[is_full_term]
+            return result
+
+        def get_d_transition_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            anc1 = self.lookup_tables["ANC1"](index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            result = pd.Series(0.0, index=index)
+            result[is_full_term] = 1 - anc1[is_full_term]
+            result[~is_full_term] = 1 - ancfirst[~is_full_term]
+            return result
+
         # Decisions
+        # Initial state transitions to A, B, C, or D
         initial_state.add_transition(
-            output_state=attended_antental_care,
-            probability_function=self.get_anc_attendance_rate,
+            output_state=state_A,
+            probability_function=get_a_transition_probability,
         )
         initial_state.add_transition(
-            output_state=end_state,
-            probability_function=lambda index: 1 - self.get_anc_attendance_rate(index),
+            output_state=state_B,
+            probability_function=get_b_transition_probability,
         )
-        attended_antental_care.add_transition(
+        initial_state.add_transition(
+            output_state=state_C,
+            probability_function=get_c_transition_probability,
+        )
+        initial_state.add_transition(
+            output_state=state_D,
+            probability_function=get_d_transition_probability,
+        )
+
+        # State A, B, C, D transitions to gets_ultrasound or end_state
+        state_A.add_transition(
             output_state=gets_ultrasound,
             probability_function=lambda index: pd.Series(
                 ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
             ),
         )
-        attended_antental_care.add_transition(
+        state_A.add_transition(
             output_state=end_state,
             probability_function=lambda index: pd.Series(
                 1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
                 index=index,
             ),
         )
+        state_B.add_transition(
+            output_state=gets_ultrasound,
+            probability_function=lambda index: pd.Series(
+                ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
+            ),
+        )
+        state_B.add_transition(
+            output_state=end_state,
+            probability_function=lambda index: pd.Series(
+                1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
+                index=index,
+            ),
+        )
+        state_C.add_transition(
+            output_state=gets_ultrasound,
+            probability_function=lambda index: pd.Series(
+                ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
+            ),
+        )
+        state_C.add_transition(
+            output_state=end_state,
+            probability_function=lambda index: pd.Series(
+                1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
+                index=index,
+            ),
+        )
+        state_D.add_transition(output_state=end_state)
+
+        # Determine ultrasound type
         gets_ultrasound.add_transition(
             output_state=standard_ultasound,
             probability_function=lambda index: pd.Series(
@@ -201,7 +308,10 @@ class AntenatalCare(Component):
             COLUMNS.ANC_STATE,
             [
                 initial_state,
-                attended_antental_care,
+                state_A,
+                state_B,
+                state_C,
+                state_D,
                 gets_ultrasound,
                 standard_ultasound,
                 ai_assisted_ultrasound,

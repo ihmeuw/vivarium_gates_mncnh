@@ -26,7 +26,7 @@ INTERVENTION_TYPE_COLUMN_MAP = {
     "maternal": [
         COLUMNS.DELIVERY_FACILITY_TYPE,
         COLUMNS.MOTHER_AGE,
-        COLUMNS.ATTENDED_CARE_FACILITY,
+        COLUMNS.ANTENATAL_CARE_ATTENDANCE,
     ],
 }
 INTERVENTION_SCENARIO_ACCESS_MAP = {
@@ -163,7 +163,7 @@ class InterventionAccess(Component):
         # Misoprostol is only available to mothers who attended ANC and gave birth at home
         if self.intervention == INTERVENTIONS.MISOPROSTOL:
             pop = pop.loc[
-                (pop[COLUMNS.ATTENDED_CARE_FACILITY] == True)
+                (pop[COLUMNS.ANTENATAL_CARE_ATTENDANCE] != "none")  # attended ANC
                 & (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
             ]
         return pop

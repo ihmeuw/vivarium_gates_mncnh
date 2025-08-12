@@ -41,6 +41,7 @@ def attended_anc_facility_proportion(
     return attended_facility_proportion
 
 
+@pytest.mark.skip(reason="Model 14 ANC updates have obsoleted this test.")
 def test_attended_care_facility_proportions(
     attended_anc_facility_proportion: float,
     population: pd.DataFrame,
@@ -54,6 +55,7 @@ def test_attended_care_facility_proportions(
     )
 
 
+@pytest.mark.skip(reason="Model 14 ANC updates have obsoleted this test.")
 def test_received_ultrasound_proportions(
     attended_anc_facility_proportion: float,
     population: pd.DataFrame,

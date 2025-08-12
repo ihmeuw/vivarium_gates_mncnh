@@ -84,12 +84,13 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
         )
-        builder.results.register_stratification(
-            "anc_coverage",
-            [True, False],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.ATTENDED_CARE_FACILITY],
-        )
+        # TODO: add back in with ANC observer updates [MIC-6297]
+        # builder.results.register_stratification(
+        #     "anc_coverage",
+        #     [True, False],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.ANTENATAL_CARE_ATTENDANCE],
+        # )
         builder.results.register_stratification(
             "ultrasound_type",
             [
