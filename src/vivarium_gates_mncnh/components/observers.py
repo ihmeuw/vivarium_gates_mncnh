@@ -88,10 +88,10 @@ class ResultsStratifier(ResultsStratifier_):
         builder.results.register_stratification(
             "anc_coverage",
             [
-            ANC_ATTENDANCE_TYPES.NONE,
-            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
-            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
-            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+                ANC_ATTENDANCE_TYPES.NONE,
+                ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
             ],
             is_vectorized=True,
             requires_columns=[COLUMNS.ANC_ATTENDANCE],
