@@ -68,7 +68,7 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
     for col in rrs.columns:
         if col.startswith("draw_"):
             y = rrs[col].values
-            f = interp1d(risk, y, kind="linear", bounds_error=False, fill_value="extrapolate")
+            f = interp1d(risk, y, kind="linear", bounds_error=False, fill_value=(y[0], y[-1]))
             rrs_interp[col] = f(x_new)
     return rrs_interp
 
@@ -114,7 +114,7 @@ def load_prepped_rrs(outcome):
     - reordered by magnitude of risk at the lowest exposure level."""
     rrs = load_bop_rrs(outcome)
     exposure_levels = get_gbd_exposure_levels()
-    rrs = convert_rrs_to(rrs, exposure_levels)
+    rrs = convert_rrs_to_gbd_exposure(rrs, exposure_levels)
     rrs["outcome"] = outcome
     rrs = transform_and_reorder_rrs(rrs, exposure_levels)
     return rrs
@@ -387,7 +387,7 @@ def calculate_and_save_iv_iron_lbwsg_shifts(results_directory, draw):
     if f"{draw}.csv" not in os.listdir(results_directory + "lbwsg_shifts/"):
         calculate_and_save_lbwsg_shifts(results_directory, draw)
     lbwsg_shifts = pd.read_csv(results_directory + "lbwsg_shifts/" + draw + ".csv")
-    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts, draw)
+    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts)
     iv_iron_shifts.to_csv(
         results_directory + "iv_iron_lbwsg_shifts/" + draw + ".csv", index=False
     )
@@ -412,3 +412,4 @@ def calculate_iv_iron_stillbirth_effects():
         index="exposure", values="value", columns="draw"
     ).reset_index()
     effects.to_csv("iv_iron_stillbirth_rrs.csv")
+    return effects
