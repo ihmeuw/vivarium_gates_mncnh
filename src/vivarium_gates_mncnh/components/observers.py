@@ -12,6 +12,7 @@ from vivarium_public_health.results import ResultsStratifier as ResultsStratifie
 
 from vivarium_gates_mncnh.constants.data_keys import POSTPARTUM_DEPRESSION
 from vivarium_gates_mncnh.constants.data_values import (
+    ANC_ATTENDANCE_TYPES,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
@@ -87,10 +88,10 @@ class ResultsStratifier(ResultsStratifier_):
         builder.results.register_stratification(
             "anc_coverage",
             [
-                "none",
-                "later_pregnancy_only",
-                "first_trimester_only",
-                "first_trimester_and_later_pregnancy",
+            ANC_ATTENDANCE_TYPES.NONE,
+            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
             ],
             is_vectorized=True,
             requires_columns=[COLUMNS.ANC_ATTENDANCE],
