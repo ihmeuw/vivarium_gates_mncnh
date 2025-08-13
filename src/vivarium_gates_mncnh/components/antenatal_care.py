@@ -13,6 +13,7 @@ from vivarium.types import ClockTime
 from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
 from vivarium_gates_mncnh.constants.data_keys import ANC
 from vivarium_gates_mncnh.constants.data_values import (
+    ANC_ATTENDANCE_TYPES,
     ANC_RATES,
     COLUMNS,
     LOW_BIRTH_WEIGHT_THRESHOLD,
@@ -42,10 +43,12 @@ class AntenatalCare(Component):
     @property
     def columns_created(self):
         return [
-            COLUMNS.ANTENATAL_CARE_ATTENDANCE,
+            COLUMNS.ANC_ATTENDANCE,
             COLUMNS.ULTRASOUND_TYPE,
             COLUMNS.STATED_GESTATIONAL_AGE,
             COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION,
+            COLUMNS.FIRST_TRIMESTER_ANC,
+            COLUMNS.LATER_PREGNANCY_ANC,
         ]
 
     @property
@@ -114,10 +117,12 @@ class AntenatalCare(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
-                COLUMNS.ANTENATAL_CARE_ATTENDANCE: "none",  # no attendance
+                COLUMNS.ANC_ATTENDANCE: ANC_ATTENDANCE_TYPES.NONE,
                 COLUMNS.ULTRASOUND_TYPE: ULTRASOUND_TYPES.NO_ULTRASOUND,
                 COLUMNS.STATED_GESTATIONAL_AGE: np.nan,
                 COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION: False,
+                COLUMNS.FIRST_TRIMESTER_ANC: False,
+                COLUMNS.LATER_PREGNANCY_ANC: False,
             },
             index=pop_data.index,
         )
@@ -130,6 +135,18 @@ class AntenatalCare(Component):
         pop = self.population_view.get(event.index)
         pop[COLUMNS.STATED_GESTATIONAL_AGE] = self._calculate_stated_gestational_age(pop)
         pop[COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION] = self._determine_lbw_identification(pop)
+        pop[COLUMNS.FIRST_TRIMESTER_ANC] = pop[COLUMNS.ANC_ATTENDANCE].isin(
+            [
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
+        pop[COLUMNS.LATER_PREGNANCY_ANC] = pop[COLUMNS.ANC_ATTENDANCE].isin(
+            [
+                ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
 
         self.population_view.update(pop)
 
@@ -171,17 +188,25 @@ class AntenatalCare(Component):
         # DecisionTreeStates are TransientStates that update
         # a population column value upon transition
         state_A = DecisionTreeState(
-            "first_trimester_and_later_pregnancy",
-            COLUMNS.ANTENATAL_CARE_ATTENDANCE,
-            "first_trimester_and_later_pregnancy",
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            COLUMNS.ANC_ATTENDANCE,
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
         )
         state_B = DecisionTreeState(
-            "first_trimester_only", COLUMNS.ANTENATAL_CARE_ATTENDANCE, "first_trimester_only"
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+            COLUMNS.ANC_ATTENDANCE,
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
         )
         state_C = DecisionTreeState(
-            "later_pregnancy_only", COLUMNS.ANTENATAL_CARE_ATTENDANCE, "later_pregnancy_only"
+            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+            COLUMNS.ANC_ATTENDANCE,
+            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
         )
-        state_D = DecisionTreeState("none", COLUMNS.ANTENATAL_CARE_ATTENDANCE, "none")
+        state_D = DecisionTreeState(
+            ANC_ATTENDANCE_TYPES.NONE,
+            COLUMNS.ANC_ATTENDANCE,
+            ANC_ATTENDANCE_TYPES.NONE,
+        )
         gets_ultrasound = TransientState("gets_ultrasound")
         standard_ultasound = UltrasoundState(ULTRASOUND_TYPES.STANDARD)
         ai_assisted_ultrasound = UltrasoundState(ULTRASOUND_TYPES.AI_ASSISTED)
