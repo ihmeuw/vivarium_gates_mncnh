@@ -79,7 +79,11 @@ LBWSG = __LowBirthWeightShortGestation()
 
 class __ANC(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    ESTIMATE: str = "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
+    ANCfirst: str = (
+        "covariate.antenatal_care_first_trimester_visit_coverage_proportion.estimate"
+    )
+    ANC1: str = "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
+    ANC4: str = "covariate.antenatal_care_4_visits_coverage_proportion.estimate"
 
     @property
     def name(self):

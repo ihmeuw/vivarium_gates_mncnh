@@ -16,7 +16,6 @@ MAKE_ARTIFACT_RUNTIME = "3:00:00"
 MAKE_ARTIFACT_SLEEP = 10
 
 LOCATIONS = [
-    # TODO - project locations here
     "Ethiopia",
     "Nigeria",
     "Pakistan",
@@ -40,6 +39,8 @@ CHILDREN_INDEX_COLUMNS = [
 
 DRAW_COUNT = 500
 ARTIFACT_COLUMNS = pd.Index([f"draw_{i}" for i in range(DRAW_COUNT)])
+ARTIFACT_YEAR_START = 2021
+ARTIFACT_YEAR_END = ARTIFACT_YEAR_START + 1
 
 
 class __Scenarios(NamedTuple):

@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from vivarium_gates_mncnh.constants import data_keys, data_values
+from vivarium_gates_mncnh.constants import data_keys, data_values, metadata
 from vivarium_gates_mncnh.data.loader import get_data, load_standard_data
 
 
@@ -53,12 +53,14 @@ def prepare_rr_cap_inputs(
         # Late neonatal
         data[(sex, "late_neonatal")] = {
             "exposure": get_data(data_keys.LBWSG.EXPOSURE, location).query(
-                f"child_age_start==0.01917808 & sex_of_child=='{sex}'"
+                f"child_age_start=={data_values.LATE_NEONATAL_AGE_START} & sex_of_child=='{sex}'"
             ),
-            "rrs": rrs.query(f"age_start == 0.01917808 & sex=='{sex}'"),
+            "rrs": rrs.query(
+                f"age_start=={data_values.LATE_NEONATAL_AGE_START} & sex=='{sex}'"
+            ),
             "acmrisk": get_data(
                 data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK, location
-            ).query(f"age_start==0.01917808 & sex=='{sex}'"),
+            ).query(f"age_start=={data_values.LATE_NEONATAL_AGE_START} & sex=='{sex}'"),
         }
     return data
 
@@ -148,16 +150,22 @@ def generate_rr_caps(rr: pd.DataFrame, location: str) -> pd.DataFrame:
             for age_group in ["early_neonatal", "late_neonatal"]:
                 rr_cap = find_rr_cap(input_data, draw, sex, age_group)
                 if age_group == "early_neonatal":
-                    age_start, age_end = 0.0, 0.01917808
+                    age_start, age_end = (
+                        data_values.EARLY_NEONATAL_AGE_START,
+                        data_values.LATE_NEONATAL_AGE_START,
+                    )
                 else:
-                    age_start, age_end = 0.01917808, 0.07671233
+                    age_start, age_end = (
+                        data_values.LATE_NEONATAL_AGE_START,
+                        data_values.LATE_NEONATAL_AGE_END,
+                    )
                 rows.append(
                     {
                         "sex": sex,
                         "age_start": age_start,
                         "age_end": age_end,
-                        "year_start": 2021,
-                        "year_end": 2022,
+                        "year_start": metadata.ARTIFACT_YEAR_START,
+                        "year_end": metadata.ARTIFACT_YEAR_END,
                         "draw": draw,
                         "value": rr_cap,
                     }
@@ -200,8 +208,12 @@ if __name__ == "__main__":
     location = args.location
     output_dir = args.output_dir
 
-    data = load_standard_data(data_keys.LBWSG.RELATIVE_RISK, location, 2021)
-    data = data.query("year_start == 2021").droplevel(["affected_entity", "affected_measure"])
+    data = load_standard_data(
+        data_keys.LBWSG.RELATIVE_RISK, location, metadata.ARTIFACT_YEAR_START
+    )
+    data = data.query(f"year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
+        ["affected_entity", "affected_measure"]
+    )
     data = data[~data.index.duplicated()]
     rr_caps = generate_rr_caps(data, location)
     rr_caps.to_csv(f"{output_dir}/{location.lower()}.csv")
