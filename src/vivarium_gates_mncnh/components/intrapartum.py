@@ -8,6 +8,7 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
 from vivarium_gates_mncnh.constants.data_values import (
+    ANC_ATTENDANCE_TYPES,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     INTERVENTION_TYPE_MAPPER,
@@ -26,7 +27,7 @@ INTERVENTION_TYPE_COLUMN_MAP = {
     "maternal": [
         COLUMNS.DELIVERY_FACILITY_TYPE,
         COLUMNS.MOTHER_AGE,
-        COLUMNS.ATTENDED_CARE_FACILITY,
+        COLUMNS.ANC_ATTENDANCE,
     ],
 }
 INTERVENTION_SCENARIO_ACCESS_MAP = {
@@ -163,7 +164,7 @@ class InterventionAccess(Component):
         # Misoprostol is only available to mothers who attended ANC and gave birth at home
         if self.intervention == INTERVENTIONS.MISOPROSTOL:
             pop = pop.loc[
-                (pop[COLUMNS.ATTENDED_CARE_FACILITY] == True)
+                (pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE)  # attended ANC
                 & (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
             ]
         return pop

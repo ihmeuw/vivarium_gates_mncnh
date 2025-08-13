@@ -125,6 +125,16 @@ class __UltrasoundTypes(NamedTuple):
 ULTRASOUND_TYPES = __UltrasoundTypes()
 
 
+class __ANCAttendanceTypes(NamedTuple):
+    NONE: str = "none"
+    LATER_PREGNANCY_ONLY: str = "later_pregnancy_only"
+    FIRST_TRIMESTER_ONLY: str = "first_trimester_only"
+    FIRST_TRIMESTER_AND_LATER_PREGNANCY: str = "first_trimester_and_later_pregnancy"
+
+
+ANC_ATTENDANCE_TYPES = __ANCAttendanceTypes()
+
+
 class __ANCRates(NamedTuple):
     ATTENDED_CARE_FACILITY = {
         "Ethiopia": 0.757,
@@ -182,12 +192,14 @@ class __Columns(NamedTuple):
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
-    ATTENDED_CARE_FACILITY = "attended_care_facility"
+    ANC_STATE = "anc_state"
+    ANC_ATTENDANCE = "anc_attendance"
+    FIRST_TRIMESTER_ANC = "first_trimester_anc"
+    LATER_PREGNANCY_ANC = "later_pregnancy_anc"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
-    ANC_STATE = "anc_state"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
