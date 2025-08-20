@@ -646,8 +646,12 @@ def load_preterm_prevalence(
     filename = "calculated_late_neonatal_preterm_prevalence.parquet"
     filepath = paths.PRETERM_PREVALENCE_DIR / location.lower() / filename
     data = pd.read_parquet(filepath)
-    data = data.drop(["scenario", "random_seed"], axis=1)
-    data = data.pivot(index="child_sex", columns="input_draw", values="value")
+    data = data.drop(columns=[c for c in ["scenario", "random_seed"] if c in data.columns])
+    if "input_draw" in data.columns:
+        data = data.pivot(index="child_sex", columns="input_draw", values="value")
+    else:
+        # Treat value as draw 0, like with PAFs
+        data = data.rename(columns={"value": 0}).set_index("child_sex")
     data.columns = [f"draw_{i}" for i in data.columns]
 
     lnn_data = data.reset_index().rename({"child_sex": "sex_of_child"}, axis=1)
@@ -655,7 +659,7 @@ def load_preterm_prevalence(
     lnn_data["child_age_end"] = data_values.LATE_NEONATAL_AGE_END
     lnn_data["year_start"] = enn_data["year_start"]
     lnn_data["year_end"] = enn_data["year_end"]
-    lnn_data = lnn_data[enn_data.columns]
+    lnn_data = lnn_data[[c for c in lnn_data.columns if c in enn_data.columns]]
 
     df = pd.concat([enn_data, lnn_data], ignore_index=True)
     df = df.sort_values(metadata.CHILDREN_INDEX_COLUMNS).set_index(
