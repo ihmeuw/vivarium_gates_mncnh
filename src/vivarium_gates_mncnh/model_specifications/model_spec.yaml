@@ -159,7 +159,11 @@ configuration:
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
     propensity_ordering:
-        antenatal_care: ['none', 'later_pregnancy_only', 'first_trimester_only', 'first_trimester_and_later_pregnancy']
+        antenatal_care: 
+            - 'none',
+            - 'later_pregnancy_only',
+            - 'first_trimester_only',
+            - 'first_trimester_and_later_pregnancy'
 
                 
     intervention:
