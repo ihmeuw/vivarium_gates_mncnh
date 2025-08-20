@@ -15,8 +15,10 @@ from vivarium_gates_mncnh.constants.data_values import (
 
 from .utilities import get_interactive_context_state
 
-
-pytest.skip(allow_module_level=True, reason="Model 14 ANC and model 15 facility choice updates have obsoleted these tests.")
+pytest.skip(
+    allow_module_level=True,
+    reason="Model 14 ANC and model 15 facility choice updates have obsoleted these tests.",
+)
 
 
 @pytest.fixture(scope="module")
