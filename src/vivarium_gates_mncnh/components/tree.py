@@ -86,8 +86,7 @@ class ANCTransitionSet(TransitionSet):
     def choose_new_state(
         self, index: pd.Index[int]
     ) -> tuple[list[State | str], pd.Series[Any]]:
-        """Use propensities to choose new state. All changes are mentioned in comments, ie
-        code without an associated comment is unchanged from the original method."""
+        """Use propensities to choose new state."""
         outputs, probabilities = zip(
             *[
                 (transition.output_state, np.array(transition.probability(index)))

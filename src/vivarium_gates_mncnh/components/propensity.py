@@ -12,7 +12,7 @@ from vivarium_gates_mncnh.constants import data_values
 class CorrelatedPropensities(Component):
     """A component that takes components of any type as arguments and produces propensities
     such that they are correlated according to the correlation values we define for each pair
-    of compoents in data_values. These propensities will be accessubke as pipelines called
+    of compoents in data_values. These propensities will be accessible as pipelines called
     `<component_name>.correlated_propensity` in the simulation.
     These propensities will not be used by any components as a result of creating these
     pipelines, including the passed components, and it is the responsibility of each component
