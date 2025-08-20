@@ -303,19 +303,19 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        FACILITY_CHOICE.P_HOME: 0.683,
-        FACILITY_CHOICE.P_CEmONC: 0.266,
-        FACILITY_CHOICE.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
+        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.55,
+        FACILITY_CHOICE.P_BEmONC: 0.160883,
     },
     "Nigeria": {
-        FACILITY_CHOICE.P_HOME: 0.683,
-        FACILITY_CHOICE.P_CEmONC: 0.266,
-        FACILITY_CHOICE.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
+        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.51,
+        FACILITY_CHOICE.P_BEmONC: 0.004423,
     },
     "Pakistan": {
-        FACILITY_CHOICE.P_HOME: 0.683,
-        FACILITY_CHOICE.P_CEmONC: 0.266,
-        FACILITY_CHOICE.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME_PRETERM: 0.17,
+        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.26,
+        FACILITY_CHOICE.P_BEmONC: 0.340528,
     },
 }
 # Probability each of these facility types has access to CPAP
@@ -426,6 +426,16 @@ POSTPARTUM_DEPRESSION_INCIDENCE_RISK = get_truncnorm(
 POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
     0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
 )
+
+PROPENSITY_CORRELATIONS = {
+    tuple(sorted(["antenatal_care", "delivery_facility"])): 0.63,
+    tuple(
+        sorted(["antenatal_care", "risk_factor.low_birth_weight_and_short_gestation"])
+    ): 0.2,
+    tuple(
+        sorted(["delivery_facility", "risk_factor.low_birth_weight_and_short_gestation"])
+    ): 0.2,
+}
 
 
 class __PostpartumDepressionCaseTypes(NamedTuple):

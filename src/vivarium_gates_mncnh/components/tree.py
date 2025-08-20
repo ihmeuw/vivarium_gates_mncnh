@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
