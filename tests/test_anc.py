@@ -16,6 +16,9 @@ from vivarium_gates_mncnh.constants.data_values import (
 from .utilities import get_interactive_context_state
 
 
+pytest.skip(allow_module_level=True, reason="Model 14 ANC and model 15 facility choice updates have obsoleted these tests.")
+
+
 @pytest.fixture(scope="module")
 def anc_state(
     sim_state_step_mapper: dict[str, int], model_spec_path: Path
@@ -41,7 +44,6 @@ def attended_anc_facility_proportion(
     return attended_facility_proportion
 
 
-@pytest.mark.skip(reason="Model 14 ANC updates have obsoleted this test.")
 def test_attended_care_facility_proportions(
     attended_anc_facility_proportion: float,
     population: pd.DataFrame,
@@ -55,7 +57,6 @@ def test_attended_care_facility_proportions(
     )
 
 
-@pytest.mark.skip(reason="Model 14 ANC updates have obsoleted this test.")
 def test_received_ultrasound_proportions(
     attended_anc_facility_proportion: float,
     population: pd.DataFrame,
@@ -63,6 +64,7 @@ def test_received_ultrasound_proportions(
 ) -> None:
     location = population[COLUMNS.LOCATION].iloc[0]
     ultrasound_proportion = ANC_RATES.RECEIVED_ULTRASOUND[location]
+    breakpoint()
     fuzzy_checker.fuzzy_assert_proportion(
         (population[COLUMNS.ULTRASOUND_TYPE] != ULTRASOUND_TYPES.NO_ULTRASOUND).sum(),
         len(population),

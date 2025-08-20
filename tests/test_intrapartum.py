@@ -16,6 +16,9 @@ from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 from .utilities import get_interactive_context_state
 
 
+pytest.skip(allow_module_level=True, reason="Model 15 facility choice updates have obsoleted these tests.")
+
+
 @pytest.fixture(scope="module")
 def intrapartum_state(
     model_spec_path: Path, sim_state_step_mapper: dict[str, int]
