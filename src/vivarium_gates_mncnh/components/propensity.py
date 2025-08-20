@@ -22,11 +22,8 @@ class CorrelatedPropensities(Component):
     # Properties #
     ##############
 
-    def __init__(self, *component_names: str):
-        super().__init__()
-        self.component_names = component_names
-
     def setup(self, builder: Builder):
+        self.component_names = builder.configuration.correlated_propensity_components
         self.pop_size = builder.configuration.population.population_size
         self.propensities = self.get_all_propensities()
 

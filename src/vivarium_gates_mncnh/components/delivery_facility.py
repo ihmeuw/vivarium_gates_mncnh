@@ -80,7 +80,8 @@ class DeliveryFacility(Component):
             ~assigned_home, COLUMNS.DELIVERY_FACILITY_TYPE
         ] = DELIVERY_FACILITY_TYPES.CEmONC
         is_bemonc = (
-            propensity < self.delivery_facility_probabilities[FACILITY_CHOICE.P_BEmONC]
+            self.randomness.get_draw(pop.index)
+            < self.delivery_facility_probabilities[FACILITY_CHOICE.P_BEmONC]
         )
         pop.loc[
             is_bemonc & ~assigned_home, COLUMNS.DELIVERY_FACILITY_TYPE

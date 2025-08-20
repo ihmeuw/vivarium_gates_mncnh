@@ -45,7 +45,7 @@ components:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
-            - CorrelatedPropensities('antenatal_care', 'delivery_facility', 'risk_factor.low_birth_weight_and_short_gestation')
+            - CorrelatedPropensities()
             # Observers 
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -158,10 +158,17 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+    correlated_propensity_components:
+        - 'antenatal_care'
+        - 'delivery_facility'
+        - 'risk_factor.low_birth_weight_and_short_gestation'
     propensity_ordering:
-        antenatal_care: ['none', 'later_pregnancy_only', 'first_trimester_only', 'first_trimester_and_later_pregnancy']
+        antenatal_care:
+            - 'none'
+            - 'later_pregnancy_only'
+            - 'first_trimester_only'
+            - 'first_trimester_and_later_pregnancy'
 
-                
     intervention:
         scenario:
             'baseline'
