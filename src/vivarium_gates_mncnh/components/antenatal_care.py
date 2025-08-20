@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ from vivarium.framework.state_machine import (
     Transition,
     TransitionSet,
 )
-from vivarium.types import ClockTime
+from vivarium.types import ClockTime, DataInput
 
 from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
 from vivarium_gates_mncnh.constants.data_keys import ANC
@@ -30,9 +30,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     ULTRASOUND_TYPES,
 )
 from vivarium_gates_mncnh.utilities import get_location
-
-if TYPE_CHECKING:
-    from vivarium.types import DataInput
 
 
 class UltrasoundState(TransientState):
