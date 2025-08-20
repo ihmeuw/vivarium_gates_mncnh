@@ -10,7 +10,11 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import State, TransientState
 from vivarium.types import ClockTime
 
-from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
+from vivarium_gates_mncnh.components.tree import (
+    ANCInitialState,
+    DecisionTreeState,
+    TreeMachine,
+)
 from vivarium_gates_mncnh.constants.data_keys import ANC
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
@@ -184,7 +188,7 @@ class AntenatalCare(Component):
         )
 
     def create_anc_decision_tree(self) -> TreeMachine:
-        initial_state = State("initial")
+        initial_state = ANCInitialState("initial")
         # DecisionTreeStates are TransientStates that update
         # a population column value upon transition
         state_A = DecisionTreeState(

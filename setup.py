@@ -51,6 +51,7 @@ if __name__ == "__main__":
         "click",
         "jinja2",
         "pyyaml",
+        "statsmodels",
     ]
 
     setup_requires = ["setuptools_scm"]

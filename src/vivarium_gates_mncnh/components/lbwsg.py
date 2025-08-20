@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from layered_config_tree import ConfigurationError
 from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -17,6 +16,10 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
+)
+from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+    LBWSGDistribution as LBWSGDistribution_,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
@@ -43,6 +46,8 @@ GESTATIONAL_AGE = "gestational_age"
 
 
 class LBWSGRisk(LBWSGRisk_):
+    # exposure_distributions = {"lbwsg": OrderedLBWSGDistribution}
+
     @property
     def columns_required(self) -> list[str]:
         return [
@@ -58,8 +63,20 @@ class LBWSGRisk(LBWSGRisk_):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         # We have to override the age_end due to the wide state table and this is easier than
-        # adding an extra population configuratio key
+        # adding an extra population configuration key
         self.configuration_age_end = 0.0
+        self.categorical_propensity = builder.value.get_value(
+            f"{self.name}.correlated_propensity"
+        )
+
+    def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
+        categorical_propensity = self.categorical_propensity(
+            index
+        )  # only line change in this subclassed function
+        continuous_propensity = self.randomness.get_draw(index, additional_key=axis)
+        return self.exposure_distribution.single_axis_ppf(
+            axis, continuous_propensity, categorical_propensity
+        )
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -691,3 +708,7 @@ def calculate_mortality_weights(component: Component, sex: str) -> pd.Series:
         .reset_index()
     )
     return weights
+
+
+# class OrderedLBWSGDistribution(LBWSGDistribution_):
+#     pass
