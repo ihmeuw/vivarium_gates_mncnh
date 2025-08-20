@@ -427,7 +427,6 @@ POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
     0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
 )
 
-# TOOD: check component names
 PROPENSITY_CORRELATIONS = {
     tuple(sorted(["antenatal_care", "delivery_facility"])): 0.63,
     tuple(
