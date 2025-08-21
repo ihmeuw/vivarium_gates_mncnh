@@ -48,6 +48,7 @@ GESTATIONAL_AGE = "gestational_age"
 class OrderedLBWSGDistribution(LBWSGDistribution_):
     """This class allows us to use sex-specific custom ordering for our LBWSG categories
     when determining exposure."""
+
     AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
     @property
@@ -87,11 +88,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
             # everything above here is unchanged from LBWSGDistribution
             categorical_exposures = []
             for sex in ["Male", "Female"]:
-                pop = self.population_view.get(propensity.index)
-                sex_subset_index = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex].index
-                categorical_exposures.append(
-                    self.sex_specific_ppf(propensity.loc[sex_subset_index], sex)
-                )
+                categorical_exposures.append(self.sex_specific_ppf(propensity, sex))
             categorical_exposure = pd.concat(categorical_exposures).sort_index()
 
             exposure_intervals = categorical_exposure.apply(
@@ -105,14 +102,16 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
         continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
         return continuous_exposure
 
-
     def sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
+        """Takes a full set of propensities and returns category exposures
+        for the provided sex."""
+        pop = self.population_view.get(quantiles.index)
+        sex_subset_index = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex].index
+        quantiles = quantiles.loc[sex_subset_index]
         exposure = self.exposure_parameters(quantiles.index)
-        # these two lines and the signature update are the only changes
-        # from the PolytomousDistribution function
-        # from self.categories to sex_specific_ordering
         sex_specific_ordering = self.ordered_categories[sex]
         sorted_exposures = exposure[sex_specific_ordering]
+        # everything below here is unchanged from PolytomousDistribution's ppf
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError("All exposure data returned as 0.")
         exposure_sum = sorted_exposures.cumsum(axis="columns")
