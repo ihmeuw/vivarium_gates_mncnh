@@ -46,6 +46,8 @@ GESTATIONAL_AGE = "gestational_age"
 
 
 class OrderedLBWSGDistribution(LBWSGDistribution_):
+    """This class allows us to use sex-specific custom ordering for our LBWSG categories
+    when determining exposure."""
     AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
     @property
@@ -54,13 +56,20 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
             COLUMNS.SEX_OF_CHILD,
         ]
 
+    #################
+    # Setup methods #
+    #################
+
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.ordered_categories = builder.data.load(
             data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES
         )
 
-    # updated to use sex-specific ordered categories
+    ##################
+    # Public methods #
+    ##################
+
     def single_axis_ppf(
         self,
         axis: str,
@@ -95,6 +104,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
         continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
         continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
         return continuous_exposure
+
 
     def sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
         exposure = self.exposure_parameters(quantiles.index)
