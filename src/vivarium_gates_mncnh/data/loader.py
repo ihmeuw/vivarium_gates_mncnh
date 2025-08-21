@@ -569,11 +569,13 @@ def load_sex_specific_ordered_lbwsg_categories(
     rrs = rrs.mean(axis=1)
     categories = get_data(data_keys.LBWSG.CATEGORIES, location)
     # Get preterm categories
-    preterm_cats = []
+    preterm_cats, full_term_cats = [], []
     for cat, description in categories.items():
         i = utilities.parse_short_gestation_description(description)
         if i.right <= metadata.PRETERM_AGE_CUTOFF:
             preterm_cats.append(cat)
+        else:
+            full_term_cats.append(cat)
 
     ordered_cats = {}
     for sex in ["Male", "Female"]:
