@@ -68,6 +68,7 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
+        data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
         data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
@@ -559,6 +560,40 @@ def load_no_cpap_paf(
     paf_no_cpap = 1 - (p_rds_cpap / p_rds)
     paf_no_cpap = paf_no_cpap.fillna(0.0)
     return paf_no_cpap
+
+
+def load_sex_specific_ordered_lbwsg_categories(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> dict[str, list[str]]:
+    rrs = get_data(data_keys.LBWSG.RELATIVE_RISK, location).query("child_age_start==0.0")
+    rrs = rrs.mean(axis=1)
+    categories = get_data(data_keys.LBWSG.CATEGORIES, location)
+    # Get preterm categories
+    preterm_cats = []
+    for cat, description in categories.items():
+        i = utilities.parse_short_gestation_description(description)
+        if i.right <= metadata.PRETERM_AGE_CUTOFF:
+            preterm_cats.append(cat)
+
+    ordered_cats = {}
+    for sex in ["Male", "Female"]:
+        sex_specific_rrs = (
+            pd.DataFrame(rrs).query("sex_of_child==@sex").rename({0: "value"}, axis=1)
+        )
+        # sort so earlier categories have higher RRs
+        preterm_rrs = sex_specific_rrs.query("parameter == @preterm_cats")
+        sorted_preterm_cats = preterm_rrs.sort_values(
+            by="value", ascending=False
+        ).reset_index()["parameter"]
+        full_term_rrs = sex_specific_rrs.query("parameter == @full_term_cats")
+        sorted_full_term_cats = full_term_rrs.sort_values(
+            by="value", ascending=False
+        ).reset_index()["parameter"]
+        # all preterm before any full term
+        sorted_cats = list(sorted_preterm_cats) + list(sorted_full_term_cats)
+        ordered_cats[sex] = sorted_cats
+
+    return ordered_cats
 
 
 def load_lbwsg_birth_exposure(

@@ -57,6 +57,9 @@ class __LowBirthWeightShortGestation(NamedTuple):
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
+    SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
+    )
     RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
     RELATIVE_RISK_INTERPOLATOR: str = (
         "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
