@@ -91,11 +91,10 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
                 categorical_exposures.append(self.sex_specific_ppf(propensity, sex))
             categorical_exposure = pd.concat(categorical_exposures).sort_index()
 
-            exposure_intervals = categorical_exposure.apply(
-                lambda category: self.category_intervals[axis][category]
-            )
-
         # everything below here is unchanged from LBWSGDistribution
+        exposure_intervals = categorical_exposure.apply(
+            lambda category: self.category_intervals[axis][category]
+        )
         exposure_left = exposure_intervals.apply(lambda interval: interval.left)
         exposure_right = exposure_intervals.apply(lambda interval: interval.right)
         continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
