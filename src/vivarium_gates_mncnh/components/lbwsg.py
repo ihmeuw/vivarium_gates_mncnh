@@ -88,7 +88,9 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
             # everything above here is unchanged from LBWSGDistribution
             categorical_exposures = []
             for sex in ["Male", "Female"]:
-                categorical_exposures.append(self.sex_specific_ppf(propensity, sex))
+                categorical_exposures.append(
+                    self.sex_specific_ppf(categorical_propensity, sex)
+                )
             categorical_exposure = pd.concat(categorical_exposures).sort_index()
 
         # everything below here is unchanged from LBWSGDistribution
@@ -118,7 +120,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution_):
             [exposure_sum[c] < quantiles for c in exposure_sum.columns], axis=1
         ).sum(axis=1)
         return pd.Series(
-            np.array(self.categories)[category_index],
+            np.array(sex_specific_ordering)[category_index],
             name=self.risk + ".exposure",
             index=quantiles.index,
         )
