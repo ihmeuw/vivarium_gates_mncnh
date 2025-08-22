@@ -39,20 +39,10 @@ def get_simulated_population(location, draw):
     # NOTE: setting population size to what we are using in the simulation for a single draw
     custom_model_specification.configuration.population.population_size = 20_000 * 10
     sim = InteractiveContext(custom_model_specification)
-    # WARNING/TO-DO: this needs to be manually maintained
-    # as of model 13.3, it takes 12 steps to advance past early neonatal mortality
-    # if/when additional timesteps are added to the simulation, this number will need to be changed accordingly
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
-    sim.step()
+    get_event_name = sim._builder.time.simulation_event_name()
+    while get_event_name() != 'early_neonatal_mortality':
+        sim.step()
+    
     sim.step()
 
     pop = sim.get_population()
