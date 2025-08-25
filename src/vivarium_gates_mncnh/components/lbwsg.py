@@ -19,7 +19,7 @@ from vivarium_public_health.risks.data_transformations import (
 )
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
-    LBWSGDistribution as LBWSGDistribution_,
+    LBWSGDistribution,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
@@ -45,7 +45,7 @@ BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
 
 
-class OrderedLBWSGDistribution(LBWSGDistribution_):
+class OrderedLBWSGDistribution(LBWSGDistribution):
     """This class allows us to use sex-specific custom ordering for our LBWSG categories
     when determining exposure."""
 
