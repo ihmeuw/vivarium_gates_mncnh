@@ -40,9 +40,9 @@ def get_simulated_population(location, draw):
     custom_model_specification.configuration.population.population_size = 20_000 * 10
     sim = InteractiveContext(custom_model_specification)
     get_event_name = sim._builder.time.simulation_event_name()
-    while get_event_name() != 'early_neonatal_mortality':
+    while get_event_name() != "early_neonatal_mortality":
         sim.step()
-    
+    # now take one more step to complete early neonatal mortality
     sim.step()
 
     pop = sim.get_population()
