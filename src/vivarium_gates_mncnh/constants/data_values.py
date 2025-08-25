@@ -102,6 +102,7 @@ class _SimulationEventNames(NamedTuple):
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
     CPAP_ACCESS = "cpap_access"
+    ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
