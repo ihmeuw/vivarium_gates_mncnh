@@ -205,6 +205,7 @@ class __Columns(NamedTuple):
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     CPAP_AVAILABLE = "cpap_available"
+    ACS_AVAILABLE = "acs_available"
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
     PROBIOTICS_AVAILABLE = "probiotics_available"

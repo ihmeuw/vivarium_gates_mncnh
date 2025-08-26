@@ -177,7 +177,7 @@ class ACSAccess(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return [self.acs_column]
+        return [COLUMNS.ACS_AVAILABLE]
 
     @property
     def columns_required(self) -> list[str]:
@@ -189,7 +189,6 @@ class ACSAccess(Component):
 
     def __init__(self) -> None:
         super().__init__()
-        self.acs_column = "acs_available"
         self.time_step = "acs_access"
 
     def setup(self, builder: Builder) -> None:
@@ -198,7 +197,7 @@ class ACSAccess(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         simulants = pd.DataFrame(
             {
-                self.acs_column: False,
+                COLUMNS.ACS_AVAILABLE: False,
             },
             index=pop_data.index,
         )
@@ -216,6 +215,6 @@ class ACSAccess(Component):
         ]
         has_cpap = pop.loc[pop[COLUMNS.CPAP_AVAILABLE] == True]
         has_acs = is_early_or_moderate_preterm.index.intersection(has_cpap.index)
-        pop.loc[has_acs, self.acs_column] = True
+        pop.loc[has_acs, COLUMNS.ACS_AVAILABLE] = True
 
         self.population_view.update(pop)
