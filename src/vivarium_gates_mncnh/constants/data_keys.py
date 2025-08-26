@@ -57,6 +57,9 @@ class __LowBirthWeightShortGestation(NamedTuple):
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
+    SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
+    )
     RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
     RELATIVE_RISK_INTERPOLATOR: str = (
         "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
@@ -79,7 +82,11 @@ LBWSG = __LowBirthWeightShortGestation()
 
 class __ANC(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    ESTIMATE: str = "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
+    ANCfirst: str = (
+        "covariate.antenatal_care_first_trimester_visit_coverage_proportion.estimate"
+    )
+    ANC1: str = "covariate.antenatal_care_1_visit_coverage_proportion.estimate"
+    ANC4: str = "covariate.antenatal_care_4_visits_coverage_proportion.estimate"
 
     @property
     def name(self):
@@ -234,9 +241,9 @@ NO_CPAP_RISK = __NoCPAPRisk()
 
 
 class __FacilityChoice(NamedTuple):
-    P_HOME: str = "cause.facility_choice.probability_home_birth"
+    P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
+    P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
     P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
-    P_CEmONC: str = "cause.facility_choice.probability_cemonc_birth"
 
     @property
     def name(self):

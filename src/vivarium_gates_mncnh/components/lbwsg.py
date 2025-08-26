@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from layered_config_tree import ConfigurationError
 from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -17,6 +16,10 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
+)
+from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+    LBWSGDistribution,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
@@ -42,7 +45,90 @@ BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
 
 
+class OrderedLBWSGDistribution(LBWSGDistribution):
+    """This class allows us to use sex-specific custom ordering for our LBWSG categories
+    when determining exposure."""
+
+    AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.SEX_OF_CHILD,
+        ]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.ordered_categories = builder.data.load(
+            data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES
+        )
+
+    ##################
+    # Public methods #
+    ##################
+
+    def single_axis_ppf(
+        self,
+        axis: str,
+        propensity: pd.Series,
+        categorical_propensity: pd.Series | None = None,
+        categorical_exposure: pd.Series | None = None,
+    ) -> pd.Series:
+        if (categorical_propensity is None) == (categorical_exposure is None):
+            raise ValueError(
+                "Exactly one of categorical propensity or categorical exposure "
+                "must be provided."
+            )
+
+        if categorical_exposure is None:
+            # everything above here is unchanged from LBWSGDistribution
+            categorical_exposures = []
+            for sex in ["Male", "Female"]:
+                categorical_exposures.append(
+                    self.sex_specific_ppf(categorical_propensity, sex)
+                )
+            categorical_exposure = pd.concat(categorical_exposures).sort_index()
+
+        # everything below here is unchanged from LBWSGDistribution
+        exposure_intervals = categorical_exposure.apply(
+            lambda category: self.category_intervals[axis][category]
+        )
+        exposure_left = exposure_intervals.apply(lambda interval: interval.left)
+        exposure_right = exposure_intervals.apply(lambda interval: interval.right)
+        continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
+        continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
+        return continuous_exposure
+
+    def sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
+        """Takes a full set of propensities and returns category exposures
+        for the provided sex."""
+        pop = self.population_view.get(quantiles.index)
+        sex_subset_index = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex].index
+        quantiles = quantiles.loc[sex_subset_index]
+        exposure = self.exposure_parameters(quantiles.index)
+        sex_specific_ordering = self.ordered_categories[sex]
+        sorted_exposures = exposure[sex_specific_ordering]
+        # everything below here is unchanged from PolytomousDistribution's ppf
+        if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
+            raise MissingDataError("All exposure data returned as 0.")
+        exposure_sum = sorted_exposures.cumsum(axis="columns")
+        category_index = pd.concat(
+            [exposure_sum[c] < quantiles for c in exposure_sum.columns], axis=1
+        ).sum(axis=1)
+        return pd.Series(
+            np.array(sex_specific_ordering)[category_index],
+            name=self.risk + ".exposure",
+            index=quantiles.index,
+        )
+
+
 class LBWSGRisk(LBWSGRisk_):
+    exposure_distributions = {"lbwsg": OrderedLBWSGDistribution}
+
     @property
     def columns_required(self) -> list[str]:
         return [
@@ -58,8 +144,20 @@ class LBWSGRisk(LBWSGRisk_):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         # We have to override the age_end due to the wide state table and this is easier than
-        # adding an extra population configuratio key
+        # adding an extra population configuration key
         self.configuration_age_end = 0.0
+        self.categorical_propensity = builder.value.get_value(
+            f"{self.name}.correlated_propensity"
+        )
+
+    def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
+        categorical_propensity = self.categorical_propensity(
+            index
+        )  # only line change in this subclassed function
+        continuous_propensity = self.randomness.get_draw(index, additional_key=axis)
+        return self.exposure_distribution.single_axis_ppf(
+            axis, continuous_propensity, categorical_propensity
+        )
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):

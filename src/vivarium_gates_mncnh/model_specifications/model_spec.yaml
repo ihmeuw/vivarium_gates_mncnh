@@ -45,7 +45,8 @@ components:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
-            # Add model observers below here
+            - CorrelatedPropensities()
+            # Observers 
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
@@ -60,7 +61,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.3/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model15.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -157,7 +158,17 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
-                
+    correlated_propensity_components:
+        - 'antenatal_care'
+        - 'delivery_facility'
+        - 'risk_factor.low_birth_weight_and_short_gestation'
+    propensity_ordering:
+        antenatal_care:
+            - 'none'
+            - 'later_pregnancy_only'
+            - 'first_trimester_only'
+            - 'first_trimester_and_later_pregnancy'
+
     intervention:
         scenario:
             'baseline'
