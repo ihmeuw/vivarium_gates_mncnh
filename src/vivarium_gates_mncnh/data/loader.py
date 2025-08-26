@@ -103,6 +103,7 @@ def get_data(
         data_keys.NO_CPAP_RISK.P_CPAP_CEMONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
+        data_keys.NO_ACS_RISK.RELATIVE_RISK: load_no_acs_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_coverage_probability,
@@ -560,6 +561,20 @@ def load_no_cpap_paf(
     paf_no_cpap = 1 - (p_rds_cpap / p_rds)
     paf_no_cpap = paf_no_cpap.fillna(0.0)
     return paf_no_cpap
+
+
+def load_no_acs_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    rr_distribution = data_values.ACS_RELATIVE_RISK_DISTRIBUTION
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_distribution)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    # We want the relative risk of no cpap
+    no_acs_rr = (1 / data).fillna(0.0)
+    return utilities.set_non_neonnatal_values(no_acs_rr, 1.0)
 
 
 def load_sex_specific_ordered_lbwsg_categories(

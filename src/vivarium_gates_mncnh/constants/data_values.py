@@ -340,6 +340,8 @@ CPAP_ACCESS_PROBABILITIES = {
 }
 CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
 
+ACS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.84, 0.72, 0.97)
+
 
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
     # NOTE: This is not being used as of model 8.3
