@@ -240,6 +240,22 @@ class __NoCPAPRisk(NamedTuple):
 NO_CPAP_RISK = __NoCPAPRisk()
 
 
+class __NoACSRisk(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RELATIVE_RISK: str = "intervention.no_acs_risk.relative_risk"
+
+    @property
+    def name(self):
+        return "no_acs_risk"
+
+    @property
+    def log_name(self):
+        return "no ACS risk"
+
+
+NO_ACS_RISK = __NoACSRisk()
+
+
 class __FacilityChoice(NamedTuple):
     P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
     P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
