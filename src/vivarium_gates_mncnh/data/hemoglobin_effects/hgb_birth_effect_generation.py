@@ -90,9 +90,10 @@ def transform_and_reorder_rrs(rrs, exposure_levels):
     # reorder draws by magnitude of risk at the lowest exposure level
     rrs = (
         rrs.set_index(["outcome", "risk"])
+        .rename_axis("draw", axis="columns")
         .stack()
+        .rename("value")
         .reset_index()
-        .rename(columns={"level_2": "draw", 0: "value"})
     )
     order = rrs.loc[rrs.risk == exposure_levels[0]]
     order = order.sort_values(by="value")
