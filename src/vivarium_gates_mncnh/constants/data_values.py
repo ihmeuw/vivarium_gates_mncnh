@@ -55,6 +55,11 @@ SCREENING_SCALE_UP_DIFFERENCE = (
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
+# Ages (in years) for neonatal period
+EARLY_NEONATAL_AGE_START = 0.0  # 0 days
+LATE_NEONATAL_AGE_START = 0.01917808  # 7 days
+LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
+
 
 class __PregnancyOutcome(NamedTuple):
     PARTIAL_TERM_OUTCOME = "partial_term"
@@ -97,6 +102,7 @@ class _SimulationEventNames(NamedTuple):
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
     CPAP_ACCESS = "cpap_access"
+    ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
@@ -118,6 +124,16 @@ class __UltrasoundTypes(NamedTuple):
 
 
 ULTRASOUND_TYPES = __UltrasoundTypes()
+
+
+class __ANCAttendanceTypes(NamedTuple):
+    NONE: str = "none"
+    LATER_PREGNANCY_ONLY: str = "later_pregnancy_only"
+    FIRST_TRIMESTER_ONLY: str = "first_trimester_only"
+    FIRST_TRIMESTER_AND_LATER_PREGNANCY: str = "first_trimester_and_later_pregnancy"
+
+
+ANC_ATTENDANCE_TYPES = __ANCAttendanceTypes()
 
 
 class __ANCRates(NamedTuple):
@@ -177,16 +193,19 @@ class __Columns(NamedTuple):
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
-    ATTENDED_CARE_FACILITY = "attended_care_facility"
+    ANC_STATE = "anc_state"
+    ANC_ATTENDANCE = "anc_attendance"
+    FIRST_TRIMESTER_ANC = "first_trimester_anc"
+    LATER_PREGNANCY_ANC = "later_pregnancy_anc"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
-    ANC_STATE = "anc_state"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     CPAP_AVAILABLE = "cpap_available"
+    ACS_AVAILABLE = "acs_available"
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
     PROBIOTICS_AVAILABLE = "probiotics_available"
@@ -286,19 +305,19 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        FACILITY_CHOICE.P_HOME: 0.683,
-        FACILITY_CHOICE.P_CEmONC: 0.266,
-        FACILITY_CHOICE.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
+        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.55,
+        FACILITY_CHOICE.P_BEmONC: 0.160883,
     },
     "Nigeria": {
-        FACILITY_CHOICE.P_HOME: 0.683,
-        FACILITY_CHOICE.P_CEmONC: 0.266,
-        FACILITY_CHOICE.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
+        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.51,
+        FACILITY_CHOICE.P_BEmONC: 0.004423,
     },
     "Pakistan": {
-        FACILITY_CHOICE.P_HOME: 0.683,
-        FACILITY_CHOICE.P_CEmONC: 0.266,
-        FACILITY_CHOICE.P_BEmONC: 0.051,
+        FACILITY_CHOICE.P_HOME_PRETERM: 0.17,
+        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.26,
+        FACILITY_CHOICE.P_BEmONC: 0.340528,
     },
 }
 # Probability each of these facility types has access to CPAP
@@ -320,6 +339,8 @@ CPAP_ACCESS_PROBABILITIES = {
     },
 }
 CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
+
+ACS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.84, 0.72, 0.97)
 
 
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
@@ -409,6 +430,16 @@ POSTPARTUM_DEPRESSION_INCIDENCE_RISK = get_truncnorm(
 POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
     0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
 )
+
+PROPENSITY_CORRELATIONS = {
+    tuple(sorted(["antenatal_care", "delivery_facility"])): 0.63,
+    tuple(
+        sorted(["antenatal_care", "risk_factor.low_birth_weight_and_short_gestation"])
+    ): 0.2,
+    tuple(
+        sorted(["delivery_facility", "risk_factor.low_birth_weight_and_short_gestation"])
+    ): 0.2,
+}
 
 
 class __PostpartumDepressionCaseTypes(NamedTuple):

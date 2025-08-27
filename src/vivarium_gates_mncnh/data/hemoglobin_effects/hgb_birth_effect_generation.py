@@ -5,14 +5,17 @@ import pandas as pd
 import scipy
 from vivarium import Artifact, InteractiveContext
 
+from vivarium_gates_mncnh.constants import metadata
+
 """
 This code is intended to read in the effects of hemoglobin on stillbirth, birth weight
 and gestational age outcomes as estimated from the IHME Hemoglobin team and 
-prepare them for use in our simulation. 
+prepare them for use in our simulation.
 
 Specifically, this code:
 - Standardizes the RR exposure levels to be 1,000 equal increments between 40 and 150 g/L
-- Reorders the draws for GA and BW effects in order of magnitude of risk at the 40 g/L hemoglobin
+- Reorders the draws for GA and BW effects in order of magnitude of risk at the 40 g/L hemoglobin 
+  level (which is the lowest hemoglobin exposure included in the risk effect estimation)
     - This is in order to make the individual RR estimates follow logical pairings
     between the effect of hemoglobin on LBWSG and the effect of hemoglobin on 
     neonatal sepsis, which is mediated through the effect of hemoglobin on LBWSG
@@ -23,6 +26,11 @@ IV iron and saves these values for ultimate use in our simulation
 
 Note that this code is organized to perform a calculation for all modeled locations
 for a single draw and therefore can be parallelized by draw.
+
+A note on data inputs for this code: data in the {outcome}_bop_rrs.csv files
+were copied from files uploaded to mnt/team/anemia/pub/bop/sim_studies
+by Ditha Nanditha in the summer of 2025. There is an associated email correspondence between
+Ditha, Ali, Abie, Syl, and Nathaniel for reference.
 """
 
 artifact_directory = (
@@ -63,12 +71,13 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
 
     x_new = exposure_levels
     rrs_interp = pd.DataFrame({"risk": x_new})
-    # Interpolate for each draw column
-    risk = rrs["risk"].values
+    x_old = rrs["risk"].values
     for col in rrs.columns:
         if col.startswith("draw_"):
             y = rrs[col].values
-            f = interp1d(risk, y, kind="linear", bounds_error=False, fill_value=(y[0], y[-1]))
+            f = interp1d(
+                x_old, y, kind="linear", bounds_error=False, fill_value="extrapolate"
+            )
             rrs_interp[col] = f(x_new)
     return rrs_interp
 
@@ -88,10 +97,14 @@ def transform_and_reorder_rrs(rrs, exposure_levels):
     # reorder draws by magnitude of risk at the lowest exposure level
     rrs = (
         rrs.set_index(["outcome", "risk"])
+        .rename_axis("draw", axis="columns")
         .stack()
+        .rename("value")
         .reset_index()
-        .rename(columns={"level_2": "draw", 0: "value"})
     )
+    assert (
+        exposure_levels[0] == 40
+    ), "Expected lowest exposure level equal to 40 g/L, but got something else"
     order = rrs.loc[rrs.risk == exposure_levels[0]]
     order = order.sort_values(by="value")
     order["order"] = np.arange(len(order))
@@ -122,8 +135,15 @@ def load_prepped_rrs(outcome):
 
 def get_lbwsg_metadata():
     """Loads metadata (birth weight and gestational age start/end values) for low birth weight and short gestation exposure categories.
-    Note that this function does not return any actual exposure data."""
+    Note that this function does not return any actual exposure data.
+
+    todo: this code could be improved by using the 'risk_factor.low_birth_weight_and_short_gestation.categories'
+    key only (and not the 'risk_factor.low_birth_weight_and_short_gestation.exposure' key) to achieve the purpose
+    of this method.
+    """
     # there are hard-coded location/sex/draw values here, but these are not used in actual data generation
+    # note: the LBWSG exposure categories are the same across locations/sex/draw/ages in GBD, so the
+    # values used here are arbitrary
     art = Artifact(artifact_directory + "ethiopia.hdf")
     art_exposure = art.load(f"risk_factor.low_birth_weight_and_short_gestation.exposure")[
         "draw_0"
@@ -177,9 +197,11 @@ def get_lbwsg_birth_exposure(location):
     exp = exp.merge(art_exposure, on="parameter")
     exp = (
         exp.set_index([x for x in exp.columns if "draw" not in x])
+        .rename_axis("draw", axis="columns")
         .stack()
+        .rename("exposure")
         .reset_index()
-        .rename(columns={0: "exposure", "level_8": "draw", "sex_of_child": "sex"})
+        .rename(columns={"sex_of_child": "sex"})
     )
     exp["location"] = location
     return exp
@@ -245,8 +267,7 @@ def get_lbwsg_shifts(draw):
     exposure_levels = ptb_rrs.exposure.unique()
 
     results = pd.DataFrame()
-    # TODO: specify locations using model spec file or something?
-    for location in ["ethiopia", "nigeria", "pakistan"]:
+    for location in [location.lower() for location in metadata.LOCATIONS]:
         exp = get_lbwsg_birth_exposure(location)
         exp = exp.loc[exp.draw == draw]
         for sex in ["Male", "Female"]:
@@ -309,8 +330,6 @@ def scale_effects_to_iv_iron(data):
     warnings.warn(
         "WARNING: using hard coded placeholder effect for IV iron intervention. Needs to be updated to artifact value when ready."
     )
-
-    data["exposure"] = data["exposure"]
     data = data.sort_values(
         by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
     )

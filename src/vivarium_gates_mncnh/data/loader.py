@@ -68,12 +68,15 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
+        data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
         data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
         data_keys.LBWSG.PAF: load_paf_data,
-        data_keys.ANC.ESTIMATE: load_anc_proportion,
+        data_keys.ANC.ANCfirst: load_anc_proportion,
+        data_keys.ANC.ANC1: load_anc_proportion,
+        data_keys.ANC.ANC4: load_anc_proportion,
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
         data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
@@ -91,15 +94,16 @@ def get_data(
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
         # data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
-        data_keys.FACILITY_CHOICE.P_HOME: load_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.P_CEmONC: load_probability_birth_facility_type,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.P_CPAP_BEMONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.P_CPAP_CEMONC: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
+        data_keys.NO_ACS_RISK.RELATIVE_RISK: load_no_acs_relative_risk,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_coverage_probability,
@@ -129,6 +133,9 @@ def get_data(
         data_keys.HEMOGLOBIN.STANDARD_DEVIATION: load_hemoglobin_exposure_data,
         data_keys.HEMOGLOBIN.DISTRIBUTION_WEIGHTS: load_hemoglobin_distribution_weights,
         data_keys.HEMOGLOBIN.DISTRIBUTION: load_hemoglobin_distribution,
+        data_keys.HEMOGLOBIN.RELATIVE_RISK: load_hemoglobin_relative_risk,
+        data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
+        data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -188,53 +195,6 @@ def load_metadata(
     if hasattr(entity_metadata, "to_dict"):
         entity_metadata = entity_metadata.to_dict()
     return entity_metadata
-
-
-def load_categorical_paf(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
-    try:
-        risk = {
-            # todo add keys as needed
-            data_keys.KEYGROUP.PAF: data_keys.KEYGROUP,
-        }[key]
-    except KeyError:
-        raise ValueError(f"Unrecognized key {key}")
-
-    distribution_type = get_data(risk.DISTRIBUTION, location)
-
-    if distribution_type != "dichotomous" and "polytomous" not in distribution_type:
-        raise NotImplementedError(
-            f"Unrecognized distribution {distribution_type} for {risk.name}. Only dichotomous and "
-            f"polytomous are recognized categorical distributions."
-        )
-
-    exp = get_data(risk.EXPOSURE, location)
-    rr = get_data(risk.RELATIVE_RISK, location)
-
-    # paf = (sum_categories(exp * rr) - 1) / sum_categories(exp * rr)
-    sum_exp_x_rr = (
-        (exp * rr)
-        .groupby(list(set(rr.index.names) - {"parameter"}))
-        .sum()
-        .reset_index()
-        .set_index(rr.index.names[:-1])
-    )
-    paf = (sum_exp_x_rr - 1) / sum_exp_x_rr
-    return paf
-
-
-def _load_em_from_meid(location, meid, measure):
-    location_id = utility_data.get_location_id(location)
-    data = gbd.get_modelable_entity_draws(meid, location_id)
-    data = data[data.measure_id == vi_globals.MEASURES[measure]]
-    data = vi_utils.normalize(data, fill_value=0)
-    data = data.filter(vi_globals.DEMOGRAPHIC_COLUMNS + vi_globals.DRAW_COLUMNS)
-    data = vi_utils.reshape(data)
-    data = vi_utils.scrub_gbd_conventions(data, location)
-    data = vi_utils.split_interval(data, interval_column="age", split_column_prefix="age")
-    data = vi_utils.split_interval(data, interval_column="year", split_column_prefix="year")
-    return vi_utils.sort_hierarchical_data(data).droplevel("location")
 
 
 # TODO - add project-specific data functions here
@@ -311,28 +271,47 @@ def load_scaling_factor(
 def load_anc_proportion(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
-    anc_proportion = load_standard_data(key, location, years)
-    year_start, year_end = 2021, 2022
-    lower_value = anc_proportion.loc[(year_start, year_end, "lower_value"), "value"]
-    mean_value = anc_proportion.loc[(year_start, year_end, "mean_value"), "value"]
-    upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
-
-    try:
-        anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
-            mean=mean_value, lower=lower_value, upper=upper_value
+    if key == data_keys.ANC.ANCfirst:
+        data = pd.read_csv(paths.ANC_DATA_DIR / "anc_first.csv")
+        location_id = utility_data.get_location_id(location)
+        data = data.loc[data["location_id"] == location_id]
+        data = data.loc[data["year_id"] == metadata.ARTIFACT_YEAR_START].rename(
+            {"year_id": "year_start"}, axis=1
         )
-        anc_proportion_draws = anc_proportion_dist.rvs(data_values.NUM_DRAWS).reshape(
-            1, data_values.NUM_DRAWS
+        data["year_end"] = metadata.ARTIFACT_YEAR_END
+        data = data.drop(
+            ["age_group_id", "sex_id", "location_id", "mean", "lower", "upper"], axis=1
         )
-    except FloatingPointError:
-        print("FloatingPointError encountered, proceeding with caution.")
-        anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
+        data = data.set_index(["year_start", "year_end"])
+        return data
+    elif key == data_keys.ANC.ANC1 or key == data_keys.ANC.ANC4:
+        anc_proportion = load_standard_data(key, location, years)
+        year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
+        lower_value = anc_proportion.loc[(year_start, year_end, "lower_value"), "value"]
+        mean_value = anc_proportion.loc[(year_start, year_end, "mean_value"), "value"]
+        upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
 
-    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
-    anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
-    anc_proportion_draws_df["year_start"] = year_start
-    anc_proportion_draws_df["year_end"] = year_end
-    return anc_proportion_draws_df.set_index(["year_start", "year_end"])
+        try:
+            anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
+                mean=mean_value, lower=lower_value, upper=upper_value
+            )
+            anc_proportion_draws = get_random_variable_draws(
+                metadata.ARTIFACT_COLUMNS, key, anc_proportion_dist
+            )
+            anc_proportion_draws = anc_proportion_draws.values.flatten()
+            # Ensure shape is (1, NUM_DRAWS)
+            anc_proportion_draws = anc_proportion_draws.reshape(1, -1)
+        except FloatingPointError:
+            print("FloatingPointError encountered, proceeding with caution.")
+            anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
+
+        draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+        anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
+        anc_proportion_draws_df["year_start"] = year_start
+        anc_proportion_draws_df["year_end"] = year_end
+        return anc_proportion_draws_df.set_index(["year_start", "year_end"])
+    else:
+        raise ValueError(f"Unrecognized key {key} when loading ANC proportion data.")
 
 
 def load_maternal_disorder_yld_rate(
@@ -355,10 +334,15 @@ def load_lbwsg_rr(
         raise ValueError(f"Unrecognized key {key}")
 
     data = load_standard_data(key, location, years)
-    data = data.query("year_start == 2021").droplevel(["affected_entity", "affected_measure"])
+    data = data.query(f"year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
+        ["affected_entity", "affected_measure"]
+    )
     data = data[~data.index.duplicated()]
-    cap_mask = data > 100.0
-    data[cap_mask] = 100.0
+    caps = pd.read_csv(paths.LBWSG_RR_CAPS_DIR / f"{location.lower()}.csv")
+    caps = caps.set_index(data.index.names)
+    neonatal_data = data.query("age_start < 8 / 365")
+    capped_neonatal_data = neonatal_data.where(neonatal_data <= caps, other=caps)
+    data.loc[neonatal_data.index] = capped_neonatal_data
     return data
 
 
@@ -425,19 +409,11 @@ def load_paf_data(
     key: str, location: str, years: Optional[Union[int, str, list[int]]]
 ) -> pd.DataFrame:
     if key == data_keys.LBWSG.PAF:
-        filename = (
-            "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate.parquet"
-        )
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk.parquet"
     else:
-        filename = "calculated_lbwsg_paf_on_cause.all_causes.cause_specific_mortality_rate_preterm.parquet"
+        filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    location_mapper = {
-        "Ethiopia": "ethiopia",
-        "Nigeria": "nigeria",
-        "Pakistan": "pakistan",
-    }
-
-    output_dir = paths.PAF_DIR / location_mapper[location]
+    output_dir = paths.PAF_DIR / "temp_outputs" / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
@@ -450,12 +426,18 @@ def load_paf_data(
     not_needed_columns = ["scenario", "random_seed"]
     df = df.drop(columns=[c for c in df.columns if c in not_needed_columns])
 
-    age_start_dict = {"early_neonatal": 0.0, "late_neonatal": 0.01917808}
-    age_end_dict = {"early_neonatal": 0.01917808, "late_neonatal": 0.07671233}
+    age_start_dict = {
+        "early_neonatal": data_values.EARLY_NEONATAL_AGE_START,
+        "late_neonatal": data_values.LATE_NEONATAL_AGE_START,
+    }
+    age_end_dict = {
+        "early_neonatal": data_values.LATE_NEONATAL_AGE_START,
+        "late_neonatal": data_values.LATE_NEONATAL_AGE_END,
+    }
     df["age_start"] = df["child_age_group"].replace(age_start_dict)
     df["age_end"] = df["child_age_group"].replace(age_end_dict)
-    df["year_start"] = 2021
-    df["year_end"] = 2022
+    df["year_start"] = metadata.ARTIFACT_YEAR_START
+    df["year_end"] = metadata.ARTIFACT_YEAR_END
     df = df.drop("child_age_group", axis=1)
     df = df.rename(columns={"child_sex": "sex"})
     index_columns = [
@@ -466,10 +448,19 @@ def load_paf_data(
         "year_end",
     ]
     df = df.set_index(index_columns)
-    unaffected_age_groups = [(0.07671233, 1.0), (1.0, 5.0)]
+    unaffected_age_groups = [(data_values.LATE_NEONATAL_AGE_END, 1.0), (1.0, 5.0)]
     for age_start, age_end in unaffected_age_groups:
         for sex in ["Male", "Female"]:
-            df.loc[(sex, age_start, age_end, 2021, 2022), :] = 0
+            df.loc[
+                (
+                    sex,
+                    age_start,
+                    age_end,
+                    metadata.ARTIFACT_YEAR_START,
+                    metadata.ARTIFACT_YEAR_END,
+                ),
+                :,
+            ] = 0
 
     return df.sort_index()
 
@@ -572,6 +563,56 @@ def load_no_cpap_paf(
     return paf_no_cpap
 
 
+def load_no_acs_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    rr_distribution = data_values.ACS_RELATIVE_RISK_DISTRIBUTION
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_distribution)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+
+    # We want the relative risk of no cpap
+    no_acs_rr = (1 / data).fillna(0.0)
+    return utilities.set_non_neonnatal_values(no_acs_rr, 1.0)
+
+
+def load_sex_specific_ordered_lbwsg_categories(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> dict[str, list[str]]:
+    rrs = get_data(data_keys.LBWSG.RELATIVE_RISK, location).query("child_age_start==0.0")
+    rrs = rrs.mean(axis=1)
+    categories = get_data(data_keys.LBWSG.CATEGORIES, location)
+    # Get preterm categories
+    preterm_cats, full_term_cats = [], []
+    for cat, description in categories.items():
+        i = utilities.parse_short_gestation_description(description)
+        if i.right <= metadata.PRETERM_AGE_CUTOFF:
+            preterm_cats.append(cat)
+        else:
+            full_term_cats.append(cat)
+
+    ordered_cats = {}
+    for sex in ["Male", "Female"]:
+        sex_specific_rrs = (
+            pd.DataFrame(rrs).query("sex_of_child==@sex").rename({0: "value"}, axis=1)
+        )
+        # sort so earlier categories have higher RRs
+        preterm_rrs = sex_specific_rrs.query("parameter == @preterm_cats")
+        sorted_preterm_cats = preterm_rrs.sort_values(
+            by="value", ascending=False
+        ).reset_index()["parameter"]
+        full_term_rrs = sex_specific_rrs.query("parameter == @full_term_cats")
+        sorted_full_term_cats = full_term_rrs.sort_values(
+            by="value", ascending=False
+        ).reset_index()["parameter"]
+        # all preterm before any full term
+        sorted_cats = list(sorted_preterm_cats) + list(sorted_full_term_cats)
+        ordered_cats[sex] = sorted_cats
+
+    return ordered_cats
+
+
 def load_lbwsg_birth_exposure(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -631,14 +672,14 @@ def load_lbwsg_exposure(
 def load_preterm_prevalence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    # TODO: implement
+    # get early neonatal prevalence from GBD
     exposure = get_data(data_keys.LBWSG.BIRTH_EXPOSURE, location, years).reset_index()
     categories = get_data(data_keys.LBWSG.CATEGORIES, location, years)
     # Get preterm categories
     preterm_cats = []
     for cat, description in categories.items():
         i = utilities.parse_short_gestation_description(description)
-        if i.right < metadata.PRETERM_AGE_CUTOFF:
+        if i.right <= metadata.PRETERM_AGE_CUTOFF:
             preterm_cats.append(cat)
 
     # Subset exposure to preterm categories
@@ -649,7 +690,35 @@ def load_preterm_prevalence(
         draw_cols
     ].sum()
 
-    return sum_exposure
+    enn_data = sum_exposure.reset_index()
+    enn_data["child_age_start"] = data_values.EARLY_NEONATAL_AGE_START
+    enn_data["child_age_end"] = data_values.LATE_NEONATAL_AGE_START
+
+    # get late neonatal prevalence from our PAF simulation
+    filename = "calculated_late_neonatal_preterm_prevalence.parquet"
+    filepath = paths.PRETERM_PREVALENCE_DIR / location.lower() / filename
+    data = pd.read_parquet(filepath)
+    data = data.drop(columns=[c for c in ["scenario", "random_seed"] if c in data.columns])
+    if "input_draw" in data.columns:
+        data = data.pivot(index="child_sex", columns="input_draw", values="value")
+    else:
+        # Treat value as draw 0, like with PAFs
+        data = data.rename(columns={"value": 0}).set_index("child_sex")
+    data.columns = [f"draw_{i}" for i in data.columns]
+
+    lnn_data = data.reset_index().rename({"child_sex": "sex_of_child"}, axis=1)
+    lnn_data["child_age_start"] = data_values.LATE_NEONATAL_AGE_START
+    lnn_data["child_age_end"] = data_values.LATE_NEONATAL_AGE_END
+    lnn_data["year_start"] = enn_data["year_start"]
+    lnn_data["year_end"] = enn_data["year_end"]
+    lnn_data = lnn_data[[c for c in lnn_data.columns if c in enn_data.columns]]
+
+    df = pd.concat([enn_data, lnn_data], ignore_index=True)
+    df = df.sort_values(metadata.CHILDREN_INDEX_COLUMNS).set_index(
+        metadata.CHILDREN_INDEX_COLUMNS
+    )
+
+    return df
 
 
 def load_antibiotic_coverage_probability(
@@ -985,13 +1054,9 @@ def load_hemoglobin_exposure_data(
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
     # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    draw_cols = [col for col in hemoglobin_data.columns if col.startswith("draw_")]
-    expanded_draws = []
-    for i in range(5):
-        df_copy = hemoglobin_data[draw_cols].copy()
-        df_copy.columns = [f"draw_{j}" for j in range(i * 100, (i + 1) * 100)]
-        expanded_draws.append(df_copy)
-    expanded_draws_df = pd.concat(expanded_draws, axis=1)
+    expanded_draws_df = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=5
+    )
 
     return expanded_draws_df
 
@@ -1015,6 +1080,70 @@ def load_hemoglobin_distribution(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> str:
     return data_values.HEMOGLOBIN_DISTRIBUTION
+
+
+def load_hemoglobin_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    hemoglobin_data = extra_gbd.get_hemoglobin_rr_data(key, location)
+    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
+    levels_to_drop = [
+        "metric_id",
+        "model_version_id",
+        "modelable_entity_id",
+        "rei_id",
+    ]
+    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
+
+    # hemoglobin RR-specific processing
+    hemoglobin_data = hemoglobin_data.reset_index()
+    hemoglobin_data["parameter"] = hemoglobin_data["exposure"]
+    hemoglobin_data["affected_measure"] = "incidence_risk"
+    hemoglobin_data = hemoglobin_data.drop(["exposure", "morbidity", "mortality"], axis=1)
+    hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+        "parameter",
+    ]
+    hemoglobin_data = hemoglobin_data.set_index(index_cols)
+
+    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
+    expanded_draws_df = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=5
+    )
+
+    return expanded_draws_df
+
+
+def load_hemoglobin_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    hemoglobin_data = extra_gbd.get_hemoglobin_paf_data(key, location)
+    hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
+    levels_to_drop = ["metric_id", "measure_id", "rei_id", "version_id"]
+    hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
+
+    # hemoglobin PAF-specific processing
+    hemoglobin_data = hemoglobin_data.reset_index()
+    # we are pulling PAF data for deaths to define incidence risk
+    hemoglobin_data["affected_measure"] = "incidence_risk"
+    hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+    hemoglobin_data = hemoglobin_data.set_index(index_cols)
+
+    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
+    expanded_draws_df = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=5
+    )
+
+    return expanded_draws_df
+
+
+def load_hemoglobin_tmred(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> dict[str, str | bool | float]:
+    return {"distribution": "uniform", "min": 120.0, "max": 120.0}
 
 
 def reshape_to_vivarium_format(df, location):
