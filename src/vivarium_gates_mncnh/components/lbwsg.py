@@ -1,19 +1,25 @@
+from __future__ import annotations
+
 import itertools
 import math
 import pickle
-from functools import partial
 from typing import Any
 
 import numpy as np
 import pandas as pd
 from vivarium.component import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
-from vivarium.framework.values import Pipeline
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
+)
+from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+    LBWSGDistribution,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
@@ -27,10 +33,11 @@ from vivarium_public_health.utilities import (
     to_snake_case,
 )
 
-from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
+    PIPELINES,
 )
 
 CATEGORICAL = "categorical"
@@ -38,7 +45,90 @@ BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
 
 
+class OrderedLBWSGDistribution(LBWSGDistribution):
+    """This class allows us to use sex-specific custom ordering for our LBWSG categories
+    when determining exposure."""
+
+    AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.SEX_OF_CHILD,
+        ]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.ordered_categories = builder.data.load(
+            data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES
+        )
+
+    ##################
+    # Public methods #
+    ##################
+
+    def single_axis_ppf(
+        self,
+        axis: str,
+        propensity: pd.Series,
+        categorical_propensity: pd.Series | None = None,
+        categorical_exposure: pd.Series | None = None,
+    ) -> pd.Series:
+        if (categorical_propensity is None) == (categorical_exposure is None):
+            raise ValueError(
+                "Exactly one of categorical propensity or categorical exposure "
+                "must be provided."
+            )
+
+        if categorical_exposure is None:
+            # everything above here is unchanged from LBWSGDistribution
+            categorical_exposures = []
+            for sex in ["Male", "Female"]:
+                categorical_exposures.append(
+                    self.sex_specific_ppf(categorical_propensity, sex)
+                )
+            categorical_exposure = pd.concat(categorical_exposures).sort_index()
+
+        # everything below here is unchanged from LBWSGDistribution
+        exposure_intervals = categorical_exposure.apply(
+            lambda category: self.category_intervals[axis][category]
+        )
+        exposure_left = exposure_intervals.apply(lambda interval: interval.left)
+        exposure_right = exposure_intervals.apply(lambda interval: interval.right)
+        continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
+        continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
+        return continuous_exposure
+
+    def sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
+        """Takes a full set of propensities and returns category exposures
+        for the provided sex."""
+        pop = self.population_view.get(quantiles.index)
+        sex_subset_index = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex].index
+        quantiles = quantiles.loc[sex_subset_index]
+        exposure = self.exposure_parameters(quantiles.index)
+        sex_specific_ordering = self.ordered_categories[sex]
+        sorted_exposures = exposure[sex_specific_ordering]
+        # everything below here is unchanged from PolytomousDistribution's ppf
+        if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
+            raise MissingDataError("All exposure data returned as 0.")
+        exposure_sum = sorted_exposures.cumsum(axis="columns")
+        category_index = pd.concat(
+            [exposure_sum[c] < quantiles for c in exposure_sum.columns], axis=1
+        ).sum(axis=1)
+        return pd.Series(
+            np.array(sex_specific_ordering)[category_index],
+            name=self.risk + ".exposure",
+            index=quantiles.index,
+        )
+
+
 class LBWSGRisk(LBWSGRisk_):
+    exposure_distributions = {"lbwsg": OrderedLBWSGDistribution}
+
     @property
     def columns_required(self) -> list[str]:
         return [
@@ -54,8 +144,20 @@ class LBWSGRisk(LBWSGRisk_):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         # We have to override the age_end due to the wide state table and this is easier than
-        # adding an extra population configuratio key
+        # adding an extra population configuration key
         self.configuration_age_end = 0.0
+        self.categorical_propensity = builder.value.get_value(
+            f"{self.name}.correlated_propensity"
+        )
+
+    def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
+        categorical_propensity = self.categorical_propensity(
+            index
+        )  # only line change in this subclassed function
+        continuous_propensity = self.randomness.get_draw(index, additional_key=axis)
+        return self.exposure_distribution.single_axis_ppf(
+            axis, continuous_propensity, categorical_propensity
+        )
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -230,17 +332,6 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
             "age_bin",
         ]
 
-    @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        configuration_defaults = super().configuration_defaults
-        # Use the exposure for neonatal age groups instead of birth exposure
-        # TODO: remove when VPH is updated to handle this behavior
-        configuration_defaults[self.name]["data_sources"][
-            "exposure"
-        ] = f"{self.risk}.exposure"
-        configuration_defaults[self.name]["distribution_type"] = "lbwsg"
-        return configuration_defaults
-
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
@@ -289,6 +380,12 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         }
         self.population_view.update(pd.DataFrame(birth_exposures))
 
+    def on_time_step_prepare(self, event: Event) -> None:
+        """Update the age bins to match the simulants' ages."""
+        pop = self.population_view.subview(["child_age", "sex_of_child"]).get(event.index)
+        pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
+        self.population_view.update(pop["age_bin"])
+
     ##################################
     # Pipeline sources and modifiers #
     ##################################
@@ -298,7 +395,7 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
             index
         )
         lbwsg_categories = self.lbwsg_categories.keys()
-        num_simulants_in_category = int(len(pop) / (len(lbwsg_categories) * 4))
+        num_simulants_in_category = int(len(pop) / (len(lbwsg_categories) * 2))
         num_points_in_interval = int(math.sqrt(num_simulants_in_category))
 
         exposure_values = pd.Series(name=axis, index=pop.index, dtype=float)
@@ -360,7 +457,13 @@ class LBWSGPAFObserver(Component):
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["lbwsg_category", "gestational_age_exposure", "age_bin"]
+        return [
+            "lbwsg_category",
+            "gestational_age_exposure",
+            "age_bin",
+            "child_alive",
+            "sex_of_child",
+        ]
 
     def __init__(self, target: str):
         super().__init__()
@@ -368,46 +471,78 @@ class LBWSGPAFObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.lbwsg_exposure = self._load_custom_paf_exposure(builder)
+        self.birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
         self.config = builder.configuration.stratification.lbwsg_paf
+        self.pop_size = builder.configuration.population.population_size
+        self.step_number = 1
 
-        builder.results.register_adding_observation(
+        builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
-            pop_filter='child_alive == "alive"',
             aggregator=self.calculate_paf,
-            requires_columns=["child_alive"],
+            results_updater=self.results_updater,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
-            when="time_step__prepare",
+            when="time_step",
         )
         # Add observer to get paf for preterm birth population
-        builder.results.register_adding_observation(
+        builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
-            pop_filter='child_alive == "alive" and gestational_age_exposure < 37',
+            pop_filter="gestational_age_exposure < 37",
             aggregator=self.calculate_paf,
-            requires_columns=["child_alive", "gestational_age_exposure"],
+            results_updater=self.results_updater,
+            requires_columns=["gestational_age_exposure"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
-            when="time_step__prepare",
+            when="time_step",
         )
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        """Increment step number at the end of each time step."""
+        self.step_number += 1
+
+    def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+        if self.step_number == 1:  # early neonatal time step
+            df = new
+        else:  # late neonatal time step
+            # use PAFs from first time step for ENN and second time step for LNN
+            df = pd.concat(
+                [
+                    old.query("child_age_group=='early_neonatal'"),
+                    new.query("child_age_group=='late_neonatal'"),
+                ],
+            )
+        return df
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
         relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
-        age_start = self.population_view.get(x.index).age_bin.iloc[0].left
-        sex = x["sex_of_child"].unique()[0]
-        lbwsg_prevalence = self.lbwsg_exposure.rename(
+        unique_sexes = x["sex_of_child"].unique()
+        if len(unique_sexes) != 1:
+            raise ValueError(
+                "Stratified data contains more than one sex, but this observer (LBWSGPAFObserver) needs sex-stratified data."
+            )
+        sex = unique_sexes[0]
+
+        # Use exposure prevalence at birth
+        lbwsg_prevalence = self.birth_exposure.rename(
             {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
         )
-        # Subset to age group for exposure - have to use np.isclose because age_start is rounded
-        lbwsg_prevalence = lbwsg_prevalence[
-            np.isclose(self.lbwsg_exposure.child_age_start, age_start, atol=0.001)
-        ]
         lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex_of_child"] == sex]
+
+        # weight LBWSG prevalence by fraction of simulants who survived to late neonatal period
+        # within a given LBWSG category
+        # this fraction will be 1 at the first time step because no one has died yet, which is
+        # what we want
+        weights = calculate_mortality_weights(self, sex)
+        lbwsg_prevalence = lbwsg_prevalence.merge(weights)
+        lbwsg_prevalence["prevalence"] = (
+            lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
+        )
+        lbwsg_prevalence = lbwsg_prevalence.drop(columns=["proportion_alive"])
 
         mean_rrs = (
             pd.concat([lbwsg_category, relative_risk], axis=1)
@@ -421,22 +556,236 @@ class LBWSGPAFObserver(Component):
 
         return paf
 
-    def _load_custom_paf_exposure(self, builder: Builder) -> pd.DataFrame:
-        """Loads custom exposure data for the PAF simulation. This swaps the birth
-        exposure with the early neonatal exposure for the early neonatal age group.
-        TODO: potentially switch ENN for LNN exposure depending on how this validates.
-        """
-        birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
-        neonatal_exposure = builder.data.load(data_keys.LBWSG.EXPOSURE)
-        col_order = neonatal_exposure.columns.tolist()
-        enn_exposure = neonatal_exposure.loc[neonatal_exposure["child_age_end"] < 8 / 365.0]
-        enn_exposure = enn_exposure.drop(columns=["value"])
-        new_enn_exposure = pd.merge(
-            birth_exposure,
-            enn_exposure,
-            on=["sex_of_child", "year_start", "year_end", "parameter"],
-        )
-        exposure = neonatal_exposure.loc[neonatal_exposure["child_age_start"] > 6 / 365.0]
 
-        final_exposure = pd.concat([new_enn_exposure, exposure])
-        return final_exposure[col_order]
+class PretermPrevalenceObserver(Component):
+    CONFIGURATION_DEFAULTS = {
+        "stratification": {
+            "preterm_prevalence": {
+                "exclude": [],
+                "include": [],
+            }
+        }
+    }
+
+    @property
+    def columns_required(self) -> list[str] | None:
+        return ["gestational_age_exposure", "lbwsg_category", "child_alive", "sex_of_child"]
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self.birth_exposure = builder.data.load(data_keys.LBWSG.BIRTH_EXPOSURE)
+        self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
+        self.config = builder.configuration.stratification.preterm_prevalence
+        self.pop_size = builder.configuration.population.population_size
+        self.step_number = 1
+
+        builder.results.register_stratified_observation(
+            name=f"calculated_late_neonatal_preterm_prevalence",
+            aggregator=self.calculate_preterm_prevalence,
+            results_updater=self.results_updater,
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="time_step",
+            to_observe=self.to_observe,
+        )
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        """Increment step number at the end of each time step."""
+        self.step_number += 1
+
+    def calculate_preterm_prevalence(self, x: pd.DataFrame) -> float:
+        # weight preterm prevalence by fraction of simulants who survived to late neonatal period
+        # within a given LBWSG category
+        # this fraction will be 1 at the first time step because no one has died yet, which is
+        # what we want
+        unique_sexes = x["sex_of_child"].unique()
+        if len(unique_sexes) != 1:
+            raise ValueError(
+                "Stratified data contains more than one sex, but this observer (PretermPrevalenceObserver) needs sex-stratified data."
+            )
+        sex = unique_sexes[0]
+
+        # Use exposure prevalence at birth
+        lbwsg_prevalence = self.birth_exposure.rename(
+            {"parameter": "lbwsg_category", "value": "prevalence"}, axis=1
+        )
+        lbwsg_prevalence = lbwsg_prevalence.loc[lbwsg_prevalence["sex_of_child"] == sex]
+
+        weights = calculate_mortality_weights(self, sex)
+        lbwsg_prevalence = lbwsg_prevalence.merge(weights)
+        lbwsg_prevalence["mortality_weighted_prevalence"] = (
+            lbwsg_prevalence["prevalence"] * lbwsg_prevalence["proportion_alive"]
+        )
+
+        # Get preterm categories
+        preterm_cats = []
+        for cat, description in self.lbwsg_categories.items():
+            i = parse_short_gestation_description(description)
+            if i.right <= metadata.PRETERM_AGE_CUTOFF:
+                preterm_cats.append(cat)
+
+        preterm_prevalences = lbwsg_prevalence[
+            lbwsg_prevalence["lbwsg_category"].isin(preterm_cats)
+        ]
+        preterm_prevalence = (
+            preterm_prevalences["mortality_weighted_prevalence"].sum()
+            / lbwsg_prevalence["mortality_weighted_prevalence"].sum()
+        )
+        return preterm_prevalence
+
+    def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+        return new
+
+    def to_observe(self, event: Event) -> pd.DataFrame:
+        """Only observe the late neonatal time step."""
+        if self.step_number == 2:
+            return True
+        else:
+            return False
+
+
+class LBWSGMortality(Component):
+    """A component to handle neonatal mortality."""
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            self.name: {
+                "data_sources": {
+                    "all_cause_mortality_risk": self.load_all_causes_mortality_data,
+                    "life_expectancy": self.load_life_expectancy_data,
+                }
+            }
+        }
+
+    @property
+    def columns_created(self) -> list[str]:
+        return [COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.CHILD_AGE,
+            COLUMNS.CHILD_ALIVE,
+        ]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
+        self.randomness = builder.randomness.get_stream(self.name, self)
+        self.causes_of_death = ["other_causes"]
+
+        # Register pipelines
+        self.acmr_paf = self.get_acmr_paf_pipeline(builder)
+
+        self.all_cause_mortality_risk = builder.value.register_value_producer(
+            PIPELINES.ACMR,
+            source=self.get_acmr_pipeline,
+            component=self,
+            required_resources=get_lookup_columns(
+                [self.lookup_tables["all_cause_mortality_risk"]]
+            )
+            + [self.acmr_paf],
+        )
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        pop_update = pd.DataFrame(
+            {
+                COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
+                COLUMNS.CHILD_YEARS_OF_LIFE_LOST: 0.0,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(pop_update)
+
+    def on_time_step(self, event: Event) -> None:
+        pop = self.population_view.get(event.index)
+        alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        mortality_risk = self.all_cause_mortality_risk(alive_idx)
+
+        # Determine which neonates die and update metadata
+        dead_idx = self.randomness.filter_for_probability(
+            alive_idx,
+            mortality_risk,
+            "lbwsg_mortality",
+        )
+        if not dead_idx.empty:
+            pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
+            pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = "other_causes"
+            pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
+                "life_expectancy"
+            ](dead_idx)
+
+        self.population_view.update(pop)
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def load_all_causes_mortality_data(self, builder: Builder) -> pd.DataFrame:
+        """Load all-cause mortality rate data."""
+        acmrisk = builder.data.load(data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK)
+        child_acmrisk = acmrisk.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return child_acmrisk
+
+    def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
+        """Load life expectancy data."""
+        life_expectancy = builder.data.load(
+            "population.theoretical_minimum_risk_life_expectancy"
+        )
+        # This needs to remain here since it gets used for both maternal and neonatal mortality
+        child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return child_life_expectancy
+
+    def get_acmr_pipeline(self, index: pd.Index) -> Pipeline:
+        # NOTE: This will be modified by the LBWSGRiskEffect
+        acmr = self.lookup_tables["all_cause_mortality_risk"](index)
+        paf = self.acmr_paf(index)
+        return acmr * (1 - paf)
+
+    def get_acmr_paf_pipeline(self, builder: Builder) -> Pipeline:
+        acmr_paf = builder.lookup.build_table(0)
+        return builder.value.register_value_producer(
+            PIPELINES.ACMR_PAF,
+            source=lambda index: [acmr_paf(index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
+
+
+######################
+## Utility functions #
+######################
+
+
+def parse_short_gestation_description(description: str) -> pd.Interval:
+    # descriptions look like this: 'Birth prevalence - [34, 36) wks, [2000, 2500) g'
+    endpoints = pd.Interval(
+        *[
+            float(val)
+            for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
+        ],
+        closed="left",
+    )
+    return endpoints
+
+
+def calculate_mortality_weights(component: Component, sex: str) -> pd.Series:
+    """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
+    full_index = pd.Index(range(component.pop_size))
+    pop_data = component.population_view.get(full_index)[
+        ["lbwsg_category", "child_alive", "sex_of_child"]
+    ]
+    pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
+    weights = (
+        pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
+        .agg(proportion_alive=lambda x: (x == "alive").mean())
+        .reset_index()
+    )
+    return weights

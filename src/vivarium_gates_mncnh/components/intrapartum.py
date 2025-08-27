@@ -8,6 +8,7 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
 from vivarium_gates_mncnh.constants.data_values import (
+    ANC_ATTENDANCE_TYPES,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     INTERVENTION_TYPE_MAPPER,
@@ -26,7 +27,7 @@ INTERVENTION_TYPE_COLUMN_MAP = {
     "maternal": [
         COLUMNS.DELIVERY_FACILITY_TYPE,
         COLUMNS.MOTHER_AGE,
-        COLUMNS.ATTENDED_CARE_FACILITY,
+        COLUMNS.ANC_ATTENDANCE,
     ],
 }
 INTERVENTION_SCENARIO_ACCESS_MAP = {
@@ -163,7 +164,57 @@ class InterventionAccess(Component):
         # Misoprostol is only available to mothers who attended ANC and gave birth at home
         if self.intervention == INTERVENTIONS.MISOPROSTOL:
             pop = pop.loc[
-                (pop[COLUMNS.ATTENDED_CARE_FACILITY] == True)
+                (pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE)  # attended ANC
                 & (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
             ]
         return pop
+
+
+class ACSAccess(Component):
+    """Component for determining if a simulant has access to antenatal corticosteroids (ACS).
+    We do this by making ACS available to everyone who has access to CPAP and predicted
+    gestational age between 26 and 33 weeks."""
+
+    @property
+    def columns_created(self) -> list[str]:
+        return [COLUMNS.ACS_AVAILABLE]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.CPAP_AVAILABLE,
+            COLUMNS.STATED_GESTATIONAL_AGE,
+            COLUMNS.PREGNANCY_OUTCOME,
+        ]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.time_step = "acs_access"
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        simulants = pd.DataFrame(
+            {
+                COLUMNS.ACS_AVAILABLE: False,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(simulants)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != self.time_step:
+            return
+
+        pop = self.population_view.get(event.index)
+
+        pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+        is_early_or_moderate_preterm = pop.loc[
+            pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        ]
+        has_cpap = pop.loc[pop[COLUMNS.CPAP_AVAILABLE] == True]
+        has_acs = is_early_or_moderate_preterm.index.intersection(has_cpap.index)
+        pop.loc[has_acs, COLUMNS.ACS_AVAILABLE] = True
+
+        self.population_view.update(pop)
