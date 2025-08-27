@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from vivarium import Artifact, InteractiveContext
+from vivarium_gates_mncnh.constants import metadata
 
 """
 This code is intended to read in the effects of hemoglobin on stillbirth, birth weight
@@ -245,8 +246,7 @@ def get_lbwsg_shifts(draw):
     exposure_levels = ptb_rrs.exposure.unique()
 
     results = pd.DataFrame()
-    # TODO: specify locations using model spec file or something?
-    for location in ["ethiopia", "nigeria", "pakistan"]:
+    for location in metadata.LOCATIONS:
         exp = get_lbwsg_birth_exposure(location)
         exp = exp.loc[exp.draw == draw]
         for sex in ["Male", "Female"]:
@@ -309,8 +309,6 @@ def scale_effects_to_iv_iron(data):
     warnings.warn(
         "WARNING: using hard coded placeholder effect for IV iron intervention. Needs to be updated to artifact value when ready."
     )
-
-    data["exposure"] = data["exposure"]
     data = data.sort_values(
         by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
     )
