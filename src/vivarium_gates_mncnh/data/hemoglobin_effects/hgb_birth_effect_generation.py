@@ -14,7 +14,8 @@ prepare them for use in our simulation.
 
 Specifically, this code:
 - Standardizes the RR exposure levels to be 1,000 equal increments between 40 and 150 g/L
-- Reorders the draws for GA and BW effects in order of magnitude of risk at the 40 g/L hemoglobin
+- Reorders the draws for GA and BW effects in order of magnitude of risk at the 40 g/L hemoglobin 
+  level (which is the lowest hemoglobin exposure included in the risk effect estimation)
     - This is in order to make the individual RR estimates follow logical pairings
     between the effect of hemoglobin on LBWSG and the effect of hemoglobin on 
     neonatal sepsis, which is mediated through the effect of hemoglobin on LBWSG
@@ -66,11 +67,11 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
     x_new = exposure_levels
     rrs_interp = pd.DataFrame({"risk": x_new})
     # Interpolate for each draw column
-    risk = rrs["risk"].values
+    x_old = rrs["risk"].values
     for col in rrs.columns:
         if col.startswith("draw_"):
             y = rrs[col].values
-            f = interp1d(risk, y, kind="linear", bounds_error=False, fill_value="extrapolate")
+            f = interp1d(x_old, y, kind="linear", bounds_error=False, fill_value="extrapolate")
             rrs_interp[col] = f(x_new)
     return rrs_interp
 
