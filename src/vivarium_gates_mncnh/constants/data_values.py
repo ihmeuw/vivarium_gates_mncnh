@@ -102,6 +102,7 @@ class _SimulationEventNames(NamedTuple):
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
     CPAP_ACCESS = "cpap_access"
+    ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
@@ -204,6 +205,7 @@ class __Columns(NamedTuple):
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     CPAP_AVAILABLE = "cpap_available"
+    ACS_AVAILABLE = "acs_available"
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
     PARTIAL_TERM_PREGNANCY_DURATION = "partial_term_pregnancy_duration"
     PROBIOTICS_AVAILABLE = "probiotics_available"
@@ -337,6 +339,8 @@ CPAP_ACCESS_PROBABILITIES = {
     },
 }
 CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
+
+ACS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.84, 0.72, 0.97)
 
 
 ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {

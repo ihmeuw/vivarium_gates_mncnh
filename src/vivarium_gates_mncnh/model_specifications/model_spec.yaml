@@ -42,6 +42,7 @@ components:
             - InterventionAccess('probiotics')        
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
+            - ACSAccess()
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
@@ -81,6 +82,7 @@ configuration:
             - 'azithromycin_access'
             - 'misoprostol_access'
             - 'cpap_access'
+            - 'acs_access'
             - 'antibiotics_access'
             - 'probiotics_access'
             - 'maternal_obstructed_labor_and_uterine_rupture'
