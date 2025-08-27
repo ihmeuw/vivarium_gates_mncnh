@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from vivarium import Artifact, InteractiveContext
+
 from vivarium_gates_mncnh.constants import metadata
 
 """
