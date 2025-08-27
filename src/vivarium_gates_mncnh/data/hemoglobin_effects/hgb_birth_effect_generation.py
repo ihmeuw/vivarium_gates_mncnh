@@ -66,7 +66,6 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
 
     x_new = exposure_levels
     rrs_interp = pd.DataFrame({"risk": x_new})
-    # Interpolate for each draw column
     x_old = rrs["risk"].values
     for col in rrs.columns:
         if col.startswith("draw_"):
@@ -117,7 +116,7 @@ def load_prepped_rrs(outcome):
     - reordered by magnitude of risk at the lowest exposure level."""
     rrs = load_bop_rrs(outcome)
     exposure_levels = get_gbd_exposure_levels()
-    rrs = convert_rrs_to(rrs, exposure_levels)
+    rrs = convert_rrs_to_gbd_exposure(rrs, exposure_levels)
     rrs["outcome"] = outcome
     rrs = transform_and_reorder_rrs(rrs, exposure_levels)
     return rrs
