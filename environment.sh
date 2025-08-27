@@ -47,6 +47,7 @@ Help()
    echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
    echo "f     Force creation of a new environment."
    echo "l     Install git lfs."
+}
 
 # Process input options
 while getopts ":hflt:" option; do
