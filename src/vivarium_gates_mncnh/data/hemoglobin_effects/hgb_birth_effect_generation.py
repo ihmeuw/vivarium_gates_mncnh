@@ -178,10 +178,12 @@ def get_lbwsg_birth_exposure(location):
     ).reset_index()
     art_exposure = get_lbwsg_metadata()
     exp = exp.merge(art_exposure, on="parameter")
-    exp = (
         exp.set_index([x for x in exp.columns if "draw" not in x])
+        .rename_axis("draw", axis="columns")
         .stack()
+        .rename("exposure")
         .reset_index()
+        .rename(columns={"sex_of_child": "sex"})
         .rename(columns={0: "exposure", "level_8": "draw", "sex_of_child": "sex"})
     )
     exp["location"] = location
