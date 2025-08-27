@@ -14,9 +14,9 @@ for conda_path in \
   "$HOME/miniconda3" \
   "$HOME/miniconda" \
   "$HOME/anaconda3" \
-  "/ihme/code/$username/miniconda3" \
-  "/ihme/code/$username/miniconda" \
-  "/ihme/code/$username/anaconda3" \
+  "/mnt/share/code/$username/miniconda3" \
+  "/mnt/share/code/$username/miniconda" \
+  "/mnt/share/code/$username/anaconda3" \
   "/usr/local/miniconda3" \
   "/usr/local/miniconda" \
   "/usr/local/anaconda3" \
