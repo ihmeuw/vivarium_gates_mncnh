@@ -406,7 +406,7 @@ def calculate_and_save_iv_iron_lbwsg_shifts(results_directory, draw):
     if f"{draw}.csv" not in os.listdir(results_directory + "lbwsg_shifts/"):
         calculate_and_save_lbwsg_shifts(results_directory, draw)
     lbwsg_shifts = pd.read_csv(results_directory + "lbwsg_shifts/" + draw + ".csv")
-    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts, draw)
+    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts)
     iv_iron_shifts.to_csv(
         results_directory + "iv_iron_lbwsg_shifts/" + draw + ".csv", index=False
     )
@@ -431,3 +431,4 @@ def calculate_iv_iron_stillbirth_effects():
         index="exposure", values="value", columns="draw"
     ).reset_index()
     effects.to_csv("iv_iron_stillbirth_rrs.csv")
+    return effects
