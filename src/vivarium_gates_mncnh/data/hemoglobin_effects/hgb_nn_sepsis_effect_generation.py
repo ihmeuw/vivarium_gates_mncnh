@@ -15,13 +15,16 @@ from vivarium_public_health.risks.implementations.low_birth_weight_and_short_ges
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
 
+# note that if the artifact is out of date with the simulation status in the environment
+# used to run this code then you may get an error when initializing the interactive context
+# and you will need to update this artifact directory to a more recent version
 artifact_directory = (
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/"
+    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model15.0/"
 )
 # This code relies on data specific to:
-# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 13.1)
-# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 13.1)
-# 3. The LBWSG relative risk values (using GBD 2021 data in artifact 13.1)
+# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 15.0)
+# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 15.0)
+# 3. The LBWSG relative risk values (using GBD 2021 data in artifact 15.0)
 # Therefore, it will need to be re-run if any of these are updated
 
 
