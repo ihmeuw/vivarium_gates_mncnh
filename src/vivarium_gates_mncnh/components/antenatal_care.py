@@ -8,7 +8,7 @@ import scipy.stats as stats
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData, PopulationView
+from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness.stream import _choice
 from vivarium.framework.state_machine import (
     State,
@@ -33,7 +33,44 @@ from vivarium_gates_mncnh.constants.data_values import (
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class UltrasoundState(TransientState):
+class StringOutputState(State):
+    """State subclass that uses string categories for grouping instead of State objects."""
+
+    def next_state(
+        self, index: pd.Index[int], event_time: ClockTime, population_view: PopulationView
+    ) -> None:
+        if len(self.transition_set) == 0 or index.empty:
+            return
+
+        outputs, decisions = self.transition_set.choose_new_state(index)
+        # these lines are the only change from vivarium because we
+        # want to use string categories instead of State objects for grouping
+        str_outputs = [output.state_id for output in outputs]
+        groups = pd.Series(index).groupby(
+            pd.CategoricalIndex(decisions.values, categories=str_outputs), observed=False
+        )
+
+        if groups:
+            for state_id, affected_index in sorted(groups, key=lambda x: str(x[0])):
+                if state_id == "null_transition":
+                    continue
+
+                # Find the corresponding State object
+                output = next(o for o in outputs if o.state_id == state_id)
+                affected_index = pd.Index(affected_index.values)
+
+                if isinstance(output, Transient):
+                    if not isinstance(output, State):
+                        raise ValueError(f"Invalid transition output: {output}")
+                    output.transition_effect(affected_index, event_time, population_view)
+                    output.next_state(affected_index, event_time, population_view)
+                elif isinstance(output, State):
+                    output.transition_effect(affected_index, event_time, population_view)
+                else:
+                    raise ValueError(f"Invalid transition output: {output}")
+
+
+class UltrasoundState(TransientState, StringOutputState):
     def __init__(self, ultrasound_type: str) -> None:
         super().__init__(f"{ultrasound_type}_ultrasound")
         self.ultrasound_type = ultrasound_type
@@ -48,7 +85,7 @@ class UltrasoundState(TransientState):
         self.population_view.update(pop)
 
 
-class ANCInitialState(State):
+class ANCInitialState(StringOutputState):
     def __init__(
         self,
         state_id: str,
@@ -60,44 +97,6 @@ class ANCInitialState(State):
             self.state_id, allow_self_transition=allow_self_transition
         )
         self._sub_components = [self.transition_set]
-
-
-    def _next_state(
-        self,
-        index: pd.Index[int],
-        event_time: ClockTime,
-        transition_set: TransitionSet,
-        population_view: PopulationView,
-    ) -> None:
-        if len(transition_set) == 0 or index.empty:
-            return
-
-        outputs, decisions = transition_set.choose_new_state(index)
-        # these lines are the only change from vivarium because we 
-        # want to use string categories instead of State objects for grouping
-        str_outputs = [output.state_id for output in outputs]
-        groups = pd.Series(index).groupby(
-            pd.CategoricalIndex(decisions.values, categories=str_outputs), observed=False
-        )
-        
-        if groups:
-            for state_id, affected_index in sorted(groups, key=lambda x: str(x[0])):
-                if state_id == "null_transition":
-                    continue
-                
-                # Find the corresponding State object
-                output = next(o for o in outputs if o.state_id == state_id)
-                affected_index = pd.Index(affected_index.values)
-                
-                if isinstance(output, Transient):
-                    if not isinstance(output, State):
-                        raise ValueError(f"Invalid transition output: {output}")
-                    output.transition_effect(affected_index, event_time, population_view)
-                    output.next_state(affected_index, event_time, population_view)
-                elif isinstance(output, State):
-                    output.transition_effect(affected_index, event_time, population_view)
-                else:
-                    raise ValueError(f"Invalid transition output: {output}")
 
 
 class ANCTransitionSet(TransitionSet):
