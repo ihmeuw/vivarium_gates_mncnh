@@ -81,7 +81,7 @@ class ANCTransitionSet(TransitionSet):
         outputs, probabilities = self._normalize_probabilities(outputs, probabilities)
         propensities = self.propensity(index)
         output_indexes = _choice(propensities, np.arange(4), probabilities)
-        return outputs, pd.Series([outputs[i].state_id for i in output_indexes])
+        return outputs, pd.Series([outputs[i] for i in output_indexes])
 
     def get_ordered_transitions(
         self, builder: Builder, transitions: list[Transition]
