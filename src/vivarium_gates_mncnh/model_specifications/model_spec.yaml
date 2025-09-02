@@ -109,13 +109,13 @@ configuration:
                 - 'delivery_facility_type'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'believed_preterm'
         birth:
             include:
                 - 'child_sex'
                 - 'delivery_facility_type'
                 - 'pregnancy_outcome'
                 - 'preterm_birth'
-                - 'believed_preterm'
         maternal_disorders_burden:
             include:
                 - 'age_group'
