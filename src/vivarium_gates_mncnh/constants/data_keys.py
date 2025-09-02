@@ -364,6 +364,21 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
+class __IVIron(NamedTuple):
+    EFFECT_SIZE: str = "intervention.iv_iron.effect_size"
+
+    @property
+    def name(self):
+        return "iv_iron"
+
+    @property
+    def log_name(self):
+        return "iv iron"
+
+
+IV_IRON = __IVIron()
+
+
 class __PostpartumDepression(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     INCIDENCE_RISK: str = "cause.postpartum_depression.incidence_risk"
@@ -426,6 +441,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_MISOPROSTOL_RISK,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
+    IV_IRON,
 ]
 
 

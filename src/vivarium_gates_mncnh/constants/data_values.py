@@ -386,6 +386,7 @@ class __Interventions(NamedTuple):
     PROBIOTICS: str = "probiotics"
     AZITHROMYCIN: str = "azithromycin"
     MISOPROSTOL: str = "misoprostol"
+    IV_IRON: str = "iv_iron"
 
 
 INTERVENTIONS = __Interventions()
@@ -395,6 +396,7 @@ INTERVENTION_TYPE_MAPPER = {
     INTERVENTIONS.PROBIOTICS: "neonatal",
     INTERVENTIONS.AZITHROMYCIN: "maternal",
     INTERVENTIONS.MISOPROSTOL: "maternal",
+    INTERVENTIONS.IV_IRON: "maternal",
 }
 
 
@@ -421,6 +423,12 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
 
+# Effects of IV iron intervention
+IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
+    "Ethiopia": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
+    "Nigeria": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
+    "Pakistan": get_norm(26.3, (25.7 - 26.9) / (2 * 1.96)),
+}
 
 # Postpartum depression constants
 POSTPARTUM_DEPRESSION_INCIDENCE_RISK = get_truncnorm(
