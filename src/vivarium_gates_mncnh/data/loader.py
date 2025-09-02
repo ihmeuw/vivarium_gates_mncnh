@@ -96,6 +96,7 @@ def get_data(
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
         data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_probability_birth_facility_type,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,

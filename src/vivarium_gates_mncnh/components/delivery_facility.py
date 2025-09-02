@@ -35,7 +35,7 @@ class DeliveryFacility(Component):
             FACILITY_CHOICE.P_HOME_FULL_TERM: builder.data.load(
                 FACILITY_CHOICE.P_HOME_FULL_TERM
             ),
-            FACILITY_CHOICE.P_BEmONC: builder.data.load(FACILITY_CHOICE.P_BEmONC),
+            FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: builder.data.load(FACILITY_CHOICE.BEmONC_FACILITY_FRACTION),
         }
         self.propensity = builder.value.get_value(f"{self.name}.correlated_propensity")
 
@@ -81,7 +81,7 @@ class DeliveryFacility(Component):
         ] = DELIVERY_FACILITY_TYPES.CEmONC
         is_bemonc = (
             self.randomness.get_draw(pop.index)
-            < self.delivery_facility_probabilities[FACILITY_CHOICE.P_BEmONC]
+            < self.delivery_facility_probabilities[FACILITY_CHOICE.BEmONC_FACILITY_FRACTION]
         )
         pop.loc[
             is_bemonc & ~assigned_home, COLUMNS.DELIVERY_FACILITY_TYPE

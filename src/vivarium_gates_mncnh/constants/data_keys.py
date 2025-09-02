@@ -259,7 +259,8 @@ NO_ACS_RISK = __NoACSRisk()
 class __FacilityChoice(NamedTuple):
     P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
     P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
-    P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
+    BEmONC_FACILITY_FRACTION: str = "cause.facility_choice.bemonc_facility_fraction"
+    #P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
 
     @property
     def name(self):
