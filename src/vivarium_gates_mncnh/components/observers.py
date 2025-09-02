@@ -163,8 +163,7 @@ class ResultsStratifier(ResultsStratifier_):
         return preterm_births.rename("preterm_birth")
 
     def map_believed_preterm(self, pop: pd.DataFrame) -> pd.Series:
-        gestational_age = pop.squeeze(axis=1)
-        preterm_births = gestational_age < PRETERM_AGE_CUTOFF
+        preterm_births = pop[COLUMNS.STATED_GESTATIONAL_AGE] < PRETERM_AGE_CUTOFF
         return preterm_births.rename("believed_preterm")
 
 
