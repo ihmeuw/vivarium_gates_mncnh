@@ -136,7 +136,7 @@ def get_data(
         data_keys.HEMOGLOBIN.RELATIVE_RISK: load_hemoglobin_relative_risk,
         data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
-        data_keys.IV_IRON.EFFECT_SIZE: load_iv_iron_effect_size,
+        data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -749,16 +749,19 @@ def load_no_antibiotics_relative_risk(
 
     return utilities.set_non_neonnatal_values(data, 1.0)
 
-def load_iv_iron_effect_size(
+
+def load_iv_iron_hemoglobin_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     effect_size_dist = data_values.IV_IRON_HEMOGLOBIN_EFFECT_SIZE[location]
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, effect_size_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
-    # TODO: improve this so that it is not repeated for every demographic dimension
-    # (it only varies by location, so I think we will only need the location column here)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+    data["affected_entity"] = "hemoglobin"
+    data["affected_measure"] = "exposure"
+    data = data.set_index(["affected_entity", "affected_measure"])
     return data
+
 
 def load_no_antibiotics_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None

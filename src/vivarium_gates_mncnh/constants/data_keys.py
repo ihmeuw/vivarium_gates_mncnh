@@ -365,7 +365,7 @@ NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
 class __IVIron(NamedTuple):
-    EFFECT_SIZE: str = "intervention.iv_iron.effect_size"
+    HEMOGLOBIN_EFFECT_SIZE: str = "intervention.iv_iron.hemoglobin_effect_size"
 
     @property
     def name(self):
