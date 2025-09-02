@@ -757,9 +757,6 @@ def load_iv_iron_hemoglobin_effect_size(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, effect_size_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
-    data["affected_entity"] = "hemoglobin"
-    data["affected_measure"] = "exposure"
-    data = data.set_index(["affected_entity", "affected_measure"])
     return data
 
 
