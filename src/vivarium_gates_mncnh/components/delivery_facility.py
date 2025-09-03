@@ -35,7 +35,9 @@ class DeliveryFacility(Component):
             FACILITY_CHOICE.P_HOME_FULL_TERM: builder.data.load(
                 FACILITY_CHOICE.P_HOME_FULL_TERM
             ),
-            FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: builder.data.load(FACILITY_CHOICE.BEmONC_FACILITY_FRACTION),
+            FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: builder.data.load(
+                FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
+            ),
         }
         self.propensity = builder.value.get_value(f"{self.name}.correlated_propensity")
 

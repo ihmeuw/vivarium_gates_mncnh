@@ -94,10 +94,13 @@ def get_data(
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
         # data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION: load_facility_proportion,
+        data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
+        data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.P_CEmONC: load_overall_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.P_BEmONC: load_probability_birth_facility_type,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.P_CPAP_BEMONC: load_cpap_facility_access_probability,
@@ -472,6 +475,44 @@ def load_p_rds(
     csmr = get_data(data_keys.PRETERM_BIRTH.MORTALITY_RISK, location, years)
     p_rds = csmr * data_values.PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY
     return p_rds
+
+
+def load_facility_proportion(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    df = load_standard_data(key, location)
+    df = df.query("parameter=='mean_value'")
+    if len(df) > 1:
+        max_year = df.index.get_level_values("year_start").max()
+        df = df.xs(max_year, level="year_start")
+    return df.squeeze()
+
+
+def load_probability_home_delivery(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    facility_proportion = get_data(
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION, location
+    )
+    return 1 - facility_proportion
+
+
+def load_overall_probability_birth_facility_type(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    in_facility_delivery_proportion = get_data(
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION, location
+    )
+    bemonc_facility_fraction = get_data(
+        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION, location
+    )
+
+    if key == data_keys.FACILITY_CHOICE.P_BEmONC:
+        return in_facility_delivery_proportion * bemonc_facility_fraction
+    elif key == data_keys.FACILITY_CHOICE.P_CEmONC:
+        return in_facility_delivery_proportion * (1 - bemonc_facility_fraction)
+    else:
+        raise ValueError(f"Unrecognized key {key}")
 
 
 def load_probability_birth_facility_type(
