@@ -603,7 +603,7 @@ def load_no_acs_paf(
     p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location)
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
     p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
-    
+
     # marginalize over facility (no CPAP at home)
     p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
 
