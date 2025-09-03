@@ -557,15 +557,13 @@ def load_no_cpap_paf(
 
     # get p_CPAP and p_no_CPAP
     p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
-        data_values.FACILITY_CHOICE.P_BEmONC
+        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
     ]
     p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
-    p_BEmONC = (
-        data_values.PROPORTION_IN_FACILITY_DELIVERIES[location] * p_BEmONC_given_facility
-    )
-    p_CEmONC = (
-        data_values.PROPORTION_IN_FACILITY_DELIVERIES[location] * p_CEmONC_given_facility
-    )
+
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
+
     # marginalize over facility (no CPAP at home)
     p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC)
     p_no_CPAP = 1 - p_CPAP
@@ -595,20 +593,19 @@ def load_no_acs_paf(
 ) -> float:
     p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEMONC, location, years)
     p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEMONC, location, years)
+    p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
     rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
     rr_no_ACS = get_data(data_keys.NO_ACS_RISK.RELATIVE_RISK, location, years)
     p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
-        data_values.FACILITY_CHOICE.P_BEmONC
+        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
     ]
     p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
-    p_BEmONC = (
-        data_values.PROPORTION_IN_FACILITY_DELIVERIES[location] * p_BEmONC_given_facility
-    )
-    p_CEmONC = (
-        data_values.PROPORTION_IN_FACILITY_DELIVERIES[location] * p_CEmONC_given_facility
-    )
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
+    breakpoint()
     # marginalize over facility (no CPAP at home)
-    p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC)
+    p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
 
     p_intervention = p_CPAP
     p_no_intervention = 1 - p_intervention

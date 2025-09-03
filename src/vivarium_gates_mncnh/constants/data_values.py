@@ -320,11 +320,6 @@ DELIVERY_FACILITY_TYPE_PROBABILITIES = {
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.340528,
     },
 }
-PROPORTION_IN_FACILITY_DELIVERIES = {
-    "Ethiopia": 0.492568,
-    "Nigeria": 0.520097,
-    "Pakistan": 0.771766,
-}
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
