@@ -391,6 +391,7 @@ class __Interventions(NamedTuple):
 INTERVENTIONS = __Interventions()
 INTERVENTION_TYPE_MAPPER = {
     INTERVENTIONS.CPAP: "neonatal",
+    INTERVENTIONS.ACS: "neonatal",
     INTERVENTIONS.ANTIBIOTICS: "neonatal",
     INTERVENTIONS.PROBIOTICS: "neonatal",
     INTERVENTIONS.AZITHROMYCIN: "maternal",
