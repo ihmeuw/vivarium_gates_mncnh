@@ -120,4 +120,5 @@ class ACSRiskEffect(InterventionRiskEffect):
         # Modify the pipeline
         modified_pipeline = target_pipeline * (1 - paf)
         modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
+
         return modified_pipeline
