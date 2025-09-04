@@ -84,7 +84,7 @@ class InterventionRiskEffect(Component):
 
 
 class CPAPACSRiskEffect(Component):
-    """Component that modifies a neonatal CSMR pipeline based on the lack of an ACS intervention.
+    """Component that modifies a neonatal CSMR pipeline based on the lack of a CPAP and/or an ACS intervention.
     This component is unique because we need to distinguish between simulants who have CPAP/ACS and CPAP/no_ACS.
     There are no simulants who receive ACS but not CPAP."""
 
@@ -145,10 +145,7 @@ class CPAPACSRiskEffect(Component):
         # NOTE: PAF is for no intervention
         no_cpap_paf = self.lookup_tables["no_cpap_paf"](no_cpap_idx)
         
-        modified_pipeline.loc[no_cpap_idx] = modified_pipeline.loc[no_cpap_idx] * (
-            1 - no_cpap_paf
-        )
-        modified_pipeline.loc[no_cpap_idx] = modified_pipeline.loc[no_cpap_idx] * no_cpap_rr
+        modified_pipeline.loc[no_cpap_idx] = modified_pipeline.loc[no_cpap_idx] * (1 - no_cpap_paf) * no_cpap_rr
 
         # no ACS
         no_acs_idx = pop.index[
@@ -159,10 +156,7 @@ class CPAPACSRiskEffect(Component):
         # NOTE: PAF is for no intervention
         no_acs_paf = self.lookup_tables["no_acs_paf"](no_acs_idx)
 
-        modified_pipeline.loc[no_acs_idx] = modified_pipeline.loc[no_acs_idx] * (
-            1 - no_acs_paf
-        )
-        modified_pipeline.loc[no_acs_idx] = modified_pipeline.loc[no_acs_idx] * no_acs_rr
+        modified_pipeline.loc[no_acs_idx] = modified_pipeline.loc[no_acs_idx] * (1 - no_acs_paf) * no_acs_rr
         
         # Modify the pipeline
         return modified_pipeline
