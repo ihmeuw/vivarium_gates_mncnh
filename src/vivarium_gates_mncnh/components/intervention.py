@@ -14,6 +14,7 @@ class InterventionRiskEffect(Component):
 
     INTERVENTION_PIPELINE_MODIFIERS_MAP = {
         # TODO: add neonatal interventions below here
+        INTERVENTIONS.ACS: PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
         INTERVENTIONS.CPAP: PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
         INTERVENTIONS.ANTIBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
         INTERVENTIONS.PROBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
@@ -81,43 +82,4 @@ class InterventionRiskEffect(Component):
         # Modify the pipeline
         modified_pipeline = target_pipeline * (1 - paf)
         modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
-        return modified_pipeline
-
-
-class ACSRiskEffect(InterventionRiskEffect):
-    INTERVENTION_PIPELINE_MODIFIERS_MAP = {
-        INTERVENTIONS.ACS: PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
-    }
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.ACS_AVAILABLE, COLUMNS.CPAP_AVAILABLE]
-
-    def __init__(
-        self,
-    ) -> None:
-        super().__init__("acs")
-
-    ##################
-    # Helper nethods #
-    ##################
-
-    def modify_target_pipeline(
-        self, index: pd.Index, target_pipeline: pd.Series[float]
-    ) -> pd.Series[float]:
-        # No intervention access is like a dichotomous risk factor, meaning those that have access to ACS will
-        # not have their CSMR modify by no intervention RR
-        pop = self.population_view.get(index)
-        no_intervention_idx = pop.index[
-            (pop[COLUMNS.ACS_AVAILABLE] == False) & (pop[COLUMNS.CPAP_AVAILABLE] == True)
-        ]
-        # NOTE: RR is relative risk for no intervention
-        no_intervention_rr = self.lookup_tables["relative_risk"](no_intervention_idx)
-        # NOTE: PAF is for no intervention
-        paf = self.lookup_tables["paf"](index)
-
-        # Modify the pipeline
-        modified_pipeline = target_pipeline * (1 - paf)
-        modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
-
         return modified_pipeline
