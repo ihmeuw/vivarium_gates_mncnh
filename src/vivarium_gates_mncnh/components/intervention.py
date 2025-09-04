@@ -85,44 +85,40 @@ class InterventionRiskEffect(Component):
 
 class CPAPACSRiskEffect(Component):
     """Component that modifies a neonatal CSMR pipeline based on the lack of an ACS intervention.
-    This component is unique because we need to distinguish between simulants who have CPAP/ACS and CPAP/no_ACS."""
+    This component is unique because we need to distinguish between simulants who have CPAP/ACS and CPAP/no_ACS.
+    There are no simulants who receive ACS but not CPAP."""
+
     @property
     def configuration_defaults(self) -> dict:
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"intervention.no_{self.lack_of_intervention_risk}_risk.relative_risk",
-                    "paf": f"intervention.no_{self.lack_of_intervention_risk}_risk.population_attributable_fraction",
+                    "cpap_relative_risk": f"intervention.no_cpap_risk.relative_risk",
+                    "cpap_paf": f"intervention.no_cpap_risk.population_attributable_fraction",
+                    "acs_relative_risk": f"intervention.no_acs_risk.relative_risk",
+                    "acs_paf": f"intervention.no_acs_risk.population_attributable_fraction",
                 }
             }
         }
 
     @property
     def columns_required(self) -> list[str]:
-        return [self.col_required]
-
-    @property
-    def target_pipeline_name(self) -> str:
-        return self.INTERVENTION_PIPELINE_MODIFIERS_MAP[self.lack_of_intervention_risk]
+        return self.cols_required
+    
 
     def __init__(
         self,
-        lack_of_intervention_risk: str,
     ) -> None:
         super().__init__()
-        self.lack_of_intervention_risk = lack_of_intervention_risk
-        self.col_required = f"{lack_of_intervention_risk}_available"
+        self.cols_required = ["cpap_available", "acs_available"]
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
         builder.value.register_value_modifier(
-            self.target_pipeline_name,
+            PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
             self.modify_target_pipeline,
             component=self,
-            required_resources=[self.col_required]
-            + get_lookup_columns(
-                [self.lookup_tables["paf"], self.lookup_tables["relative_risk"]]
-            ),
+            required_resources=self.cols_required + get_lookup_columns([self.lookup_tables["cpap_paf"], self.lookup_tables["cpap_relative_risk"], self.lookup_tables["acs_paf"], self.lookup_tables["acs_relative_risk"]]),
         )
 
     ##################
@@ -132,17 +128,30 @@ class CPAPACSRiskEffect(Component):
     def modify_target_pipeline(
         self, index: pd.Index, target_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
-        # TODO: rename and update names
         # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
         # not have their CSMR modify by no intervention RR
         pop = self.population_view.get(index)
+        breakpoint()
+
+        # CPAP and ACS
+        no_intervention_cpap_acs_idx = pop.index[pop[self.col_required] == False]
+        # NOTE: RR is relative risk for no intervention
+        no_intervention_rr = self.lookup_tables["relative_risk"](no_intervention_cpap_acs_idx)
+        # NOTE: PAF is for no intervention
+        paf = self.lookup_tables["paf"](index)
+
+        modified_pipeline = target_pipeline * (1 - paf)
+        modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
+
+        # CPAP and no ACS
         no_intervention_idx = pop.index[pop[self.col_required] == False]
         # NOTE: RR is relative risk for no intervention
         no_intervention_rr = self.lookup_tables["relative_risk"](no_intervention_idx)
         # NOTE: PAF is for no intervention
         paf = self.lookup_tables["paf"](index)
 
-        # Modify the pipeline
         modified_pipeline = target_pipeline * (1 - paf)
         modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
+
+        # Modify the pipeline
         return modified_pipeline
