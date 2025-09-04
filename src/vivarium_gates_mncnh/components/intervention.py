@@ -5,7 +5,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium_public_health.utilities import get_lookup_columns
 
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, INTERVENTIONS, PIPELINES
+from vivarium_gates_mncnh.constants.data_values import INTERVENTIONS, PIPELINES
 
 
 class InterventionRiskEffect(Component):
