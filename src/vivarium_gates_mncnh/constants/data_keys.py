@@ -243,6 +243,7 @@ NO_CPAP_RISK = __NoCPAPRisk()
 class __NoACSRisk(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     RELATIVE_RISK: str = "intervention.no_acs_risk.relative_risk"
+    PAF: str = "intervention.no_acs_risk.population_attributable_fraction"
 
     @property
     def name(self):
@@ -425,6 +426,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NEONATAL_SEPSIS,
     NEONATAL_ENCEPHALOPATHY,
     NO_CPAP_RISK,
+    NO_ACS_RISK,
     FACILITY_CHOICE,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
