@@ -485,7 +485,7 @@ def load_facility_proportion(
     df = df.query("parameter=='mean_value'")
     if len(df) > 1:
         max_year = df.index.get_level_values("year_start").max()
-        df = df.xs(max_year, level="year_start")
+        df = df.query("year_start==@max_year")
     return df.squeeze()
 
 
@@ -596,10 +596,9 @@ def load_no_acs_paf(
     p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
     rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
     rr_no_ACS = get_data(data_keys.NO_ACS_RISK.RELATIVE_RISK, location, years)
-
-    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location)
-    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
-    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
 
     p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
 
