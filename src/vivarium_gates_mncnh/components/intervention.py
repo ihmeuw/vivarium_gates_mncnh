@@ -105,8 +105,7 @@ class ACSRiskEffect(InterventionRiskEffect):
     def modify_target_pipeline(
         self, index: pd.Index, target_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
-        # TODO: rename and update names
-        # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
+        # No intervention access is like a dichotomous risk factor, meaning those that have access to ACS will
         # not have their CSMR modify by no intervention RR
         pop = self.population_view.get(index)
         no_intervention_idx = pop.index[
