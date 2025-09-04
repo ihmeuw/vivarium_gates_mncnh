@@ -94,9 +94,13 @@ def get_data(
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
         # data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION: load_facility_proportion,
+        data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
+        data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.P_CEmONC: load_overall_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.P_BEmONC: load_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_birth_facility_type,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.P_CPAP_BEMONC: load_cpap_facility_access_probability,
@@ -104,6 +108,7 @@ def get_data(
         data_keys.NO_CPAP_RISK.RELATIVE_RISK: load_no_cpap_relative_risk,
         data_keys.NO_CPAP_RISK.PAF: load_no_cpap_paf,
         data_keys.NO_ACS_RISK.RELATIVE_RISK: load_no_acs_relative_risk,
+        data_keys.NO_ACS_RISK.PAF: load_no_acs_paf,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: load_antibiotic_coverage_probability,
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: load_antibiotic_coverage_probability,
@@ -473,6 +478,44 @@ def load_p_rds(
     return p_rds
 
 
+def load_facility_proportion(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    df = load_standard_data(key, location)
+    df = df.query("parameter=='mean_value'")
+    if len(df) > 1:
+        max_year = df.index.get_level_values("year_start").max()
+        df = df.query("year_start==@max_year")
+    return df.squeeze()
+
+
+def load_probability_home_delivery(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    facility_proportion = get_data(
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION, location
+    )
+    return 1 - facility_proportion
+
+
+def load_overall_probability_birth_facility_type(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    in_facility_delivery_proportion = get_data(
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION, location
+    )
+    bemonc_facility_fraction = get_data(
+        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION, location
+    )
+
+    if key == data_keys.FACILITY_CHOICE.P_BEmONC:
+        return in_facility_delivery_proportion * bemonc_facility_fraction
+    elif key == data_keys.FACILITY_CHOICE.P_CEmONC:
+        return in_facility_delivery_proportion * (1 - bemonc_facility_fraction)
+    else:
+        raise ValueError(f"Unrecognized key {key}")
+
+
 def load_probability_birth_facility_type(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
@@ -508,59 +551,27 @@ def load_no_cpap_relative_risk(
 def load_no_cpap_paf(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-
-    # Get all no_cpap data for calculations
-    p_rds = get_data(data_keys.NO_CPAP_RISK.P_RDS, location, years)
-    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
-    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
-    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
-    p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
     p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEMONC, location, years)
     p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEMONC, location, years)
-    relative_risk = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
-    # rr_cpap = 1 / relative_risk)
-    # p_rds_cpap = (1 / relative_risk) * p_rds_no_cpap
-    # p_rds_no_cpap = p_rds_cpap * relative_risk
+    rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
 
-    # Get death probability of each path
-    # p_home_no_cpap = p_home * p_rds_no_cpap
-    # p_BEmONC_no_cpap = p_BEmONC * 1 - p_CPAP_BEmONC * p_rds_no_cpap
-    # p_CEmONC_no_cpap = p_CEmONC * 1 - p_CPAP_CEmONC * p_rds_no_cpap
-    # p_BEmONC_cpap = p_BEmONC * p_CPAP_BEmONC * p_rds_cpap
-    # p_CEmONC_cpap = p_CEmONC * p_CPAP_CEmONC * p_rds_cpap
+    # get p_CPAP and p_no_CPAP
+    p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
+        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
+    ]
+    p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
 
-    # p_rds = (
-    #     p_home * p_rds_cpap * relative_risk
-    #     + p_BEmONC * (1 - p_CPAP_CEmONC) * p_rds_cpap * relative_risk
-    #     + p_CEmONC * (1 - p_CPAP_CEmONC) * p_rds_cpap * relative_risk
-    #     + p_BEmONC * p_CPAP_BEmONC * p_rds_cpap
-    #     + p_CEmONC * p_CPAP_CEmONC * p_rds_cpap
-    # )
-    # p_rds = (
-    #     0.5 * 1.0 * p_rds_cpap * (1 / 0.53)
-    #     + 0.1 * (1 - 0.075) * p_rds_cpap * (1 / 0.53)
-    #     + 0.4 * (1 - 0.393) * p_rds_cpap * (1 / 0.53)
-    #     + 0.1 * 0.075 * p_rds_cpap
-    #     + 0.4 * 0.393 * p_rds_cpap
-    # )
-    # p_rds_cpap(
-    #     (0.5 * 1 * (1 / 0.53))
-    #     + (0.1 * (1 - 0.075) * (1 / 0.53))
-    #     + (0.4 * (1 / 0.393) * (1 / 0.53))
-    #     + (0.1 * 0.075)
-    #     + (0.4 * 0.393)
-    # ) = p_rds
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
 
-    p_rds_cpap = p_rds / (
-        (p_home * relative_risk)
-        + (p_BEmONC * (1 - p_CPAP_BEmONC) * relative_risk)
-        + (p_CEmONC * (1 - p_CPAP_CEmONC) * relative_risk)
-        + (p_BEmONC * p_CPAP_BEmONC)
-        + (p_CEmONC * p_CPAP_CEmONC)
-    )
-    paf_no_cpap = 1 - (p_rds_cpap / p_rds)
-    paf_no_cpap = paf_no_cpap.fillna(0.0)
-    return paf_no_cpap
+    # marginalize over facility (no CPAP at home)
+    p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC)
+    p_no_CPAP = 1 - p_CPAP
+
+    population_average_rr = rr_no_CPAP * p_no_CPAP + 1 * p_CPAP
+    paf_no_CPAP = 1 - 1 / population_average_rr
+
+    return paf_no_CPAP
 
 
 def load_no_acs_relative_risk(
@@ -575,6 +586,34 @@ def load_no_acs_relative_risk(
     # We want the relative risk of no cpap
     no_acs_rr = (1 / data).fillna(0.0)
     return utilities.set_non_neonnatal_values(no_acs_rr, 1.0)
+
+
+def load_no_acs_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    p_CPAP_BEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_BEMONC, location, years)
+    p_CPAP_CEmONC = get_data(data_keys.NO_CPAP_RISK.P_CPAP_CEMONC, location, years)
+    p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
+    rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
+    rr_no_ACS = get_data(data_keys.NO_ACS_RISK.RELATIVE_RISK, location, years)
+    p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
+        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
+    ]
+    p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
+
+    # marginalize over facility (no CPAP at home)
+    p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
+
+    p_intervention = p_CPAP
+    p_no_intervention = 1 - p_intervention
+
+    population_average_RR = p_no_intervention * rr_no_CPAP * rr_no_ACS + p_intervention * 1
+    paf_no_CPAP_ACS = 1 - 1 / population_average_RR
+
+    return paf_no_CPAP_ACS
 
 
 def load_sex_specific_ordered_lbwsg_categories(
