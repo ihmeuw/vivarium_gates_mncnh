@@ -144,7 +144,7 @@ class CPAPACSRiskEffect(Component):
         no_cpap_rr = self.lookup_tables["no_cpap_relative_risk"](no_cpap_idx)
         # NOTE: PAF is for no intervention
         no_cpap_paf = self.lookup_tables["no_cpap_paf"](no_cpap_idx)
-
+        
         modified_pipeline.loc[no_cpap_idx] = modified_pipeline.loc[no_cpap_idx] * (
             1 - no_cpap_paf
         )
@@ -163,6 +163,6 @@ class CPAPACSRiskEffect(Component):
             1 - no_acs_paf
         )
         modified_pipeline.loc[no_acs_idx] = modified_pipeline.loc[no_acs_idx] * no_acs_rr
-        breakpoint()
+        
         # Modify the pipeline
         return modified_pipeline
