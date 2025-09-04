@@ -5,7 +5,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium_public_health.utilities import get_lookup_columns
 
-from vivarium_gates_mncnh.constants.data_values import INTERVENTIONS, PIPELINES
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, INTERVENTIONS, PIPELINES
 
 
 class InterventionRiskEffect(Component):
@@ -93,10 +93,10 @@ class CPAPACSRiskEffect(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "cpap_relative_risk": f"intervention.no_cpap_risk.relative_risk",
-                    "cpap_paf": f"intervention.no_cpap_risk.population_attributable_fraction",
-                    "acs_relative_risk": f"intervention.no_acs_risk.relative_risk",
-                    "acs_paf": f"intervention.no_acs_risk.population_attributable_fraction",
+                    "no_cpap_relative_risk": f"intervention.no_cpap_risk.relative_risk",
+                    "no_cpap_paf": f"intervention.no_cpap_risk.population_attributable_fraction",
+                    "no_acs_relative_risk": f"intervention.no_acs_risk.relative_risk",
+                    "no_acs_paf": f"intervention.no_acs_risk.population_attributable_fraction",
                 }
             }
         }
@@ -104,7 +104,6 @@ class CPAPACSRiskEffect(Component):
     @property
     def columns_required(self) -> list[str]:
         return self.cols_required
-    
 
     def __init__(
         self,
@@ -118,7 +117,15 @@ class CPAPACSRiskEffect(Component):
             PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
             self.modify_target_pipeline,
             component=self,
-            required_resources=self.cols_required + get_lookup_columns([self.lookup_tables["cpap_paf"], self.lookup_tables["cpap_relative_risk"], self.lookup_tables["acs_paf"], self.lookup_tables["acs_relative_risk"]]),
+            required_resources=self.cols_required
+            + get_lookup_columns(
+                [
+                    self.lookup_tables["no_cpap_paf"],
+                    self.lookup_tables["no_cpap_relative_risk"],
+                    self.lookup_tables["no_acs_paf"],
+                    self.lookup_tables["no_acs_relative_risk"],
+                ]
+            ),
         )
 
     ##################
@@ -128,30 +135,34 @@ class CPAPACSRiskEffect(Component):
     def modify_target_pipeline(
         self, index: pd.Index, target_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
-        # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
-        # not have their CSMR modify by no intervention RR
         pop = self.population_view.get(index)
+        modified_pipeline = target_pipeline.copy()
+
+        # no CPAP
+        no_cpap_idx = pop.index[(pop[COLUMNS.CPAP_AVAILABLE] == False)]
+        # NOTE: RR is relative risk for no intervention
+        no_cpap_rr = self.lookup_tables["no_cpap_relative_risk"](no_cpap_idx)
+        # NOTE: PAF is for no intervention
+        no_cpap_paf = self.lookup_tables["no_cpap_paf"](no_cpap_idx)
+
+        modified_pipeline.loc[no_cpap_idx] = modified_pipeline.loc[no_cpap_idx] * (
+            1 - no_cpap_paf
+        )
+        modified_pipeline.loc[no_cpap_idx] = modified_pipeline.loc[no_cpap_idx] * no_cpap_rr
+
+        # no ACS
+        no_acs_idx = pop.index[
+            (pop[COLUMNS.CPAP_AVAILABLE] == True) & (pop[COLUMNS.ACS_AVAILABLE] == False)
+        ]
+        # NOTE: RR is relative risk for no intervention
+        no_acs_rr = self.lookup_tables["no_acs_relative_risk"](no_acs_idx)
+        # NOTE: PAF is for no intervention
+        no_acs_paf = self.lookup_tables["no_acs_paf"](no_acs_idx)
+
+        modified_pipeline.loc[no_acs_idx] = modified_pipeline.loc[no_acs_idx] * (
+            1 - no_acs_paf
+        )
+        modified_pipeline.loc[no_acs_idx] = modified_pipeline.loc[no_acs_idx] * no_acs_rr
         breakpoint()
-
-        # CPAP and ACS
-        no_intervention_cpap_acs_idx = pop.index[pop[self.col_required] == False]
-        # NOTE: RR is relative risk for no intervention
-        no_intervention_rr = self.lookup_tables["relative_risk"](no_intervention_cpap_acs_idx)
-        # NOTE: PAF is for no intervention
-        paf = self.lookup_tables["paf"](index)
-
-        modified_pipeline = target_pipeline * (1 - paf)
-        modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
-
-        # CPAP and no ACS
-        no_intervention_idx = pop.index[pop[self.col_required] == False]
-        # NOTE: RR is relative risk for no intervention
-        no_intervention_rr = self.lookup_tables["relative_risk"](no_intervention_idx)
-        # NOTE: PAF is for no intervention
-        paf = self.lookup_tables["paf"](index)
-
-        modified_pipeline = target_pipeline * (1 - paf)
-        modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
-
         # Modify the pipeline
         return modified_pipeline
