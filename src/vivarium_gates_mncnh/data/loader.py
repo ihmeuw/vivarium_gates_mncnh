@@ -485,7 +485,7 @@ def load_facility_proportion(
     df = df.query("parameter=='mean_value'")
     if len(df) > 1:
         max_year = df.index.get_level_values("year_start").max()
-        df = df.xs(max_year, level="year_start")
+        df = df.query("year_start==@max_year")
     return df.squeeze()
 
 
