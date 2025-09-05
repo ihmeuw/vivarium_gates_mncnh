@@ -32,6 +32,7 @@ components:
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
             - InterventionRiskEffect('cpap')
+            - InterventionRiskEffect('acs')
             - InterventionRiskEffect('antibiotics')
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')

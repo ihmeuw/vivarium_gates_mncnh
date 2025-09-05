@@ -382,6 +382,7 @@ PROBIOTICS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.81, 0.72, 0
 
 class __Interventions(NamedTuple):
     CPAP: str = "cpap"
+    ACS: str = "acs"
     ANTIBIOTICS: str = "antibiotics"
     PROBIOTICS: str = "probiotics"
     AZITHROMYCIN: str = "azithromycin"

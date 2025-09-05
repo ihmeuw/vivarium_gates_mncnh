@@ -172,7 +172,7 @@ class InterventionAccess(Component):
 
 class ACSAccess(Component):
     """Component for determining if a simulant has access to antenatal corticosteroids (ACS).
-    We do this by making ACS available to everyone who has access to CPAP and predicted
+    We do this by making ACS available to everyone who has access to CPAP and a predicted
     gestational age between 26 and 33 weeks."""
 
     @property

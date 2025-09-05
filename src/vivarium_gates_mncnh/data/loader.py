@@ -596,15 +596,10 @@ def load_no_acs_paf(
     p_CPAP_home = get_data(data_keys.NO_CPAP_RISK.P_CPAP_HOME, location, years)
     rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
     rr_no_ACS = get_data(data_keys.NO_ACS_RISK.RELATIVE_RISK, location, years)
-    p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
-        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
-    ]
-    p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
-    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location)
-    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
-    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
+    p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
+    p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
+    p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
 
-    # marginalize over facility (no CPAP at home)
     p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
 
     p_intervention = p_CPAP
