@@ -371,6 +371,22 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
+class __OralIron(NamedTuple):
+    IFA_COVERAGE: str = "intervention.oral_iron.ifa_coverage"
+    EFFECT_SIZE: str = "intervention.oral_iron.effect_size"
+
+    @property
+    def name(self):
+        return "oral_iron"
+
+    @property
+    def log_name(self):
+        return "oral iron"
+
+
+ORAL_IRON = __OralIron()
+
+
 class __PostpartumDepression(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     INCIDENCE_RISK: str = "cause.postpartum_depression.incidence_risk"
@@ -432,6 +448,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
+    ORAL_IRON,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
 ]

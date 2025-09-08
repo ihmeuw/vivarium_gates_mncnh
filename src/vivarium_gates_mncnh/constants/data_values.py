@@ -422,6 +422,12 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
 
+# oral iron shifts
+IFA_ON_HEMOGLOBIN_SHIFT = get_norm(9.53, ninety_five_pct_confidence_interval=(6.99, 12.06))
+MMS_ON_HEMOGLOBIN_SHIFT = get_norm(0.0, 0.00**2)
+IFA_ON_BIRTHWEIGHT_SHIFT = get_norm(57.73, ninety_five_pct_confidence_interval=(7.66, 107.79))
+MMN_ON_BIRTHWEIGHT_SHIFT = get_norm(45.16, ninety_five_pct_confidence_interval=(32.31, 58.02))
+
 
 # Postpartum depression constants
 POSTPARTUM_DEPRESSION_INCIDENCE_RISK = get_truncnorm(

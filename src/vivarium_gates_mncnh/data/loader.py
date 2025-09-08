@@ -129,6 +129,8 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_CEMONC: load_misoprostol_coverage_probability,
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
+        data_keys.ORAL_IRON.IFA_COVERAGE: load_ifa_coverage,
+        data_keys.ORAL_IRON.EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
         data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
         data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
@@ -1002,6 +1004,22 @@ def load_no_misoprostol_paf(
     # paf = (mean_rr - 1) / mean_rr
     paf = (mean_rr - 1) / mean_rr
     return paf
+
+
+def load_ifa_coverage(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    df = pd.read_csv(paths.IFA_COVERAGE_DATA / "anc_iron_prop_st.csv")
+    location_id = utility_data.get_location_id(location)
+    df = df.query("location_id==@location_id")
+    df = df[[f"draw_{i}" for i in range(vi_globals.NUM_DRAWS)]].reset_index(drop=True)
+    return df
+
+
+def load_oral_iron_effect_size(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    return pd.DataFrame()
 
 
 def load_postpartum_depression_raw_incidence_risk(
