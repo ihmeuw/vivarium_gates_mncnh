@@ -31,7 +31,6 @@ class CorrelatedPropensities(Component):
         for component in self.component_names:
             builder.value.register_value_producer(
                 f"{component}.correlated_propensity",
-                # source=lambda index: self.propensities.loc[index, component],
                 source=partial(self.get_component_propensity, component=component),
                 component=self,
             )
@@ -56,5 +55,4 @@ class CorrelatedPropensities(Component):
         return propensities_df
 
     def get_component_propensity(self, index: pd.Index, component: str):
-        breakpoint()
         return self.propensities.loc[index, component]
