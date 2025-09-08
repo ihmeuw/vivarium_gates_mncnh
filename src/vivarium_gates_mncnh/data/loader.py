@@ -130,7 +130,8 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
         data_keys.ORAL_IRON.IFA_COVERAGE: load_ifa_coverage,
-        data_keys.ORAL_IRON.EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.ORAL_IRON.IFA_EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.ORAL_IRON.MMS_EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
         data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
         data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
@@ -1019,7 +1020,18 @@ def load_ifa_coverage(
 def load_oral_iron_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    return pd.DataFrame()
+    effect_size_dists = data_values.ORAL_IRON_EFFECT_SIZES[key]
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    effect_size_data = []
+
+    for target, dist in effect_size_dists.items():
+        draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+        data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+        data["affected_target"] = target
+        data = data.set_index("affected_target")
+        effect_size_data.append(data)
+
+    return pd.concat(effect_size_data)
 
 
 def load_postpartum_depression_raw_incidence_risk(

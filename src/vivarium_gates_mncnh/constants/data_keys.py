@@ -373,7 +373,8 @@ NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 class __OralIron(NamedTuple):
     IFA_COVERAGE: str = "intervention.oral_iron.ifa_coverage"
-    EFFECT_SIZE: str = "intervention.oral_iron.effect_size"
+    IFA_EFFECT_SIZE: str = "intervention.oral_iron.ifa_effect_size"
+    MMS_EFFECT_SIZE: str = "intervention.oral_iron.mms_effect_size"
 
     @property
     def name(self):
