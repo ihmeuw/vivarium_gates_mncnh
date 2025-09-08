@@ -62,7 +62,6 @@ class DeliveryFacility(Component):
         pop = pop[not_partial_term]
         propensity = self.propensity(pop.index)
         is_believed_preterm = pop[COLUMNS.STATED_GESTATIONAL_AGE] < 37
-
         # home births for lower propensities, facility for higher
         assigned_home_preterm = (
             propensity[is_believed_preterm]
