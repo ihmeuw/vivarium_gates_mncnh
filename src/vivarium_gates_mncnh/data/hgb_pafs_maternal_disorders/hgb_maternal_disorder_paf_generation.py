@@ -5,7 +5,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy
-from hgb_birth_effect_generation import *
 from vivarium import Artifact, InteractiveContext
 from vivarium.framework.configuration import build_model_specification
 
@@ -61,24 +60,24 @@ def load_maternal_disorders(location, draw):
                 ], axis=1)
     
     def assign_gbd_age_group(age):
-    if 10 <= age < 15:
-        return '10_to_14'
-    elif 15 <= age < 20:
-        return '15_to_19'
-    elif 20 <= age < 25:
-        return '20_to_24'
-    elif 25 <= age < 30:
-        return '25_to_29'
-    elif 30 <= age < 35:
-        return '30_to_34'
-    elif 35 <= age < 40:
-        return '35_to_39'
-    elif 40 <= age < 45:
-        return '40_to_44'
-    elif 45 <= age < 50:
-        return '45_to_49'
-    else:
-        return 'other'
+        if 10 <= age < 15:
+            return '10_to_14'
+        elif 15 <= age < 20:
+            return '15_to_19'
+        elif 20 <= age < 25:
+            return '20_to_24'
+        elif 25 <= age < 30:
+            return '25_to_29'
+        elif 30 <= age < 35:
+            return '30_to_34'
+        elif 35 <= age < 40:
+            return '35_to_39'
+        elif 40 <= age < 45:
+            return '40_to_44'
+        elif 45 <= age < 50:
+            return '45_to_49'
+        else:
+            return 'other'
     
     df['age_group'] = df['age'].apply(assign_gbd_age_group)
     return df
