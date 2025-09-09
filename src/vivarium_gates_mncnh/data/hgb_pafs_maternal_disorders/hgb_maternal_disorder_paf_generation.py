@@ -17,172 +17,92 @@ artifact_directory = (
 )
 # This code relies on data specific to:
 # 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 15.0)
-# 1. The low hemoglobin relative risk values (using GBD 2021 data in artifact 15.0)
+# 2. The low hemoglobin relative risk values (using GBD 2021 data in artifact 15.0)
 # Therefore, it will need to be re-run if any of these are updated
 
 
 def get_simulated_population(location, draw):
     """This function uses the interactive context to initialze a simulation with the specified
-    location and draw and artifact directory. It then advances the simulation past the early
-    neonatal mortality timestep."""
+    location and draw and artifact directory."""
     path = Path(os.getcwd() + "/../../model_specifications/model_spec.yaml")
     custom_model_specification = build_model_specification(path)
     del custom_model_specification.configuration.observers
     custom_model_specification.configuration.input_data.artifact_path = (
         artifact_directory + location + ".hdf"
     )
-    custom_model_specification.configuration.input_data.input_draw_number = draw
+    draw_num = custom_model_specification.configuration.input_data.input_draw_number
+    draw = 'draw_' + str(draw_num)
     # NOTE: setting population size to what we are using in the simulation for a single draw
+    gbd_draw = 'draw_' + str(draw_num % 100)
+    # NOTE: We use only the first 100 draws from GBD, repeating them for later draws.
     custom_model_specification.configuration.population.population_size = 20_000 * 10
     sim = InteractiveContext(custom_model_specification)
-    get_event_name = sim._builder.time.simulation_event_name()
-    while get_event_name() != "early_neonatal_mortality":
-        sim.step()
-    # now take one more step to complete early neonatal mortality
-    sim.step()
+
 
     pop = sim.get_population()
     cols = [
-        "sex_of_child",
-        "pregnancy_outcome",
-        "child_alive",
-        "birth_weight_exposure",
-        "gestational_age_exposure",
-        "effect_of_low_birth_weight_and_short_gestation_on_early_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk",
-        "effect_of_low_birth_weight_and_short_gestation_on_late_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk",
+        'alive','sex','age','hemoglobin_exposure'
     ]
     return pop[cols]
 
 
-def load_interpolators(location, draw):
-    """Load up LBWSG risk interpolators"""
-    art = Artifact(
-        artifact_directory + location + ".hdf", filter_terms={"child_age_end < 0.5"}
+def load_maternal_disorders(location, draw):
+    """Load up maternal disorder PAFs and relative risks from the simulation, then stratigy
+    by GBD age group."""
+    df = pd.concat([pop[['alive','sex','age','hemoglobin_exposure']],
+                sim.get_value('hemoglobin.exposure')(pop.index),
+                sim.get_value('hemoglobin_on_maternal_hemorrhage.relative_risk')(pop.index),
+                sim.get_value('hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk')(pop.index),
+                sim.get_value('maternal_hemorrhage.incidence_risk')(pop.index),
+                sim.get_value('maternal_hemorrhage.incidence_risk.paf')(pop.index).rename('hemorrhage_paf'),
+                sim.get_value('maternal_sepsis_and_other_maternal_infections.incidence_risk')(pop.index),
+                sim.get_value('maternal_sepsis_and_other_maternal_infections.incidence_risk.paf')(pop.index).rename('sepsis_paf'),
+
+                ], axis=1)
+    
+    def assign_gbd_age_group(age):
+    if 10 <= age < 15:
+        return '10_to_14'
+    elif 15 <= age < 20:
+        return '15_to_19'
+    elif 20 <= age < 25:
+        return '20_to_24'
+    elif 25 <= age < 30:
+        return '25_to_29'
+    elif 30 <= age < 35:
+        return '30_to_34'
+    elif 35 <= age < 40:
+        return '35_to_39'
+    elif 40 <= age < 45:
+        return '40_to_44'
+    elif 45 <= age < 50:
+        return '45_to_49'
+    else:
+        return 'other'
+    
+    df['age_group'] = df['age'].apply(assign_gbd_age_group)
+    return df
+
+def calculate_paf_hemorrhage(location, draw):
+    """For each GBD age group, calculate the mean RR for maternal hemorrhage 
+    and then calculate and save the PAF using the formula PAF = (mean_RR-1)/mean_RR"""
+    data = load_maternal_disorders(location, draw)
+    hemorrhage_mean_rr = data.groupby('age_group')['hemoglobin_on_maternal_hemorrhage.relative_risk'].mean()
+    hemorrhage_paf = (hemorrhage_mean_rr - 1) / hemorrhage_mean_rr 
+    hemorrhage_paf.to_csv(
+        f"{results_directory}/hgb_hemorrhage_paf/draw_{draw}.csv", index=False
     )
-    interpolators = art.load(
-        "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
-    )[f"draw_{draw}"].reset_index()
-    interpolators["age_group_id"] = np.where(interpolators["child_age_start"] == 0, 2, 3)
-    interpolators = (
-        interpolators.drop(
-            columns=["child_age_start", "child_age_end", "year_start", "year_end"]
-        ).set_index(["sex_of_child", "age_group_id"])
-    ).reset_index()
-    interpolators = interpolators.set_index(["sex_of_child", "age_group_id"])[f"draw_{draw}"]
-    interpolators = interpolators.apply(lambda x: pickle.loads(bytes.fromhex(x)))
-    return interpolators
+    return hemorrhage_paf
 
-
-def load_lbwsg_shifts(location, draw):
-    """Read in effect of hemoglobin on gestational age and birthweight, as calculated and saved separately"""
-    data = pd.read_csv(os.getcwd() + f"/lbwsg_shifts/draw_{draw}.csv")
-    data = data.loc[data.location == location]
-    return data
-
-
-def calculate_indirect_effect(location, draw):
-    """For each hemoglobin exposure level, calculate the effect of hemoglobin on neonatal sepsis
-    mortality as mediated through LBWSG at the age and sex specific level.
-    This is done by comparing the individual LBWSG
-    RR values among the simulated population without modification to the LBWSG RR values that have
-    been shifted according to the birth weight and gestational age shift values for a specific
-    hemoglobin exposure level (calculated separately). This is done under the assumption that the
-    GBD population-level LBWSG exposure distribution is the same as the LBWSG exposure distribution
-    among the population with a hemoglobin exposure level equal to the hemoglobin TMREL exposure."""
-
-    data = get_simulated_population(location, draw)
-    data["enn_pop"] = data.pregnancy_outcome == "live_birth"
-    data["lnn_pop"] = (data.pregnancy_outcome == "live_birth") & (data.child_alive == "alive")
-
-    interpolators = load_interpolators(location, draw)
-    shifts = load_lbwsg_shifts(location, draw).rename(columns={"sex": "sex_of_child"})
-    shifts["outcome"] = shifts.outcome + "_shift"
-    shifts = shifts.pivot_table(
-        index=["sex_of_child", "exposure"], values="value", columns="outcome"
-    ).reset_index()
-
-    is_male = data.sex_of_child == "Male"
-    exposure_levels = shifts.exposure.unique()
-
-    result = pd.DataFrame()
-
-    for exposure_level in exposure_levels:
-        sub_shifts = shifts.loc[shifts.exposure == exposure_level]
-        sub_data = data.merge(sub_shifts, on="sex_of_child")
-        gestational_age = sub_data.gestational_age_exposure + sub_data.gestational_age_shift
-        birth_weight = sub_data.birth_weight_exposure + sub_data.birth_weight_shift
-
-        enn_log_relative_risk = pd.Series(0.0, index=data.index, name="interpolated_rr")
-        lnn_log_relative_risk = pd.Series(0.0, index=data.index, name="interpolated_rr")
-        enn_log_relative_risk[is_male] = interpolators["Male", 2](
-            gestational_age[is_male], birth_weight[is_male], grid=False
-        )
-        enn_log_relative_risk[~is_male] = interpolators["Female", 2](
-            gestational_age[~is_male], birth_weight[~is_male], grid=False
-        )
-        lnn_log_relative_risk[is_male] = interpolators["Male", 3](
-            gestational_age[is_male], birth_weight[is_male], grid=False
-        )
-        lnn_log_relative_risk[~is_male] = interpolators["Female", 3](
-            gestational_age[~is_male], birth_weight[~is_male], grid=False
-        )
-        enn_relative_risk = np.exp(enn_log_relative_risk)
-        lnn_relative_risk = np.exp(lnn_log_relative_risk)
-        sub_data["enn_indirect_effect"] = (
-            enn_relative_risk
-            / sub_data.effect_of_low_birth_weight_and_short_gestation_on_early_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk
-        )
-        sub_data["lnn_indirect_effect"] = (
-            lnn_relative_risk
-            / sub_data.effect_of_low_birth_weight_and_short_gestation_on_late_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk
-        )
-        enn_indirect_effect = (
-            sub_data.loc[sub_data.enn_pop]
-            .groupby("sex_of_child")
-            .enn_indirect_effect.mean()
-            .reset_index()
-            .rename(columns={"enn_indirect_effect": "value"})
-        )
-        enn_indirect_effect["age_group_id"] = 2
-        lnn_indirect_effect = (
-            sub_data.loc[sub_data.lnn_pop]
-            .groupby("sex_of_child")
-            .lnn_indirect_effect.mean()
-            .reset_index()
-            .rename(columns={"lnn_indirect_effect": "value"})
-        )
-        lnn_indirect_effect["age_group_id"] = 3
-        temp = pd.concat([enn_indirect_effect, lnn_indirect_effect], ignore_index=True)
-        temp["exposure"] = exposure_level
-        result = pd.concat([result, temp], ignore_index=True)
-
-    result["location"] = location
-    result["draw"] = f"draw_{draw}"
-    return result
-
-
-def calculate_direct_effect(results_directory, location, draw):
-    """Calculate and save the direct (unmediated) effect of hemoglobin on neonatal sepsis mortality.
-    This is done by dividing the total effect by the indirect effect."""
-    indirect_rrs = calculate_indirect_effect(location, draw)
-    total_rrs = load_prepped_rrs("neonatal_sepsis")
-    total_effects_prepped = (
-        total_rrs.set_index(["outcome", "risk"])
-        .stack()
-        .reset_index()
-        .rename(columns={"level_2": "draw", 0: "value", "risk": "exposure"})
+def calculate_paf_sepsis(location, draw):
+    """For each GBD age group, calculate the mean RR for maternal sepsis
+    and then calculate and save the PAF using the formula PAF = (mean_RR-1)/mean_RR"""
+    data = load_maternal_disorders(location, draw)
+    sepsis_mean_rr = data.groupby('age_group')['hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk'].mean()
+    sepsis_paf = (sepsis_mean_rr  - 1) / sepsis_mean_rr 
+    sepsis_paf.to_csv(
+        f"{results_directory}/hgb_sepsis_paf/draw_{draw}.csv", index=False
     )
-    total_effects_prepped = total_effects_prepped.loc[
-        total_effects_prepped.draw == f"draw_{draw}"
-    ]
-    direct_rrs = (
-        total_effects_prepped.set_index(["outcome", "draw", "exposure"])
-        / indirect_rrs.set_index([x for x in indirect_rrs.columns if x != "value"])
-    ).reset_index()
-    direct_rrs.to_csv(
-        f"{results_directory}/direct_sepsis_effects/draw_{draw}.csv", index=False
-    )
-    indirect_rrs.to_csv(
-        f"{results_directory}/indirect_sepsis_effects/draw_{draw}.csv", index=False
-    )
-    return direct_rrs, indirect_rrs
+    return sepsis_paf
+
+  
