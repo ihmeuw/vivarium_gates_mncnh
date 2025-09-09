@@ -3,10 +3,11 @@ from typing import NamedTuple
 
 from vivarium_gates_mncnh.constants.data_keys import (
     FACILITY_CHOICE,
+    IFA_SUPPLEMENTATION,
+    MMN_SUPPLEMENTATION,
     NO_ANTIBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_CPAP_RISK,
-    ORAL_IRON,
 )
 from vivarium_gates_mncnh.utilities import (
     get_lognorm_from_quantiles,
@@ -434,7 +435,7 @@ IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
 }
 
 ORAL_IRON_EFFECT_SIZES = {
-    ORAL_IRON.IFA_EFFECT_SIZE: {
+    IFA_SUPPLEMENTATION.EFFECT_SIZE: {
         "hemoglobin.exposure": get_norm(
             9.53, ninety_five_pct_confidence_interval=(6.99, 12.06)
         ),
@@ -442,10 +443,13 @@ ORAL_IRON_EFFECT_SIZES = {
             57.73, ninety_five_pct_confidence_interval=(7.66, 107.79)
         ),
     },
-    ORAL_IRON.MMS_EFFECT_SIZE: {
+    MMN_SUPPLEMENTATION.EFFECT_SIZE: {
         "birth_weight.birth_exposure": get_norm(
             45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
         )
+    },
+    MMN_SUPPLEMENTATION.STILLBIRTH_RR: {
+        "stillbirth": get_lognorm_from_quantiles(0.53, 0.34, 0.83)
     },
 }
 
