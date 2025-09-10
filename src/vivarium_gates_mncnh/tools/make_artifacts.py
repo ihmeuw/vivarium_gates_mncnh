@@ -86,6 +86,9 @@ def build_artifacts(
         locations specified in the project globals or the string 'all'.
         If the latter, this application will build all artifacts in
         parallel.
+    years
+        Years for which to make an artifact. Can be a single year or 'all'.
+        If not specified, make for most recent year.
     output_dir
         The path where the artifact files will be built. The directory
         will be created if it doesn't exist
@@ -128,6 +131,9 @@ def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> No
     ----------
     output_dir
         The directory where the artifacts will be built.
+    years
+        Years for which to make an artifact. Can be a single year or 'all'.
+        If not specified, make for most recent year.
     verbose
         How noisy the logger should be.
     Note
@@ -208,6 +214,12 @@ def build_single_location_artifact(
     location
         The location to build the artifact for.  Must be one of the locations
         specified in the project globals.
+    years
+        Years for which to make an artifact. Can be a single year or 'all'.
+        If not specified, make for most recent year.
+    replace_keys
+        A list of keys to replace in the artifact. Is ignored if append is
+        False or if there is no existing artifact at the output location
     log_to_file
         Whether we should write the application logs to a file.
     Note
