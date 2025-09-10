@@ -136,6 +136,18 @@ class ResultsStratifier(ResultsStratifier_):
             requires_columns=[COLUMNS.GESTATIONAL_AGE_EXPOSURE],
         )
         builder.results.register_stratification(
+            "acs_eligibility",
+            [True, False],
+            mapper=self.map_acs_eligibility,
+            is_vectorized=True,
+            requires_columns=[COLUMNS.STATED_GESTATIONAL_AGE],
+        )
+        builder.results.register_stratification(
+            "acs_availability",
+            [True, False],
+            requires_columns=[COLUMNS.ACS_AVAILABLE],
+        )
+        builder.results.register_stratification(
             "azithromycin_availability",
             [True, False],
             requires_columns=[COLUMNS.AZITHROMYCIN_AVAILABLE],
@@ -165,6 +177,10 @@ class ResultsStratifier(ResultsStratifier_):
     def map_believed_preterm(self, pop: pd.DataFrame) -> pd.Series:
         preterm_births = pop[COLUMNS.STATED_GESTATIONAL_AGE] < PRETERM_AGE_CUTOFF
         return preterm_births.rename("believed_preterm")
+
+    def map_acs_eligibility(self, pop: pd.DataFrame) -> pd.Series:
+        is_eligible = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        return is_eligible.rename("acs_eligibility")
 
 
 class PAFResultsStratifier(ResultsStratifier_):

@@ -31,8 +31,7 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - InterventionRiskEffect('cpap')
-            - InterventionRiskEffect('acs')
+            - CPAPAndACSRiskEffect()
             - InterventionRiskEffect('antibiotics')
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
@@ -63,7 +62,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.2/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -107,16 +106,22 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
                 - 'ultrasound_type'
-                - 'delivery_facility_type'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'delivery_facility_type'
+                - 'preterm_birth'
                 - 'believed_preterm'
+                - 'acs_eligibility'
         birth:
             include:
                 - 'child_sex'
                 - 'delivery_facility_type'
                 - 'pregnancy_outcome'
-                - 'preterm_birth'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'cpap_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
         maternal_disorders_burden:
             include:
                 - 'age_group'
@@ -126,13 +131,14 @@ configuration:
                 - 'misoprostol_availability'
         neonatal_burden:
             include:
-                - 'child_age_group'
                 - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
                 - 'cpap_availability'
                 - 'antibiotics_availability'
                 - 'probiotics_availability'
-                - 'delivery_facility_type'
-                - 'preterm_birth'
+                - 'acs_availability'
+                - 'acs_eligibility'
         neonatal_cause_relative_risk:
             include:
                 - 'child_age_group'

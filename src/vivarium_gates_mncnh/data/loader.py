@@ -149,6 +149,7 @@ def get_data(
         data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
+        data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -1362,6 +1363,12 @@ def load_hemoglobin_tmred(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, str | bool | float]:
     return {"distribution": "uniform", "min": 120.0, "max": 120.0}
+
+
+def load_propensity_correlations(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> None:
+    return data_values.PROPENSITY_CORRELATIONS[location]
 
 
 def reshape_to_vivarium_format(df, location):
