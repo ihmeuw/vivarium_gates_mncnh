@@ -8,7 +8,6 @@ from vivarium_gates_mncnh.constants.data_keys import (
     NO_ANTIBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_CPAP_RISK,
-    ORAL_IRON,
 )
 from vivarium_gates_mncnh.utilities import (
     get_lognorm_from_quantiles,
