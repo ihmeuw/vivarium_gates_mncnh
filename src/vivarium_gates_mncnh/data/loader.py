@@ -18,17 +18,13 @@ from typing import List, Optional, Union
 import numpy as np
 import pandas as pd
 import vivarium_inputs.validation.sim as validation
-from gbd_mapping import causes, covariates, risk_factors
 from scipy.interpolate import RectBivariateSpline, griddata
 from vivarium.framework.artifact import EntityKey
-from vivarium_gbd_access import gbd
 from vivarium_inputs import core as vi_core
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
 from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
-from vivarium_inputs.mapping_extension import alternative_risk_factors
-from vivarium_public_health.utilities import TargetString
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
