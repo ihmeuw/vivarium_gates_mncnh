@@ -135,15 +135,17 @@ class CPAPAndACSRiskEffect(Component):
         no_cpap_index = pop.index[has_no_cpap & ~in_acs_gestational_age_range]
 
         no_intervention_rr = pd.Series(1.0, index=index)
-        no_intervention_paf = self.lookup_tables["no_cpap_paf"](index)
-
         no_intervention_rr.loc[no_cpap_index] = self.lookup_tables["no_cpap_relative_risk"](
             no_cpap_index
         )
         no_intervention_rr.loc[no_acs_index] = self.lookup_tables["no_acs_relative_risk"](
             no_acs_index
         ) * self.lookup_tables["no_cpap_relative_risk"](no_acs_index)
-        no_intervention_paf.loc[no_acs_index] = self.lookup_tables["no_acs_paf"](no_acs_index)
+
+        no_intervention_paf = self.lookup_tables["no_cpap_paf"](index)
+        no_intervention_paf.loc[in_acs_gestational_age_range] = self.lookup_tables[
+            "no_acs_paf"
+        ](no_acs_index)
 
         target_pipeline.loc[no_intervention_index] = (
             target_pipeline.loc[no_intervention_index]
