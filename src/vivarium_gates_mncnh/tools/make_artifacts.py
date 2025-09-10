@@ -110,11 +110,11 @@ def build_artifacts(
     elif location == "all":
         if running_from_cluster():
             # parallel build when on cluster
-            build_all_artifacts(output_dir, verbose)
+            build_all_artifacts(output_dir, years, verbose)
         else:
             # serial build when not on cluster
             for loc in metadata.LOCATIONS:
-                build_single(loc, output_dir, replace_keys)
+                build_single(loc, years, output_dir, replace_keys)
     else:
         raise ValueError(
             f'Location must be one of {metadata.LOCATIONS} or the string "all". '
@@ -122,7 +122,7 @@ def build_artifacts(
         )
 
 
-def build_all_artifacts(output_dir: Path, verbose: int) -> None:
+def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> None:
     """Builds artifacts for all locations in parallel.
     Parameters
     ----------
@@ -148,7 +148,7 @@ def build_all_artifacts(output_dir: Path, verbose: int) -> None:
 
             job_template = session.createJobTemplate()
             job_template.remoteCommand = shutil.which("python")
-            job_template.args = [__file__, str(path), f'"{location}"']
+            job_template.args = [__file__, str(path), f'"{location}"', str(years)]
             job_template.jobEnvironment = {
                 "LC_ALL": "en_US.UTF-8",
                 "LANG": "en_US.UTF-8",
@@ -242,4 +242,8 @@ def build_single_location_artifact(
 if __name__ == "__main__":
     artifact_path = sys.argv[1]
     artifact_location = sys.argv[2]
-    build_single_location_artifact(artifact_path, artifact_location, log_to_file=True)
+    artifact_years = None if sys.argv[3] == "None" else sys.argv[3]
+
+    build_single_location_artifact(
+        path=artifact_path, location=artifact_location, years=artifact_years, log_to_file=True
+    )
