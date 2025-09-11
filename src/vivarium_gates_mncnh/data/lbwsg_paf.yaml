@@ -13,7 +13,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: '/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.2/ethiopia.hdf'
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -33,8 +33,6 @@ configuration:
         step_size: 8 # Days
     population:
         population_size: 194_996
-        initialization_age_min: 0
-        initialization_age_max: .005 # less than 7 days
         untracking_age: 0.03835616 # 14 days
 
     intervention:
