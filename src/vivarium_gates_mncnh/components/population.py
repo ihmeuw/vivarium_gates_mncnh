@@ -51,6 +51,8 @@ class EvenlyDistributedPopulation(BasePopulation):
         population["exit_time"] = pd.NaT
         population["child_alive"] = "alive"
         population["location"] = self.location
+        # NOTE: If ages are initialized less than or equal to CHILD_INITIALIZATION_AGE,
+        # those simulants will be mapped to the stillbirth age group, so we must start at that value!
         population["child_age"] = np.linspace(
             CHILD_INITIALIZATION_AGE, 0.005, num=len(population) + 1, endpoint=False
         )[1:]
