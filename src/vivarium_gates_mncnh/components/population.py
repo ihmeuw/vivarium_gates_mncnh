@@ -8,6 +8,7 @@ from vivarium_public_health.population import BasePopulation, ScaledPopulation
 from vivarium_public_health.utilities import to_years
 
 from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants.data_values import CHILD_INITIALIZATION_AGE
 
 
 class AgelessPopulation(ScaledPopulation):
@@ -45,16 +46,15 @@ class EvenlyDistributedPopulation(BasePopulation):
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        age_start = pop_data.user_data.get("age_start", self.config.initialization_age_min)
-        age_end = pop_data.user_data.get("age_end", self.config.initialization_age_max)
-
         population = pd.DataFrame(index=pop_data.index)
         population["entrance_time"] = pop_data.creation_time
         population["exit_time"] = pd.NaT
         population["child_alive"] = "alive"
         population["location"] = self.location
+        # NOTE: If ages are initialized less than or equal to CHILD_INITIALIZATION_AGE,
+        # those simulants will be mapped to the stillbirth age group, so we must start at that value!
         population["child_age"] = np.linspace(
-            age_start, age_end, num=len(population) + 1, endpoint=False
+            CHILD_INITIALIZATION_AGE, 0.005, num=len(population) + 1, endpoint=False
         )[1:]
         population["sex_of_child"] = "Female"
         population.loc[population.index % 2 == 1, "sex_of_child"] = "Male"
