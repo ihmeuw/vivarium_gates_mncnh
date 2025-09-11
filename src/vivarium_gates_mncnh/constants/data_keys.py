@@ -371,6 +371,23 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
+class __OralIron(NamedTuple):
+    IFA_COVERAGE: str = "intervention.oral_iron.ifa_coverage"
+    IFA_EFFECT_SIZE: str = "intervention.oral_iron.ifa_effect_size"
+    MMS_EFFECT_SIZE: str = "intervention.oral_iron.mms_effect_size"
+
+    @property
+    def name(self):
+        return "oral_iron"
+
+    @property
+    def log_name(self):
+        return "oral iron"
+
+
+ORAL_IRON = __OralIron()
+
+
 class __IVIron(NamedTuple):
     HEMOGLOBIN_EFFECT_SIZE: str = "intervention.iv_iron.hemoglobin_effect_size"
 
@@ -447,6 +464,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
+    ORAL_IRON,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
     IV_IRON,
