@@ -891,27 +891,28 @@ def load_mortality_risk(
     )
     births.index = births.index.droplevel("location")
     # Pull early and late neonatal death counts
-    enn_deaths = extra_gbd.get_mortality_death_counts(
-        location=location, age_group_id=2, gbd_id=gbd_id
-    )
-    enn_deaths = enn_deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-        draw_columns
-    ]
-    enn_deaths = reshape_to_vivarium_format(enn_deaths, location)
-    lnn_deaths = extra_gbd.get_mortality_death_counts(
-        location=location, age_group_id=3, gbd_id=gbd_id
-    )
-    lnn_deaths = lnn_deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-        draw_columns
-    ]
-    lnn_deaths = reshape_to_vivarium_format(lnn_deaths, location)
+    def get_deaths(age_group_id, gbd_id):
+        deaths = extra_gbd.get_mortality_death_counts(
+            location=location, age_group_id=age_group_id, gbd_id=gbd_id
+        )
+        deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
+            draw_columns
+        ]
+        deaths = reshape_to_vivarium_format(deaths, location)
+        return deaths
+
+    # Early neonatal deaths (all-cause and cause-specific)
+    # and cause-specific late neonatal deaths
+    enn_acmr_deaths = get_deaths(age_group_id=2, gbd_id=294)
+    enn_deaths = get_deaths(age_group_id=2, gbd_id=gbd_id)
+    lnn_deaths = get_deaths(age_group_id=3, gbd_id=gbd_id)
 
     # Build mortality risk dataframe
     enn = enn_deaths.merge(births, left_index=True, right_index=True)
     enn_mortality_risk = enn.filter(like="draw").div(enn.population, axis=0)
     # Get denominator for late neonatal mortality risk
     population_array = np.array(enn["population"]).reshape(-1, 1)
-    denominator = population_array - enn[draw_columns]
+    denominator = population_array - enn_acmr_deaths[draw_columns]
     denominator = denominator.droplevel(["age_start", "age_end"])
     lnn_mortality_risk = lnn_deaths / denominator
     mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk]).reorder_levels(
