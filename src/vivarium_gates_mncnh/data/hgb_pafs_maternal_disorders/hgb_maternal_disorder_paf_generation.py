@@ -12,7 +12,7 @@ from vivarium.framework.configuration import build_model_specification
 # used to run this code then you may get an error when initializing the interactive context
 # and you will need to update this artifact directory to a more recent version
 artifact_directory = (
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model15.0/"
+    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/"
 )
 # This code relies on data specific to:
 # 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 15.0)
