@@ -7,7 +7,8 @@ from statsmodels.distributions.copula.api import GaussianCopula
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
-from vivarium_gates_mncnh.constants import data_keys, data_values
+from vivarium_gates_mncnh.constants import data_values
+from vivarium_gates_mncnh.constants.data_keys import PROPENSITY_CORRELATIONS
 
 
 class CorrelatedPropensities(Component):
@@ -26,9 +27,7 @@ class CorrelatedPropensities(Component):
     def setup(self, builder: Builder):
         self.component_names = builder.configuration.correlated_propensity_components
         self.pop_size = builder.configuration.population.population_size
-        self.correlations = builder.data.load(
-            data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS
-        )
+        self.correlations = builder.data.load(PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS)
         self.propensities = self.get_all_propensities()
 
         for component in self.component_names:

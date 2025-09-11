@@ -124,10 +124,21 @@ class CPAPAndACSRiskEffect(Component):
     def modify_target_pipeline(
         self, index: pd.Index, target_pipeline: pd.Series[float]
     ) -> pd.Series[float]:
+        """
+        Modifies the preterm RDS CSMR pipeline based on CPAP and ACS access and ACS eligibility.
+
+        Logic:
+        - For simulants without CPAP and who are ACS-eligible (gestational age 26-33 weeks):
+            Apply both no_CPAP_RR and no_ACS_RR.
+        - For all ACS-eligible simulants:
+            Apply no_ACS_PAF.
+        - For simulants without CPAP and not ACS-eligible:
+            Apply no_CPAP_RR.
+        - For all simulants not ACS-eligible:
+            Apply no_CPAP_PAF.
+        """
         pop = self.population_view.get(index)
-        in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(
-            26, 33, inclusive="left"
-        )
+        in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
         has_no_cpap = pop[COLUMNS.CPAP_AVAILABLE] == False
 
         no_intervention_index = has_no_cpap.index
