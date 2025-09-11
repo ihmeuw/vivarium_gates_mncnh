@@ -371,21 +371,62 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
-class __OralIron(NamedTuple):
-    IFA_COVERAGE: str = "intervention.oral_iron.ifa_coverage"
-    IFA_EFFECT_SIZE: str = "intervention.oral_iron.ifa_effect_size"
-    MMS_EFFECT_SIZE: str = "intervention.oral_iron.mms_effect_size"
+class __IFASupplementation(NamedTuple):
+    COVERAGE: TargetString = TargetString(
+        "intervention.iron_folic_acid_supplementation.coverage"
+    )
+    EFFECT_SIZE: TargetString = TargetString(
+        "intervention.iron_folic_acid_supplementation.effect_size"
+    )
+    EXCESS_SHIFT: TargetString = TargetString(
+        "intervention.iron_folic_acid_supplementation.excess_shift"
+    )
+    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+        "intervention.iron_folic_acid_supplementation.risk_specific_shift"
+    )
 
     @property
     def name(self):
-        return "oral_iron"
+        return self.COVERAGE.name
 
     @property
     def log_name(self):
-        return "oral iron"
+        return self.name.replace("_", " ")
 
 
-ORAL_IRON = __OralIron()
+IFA_SUPPLEMENTATION = __IFASupplementation()
+
+
+class __MMN_Supplementation(NamedTuple):
+    EFFECT_SIZE: TargetString = TargetString(
+        "intervention.multiple_micronutrient_supplementation.effect_size"
+    )
+    STILLBIRTH_RR: TargetString = TargetString(
+        "intervention.multiple_micronutrient_supplementation.stillbirth_rr"
+    )
+    EXCESS_SHIFT: TargetString = TargetString(
+        "intervention.multiple_micronutrient_supplementation.excess_shift"
+    )
+    EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
+        "intervention.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
+    )
+    EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
+        "intervention.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
+    )
+    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+        "intervention.multiple_micronutrient_supplementation.risk_specific_shift"
+    )
+
+    @property
+    def name(self):
+        return self.EFFECT_SIZE.name
+
+    @property
+    def log_name(self):
+        return self.name.replace("_", " ")
+
+
+MMN_SUPPLEMENTATION = __MMN_Supplementation()
 
 
 class __IVIron(NamedTuple):
@@ -447,7 +488,6 @@ HEMOGLOBIN = __Hemoglobin()
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
-    # TODO: list all key groups here
     PREGNANCY,
     LBWSG,
     ANC,
@@ -464,7 +504,8 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
-    ORAL_IRON,
+    IFA_SUPPLEMENTATION,
+    MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
     IV_IRON,
