@@ -8,6 +8,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 
 from vivarium_gates_mncnh.constants import data_values
+from vivarium_gates_mncnh.constants.data_keys import PROPENSITY_CORRELATIONS
 
 
 class CorrelatedPropensities(Component):
@@ -26,6 +27,7 @@ class CorrelatedPropensities(Component):
     def setup(self, builder: Builder):
         self.component_names = builder.configuration.correlated_propensity_components
         self.pop_size = builder.configuration.population.population_size
+        self.correlations = builder.data.load(PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS)
         self.propensities = self.get_all_propensities()
 
         for component in self.component_names:
@@ -42,8 +44,8 @@ class CorrelatedPropensities(Component):
         # create symmetric matrix with diagonals on the 1
         for (name1, name2) in pairs:
             # first key lexiographically is first element of tuple
-            correlation = data_values.PROPENSITY_CORRELATIONS[
-                (min(name1, name2), max(name1, name2))
+            correlation = self.correlations[
+                f"{(min(name1, name2))}_AND_{(max(name1, name2))}"
             ]
             i, j = name_to_index[name1], name_to_index[name2]
             # symmetric matrix

@@ -280,6 +280,21 @@ class __FacilityChoice(NamedTuple):
 FACILITY_CHOICE = __FacilityChoice()
 
 
+class __PropensityCorrelations(NamedTuple):
+    PROPENSITY_CORRELATIONS: str = "propensity.correlations"
+
+    @property
+    def name(self):
+        return "propensity_correlations"
+
+    @property
+    def log_name(self):
+        return "propensity_correlations"
+
+
+PROPENSITY_CORRELATIONS = __PropensityCorrelations()
+
+
 class __NoAntibioticsRisk(NamedTuple):
     P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotics_home"
     P_ANTIBIOTIC_BEMONC: str = (
@@ -500,6 +515,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_CPAP_RISK,
     NO_ACS_RISK,
     FACILITY_CHOICE,
+    PROPENSITY_CORRELATIONS,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,

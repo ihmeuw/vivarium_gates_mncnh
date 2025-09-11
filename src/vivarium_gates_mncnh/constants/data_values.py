@@ -463,14 +463,23 @@ POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
     0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
 )
 
+
 PROPENSITY_CORRELATIONS = {
-    tuple(sorted(["antenatal_care", "delivery_facility"])): 0.63,
-    tuple(
-        sorted(["antenatal_care", "risk_factor.low_birth_weight_and_short_gestation"])
-    ): 0.2,
-    tuple(
-        sorted(["delivery_facility", "risk_factor.low_birth_weight_and_short_gestation"])
-    ): 0.2,
+    "Ethiopia": {
+        "antenatal_care_AND_delivery_facility": 0.63,
+        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+    },
+    "Nigeria": {
+        "antenatal_care_AND_delivery_facility": 0.41,
+        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+    },
+    "Pakistan": {
+        "antenatal_care_AND_delivery_facility": 0.35,
+        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+    },
 }
 
 
