@@ -431,7 +431,7 @@ IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
     # see research documentation here:  https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/iv_iron_antenatal/iv_iron_mncnh.html#id16
     "Ethiopia": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
     "Nigeria": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
-    "Pakistan": get_norm(26.3, (25.7 - 26.9) / (2 * 1.96)),
+    "Pakistan": get_norm(26.3, (26.9 - 25.7) / (2 * 1.96)),
 }
 
 ORAL_IRON_EFFECT_SIZES = {

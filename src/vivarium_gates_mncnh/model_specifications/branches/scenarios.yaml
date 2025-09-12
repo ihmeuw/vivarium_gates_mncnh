@@ -20,3 +20,4 @@ branches:
         - "scale_up_azithromycin_all"
         - "full_azithromycin_all"
         - "scale_up_misoprostol_home"
+        - "ultrasound_vv"
