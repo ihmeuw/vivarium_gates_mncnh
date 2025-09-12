@@ -19,6 +19,7 @@ class InterventionScenario:
     bemonc_azithromycin_access: str = "baseline"
     cemonc_azithromycin_access: str = "baseline"
     home_misoprostol_access: str = "baseline"
+    ultrasound_vv: str = "baseline"
 
 
 class __InterventionScenarios(NamedTuple):
@@ -70,6 +71,7 @@ class __InterventionScenarios(NamedTuple):
         "scale_up_misoprostol_home",
         home_misoprostol_access="scale_up",
     )
+    ULTRASOUND_VV: InterventionScenario = InterventionScenario("ultrasound_vv")
 
     def __getitem__(self, item) -> InterventionScenario:
         for scenario in self:

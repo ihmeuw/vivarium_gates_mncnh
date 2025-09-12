@@ -29,6 +29,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
 )
+from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 from vivarium_gates_mncnh.utilities import get_location
 
 
@@ -127,6 +128,7 @@ class AntenatalCare(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
+        self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["ANCfirst"] = self.build_lookup_table(
@@ -325,61 +327,61 @@ class AntenatalCare(Component):
         )
 
         # State A, B, C, D transitions to gets_ultrasound or end_state
+        def get_ultrasound_probability(index: pd.Index) -> pd.Series:
+            if self.scenario == INTERVENTION_SCENARIOS["ultrasound_vv"]:
+                ultrasound_prob = 1.0
+            else:
+                ultrasound_prob = ANC_RATES.RECEIVED_ULTRASOUND[self.location]
+            return pd.Series(ultrasound_prob, index=index)
+
+        def get_residual_ultrasound_probability(index: pd.Index) -> pd.Series:
+            return 1 - get_ultrasound_probability(index)
+
+        def get_standard_ultrasound_probability(index: pd.Index) -> pd.Series:
+            if self.scenario == INTERVENTION_SCENARIOS["ultrasound_vv"]:
+                standard_probability = 0.5
+            else:
+                standard_probability = ANC_RATES.ULTRASOUND_TYPE[self.location][
+                    ULTRASOUND_TYPES.STANDARD
+                ]
+            return pd.Series(standard_probability, index=index)
+
+        def get_ai_assisted_ultrasound_probability(index: pd.Index) -> pd.Series:
+            return 1 - get_standard_ultrasound_probability(index)
+
         state_A.add_transition(
             output_state=gets_ultrasound,
-            probability_function=lambda index: pd.Series(
-                ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
-            ),
+            probability_function=get_ultrasound_probability,
         )
         state_A.add_transition(
-            output_state=end_state,
-            probability_function=lambda index: pd.Series(
-                1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
-                index=index,
-            ),
+            output_state=end_state, probability_function=get_residual_ultrasound_probability
         )
         state_B.add_transition(
             output_state=gets_ultrasound,
-            probability_function=lambda index: pd.Series(
-                ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
-            ),
+            probability_function=get_ultrasound_probability,
         )
         state_B.add_transition(
             output_state=end_state,
-            probability_function=lambda index: pd.Series(
-                1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
-                index=index,
-            ),
+            probability_function=get_residual_ultrasound_probability,
         )
         state_C.add_transition(
             output_state=gets_ultrasound,
-            probability_function=lambda index: pd.Series(
-                ANC_RATES.RECEIVED_ULTRASOUND[self.location], index=index
-            ),
+            probability_function=get_ultrasound_probability,
         )
         state_C.add_transition(
             output_state=end_state,
-            probability_function=lambda index: pd.Series(
-                1 - ANC_RATES.RECEIVED_ULTRASOUND[self.location],
-                index=index,
-            ),
+            probability_function=get_residual_ultrasound_probability,
         )
         state_D.add_transition(output_state=end_state)
 
         # Determine ultrasound type
         gets_ultrasound.add_transition(
             output_state=standard_ultasound,
-            probability_function=lambda index: pd.Series(
-                ANC_RATES.ULTRASOUND_TYPE[self.location][ULTRASOUND_TYPES.STANDARD],
-                index=index,
-            ),
+            probability_function=get_standard_ultrasound_probability,
         )
         gets_ultrasound.add_transition(
             output_state=ai_assisted_ultrasound,
-            probability_function=lambda index: pd.Series(
-                ANC_RATES.ULTRASOUND_TYPE[self.location][ULTRASOUND_TYPES.AI_ASSISTED],
-                index=index,
-            ),
+            probability_function=get_ai_assisted_ultrasound_probability,
         )
         standard_ultasound.add_transition(output_state=end_state)
         ai_assisted_ultrasound.add_transition(output_state=end_state)
