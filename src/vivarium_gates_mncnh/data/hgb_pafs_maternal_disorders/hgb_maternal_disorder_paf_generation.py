@@ -30,17 +30,15 @@ def get_simulated_population(location, draw):
         artifact_directory + location + ".hdf"
     )
     draw_num = custom_model_specification.configuration.input_data.input_draw_number
-    draw = 'draw_' + str(draw_num)
+    draw = "draw_" + str(draw_num)
     # NOTE: setting population size to what we are using in the simulation for a single draw
-    gbd_draw = 'draw_' + str(draw_num % 100)
+    gbd_draw = "draw_" + str(draw_num % 100)
     # NOTE: We use only the first 100 draws from GBD, repeating them for later draws.
     custom_model_specification.configuration.population.population_size = 20_000 * 10
     sim = InteractiveContext(custom_model_specification)
 
     pop = sim.get_population()
-    cols = [
-        'alive','sex','age','hemoglobin_exposure'
-    ]
+    cols = ["alive", "sex", "age", "hemoglobin_exposure"]
     # Return both population and simulation object
     return pop[cols], sim
 
@@ -49,60 +47,71 @@ def load_maternal_disorders(location, draw):
     """Load up maternal disorder PAFs and relative risks from the simulation, then stratify
     by GBD age group."""
     pop, sim = get_simulated_population(location, draw)
-    df = pd.concat([pop[['alive','sex','age','hemoglobin_exposure']],
-                sim.get_value('hemoglobin.exposure')(pop.index),
-                sim.get_value('hemoglobin_on_maternal_hemorrhage.relative_risk')(pop.index),
-                sim.get_value('hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk')(pop.index),
-                sim.get_value('maternal_hemorrhage.incidence_risk')(pop.index),
-                sim.get_value('maternal_hemorrhage.incidence_risk.paf')(pop.index).rename('hemorrhage_paf'),
-                sim.get_value('maternal_sepsis_and_other_maternal_infections.incidence_risk')(pop.index),
-                sim.get_value('maternal_sepsis_and_other_maternal_infections.incidence_risk.paf')(pop.index).rename('sepsis_paf'),
+    df = pd.concat(
+        [
+            pop[["alive", "sex", "age", "hemoglobin_exposure"]],
+            sim.get_value("hemoglobin.exposure")(pop.index),
+            sim.get_value("hemoglobin_on_maternal_hemorrhage.relative_risk")(pop.index),
+            sim.get_value(
+                "hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk"
+            )(pop.index),
+            sim.get_value("maternal_hemorrhage.incidence_risk")(pop.index),
+            sim.get_value("maternal_hemorrhage.incidence_risk.paf")(pop.index).rename(
+                "hemorrhage_paf"
+            ),
+            sim.get_value("maternal_sepsis_and_other_maternal_infections.incidence_risk")(
+                pop.index
+            ),
+            sim.get_value("maternal_sepsis_and_other_maternal_infections.incidence_risk.paf")(
+                pop.index
+            ).rename("sepsis_paf"),
+        ],
+        axis=1,
+    )
 
-                ], axis=1)
-    
     def assign_gbd_age_group(age):
         if 10 <= age < 15:
-            return '10_to_14'
+            return "10_to_14"
         elif 15 <= age < 20:
-            return '15_to_19'
+            return "15_to_19"
         elif 20 <= age < 25:
-            return '20_to_24'
+            return "20_to_24"
         elif 25 <= age < 30:
-            return '25_to_29'
+            return "25_to_29"
         elif 30 <= age < 35:
-            return '30_to_34'
+            return "30_to_34"
         elif 35 <= age < 40:
-            return '35_to_39'
+            return "35_to_39"
         elif 40 <= age < 45:
-            return '40_to_44'
+            return "40_to_44"
         elif 45 <= age < 50:
-            return '45_to_49'
+            return "45_to_49"
         else:
-            return '50_to_54'
-    
-    df['age_group'] = df['age'].apply(assign_gbd_age_group)
+            return "50_to_54"
+
+    df["age_group"] = df["age"].apply(assign_gbd_age_group)
     return df
 
+
 def calculate_paf_hemorrhage(location, draw):
-    """For each GBD age group, calculate the mean RR for maternal hemorrhage 
+    """For each GBD age group, calculate the mean RR for maternal hemorrhage
     and then calculate and save the PAF using the formula PAF = (mean_RR-1)/mean_RR"""
     data = load_maternal_disorders(location, draw)
-    hemorrhage_mean_rr = data.groupby('age_group')['hemoglobin_on_maternal_hemorrhage.relative_risk'].mean()
-    hemorrhage_paf = (hemorrhage_mean_rr - 1) / hemorrhage_mean_rr 
-    hemorrhage_paf.to_csv(
-        f"hemmorrhage_{draw}.csv", index=False
-    )
+    hemorrhage_mean_rr = data.groupby("age_group")[
+        "hemoglobin_on_maternal_hemorrhage.relative_risk"
+    ].mean()
+    hemorrhage_paf = (hemorrhage_mean_rr - 1) / hemorrhage_mean_rr
+    hemorrhage_paf.to_csv(f"hemmorrhage_{draw}.csv", index=False)
     return hemorrhage_paf
+
 
 def calculate_paf_sepsis(location, draw):
     """For each GBD age group, calculate the mean RR for maternal sepsis
     and then calculate and save the PAF using the formula PAF = (mean_RR-1)/mean_RR"""
     data = load_maternal_disorders(location, draw)
-    sepsis_mean_rr = data.groupby('age_group')['hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk'].mean()
-    sepsis_paf = (sepsis_mean_rr  - 1) / sepsis_mean_rr 
-    sepsis_paf.to_csv(
-        f"sepsis_{draw}.csv", index=False
-    )
+    sepsis_mean_rr = data.groupby("age_group")[
+        "hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk"
+    ].mean()
+    sepsis_paf = (sepsis_mean_rr - 1) / sepsis_mean_rr
+    sepsis_paf.to_csv(f"sepsis_{draw}.csv", index=False)
     return sepsis_paf
-
-  
