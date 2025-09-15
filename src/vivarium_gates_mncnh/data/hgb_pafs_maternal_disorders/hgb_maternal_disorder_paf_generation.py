@@ -78,7 +78,7 @@ def load_maternal_disorders(location, draw):
         elif 45 <= age < 50:
             return '45_to_49'
         else:
-            return 'other'
+            return '50_to_54'
     
     df['age_group'] = df['age'].apply(assign_gbd_age_group)
     return df
