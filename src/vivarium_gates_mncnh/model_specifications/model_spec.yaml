@@ -139,6 +139,7 @@ configuration:
                 - 'probiotics_availability'
                 - 'acs_availability'
                 - 'acs_eligibility'
+                - 'preterm_birth'
         neonatal_cause_relative_risk:
             include:
                 - 'child_age_group'
