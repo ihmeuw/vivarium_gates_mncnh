@@ -27,7 +27,7 @@ def get_simulated_population(location, draw):
     custom_model_specification = build_model_specification(path)
     del custom_model_specification.configuration.observers
     custom_model_specification.configuration.input_data.artifact_path = (
-        artifact_directory + location + ".hdf"
+        artifact_directory + location + ".hdf" 
     )
     draw_num = custom_model_specification.configuration.input_data.input_draw_number
     draw = "draw_" + str(draw_num)
@@ -93,25 +93,25 @@ def load_maternal_disorders(location, draw):
     return df
 
 
-def calculate_paf_hemorrhage(location, draw):
-    """For each GBD age group, calculate the mean RR for maternal hemorrhage
-    and then calculate and save the PAF using the formula PAF = (mean_RR-1)/mean_RR"""
+def calculate_pafs(location, draw):
+    """For each GBD age group, calculate the mean RR for maternal hemorrhage and sepsis
+    and then calculate and save the PAFs using the formula PAF = (mean_RR-1)/mean_RR"""
     data = load_maternal_disorders(location, draw)
+    
+    # Calculate hemorrhage PAFs
     hemorrhage_mean_rr = data.groupby("age_group")[
         "hemoglobin_on_maternal_hemorrhage.relative_risk"
     ].mean()
     hemorrhage_paf = (hemorrhage_mean_rr - 1) / hemorrhage_mean_rr
-    hemorrhage_paf.to_csv(f"hemmorrhage_{draw}.csv", index=False)
-    return hemorrhage_paf
-
-
-def calculate_paf_sepsis(location, draw):
-    """For each GBD age group, calculate the mean RR for maternal sepsis
-    and then calculate and save the PAF using the formula PAF = (mean_RR-1)/mean_RR"""
-    data = load_maternal_disorders(location, draw)
+    hemorrhage_paf.to_csv(f"hemorrhage_{draw}.csv", index=False)
+    
+    # Calculate sepsis PAFs
     sepsis_mean_rr = data.groupby("age_group")[
         "hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk"
     ].mean()
     sepsis_paf = (sepsis_mean_rr - 1) / sepsis_mean_rr
     sepsis_paf.to_csv(f"sepsis_{draw}.csv", index=False)
-    return sepsis_paf
+
+    # TODO: Add calculation of postpartum depression PAFs here when ready
+    
+    return hemorrhage_paf, sepsis_paf
