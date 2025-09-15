@@ -12,11 +12,11 @@ from vivarium.framework.configuration import build_model_specification
 # used to run this code then you may get an error when initializing the interactive context
 # and you will need to update this artifact directory to a more recent version
 artifact_directory = (
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/"
+    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.0/"
 )
 # This code relies on data specific to:
-# 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 15.0)
-# 2. The low hemoglobin relative risk values (using GBD 2021 data in artifact 15.0)
+# 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 16.0)
+# 2. The low hemoglobin relative risk values (using GBD 2021 data in artifact 16.0)
 # Therefore, it will need to be re-run if any of these are updated
 
 
@@ -37,17 +37,18 @@ def get_simulated_population(location, draw):
     custom_model_specification.configuration.population.population_size = 20_000 * 10
     sim = InteractiveContext(custom_model_specification)
 
-
     pop = sim.get_population()
     cols = [
         'alive','sex','age','hemoglobin_exposure'
     ]
-    return pop[cols]
+    # Return both population and simulation object
+    return pop[cols], sim
 
 
 def load_maternal_disorders(location, draw):
-    """Load up maternal disorder PAFs and relative risks from the simulation, then stratigy
+    """Load up maternal disorder PAFs and relative risks from the simulation, then stratify
     by GBD age group."""
+    pop, sim = get_simulated_population(location, draw)
     df = pd.concat([pop[['alive','sex','age','hemoglobin_exposure']],
                 sim.get_value('hemoglobin.exposure')(pop.index),
                 sim.get_value('hemoglobin_on_maternal_hemorrhage.relative_risk')(pop.index),
@@ -89,7 +90,7 @@ def calculate_paf_hemorrhage(location, draw):
     hemorrhage_mean_rr = data.groupby('age_group')['hemoglobin_on_maternal_hemorrhage.relative_risk'].mean()
     hemorrhage_paf = (hemorrhage_mean_rr - 1) / hemorrhage_mean_rr 
     hemorrhage_paf.to_csv(
-        f"{results_directory}/hgb_hemorrhage_paf/draw_{draw}.csv", index=False
+        f"hemmorrhage_{draw}.csv", index=False
     )
     return hemorrhage_paf
 
@@ -100,7 +101,7 @@ def calculate_paf_sepsis(location, draw):
     sepsis_mean_rr = data.groupby('age_group')['hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk'].mean()
     sepsis_paf = (sepsis_mean_rr  - 1) / sepsis_mean_rr 
     sepsis_paf.to_csv(
-        f"{results_directory}/hgb_sepsis_paf/draw_{draw}.csv", index=False
+        f"sepsis_{draw}.csv", index=False
     )
     return sepsis_paf
 
