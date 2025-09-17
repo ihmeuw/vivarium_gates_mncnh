@@ -90,6 +90,7 @@ def load_maternal_disorders(location, draw):
             return "50_to_54"
 
     df["age_group"] = df["age"].apply(assign_gbd_age_group)
+    df["location"] = location
     return df
 
 
