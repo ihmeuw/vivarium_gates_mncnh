@@ -289,13 +289,13 @@ class OralIronInterventionEffect(Component):
         ).value[0]
 
         builder.value.register_value_modifier(
-            "hemoglobin.exposure",
+            PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.update_hemoglobin_exposure,
             requires_columns=self.columns_created,
         )
 
         builder.value.register_value_modifier(
-            "birth_outcome_probabilities",
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             self.adjust_stillbirth_probability,
             requires_columns=self.columns_created,
         )
