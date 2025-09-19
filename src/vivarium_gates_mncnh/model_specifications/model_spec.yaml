@@ -118,6 +118,8 @@ configuration:
                 - 'preterm_birth'
                 - 'believed_preterm'
                 - 'acs_eligibility'
+                - 'ifa_coverage'
+                - 'mms_coverage'
         birth:
             include:
                 - 'child_sex'

@@ -287,6 +287,8 @@ class __Pipelines(NamedTuple):
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
     MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
+    MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
 
 
 PIPELINES = __Pipelines()
