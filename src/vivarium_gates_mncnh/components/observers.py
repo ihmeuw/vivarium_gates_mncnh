@@ -172,7 +172,6 @@ class ResultsStratifier(ResultsStratifier_):
         builder.results.register_stratification(
             "mms_coverage",
             [MMN_SUPPLEMENTATION.CAT1, MMN_SUPPLEMENTATION.CAT2],
-            # mapper=self.map_mms,
             is_vectorized=True,
             requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
         )
