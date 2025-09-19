@@ -287,6 +287,7 @@ class __Pipelines(NamedTuple):
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
     MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
 
 
 PIPELINES = __Pipelines()
