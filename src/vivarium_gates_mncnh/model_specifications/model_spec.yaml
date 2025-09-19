@@ -36,6 +36,12 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
+            - OralIronInterventionExposure() # IFA and MMS
+            - OralIronInterventionEffect()
+            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
+            - MMSEffectOnGestationalAge()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -62,7 +68,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.2/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model17.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True

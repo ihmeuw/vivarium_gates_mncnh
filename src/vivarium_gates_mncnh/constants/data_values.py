@@ -213,6 +213,7 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
@@ -286,6 +287,7 @@ class __Pipelines(NamedTuple):
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
     MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
 
 
 PIPELINES = __Pipelines()

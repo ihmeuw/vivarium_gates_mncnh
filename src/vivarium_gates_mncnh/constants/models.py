@@ -1,11 +1,13 @@
-from vivarium_gates_mncnh.constants import data_keys
+#################################
+# Intervention Model variables #
+#################################
 
-###########################
-# Disease Model variables #
-###########################
+# noinspection PyPep8Naming
+class __OralIronIntervention:
+    MODEL_NAME: str = "oral_iron_intervention"
+    NO_TREATMENT: str = "no_treatment"
+    IFA: str = "ifa"
+    MMS: str = "mms"
 
-# TODO input details of model states
-# SOME_MODEL_NAME = data_keys.SOME_DISEASE.name
-# SUSCEPTIBLE_STATE_NAME = f"susceptible_to_{SOME_MODEL_NAME}"
-# FIRST_STATE_NAME = "first_state"
-# SECOND_STATE_NAME = "second_state"
+
+ORAL_IRON_INTERVENTION = __OralIronIntervention()
