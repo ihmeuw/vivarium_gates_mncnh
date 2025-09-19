@@ -14,7 +14,6 @@ components:
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
-            - BirthObserver()
             - AntenatalCare()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
@@ -55,20 +54,22 @@ components:
             - CorrelatedPropensities()
             # Observers 
             - ANCObserver()
-            - MaternalDisordersBurdenObserver()
-            - NeonatalBurdenObserver()
-            - NeonatalCauseRelativeRiskObserver()
-            - InterventionObserver('cpap')
-            - InterventionObserver('antibiotics')
-            - InterventionObserver('probiotics')
-            - InterventionObserver('azithromycin')
-            - InterventionObserver('misoprostol')
-            - PostpartumDepressionObserver()
+            - BirthObserver()
+            # - MaternalDisordersBurdenObserver()
+            # - NeonatalBurdenObserver()
+            # - NeonatalCauseRelativeRiskObserver()
+            # - InterventionObserver('cpap')
+            # - InterventionObserver('antibiotics')
+            # - InterventionObserver('probiotics')
+            # - InterventionObserver('azithromycin')
+            # - InterventionObserver('misoprostol')
+            # - PostpartumDepressionObserver()
 
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model17.0/ethiopia.hdf"
+        artifact_path: /home/albrja/scratch/artifacts/ethiopia.hdf
+        # artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model17.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True

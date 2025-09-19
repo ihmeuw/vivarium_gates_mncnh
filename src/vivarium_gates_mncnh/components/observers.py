@@ -8,7 +8,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.results import Observer
 from vivarium_public_health.results import COLUMNS
-from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
+from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_, PublicHealthObserver
 
 from vivarium_gates_mncnh.constants.data_keys import POSTPARTUM_DEPRESSION
 from vivarium_gates_mncnh.constants.data_values import (
@@ -234,7 +234,7 @@ class BirthObserver(Observer):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
-class ANCObserver(Observer):
+class ANCObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
@@ -246,6 +246,7 @@ class ANCObserver(Observer):
             name="anc",
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
         )
 
