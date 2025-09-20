@@ -32,8 +32,6 @@ def get_simulated_population(location, draw):
     draw_num = custom_model_specification.configuration.input_data.input_draw_number
     draw = "draw_" + str(draw_num)
     # NOTE: setting population size to what we are using in the simulation for a single draw
-    gbd_draw = "draw_" + str(draw_num % 100)
-    # NOTE: We use only the first 100 draws from GBD, repeating them for later draws.
     custom_model_specification.configuration.population.population_size = 20_000 * 10
     sim = InteractiveContext(custom_model_specification)
 
@@ -68,31 +66,13 @@ def load_maternal_disorders(location, draw):
         ],
         axis=1,
     )
-
-    def assign_gbd_age_group(age):
-        if 10 <= age < 15:
-            return "10_to_14"
-        elif 15 <= age < 20:
-            return "15_to_19"
-        elif 20 <= age < 25:
-            return "20_to_24"
-        elif 25 <= age < 30:
-            return "25_to_29"
-        elif 30 <= age < 35:
-            return "30_to_34"
-        elif 35 <= age < 40:
-            return "35_to_39"
-        elif 40 <= age < 45:
-            return "40_to_44"
-        elif 45 <= age < 50:
-            return "45_to_49"
-        else:
-            return "50_to_54"
-
-    df["age_group"] = df["age"].apply(assign_gbd_age_group)
+    bins = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55] 
+    labels = ['10_to_14', '15_to_19', '20_to_24', '25_to_29', '30_to_34', 
+              '35_to_39', '40_to_44', '45_to_49', '50_to_54']
+    
+    df["age_group"] = pd.cut(df["age"], bins=bins, labels=labels, right=False, include_lowest=True)
     df["location"] = location
     return df
-
 
 def calculate_pafs(location, draw):
     """For each GBD age group, calculate the mean RR for maternal hemorrhage and sepsis
@@ -104,15 +84,21 @@ def calculate_pafs(location, draw):
         "hemoglobin_on_maternal_hemorrhage.relative_risk"
     ].mean()
     hemorrhage_paf = (hemorrhage_mean_rr - 1) / hemorrhage_mean_rr
-    hemorrhage_paf.to_csv(f"hemorrhage_{draw}.csv", index=False)
+    hemorrhage_df = hemorrhage_paf.reset_index()
+    hemorrhage_df.columns = ['age_group', 'paf']
+    hemorrhage_df['location'] = location
+    hemorrhage_df.to_csv(f"hemorrhage_{draw}.csv", index=False)
     
     # Calculate sepsis PAFs
     sepsis_mean_rr = data.groupby("age_group")[
         "hemoglobin_on_maternal_sepsis_and_other_maternal_infections.relative_risk"
     ].mean()
     sepsis_paf = (sepsis_mean_rr - 1) / sepsis_mean_rr
-    sepsis_paf.to_csv(f"sepsis_{draw}.csv", index=False)
+    sepsis_df = sepsis_paf.reset_index()
+    sepsis_df.columns = ['age_group', 'paf']
+    sepsis_df['location'] = location
+    sepsis_df.to_csv(f"sepsis_{draw}.csv", index=False)
 
     # TODO: Add calculation of postpartum depression PAFs here when ready
     
-    return hemorrhage_paf, sepsis_paf
+    return hemorrhage_df, sepsis_df
