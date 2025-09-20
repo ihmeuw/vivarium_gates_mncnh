@@ -20,7 +20,7 @@ artifact_directory = (
 # Therefore, it will need to be re-run if any of these are updated
 
 
-def get_simulated_population(location, draw):
+def get_simulated_population(location, draw, population_size):
     """This function uses the interactive context to initialze a simulation with the specified
     location and draw and artifact directory."""
     path = Path(os.getcwd() + "/../../model_specifications/model_spec.yaml")
@@ -31,8 +31,7 @@ def get_simulated_population(location, draw):
     )
     draw_num = custom_model_specification.configuration.input_data.input_draw_number
     draw = "draw_" + str(draw_num)
-    # NOTE: setting population size to what we are using in the simulation for a single draw
-    custom_model_specification.configuration.population.population_size = 20_000 * 10
+    custom_model_specification.configuration.population.population_size = population_size
     sim = InteractiveContext(custom_model_specification)
 
     pop = sim.get_population()
@@ -41,10 +40,10 @@ def get_simulated_population(location, draw):
     return pop[cols], sim
 
 
-def load_maternal_disorders(location, draw):
+def load_maternal_disorders(location, draw, population_size):
     """Load up maternal disorder PAFs and relative risks from the simulation, then stratify
     by GBD age group."""
-    pop, sim = get_simulated_population(location, draw)
+    pop, sim = get_simulated_population(location, draw, population_size)
     df = pd.concat(
         [
             pop[["alive", "sex", "age", "hemoglobin_exposure"]],
@@ -74,10 +73,10 @@ def load_maternal_disorders(location, draw):
     df["location"] = location
     return df
 
-def calculate_pafs(location, draw):
+def calculate_pafs(location, draw, population_size):
     """For each GBD age group, calculate the mean RR for maternal hemorrhage and sepsis
     and then calculate and save the PAFs using the formula PAF = (mean_RR-1)/mean_RR"""
-    data = load_maternal_disorders(location, draw)
+    data = load_maternal_disorders(location, draw, population_size)
     
     # Calculate hemorrhage PAFs
     hemorrhage_mean_rr = data.groupby("age_group")[
