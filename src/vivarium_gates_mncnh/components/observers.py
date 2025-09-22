@@ -6,9 +6,8 @@ import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.results import Observer
-from vivarium_public_health.results import COLUMNS
-from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_, PublicHealthObserver
+from vivarium_public_health.results import COLUMNS, PublicHealthObserver
+from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
 from vivarium_gates_mncnh.constants.data_keys import POSTPARTUM_DEPRESSION
 from vivarium_gates_mncnh.constants.data_values import (
@@ -215,7 +214,7 @@ class PAFResultsStratifier(ResultsStratifier_):
         return age_group
 
 
-class BirthObserver(Observer):
+class BirthObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
@@ -227,6 +226,7 @@ class BirthObserver(Observer):
             name="births",
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
         )
 
@@ -254,7 +254,7 @@ class ANCObserver(PublicHealthObserver):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
-class BurdenObserver(Observer):
+class BurdenObserver(PublicHealthObserver):
     def __init__(
         self,
         burden_disorders: list[str],
@@ -292,6 +292,7 @@ class BurdenObserver(Observer):
             additional_stratifications=self.configuration.include
             + [f"{self.name}_cause_of_death"],
             excluded_stratifications=self.configuration.exclude + self.excluded_causes,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
         )
         builder.results.register_adding_observation(
@@ -301,6 +302,7 @@ class BurdenObserver(Observer):
             additional_stratifications=self.configuration.include
             + [f"{self.name}_cause_of_death"],
             excluded_stratifications=self.configuration.exclude + self.excluded_causes,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
             aggregator=self.calculate_ylls,
         )
@@ -346,6 +348,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
                 requires_columns=[cause],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
+                results_formatter=self.format_results,
                 to_observe=self.to_observe,
             )
             builder.results.register_adding_observation(
@@ -354,6 +357,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
                 requires_columns=[cause],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
+                results_formatter=self.format_results,
                 to_observe=self.to_observe,
                 aggregator=partial(self.calculate_ylds, cause=cause),
             )
@@ -410,6 +414,7 @@ class NeonatalBurdenObserver(BurdenObserver):
                 requires_columns=[self.cause_of_death_column],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
+                results_formatter=self.format_results,
                 to_observe=self.to_observe,
             )
 
@@ -418,7 +423,7 @@ class NeonatalBurdenObserver(BurdenObserver):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
-class NeonatalCauseRelativeRiskObserver(Observer):
+class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
     def __init__(self):
         super().__init__()
         self.neonatal_causes = CAUSES_OF_NEONATAL_MORTALITY + ["all_causes"]
@@ -440,6 +445,7 @@ class NeonatalCauseRelativeRiskObserver(Observer):
                 ],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
+                results_formatter=self.format_results,
                 to_observe=self.to_observe,
             )
 
@@ -449,7 +455,7 @@ class NeonatalCauseRelativeRiskObserver(Observer):
         )
 
 
-class InterventionObserver(Observer):
+class InterventionObserver(PublicHealthObserver):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         """A dictionary containing the defaults for any configurations managed by
@@ -500,6 +506,7 @@ class InterventionObserver(Observer):
             requires_columns=[f"{self.intervention}_available"],
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
         )
 
@@ -508,7 +515,7 @@ class InterventionObserver(Observer):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION
 
 
-class PostpartumDepressionObserver(Observer):
+class PostpartumDepressionObserver(PublicHealthObserver):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
@@ -547,6 +554,7 @@ class PostpartumDepressionObserver(Observer):
             requires_columns=[COLUMNS.MOTHER_ALIVE, COLUMNS.POSTPARTUM_DEPRESSION],
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
         )
         builder.results.register_adding_observation(
@@ -555,6 +563,7 @@ class PostpartumDepressionObserver(Observer):
             requires_columns=self.columns_required,
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
+            results_formatter=self.format_results,
             to_observe=self.to_observe,
             aggregator=self.calculate_ylds,
         )
