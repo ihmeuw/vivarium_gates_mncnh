@@ -34,11 +34,11 @@ Ditha, Ali, Abie, Syl, and Nathaniel for reference.
 """
 
 artifact_directory = (
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/"
+    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.3/"
 )
 # This code relies on data specific to:
-# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 13.1)
-# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 13.1)
+# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 16.3)
+# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 16.3)
 # Therefore, it will need to be re-run if either of these are updated
 
 
@@ -76,7 +76,7 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
         if col.startswith("draw_"):
             y = rrs[col].values
             f = interp1d(
-                x_old, y, kind="linear", bounds_error=False, fill_value="extrapolate"
+                x_old, y, kind="linear", bounds_error=False, fill_value=(y[0], y[-1])
             )
             rrs_interp[col] = f(x_new)
     return rrs_interp
@@ -124,12 +124,18 @@ def load_prepped_rrs(outcome):
     """Load relative risks of hemoglobin on specific outcome that are:
     - rescaled to a tmrel of 120 g/L,
     - interpolated to the exposure levels used in GBD,
-    - reordered by magnitude of risk at the lowest exposure level."""
+    - reordered by magnitude of risk at the lowest exposure level,
+    - and scale up to 500 draws by duplicating existing draws."""
     rrs = load_bop_rrs(outcome)
     exposure_levels = get_gbd_exposure_levels()
     rrs = convert_rrs_to_gbd_exposure(rrs, exposure_levels)
     rrs["outcome"] = outcome
     rrs = transform_and_reorder_rrs(rrs, exposure_levels)
+    rrs_copy = rrs.copy().set_index([x for x in rrs.columns if "draw" not in x])
+    assert len(rrs_copy.columns) == 250, f"Expected 250 draws but got {len(rrs_copy.columns)}"
+    rrs_copy.columns = [int(col.replace("draw_", "")) for col in rrs_copy.columns]
+    rrs_copy.columns = [f"draw_{i + 250}" for i in rrs_copy.columns]
+    rrs = rrs.merge(rrs_copy.reset_index(), on=[x for x in rrs.columns if "draw" not in x])
     return rrs
 
 
@@ -320,29 +326,40 @@ def get_lbwsg_shifts(draw):
     return results
 
 
-def scale_effects_to_iv_iron(data):
-    """Scales hemoglobin effects on stillbirth or GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron"""
-    # TODO: read in IV iron effect size/threshold from the repo/artifact here instead of hard-coding it
-    iv_iron_md = 23  # change in hemoglobin exposure associated with IV iron
-    iv_iron_threshold = 100  # maximum hemoglobin exposure level (g/L) eligible for IV iron
-    import warnings
+def load_iv_iron_effect_size_single_location(location, draw):
+    art = Artifact(artifact_directory + location + ".hdf")
+    data = art.load("intervention.iv_iron.hemoglobin_effect_size")[draw]
+    return data.values[0]
 
-    warnings.warn(
-        "WARNING: using hard coded placeholder effect for IV iron intervention. Needs to be updated to artifact value when ready."
-    )
-    data = data.sort_values(
-        by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
-    )
 
+def load_iv_iron_mean_difference(draw):
+    locations = [location.lower() for location in metadata.LOCATIONS]
+    df = pd.DataFrame(
+        {
+            "location": locations,
+            "iv_iron_md": [
+                load_iv_iron_effect_size_single_location(location, draw)
+                for location in locations
+            ],
+        }
+    )
+    return df
+
+
+def run_exposure_level_tests(data):
     exposure_levels = sorted(data.exposure.unique().tolist())
     assert np.all(
         exposure_levels[i] < exposure_levels[i + 1] for i in range(len(exposure_levels) - 1)
     ), "exposure levels not sorted in ascending order"
-    if data.outcome[0] == "stillbirth":
+    if data.outcome.values[0] == "stillbirth":
         for draw in data.draw.unique():
-            assert np.all(
-                data.loc[data.draw == draw].exposure.values == exposure_levels
-            ), "Inconsistencies in exposure level values and/or orders"
+            for location in data.location.unique():
+                assert np.all(
+                    data.loc[
+                        (data.draw == draw) & (data.location == location)
+                    ].exposure.values
+                    == exposure_levels
+                ), "Inconsistencies in exposure level values and/or orders"
     else:
         for location in data.location.unique():
             for sex in data.sex.unique():
@@ -363,28 +380,86 @@ def scale_effects_to_iv_iron(data):
             num=len(exposure_levels),
         ),
     ), "Exposure levels are not evenly spaced"
-    # round IV iron mean difference to the nearest hemoglobin exposure level increment
+
+
+def scale_effects_to_iv_iron(data):
+    """Scales hemoglobin effects on stillbirth or GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron.
+
+    Note that the data that gets passed to this function either contains:
+    - dataframe with stillbirth relative risks by hemoglobin exposure level for all locations and a single draw (not sex-specific), or
+    - dataframe with GA and BW shifts by hemoglobin exposure level for all locations and sexes for a single draw
+
+    """
+    assert len(data.draw.unique()) == 1, "Data should only contain a single draw"
+    draw = data.draw.unique()[0]
+    iv_iron_md = load_iv_iron_mean_difference(draw)
+    exposure_levels = sorted(data.exposure.unique().tolist())
+    data = data.sort_values(
+        by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
+    )
+    run_exposure_level_tests(data)  # run tests before adding additional exposure levels
+
     exposure_increment = exposure_levels[1] - exposure_levels[0]
-    iv_iron_exposure_increment = int(round(iv_iron_md / exposure_increment, 0))
+    iv_iron_exposure_increment = (
+        round(iv_iron_md.set_index("location") / exposure_increment, 0)
+    ).astype(int)
 
-    # ensure that we are not running into issues with shifting beyond the valid exposure range
-    # if this test fail, it means that for some hemoglobin exposure levels, the IV iron effect moves the expousre level beyond levels that exist in this data frame
-    # and therefore will end up reading data specific to another sex/location demographic group
-    # to fix this, we would need to add exposure levels to these data frames and make some assumotion about how to fill in the data for them
-    # (probably just assume that they ave the same data as the highest existing exposure level)
-    assert (
-        exposure_levels[len(exposure_levels) - 1 - iv_iron_exposure_increment]
-        > iv_iron_threshold
-    ), "Invalid exposure range for IV iron shifts"
-    if data.outcome[0] == "stillbirth":
-        data["value"] = data["value"].shift(-iv_iron_exposure_increment) / data["value"]
-    else:
-        data["value"] = data["value"].shift(-iv_iron_exposure_increment) - data["value"]
-    data["value"] = np.where(
-        data.exposure > iv_iron_threshold, np.nan, data["value"]
-    )  # missing values for exposure levels not eligible for IV iron
+    # add rows to dataframe so that there are enough exposure levels to shift by the max iv_iron_exposure_increment
+    # we assume that the effect at these new exposure levels (of hemoglobin on BW, GA, or stillbirth outcome)
+    # is the same as the effect at the highest existing exposure level
+    start_val = exposure_levels[len(exposure_levels) - 1] + exposure_increment
+    stop_val = start_val + iv_iron_exposure_increment.iv_iron_md.max() * exposure_increment
+    extra_exposure_levels = np.arange(start=start_val, stop=stop_val, step=exposure_increment)
+    data_extra = pd.DataFrame()
+    for location in data.location.unique():
+        if data.outcome.values[0] == "stillbirth":
+            temp = pd.DataFrame()
+            temp["exposure"] = extra_exposure_levels
+            temp["location"] = location
+            temp["outcome"] = "stillbirth"
+            temp["value"] = data.loc[
+                (data.location == location)
+                & (data.exposure == exposure_levels[len(exposure_levels) - 1])
+            ].value.values[0]
+            data_extra = pd.concat([data_extra, temp], ignore_index=True)
+        else:
+            for sex in data.sex.unique():
+                for outcome in data.outcome.unique():
+                    temp = pd.DataFrame()
+                    temp["exposure"] = extra_exposure_levels
+                    temp["location"] = location
+                    temp["sex"] = sex
+                    temp["outcome"] = outcome
+                    temp["value"] = data.loc[
+                        (data.location == location)
+                        & (data.sex == sex)
+                        & (data.outcome == outcome)
+                        & (data.exposure == exposure_levels[len(exposure_levels) - 1])
+                    ].value.values[0]
+                    data_extra = pd.concat([data_extra, temp], ignore_index=True)
+    data_extra["draw"] = draw
+    data = pd.concat([data, data_extra], ignore_index=True)
+    data = data.sort_values(
+        by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
+    )
+    run_exposure_level_tests(data)  # run tests after adding additional exposure levels
 
-    return data
+    result = pd.DataFrame()
+    for location in data.location.unique():
+        location_data = data[data.location == location]
+        location_shift = iv_iron_exposure_increment.loc[location, "iv_iron_md"]
+        if data.outcome.values[0] == "stillbirth":
+            location_data["value"] = (
+                location_data["value"].shift(-location_shift) / location_data["value"]
+            )
+        else:
+            location_data["value"] = (
+                location_data["value"].shift(-location_shift) - location_data["value"]
+            )
+        result = pd.concat([result, location_data], ignore_index=True)
+    return result.loc[
+        result.exposure <= exposure_levels[len(exposure_levels) - 1]
+    ]  # return only original exposure levels
 
 
 def calculate_and_save_lbwsg_shifts(results_directory, draw):
@@ -416,8 +491,9 @@ def calculate_iv_iron_stillbirth_effects():
     """Calculates relative risk of IV iron on stillbirth specific to
     hemoglobin exposure level. Depends on effect size and threshold of
     IV iron intervention and hemoglobin team's estimates of hemoglobin's
-    effect on stillbirth. Calculates all draws at once and is not location,
-    sex, or age specific."""
+    effect on stillbirth. Calculates all draws at once and is not
+    sex or age specific."""
+    # takes about 7 minutes to run
     bop_rrs = load_bop_rrs("stillbirth").sort_values(by="risk")
     exposure_levels = sorted(get_gbd_exposure_levels())
     rrs = convert_rrs_to_gbd_exposure(bop_rrs, exposure_levels)
@@ -426,9 +502,21 @@ def calculate_iv_iron_stillbirth_effects():
         rrs_prepped.stack().reset_index().rename(columns={"level_1": "draw", 0: "value"})
     )
     rrs_prepped["outcome"] = "stillbirth"
-    effects = scale_effects_to_iv_iron(rrs_prepped)
+    rrs_prepped = pd.concat(
+        [rrs_prepped.assign(location=location) for location in metadata.LOCATIONS],
+        ignore_index=True,
+    )
+    rrs_prepped["location"] = rrs_prepped.location.str.lower()
+
+    effects = pd.concat(
+        [
+            scale_effects_to_iv_iron(rrs_prepped.loc[rrs_prepped.draw == draw])
+            for draw in rrs_prepped.draw.unique()
+        ],
+        ignore_index=True,
+    )
     effects = effects.pivot_table(
-        index="exposure", values="value", columns="draw"
+        index=["location", "exposure"], values="value", columns="draw"
     ).reset_index()
     effects.to_csv("iv_iron_stillbirth_rrs.csv")
     return effects
