@@ -34,11 +34,11 @@ Ditha, Ali, Abie, Syl, and Nathaniel for reference.
 """
 
 artifact_directory = (
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model13.1/"
+    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.3/"
 )
 # This code relies on data specific to:
-# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 13.1)
-# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 13.1)
+# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 16.3)
+# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 16.3)
 # Therefore, it will need to be re-run if either of these are updated
 
 
@@ -326,19 +326,20 @@ def get_lbwsg_shifts(draw):
     return results
 
 
-def load_iv_iron_mean_difference(draw):
-    # TODO: replace this with an artifact version so that the provenance is more clear
-    """Load mean difference in hemoglobin due to IV iron intervention for all locations"""
-    from vivarium_gates_mncnh.data.loader import load_iv_iron_hemoglobin_effect_size
+def load_iv_iron_effect_size_single_location(location, draw):
+    art = Artifact(artifact_directory + location + ".hdf")
+    data = art.load("intervention.iv_iron.hemoglobin_effect_size")[draw]
+    return data.values[0]
 
+
+def load_iv_iron_mean_difference(draw):
+    locations = [location.lower() for location in metadata.LOCATIONS]
     df = pd.DataFrame(
         {
-            "location": metadata.LOCATIONS,
+            "location": locations,
             "iv_iron_md": [
-                load_iv_iron_hemoglobin_effect_size(
-                    key="iv_iron_hemoglobin_effect_size", location=location
-                )[draw][0]
-                for location in metadata.LOCATIONS
+                load_iv_iron_effect_size_single_location(location, draw)
+                for location in locations
             ],
         }
     )
@@ -383,7 +384,7 @@ def run_exposure_level_tests(data):
 
 def scale_effects_to_iv_iron(data):
     """Scales hemoglobin effects on stillbirth or GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron.
-    
+
     Note that the data that gets passed to this function either contains:
     - dataframe with stillbirth relative risks by hemoglobin exposure level for all locations and a single draw (not sex-specific), or
     - dataframe with GA and BW shifts by hemoglobin exposure level for all locations and sexes for a single draw
@@ -446,7 +447,7 @@ def scale_effects_to_iv_iron(data):
     result = pd.DataFrame()
     for location in data.location.unique():
         location_data = data[data.location == location]
-        location_shift = iv_iron_exposure_increment.loc[location.title(), "iv_iron_md"]
+        location_shift = iv_iron_exposure_increment.loc[location, "iv_iron_md"]
         if data.outcome.values[0] == "stillbirth":
             location_data["value"] = (
                 location_data["value"].shift(-location_shift) / location_data["value"]
