@@ -46,7 +46,7 @@ if __name__ == "__main__":
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "gbd_mapping>=4.0.0",
         "layered_config_tree",
-        "vivarium>=3.4.5,<4.0.0",
+        "vivarium>=3.4.5,<3.5.0",
         "vivarium_public_health>=4.3.4,<5.0.0",
         "click",
         "jinja2",

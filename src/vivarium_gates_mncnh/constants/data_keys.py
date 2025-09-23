@@ -388,17 +388,20 @@ NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 class __IFASupplementation(NamedTuple):
     COVERAGE: TargetString = TargetString(
-        "intervention.iron_folic_acid_supplementation.coverage"
+        "risk_factor.iron_folic_acid_supplementation.coverage"
     )
     EFFECT_SIZE: TargetString = TargetString(
-        "intervention.iron_folic_acid_supplementation.effect_size"
+        "risk_factor.iron_folic_acid_supplementation.effect_size"
     )
     EXCESS_SHIFT: TargetString = TargetString(
-        "intervention.iron_folic_acid_supplementation.excess_shift"
+        "risk_factor.iron_folic_acid_supplementation.excess_shift"
     )
     RISK_SPECIFIC_SHIFT: TargetString = TargetString(
-        "intervention.iron_folic_acid_supplementation.risk_specific_shift"
+        "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
     )
+
+    CAT1 = "cat1"
+    CAT2 = "cat2"
 
     @property
     def name(self):
@@ -414,23 +417,26 @@ IFA_SUPPLEMENTATION = __IFASupplementation()
 
 class __MMN_Supplementation(NamedTuple):
     EFFECT_SIZE: TargetString = TargetString(
-        "intervention.multiple_micronutrient_supplementation.effect_size"
+        "risk_factor.multiple_micronutrient_supplementation.effect_size"
     )
     STILLBIRTH_RR: TargetString = TargetString(
-        "intervention.multiple_micronutrient_supplementation.stillbirth_rr"
+        "risk_factor.multiple_micronutrient_supplementation.stillbirth_rr"
     )
     EXCESS_SHIFT: TargetString = TargetString(
-        "intervention.multiple_micronutrient_supplementation.excess_shift"
+        "risk_factor.multiple_micronutrient_supplementation.excess_shift"
     )
     EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
-        "intervention.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
+        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
     )
     EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
-        "intervention.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
+        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
     )
     RISK_SPECIFIC_SHIFT: TargetString = TargetString(
-        "intervention.multiple_micronutrient_supplementation.risk_specific_shift"
+        "risk_factor.multiple_micronutrient_supplementation.risk_specific_shift"
     )
+
+    CAT1 = "cat1"
+    CAT2 = "cat2"
 
     @property
     def name(self):
