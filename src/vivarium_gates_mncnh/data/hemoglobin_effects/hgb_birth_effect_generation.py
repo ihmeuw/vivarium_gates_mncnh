@@ -124,12 +124,18 @@ def load_prepped_rrs(outcome):
     """Load relative risks of hemoglobin on specific outcome that are:
     - rescaled to a tmrel of 120 g/L,
     - interpolated to the exposure levels used in GBD,
-    - reordered by magnitude of risk at the lowest exposure level."""
+    - reordered by magnitude of risk at the lowest exposure level,
+    - and scale up to 500 draws by duplicating existing draws."""
     rrs = load_bop_rrs(outcome)
     exposure_levels = get_gbd_exposure_levels()
     rrs = convert_rrs_to_gbd_exposure(rrs, exposure_levels)
     rrs["outcome"] = outcome
     rrs = transform_and_reorder_rrs(rrs, exposure_levels)
+    rrs_copy = rrs.copy().set_index([x for x in rrs.columns if "draw" not in x])
+    assert len(rrs_copy.columns) == 250, f"Expected 250 draws but got {len(rrs_copy.columns)}"
+    rrs_copy.columns = [int(col.replace("draw_", "")) for col in rrs_copy.columns]
+    rrs_copy.columns = [f"draw_{i + 250}" for i in rrs_copy.columns]
+    rrs = rrs.merge(rrs_copy.reset_index(), on=[x for x in rrs.columns if "draw" not in x])
     return rrs
 
 
@@ -321,6 +327,8 @@ def get_lbwsg_shifts(draw):
 
 
 def load_iv_iron_mean_difference(draw):
+    # TODO: replace this with an artifact version so that the provenance is more clear
+    """Load mean difference in hemoglobin due to IV iron intervention for all locations"""
     from vivarium_gates_mncnh.data.loader import load_iv_iron_hemoglobin_effect_size
 
     df = pd.DataFrame(
@@ -373,8 +381,16 @@ def run_exposure_level_tests(data):
     ), "Exposure levels are not evenly spaced"
 
 
-def scale_effects_to_iv_iron(data, draw):
-    """Scales hemoglobin effects on stillbirth or GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron"""
+def scale_effects_to_iv_iron(data):
+    """Scales hemoglobin effects on stillbirth or GA and BW (relative to the hemoglobin TMREL) to the effect size of IV iron.
+    
+    Note that the data that gets passed to this function either contains:
+    - dataframe with stillbirth relative risks by hemoglobin exposure level for all locations and a single draw (not sex-specific), or
+    - dataframe with GA and BW shifts by hemoglobin exposure level for all locations and sexes for a single draw
+
+    """
+    assert len(data.draw.unique()) == 1, "Data should only contain a single draw"
+    draw = data.draw.unique()[0]
     iv_iron_md = load_iv_iron_mean_difference(draw)
     exposure_levels = sorted(data.exposure.unique().tolist())
     data = data.sort_values(
@@ -396,18 +412,15 @@ def scale_effects_to_iv_iron(data, draw):
     data_extra = pd.DataFrame()
     for location in data.location.unique():
         if data.outcome.values[0] == "stillbirth":
-            for draw in data.draw.unique():
-                temp = pd.DataFrame()
-                temp["exposure"] = extra_exposure_levels
-                temp["location"] = location
-                temp["draw"] = draw
-                temp["outcome"] = "stillbirth"
-                temp["value"] = data.loc[
-                    (data.location == location)
-                    & (data.draw == draw)
-                    & (data.exposure == exposure_levels[len(exposure_levels) - 1])
-                ].value.values[0]
-                data_extra = pd.concat([data_extra, temp], ignore_index=True)
+            temp = pd.DataFrame()
+            temp["exposure"] = extra_exposure_levels
+            temp["location"] = location
+            temp["outcome"] = "stillbirth"
+            temp["value"] = data.loc[
+                (data.location == location)
+                & (data.exposure == exposure_levels[len(exposure_levels) - 1])
+            ].value.values[0]
+            data_extra = pd.concat([data_extra, temp], ignore_index=True)
         else:
             for sex in data.sex.unique():
                 for outcome in data.outcome.unique():
@@ -423,7 +436,7 @@ def scale_effects_to_iv_iron(data, draw):
                         & (data.exposure == exposure_levels[len(exposure_levels) - 1])
                     ].value.values[0]
                     data_extra = pd.concat([data_extra, temp], ignore_index=True)
-    data_extra["draw"] = data.draw.unique()[0]
+    data_extra["draw"] = draw
     data = pd.concat([data, data_extra], ignore_index=True)
     data = data.sort_values(
         by=[x for x in data.columns if x not in ["exposure", "value"]] + ["exposure"]
@@ -467,7 +480,7 @@ def calculate_and_save_iv_iron_lbwsg_shifts(results_directory, draw):
     if f"{draw}.csv" not in os.listdir(results_directory + "lbwsg_shifts/"):
         calculate_and_save_lbwsg_shifts(results_directory, draw)
     lbwsg_shifts = pd.read_csv(results_directory + "lbwsg_shifts/" + draw + ".csv")
-    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts, draw)
+    iv_iron_shifts = scale_effects_to_iv_iron(lbwsg_shifts)
     iv_iron_shifts.to_csv(
         results_directory + "iv_iron_lbwsg_shifts/" + draw + ".csv", index=False
     )
@@ -496,7 +509,7 @@ def calculate_iv_iron_stillbirth_effects():
 
     effects = pd.concat(
         [
-            scale_effects_to_iv_iron(rrs_prepped.loc[rrs_prepped.draw == draw], draw)
+            scale_effects_to_iv_iron(rrs_prepped.loc[rrs_prepped.draw == draw])
             for draw in rrs_prepped.draw.unique()
         ],
         ignore_index=True,
