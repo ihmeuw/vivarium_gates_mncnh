@@ -225,7 +225,6 @@ class BirthObserver(PublicHealthObserver):
         self.register_adding_observation(
             builder=builder,
             name="births",
-            pop_filter="tracked==True",
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
@@ -246,7 +245,6 @@ class ANCObserver(PublicHealthObserver):
         self.register_adding_observation(
             builder=builder,
             name="anc",
-            pop_filter="tracked==True",
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
