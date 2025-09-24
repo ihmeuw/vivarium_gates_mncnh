@@ -16,6 +16,7 @@ from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, models
 from vivarium_gates_mncnh.constants.data_values import (
+    ANC_ATTENDANCE_TYPES,
     COLUMNS,
     INTERVENTIONS,
     PIPELINES,
@@ -273,7 +274,7 @@ class OralIronInterventionEffect(Component):
 
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.ORAL_IRON_INTERVENTION]
+        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.ANC_ATTENDANCE]
 
     #################
     # Setup methods #
@@ -308,12 +309,26 @@ class OralIronInterventionEffect(Component):
         self, index: pd.Index, exposure: pd.Series[float]
     ) -> pd.Series[float]:
         pop = self.population_view.get(index)
-        exposure.loc[
-            pop[COLUMNS.ORAL_IRON_INTERVENTION] == models.ORAL_IRON_INTERVENTION.NO_TREATMENT
-        ] -= (self.ifa_coverage * self.ifa_effect_size)
-        exposure.loc[
+
+        has_first_trimester_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
+            [
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
+        has_later_pregnancy_anc = (
+            pop[COLUMNS.ANC_ATTENDANCE] == ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY
+        )
+        oral_iron_covered = (
             pop[COLUMNS.ORAL_IRON_INTERVENTION] != models.ORAL_IRON_INTERVENTION.NO_TREATMENT
-        ] += (1 - self.ifa_coverage) * self.ifa_effect_size
+        )
+
+        needs_first_trimester_update = has_first_trimester_anc & oral_iron_covered
+        # TODO: add boolean check for IV iron coverage when implemented
+        needs_later_pregnancy_update = has_later_pregnancy_anc & oral_iron_covered
+
+        exposure.loc[needs_first_trimester_update] += self.ifa_effect_size
+        exposure.loc[needs_later_pregnancy_update] += self.ifa_effect_size
 
         return exposure
 

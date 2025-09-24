@@ -1,6 +1,6 @@
 from vivarium_gates_mncnh.components.antenatal_care import AntenatalCare
 from vivarium_gates_mncnh.components.delivery_facility import DeliveryFacility
-from vivarium_gates_mncnh.components.hemoglobin import HemoglobinRiskEffect
+from vivarium_gates_mncnh.components.hemoglobin import Hemoglobin, HemoglobinRiskEffect
 from vivarium_gates_mncnh.components.intervention import (
     AdditiveRiskEffect,
     CPAPAndACSRiskEffect,
