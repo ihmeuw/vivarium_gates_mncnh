@@ -49,15 +49,15 @@ class AnemiaScreening(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
-            ferritin_test_coverage = True
+            ferritin_screening_coverage = True
         else:  # 0% at baseline
-            ferritin_test_coverage = False
+            ferritin_screening_coverage = False
 
         anemia_screening_data = pd.DataFrame(
             {
                 COLUMNS.ANEMIA_SEVERITY: "not_anemic",
                 COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE: True,
-                COLUMNS.FERRITIN_SCREENING_COVERAGE: ferritin_test_coverage,
+                COLUMNS.FERRITIN_SCREENING_COVERAGE: ferritin_screening_coverage,
                 COLUMNS.TESTED_HEMOGLOBIN: "not_tested",
                 COLUMNS.TESTED_FERRITIN: "not_tested",
             },
@@ -71,6 +71,7 @@ class AnemiaScreening(Component):
             return
         pop = self.population_view.get(event.index)
 
+        # anemia severity
         hemoglobin = self.ifa_deleted_hemoglobin(pop.index)
         pop[COLUMNS.ANEMIA_SEVERITY] = (
             pd.cut(
@@ -85,6 +86,7 @@ class AnemiaScreening(Component):
 
         self.population_view.update(pop)
 
+        # hemoglobin screening
         if INTERVENTION_SCENARIOS[self.scenario].hemoglobin_screening_coverage == "baseline":
             gets_screening = self.randomness.choice(
                 index=event.index,
@@ -94,7 +96,6 @@ class AnemiaScreening(Component):
             )
             pop[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE] = gets_screening
 
-        # hemoglobin screening
         screened_pop = pop.loc[pop[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE]]
         true_hemoglobin_is_low = hemoglobin[screened_pop.index] < LOW_HEMOGLOBIN_THRESHOLD
 
@@ -111,6 +112,7 @@ class AnemiaScreening(Component):
             additional_key="adequate_hemoglobin_test_result",
         )
 
+        # ferritin screening
         pop.loc[
             test_results_for_truly_low.index, COLUMNS.TESTED_HEMOGLOBIN
         ] = test_results_for_truly_low
@@ -118,8 +120,7 @@ class AnemiaScreening(Component):
             test_results_for_truly_adequate.index, COLUMNS.TESTED_HEMOGLOBIN
         ] = test_results_for_truly_adequate
 
-        # ferritin testing
-        if pop[COLUMNS.FERRITIN_SCREENING_COVERAGE].sum() != 0:
+        if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
             has_anemia_idx = pop.index[pop[COLUMNS.ANEMIA_SEVERITY] != "not_anemic"]
             low_ferritin_probabilities = self.lookup_tables["low_ferritin_probability"](
                 has_anemia_idx
