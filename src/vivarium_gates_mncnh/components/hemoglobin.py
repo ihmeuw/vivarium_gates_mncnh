@@ -1,9 +1,42 @@
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import scipy
 from vivarium.framework.engine import Builder
+from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
+
+from vivarium_gates_mncnh.constants import data_keys
+from vivarium_gates_mncnh.constants.data_values import PIPELINES
+
+
+class Hemoglobin(Risk):
+    def __init__(self) -> None:
+        super().__init__("risk_factor.hemoglobin")
+        self.exposure_pipeline_name = f"raw_{self.risk.name}.exposure"
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.ifa_coverage = builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE).value[0]
+        self.ifa_effect_size = builder.data.load(
+            data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
+        ).value[0]
+
+        self.ifa_deleted_hemoglobin = builder.value.register_value_producer(
+            PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE,
+            self.get_ifa_deleted_hemoglobin,
+            component=self,
+        )
+        builder.value.register_value_producer(
+            PIPELINES.HEMOGLOBIN_EXPOSURE,
+            source=lambda index: self.ifa_deleted_hemoglobin(index),
+            component=self,
+        )
+
+    def get_ifa_deleted_hemoglobin(self, index: pd.Index) -> pd.Series[float]:
+        return self.exposure(index) - (self.ifa_effect_size * self.ifa_coverage)
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):

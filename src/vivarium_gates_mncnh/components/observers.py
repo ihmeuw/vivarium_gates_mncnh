@@ -10,7 +10,12 @@ from vivarium.framework.results import Observer
 from vivarium_public_health.results import COLUMNS
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
-from vivarium_gates_mncnh.constants.data_keys import POSTPARTUM_DEPRESSION
+from vivarium_gates_mncnh.constants import models
+from vivarium_gates_mncnh.constants.data_keys import (
+    IFA_SUPPLEMENTATION,
+    MMN_SUPPLEMENTATION,
+    POSTPARTUM_DEPRESSION,
+)
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     CAUSES_OF_NEONATAL_MORTALITY,
@@ -18,6 +23,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DELIVERY_FACILITY_TYPES,
     INTERVENTIONS,
     MATERNAL_DISORDERS,
+    PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
@@ -156,6 +162,18 @@ class ResultsStratifier(ResultsStratifier_):
             "misoprostol_availability",
             [True, False],
             requires_columns=[COLUMNS.MISOPROSTOL_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "ifa_coverage",
+            [IFA_SUPPLEMENTATION.CAT1, IFA_SUPPLEMENTATION.CAT2],
+            is_vectorized=True,
+            requires_values=[PIPELINES.IFA_SUPPLEMENTATION],
+        )
+        builder.results.register_stratification(
+            "mms_coverage",
+            [MMN_SUPPLEMENTATION.CAT1, MMN_SUPPLEMENTATION.CAT2],
+            is_vectorized=True,
+            requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
         )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:

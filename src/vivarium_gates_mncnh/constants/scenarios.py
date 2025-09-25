@@ -20,6 +20,7 @@ class InterventionScenario:
     cemonc_azithromycin_access: str = "baseline"
     home_misoprostol_access: str = "baseline"
     ultrasound_vv: str = "baseline"
+    ifa_mms_coverage: str = "baseline"
 
 
 class __InterventionScenarios(NamedTuple):
@@ -70,6 +71,10 @@ class __InterventionScenarios(NamedTuple):
     SCALE_UP_MISOPROSTOL_HOME: InterventionScenario = InterventionScenario(
         "scale_up_misoprostol_home",
         home_misoprostol_access="scale_up",
+    )
+    MMS_TOTAL_SCALEUP: InterventionScenario = InterventionScenario(
+        "mms_total_scaleup",
+        ifa_mms_coverage="mms",
     )
     ULTRASOUND_VV: InterventionScenario = InterventionScenario("ultrasound_vv")
 
