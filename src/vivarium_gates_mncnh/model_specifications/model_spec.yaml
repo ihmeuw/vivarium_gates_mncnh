@@ -11,7 +11,6 @@ components:
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
-            - BirthObserver()
             - AntenatalCare()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
@@ -52,6 +51,7 @@ components:
             - CorrelatedPropensities()
             # Observers 
             - ANCObserver()
+            - BirthObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
