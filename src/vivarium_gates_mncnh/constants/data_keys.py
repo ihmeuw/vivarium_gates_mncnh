@@ -295,6 +295,21 @@ class __PropensityCorrelations(NamedTuple):
 PROPENSITY_CORRELATIONS = __PropensityCorrelations()
 
 
+class __Ferritin(NamedTuple):
+    PROBABILITY_LOW_FERRITIN: str = "ferritin.probability_of_low_ferritin"
+
+    @property
+    def name(self):
+        return "ferritin"
+
+    @property
+    def log_name(self):
+        return "ferritin"
+
+
+FERRITIN = __Ferritin()
+
+
 class __NoAntibioticsRisk(NamedTuple):
     P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotics_home"
     P_ANTIBIOTIC_BEMONC: str = (
@@ -494,6 +509,7 @@ class __Hemoglobin(NamedTuple):
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
     PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
+    SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
 
     @property
     def name(self):
@@ -522,6 +538,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_ACS_RISK,
     FACILITY_CHOICE,
     PROPENSITY_CORRELATIONS,
+    FERRITIN,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,

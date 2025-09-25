@@ -50,6 +50,7 @@ components:
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - CorrelatedPropensities()
+            - AnemiaScreening()
             # Observers 
             - ANCObserver()
             - MaternalDisordersBurdenObserver()
@@ -65,7 +66,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model17.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model18.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -111,12 +112,17 @@ configuration:
                 - 'ultrasound_type'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'hemoglobin_screening_coverage'
+                - 'ferritin_screening_coverage'
                 - 'delivery_facility_type'
                 - 'preterm_birth'
                 - 'believed_preterm'
                 - 'acs_eligibility'
                 - 'ifa_coverage'
                 - 'mms_coverage'
+                - 'true_hemoglobin_exposure'
+                - 'tested_hemoglobin_exposure'
+                - 'ferritin_status'
         birth:
             include:
                 - 'child_sex'
@@ -187,4 +193,4 @@ configuration:
 
     intervention:
         scenario:
-            'baseline'
+            'anemia_screening_scaleup'

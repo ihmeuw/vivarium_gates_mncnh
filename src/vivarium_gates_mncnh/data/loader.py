@@ -13,6 +13,7 @@ for an example.
 """
 
 import pickle
+from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
@@ -148,8 +149,10 @@ def get_data(
         data_keys.HEMOGLOBIN.RELATIVE_RISK: load_hemoglobin_relative_risk,
         data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
+        data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
         data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
+        data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -1027,7 +1030,22 @@ def load_no_misoprostol_paf(
 def load_ifa_coverage(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    df = pd.read_csv(paths.ORAL_IRON_DATA_DIR / "anc_iron_prop_st.csv")
+    filepath = paths.ORAL_IRON_DATA_DIR / "anc_iron_prop_st.csv"
+    return load_coverage_from_file(filepath, location)
+
+
+def load_hemoglobin_screening_coverage(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    filepath = (
+        paths.J_DIR / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
+    )
+    return load_coverage_from_file(filepath, location)
+
+
+def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
+    df = pd.read_csv(filepath)
+    df = df.query("year_id==2023")
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     child_demography = demography.query("age_end <= 5").droplevel("location")
     location_id = utility_data.get_location_id(location)
@@ -1370,6 +1388,20 @@ def load_propensity_correlations(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> None:
     return data_values.PROPENSITY_CORRELATIONS[location]
+
+
+def load_probability_low_ferritin(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    df = pd.read_csv(
+        paths.FERRITIN_TESTING_COVERAGE_DATA_DIR / "iron_responsive_fraction.csv"
+    )
+    df = df.drop("Unnamed: 0", axis=1)
+    location_id = utility_data.get_location_id(location)
+    # TODO: fix this once data has been updated
+    location_id = 169 if location_id == 179 else location_id
+    df = df.query("location_id==@location_id").drop("location_id", axis=1)
+    return reshape_to_vivarium_format(df, location)
 
 
 def reshape_to_vivarium_format(df, location):
