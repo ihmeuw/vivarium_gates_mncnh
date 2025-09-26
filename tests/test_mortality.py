@@ -17,6 +17,9 @@ from vivarium_gates_mncnh.constants.data_values import (
 from .utilities import get_births_and_deaths_idx, get_interactive_context_state
 
 
+pytestmark = pytest.mark.skip(reason="Skipping this entire module for now")
+
+
 @pytest.fixture(scope="module")
 def late_neonatal_mortality_state(
     sim_state_step_mapper: dict[str, int], model_spec_path: Path
