@@ -2,6 +2,7 @@ from abc import abstractmethod
 from functools import partial
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
@@ -9,7 +10,6 @@ from vivarium.framework.event import Event
 from vivarium_public_health.results import COLUMNS, PublicHealthObserver
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
-from vivarium_gates_mncnh.constants import models
 from vivarium_gates_mncnh.constants.data_keys import (
     IFA_SUPPLEMENTATION,
     MMN_SUPPLEMENTATION,
@@ -21,6 +21,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
     INTERVENTIONS,
+    LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
@@ -174,6 +175,37 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
         )
+        builder.results.register_stratification(
+            "hemoglobin_screening_coverage",
+            [True, False],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE],
+        )
+        builder.results.register_stratification(
+            "ferritin_screening_coverage",
+            [True, False],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.FERRITIN_SCREENING_COVERAGE],
+        )
+        builder.results.register_stratification(
+            "true_hemoglobin_exposure",
+            ["low", "adequate"],
+            mapper=self.map_true_hemoglobin,
+            is_vectorized=True,
+            requires_values=[PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE],
+        )
+        builder.results.register_stratification(
+            "tested_hemoglobin_exposure",
+            ["low", "adequate", "not_tested"],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.TESTED_HEMOGLOBIN],
+        )
+        builder.results.register_stratification(
+            "ferritin_status",
+            ["low", "adequate", "not_tested"],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.TESTED_FERRITIN],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
@@ -198,6 +230,13 @@ class ResultsStratifier(ResultsStratifier_):
     def map_acs_eligibility(self, pop: pd.DataFrame) -> pd.Series:
         is_eligible = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
         return is_eligible.rename("acs_eligibility")
+
+    def map_true_hemoglobin(self, pop: pd.DataFrame) -> pd.Series:
+        exposure = pop[PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE]
+        return pd.Series(
+            np.where(exposure < LOW_HEMOGLOBIN_THRESHOLD, "low", "adequate"),
+            index=exposure.index,
+        )
 
 
 class PAFResultsStratifier(ResultsStratifier_):

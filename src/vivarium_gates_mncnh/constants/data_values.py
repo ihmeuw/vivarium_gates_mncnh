@@ -217,6 +217,11 @@ class __Columns(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
+    HEMOGLOBIN_SCREENING_COVERAGE = "hemoglobin_screening_coverage"
+    FERRITIN_SCREENING_COVERAGE = "ferritin_screening_coverage"
+    TESTED_HEMOGLOBIN = "tested_hemoglobin"
+    TESTED_FERRITIN = "tested_ferritin"
+    ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
 
 
 COLUMNS = __Columns()
@@ -539,3 +544,8 @@ HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
     ],
     "value": [0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }
+HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # true positives that test positive
+HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # true negatives that test negative
+LOW_HEMOGLOBIN_THRESHOLD = 100
+
+ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild

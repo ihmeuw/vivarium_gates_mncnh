@@ -45,4 +45,5 @@ from vivarium_gates_mncnh.components.population import (
 )
 from vivarium_gates_mncnh.components.pregnancy import Pregnancy
 from vivarium_gates_mncnh.components.propensity import CorrelatedPropensities
+from vivarium_gates_mncnh.components.screening import AnemiaScreening
 from vivarium_gates_mncnh.plugins.time import EventClock, TimeInterface
