@@ -221,7 +221,7 @@ class __Columns(NamedTuple):
     FERRITIN_SCREENING_COVERAGE = "ferritin_screening_coverage"
     TESTED_HEMOGLOBIN = "tested_hemoglobin"
     TESTED_FERRITIN = "tested_ferritin"
-    ANEMIA_SEVERITY = "anemia_severity"
+    ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
 
 
 COLUMNS = __Columns()
