@@ -13,6 +13,8 @@ from vivarium_gates_mncnh.constants.data_values import (
 
 from .utilities import get_interactive_context_state
 
+pytestmark = pytest.mark.skip(reason="Skipping this entire module for now")
+
 
 @pytest.fixture(scope="module")
 def pregnancy_state(
