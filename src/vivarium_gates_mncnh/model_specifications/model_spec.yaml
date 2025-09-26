@@ -52,15 +52,15 @@ components:
             - CorrelatedPropensities()
             - AnemiaScreening()
             # Observers 
-            - ANCObserver()
-            - MaternalDisordersBurdenObserver()
-            - NeonatalBurdenObserver()
-            - NeonatalCauseRelativeRiskObserver()
-            - InterventionObserver('cpap')
-            - InterventionObserver('antibiotics')
-            - InterventionObserver('probiotics')
-            - InterventionObserver('azithromycin')
-            - InterventionObserver('misoprostol')
+            # - ANCObserver()
+            # - MaternalDisordersBurdenObserver()
+            # - NeonatalBurdenObserver()
+            # - NeonatalCauseRelativeRiskObserver()
+            # - InterventionObserver('cpap')
+            # - InterventionObserver('antibiotics')
+            # - InterventionObserver('probiotics')
+            # - InterventionObserver('azithromycin')
+            # - InterventionObserver('misoprostol')
             - PostpartumDepressionObserver()
 
 configuration:
@@ -176,10 +176,10 @@ configuration:
         postpartum_depression:
             include:
                 - 'age_group'
-                - 'delivery_facility_type'
-                - 'pregnancy_outcome'
-                - 'azithromycin_availability'
-                - 'misoprostol_availability'
+                # - 'delivery_facility_type'
+                # - 'pregnancy_outcome'
+                # - 'azithromycin_availability'
+                # - 'misoprostol_availability'
     correlated_propensity_components:
         - 'antenatal_care'
         - 'delivery_facility'
