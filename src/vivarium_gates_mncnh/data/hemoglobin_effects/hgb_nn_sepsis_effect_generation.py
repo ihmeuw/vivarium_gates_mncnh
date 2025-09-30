@@ -15,16 +15,10 @@ from vivarium_public_health.risks.implementations.low_birth_weight_and_short_ges
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
 
-# note that if the artifact is out of date with the simulation status in the environment
-# used to run this code then you may get an error when initializing the interactive context
-# and you will need to update this artifact directory to a more recent version
-artifact_directory = (
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model15.0/"
-)
 # This code relies on data specific to:
-# 1. The LBWSG birth exposure in GBD (using GBD 2021 data in artifact 15.0)
-# 2. The hemoglobin risk exposure levels (using GBD 2023 data in artifact 15.0)
-# 3. The LBWSG relative risk values (using GBD 2021 data in artifact 15.0)
+# 1. The LBWSG birth exposure in GBD (using GBD 2021 data at the time of running)
+# 2. The hemoglobin risk exposure levels (using GBD 2023 data at the time of running)
+# 3. The LBWSG relative risk values (using GBD 2021 data at the time of running)
 # Therefore, it will need to be re-run if any of these are updated
 
 
@@ -35,8 +29,12 @@ def get_simulated_population(location, draw):
     path = Path(os.getcwd() + "/../../model_specifications/model_spec.yaml")
     custom_model_specification = build_model_specification(path)
     del custom_model_specification.configuration.observers
+    artifact_directory = custom_model_specification.configuration.input_data.artifact_path
+    global artifact_base
+    artifact_base = artifact_directory.rsplit("/", 1)[0] + "/"
+
     custom_model_specification.configuration.input_data.artifact_path = (
-        artifact_directory + location + ".hdf"
+        artifact_base + location + ".hdf"
     )
     custom_model_specification.configuration.input_data.input_draw_number = draw
     # NOTE: setting population size to what we are using in the simulation for a single draw
@@ -63,9 +61,7 @@ def get_simulated_population(location, draw):
 
 def load_interpolators(location, draw):
     """Load up LBWSG risk interpolators"""
-    art = Artifact(
-        artifact_directory + location + ".hdf", filter_terms={"child_age_end < 0.5"}
-    )
+    art = Artifact(artifact_base + location + ".hdf", filter_terms={"child_age_end < 0.5"})
     interpolators = art.load(
         "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
     )[f"draw_{draw}"].reset_index()
@@ -168,10 +164,14 @@ def calculate_indirect_effect(location, draw):
     return result
 
 
-def calculate_direct_effect(results_directory, location, draw):
+def calculate_direct_effect(results_directory, draw):
     """Calculate and save the direct (unmediated) effect of hemoglobin on neonatal sepsis mortality.
     This is done by dividing the total effect by the indirect effect."""
-    indirect_rrs = calculate_indirect_effect(location, draw)
+    locations = [location.lower() for location in metadata.LOCATIONS]
+    indirect_rrs = pd.concat(
+        [calculate_indirect_effect(location, draw) for location in locations],
+        ignore_index=True,
+    )
     total_rrs = load_prepped_rrs("neonatal_sepsis")
     total_effects_prepped = (
         total_rrs.set_index(["outcome", "risk"])

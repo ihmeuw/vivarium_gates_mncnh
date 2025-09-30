@@ -13,21 +13,19 @@ for an example.
 """
 
 import pickle
+from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import vivarium_inputs.validation.sim as validation
-from gbd_mapping import causes, covariates, risk_factors
 from scipy.interpolate import RectBivariateSpline, griddata
 from vivarium.framework.artifact import EntityKey
-from vivarium_gbd_access import gbd
 from vivarium_inputs import core as vi_core
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
 from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
-from vivarium_inputs.mapping_extension import alternative_risk_factors
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
@@ -129,9 +127,16 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_CEMONC: load_misoprostol_coverage_probability,
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
-        data_keys.ORAL_IRON.IFA_COVERAGE: load_ifa_coverage,
-        data_keys.ORAL_IRON.IFA_EFFECT_SIZE: load_oral_iron_effect_size,
-        data_keys.ORAL_IRON.MMS_EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.IFA_SUPPLEMENTATION.COVERAGE: load_ifa_coverage,
+        data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
+        data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
+        data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR: load_oral_iron_effect_size,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_mms_excess_shift,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: load_excess_gestational_age_shift,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: load_excess_gestational_age_shift,
+        data_keys.MMN_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
         data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
         data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
         data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
@@ -144,7 +149,10 @@ def get_data(
         data_keys.HEMOGLOBIN.RELATIVE_RISK: load_hemoglobin_relative_risk,
         data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
+        data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
+        data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
+        data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -886,27 +894,28 @@ def load_mortality_risk(
     )
     births.index = births.index.droplevel("location")
     # Pull early and late neonatal death counts
-    enn_deaths = extra_gbd.get_mortality_death_counts(
-        location=location, age_group_id=2, gbd_id=gbd_id
-    )
-    enn_deaths = enn_deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-        draw_columns
-    ]
-    enn_deaths = reshape_to_vivarium_format(enn_deaths, location)
-    lnn_deaths = extra_gbd.get_mortality_death_counts(
-        location=location, age_group_id=3, gbd_id=gbd_id
-    )
-    lnn_deaths = lnn_deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-        draw_columns
-    ]
-    lnn_deaths = reshape_to_vivarium_format(lnn_deaths, location)
+    def get_deaths(age_group_id, gbd_id):
+        deaths = extra_gbd.get_mortality_death_counts(
+            location=location, age_group_id=age_group_id, gbd_id=gbd_id
+        )
+        deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
+            draw_columns
+        ]
+        deaths = reshape_to_vivarium_format(deaths, location)
+        return deaths
+
+    # Early neonatal deaths (all-cause and cause-specific)
+    # and cause-specific late neonatal deaths
+    enn_acmr_deaths = get_deaths(age_group_id=2, gbd_id=294)
+    enn_deaths = get_deaths(age_group_id=2, gbd_id=gbd_id)
+    lnn_deaths = get_deaths(age_group_id=3, gbd_id=gbd_id)
 
     # Build mortality risk dataframe
     enn = enn_deaths.merge(births, left_index=True, right_index=True)
     enn_mortality_risk = enn.filter(like="draw").div(enn.population, axis=0)
     # Get denominator for late neonatal mortality risk
     population_array = np.array(enn["population"]).reshape(-1, 1)
-    denominator = population_array - enn[draw_columns]
+    denominator = population_array - enn_acmr_deaths[draw_columns]
     denominator = denominator.droplevel(["age_start", "age_end"])
     lnn_mortality_risk = lnn_deaths / denominator
     mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk]).reorder_levels(
@@ -1021,18 +1030,41 @@ def load_no_misoprostol_paf(
 def load_ifa_coverage(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    df = pd.read_csv(paths.IFA_COVERAGE_DATA / "anc_iron_prop_st.csv")
+    filepath = paths.ORAL_IRON_DATA_DIR / "anc_iron_prop_st.csv"
+    return load_coverage_from_file(filepath, location)
+
+
+def load_hemoglobin_screening_coverage(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    filepath = (
+        paths.J_DIR / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
+    )
+    return load_coverage_from_file(filepath, location)
+
+
+def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
+    df = pd.read_csv(filepath)
+    df = df.query("year_id==2023")
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    child_demography = demography.query("age_end <= 5").droplevel("location")
     location_id = utility_data.get_location_id(location)
     df = df.query("location_id==@location_id")
     df = df[[f"draw_{i}" for i in range(vi_globals.NUM_DRAWS)]].reset_index(drop=True)
-    return df
+    # duplicate rows for each row in child demography
+    cat1_rows = pd.concat([df] * len(child_demography), ignore_index=True)
+    cat1_rows.index = child_demography.index
+    cat1_rows["parameter"] = "cat1"
+    cat2_rows = 1 - cat1_rows.drop(columns=["parameter"])
+    cat2_rows["parameter"] = "cat2"
+    data = pd.concat([cat1_rows, cat2_rows])
+    return data.set_index("parameter", append=True).sort_index()
 
 
 def load_oral_iron_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     effect_size_dists = data_values.ORAL_IRON_EFFECT_SIZES[key]
-    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     effect_size_data = []
 
     for target, dist in effect_size_dists.items():
@@ -1043,6 +1075,137 @@ def load_oral_iron_effect_size(
         effect_size_data.append(data)
 
     return pd.concat(effect_size_data)
+
+
+def load_ifa_excess_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    birth_weight_shift = load_mms_excess_shift(key, location)
+    gestational_age_shift = load_excess_gestational_age_shift(key, location)
+    all_ages_data = pd.concat([birth_weight_shift, gestational_age_shift])
+    return all_ages_data.query("age_end <= 5.0")
+
+
+def load_risk_specific_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    try:
+        key_group = {
+            data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_keys.IFA_SUPPLEMENTATION,
+            data_keys.MMN_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_keys.MMN_SUPPLEMENTATION,
+        }[key]
+    except KeyError:
+        raise ValueError(f"Unrecognized key {key}")
+
+    if key.name == "multiple_micronutrient_supplementation":
+        excess_shift = get_data(key_group.EXCESS_SHIFT, location)
+        single_cat_shift = excess_shift.query("parameter=='cat1'").droplevel("parameter")
+        risk_specific_shift = pd.DataFrame(
+            0.0, columns=single_cat_shift.columns, index=single_cat_shift.index
+        )
+    else:
+        exposure = get_data(key_group.COVERAGE, location)
+        excess_shift = get_data(key_group.EXCESS_SHIFT, location)
+
+        risk_specific_shift = (
+            (exposure * excess_shift)
+            .groupby(
+                metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+            )
+            .sum()
+        )
+
+    return risk_specific_shift
+
+
+def load_mms_excess_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    try:
+        distribution = {
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
+                data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
+            ]["birth_weight.birth_exposure"],
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
+                data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
+            ]["birth_weight.birth_exposure"],
+        }[key]
+    except KeyError:
+        raise ValueError(f"Unrecognized key {key}")
+    distribution_data = (key, distribution)
+    data = load_dichotomous_excess_shift(location, distribution_data)
+    return data.query("age_end <= 5").droplevel("location")
+
+
+def load_dichotomous_excess_shift(
+    location: str,
+    distribution_data: tuple,
+) -> pd.DataFrame:
+    """Load excess birth weight exposure shifts using distribution data."""
+    index = get_data(data_keys.POPULATION.DEMOGRAPHY, location).index
+    shift = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, *distribution_data)
+    excess_shift = reshape_shift_data(
+        shift, index, data_values.PIPELINES.BIRTH_WEIGHT_EXPOSURE
+    )
+
+    return excess_shift
+
+
+def reshape_shift_data(shift: pd.Series, index: pd.Index, target: str) -> pd.DataFrame:
+    """Read in draw-level shift values and return a DataFrame where the data are the shift values,
+    and the index is the passed index appended with affected entity/measure and parameter data.
+    """
+    exposed = pd.DataFrame([shift], index=index)
+    exposed["parameter"] = "cat2"
+    unexposed = pd.DataFrame([pd.Series(0.0, index=metadata.ARTIFACT_COLUMNS)], index=index)
+    unexposed["parameter"] = "cat1"
+
+    excess_shift = pd.concat([exposed, unexposed])
+    excess_shift["affected_entity"] = target.split(".")[0]
+    excess_shift["affected_measure"] = target.split(".")[1]
+
+    excess_shift = excess_shift.set_index(
+        ["affected_entity", "affected_measure", "parameter"], append=True
+    ).sort_index()
+    return excess_shift
+
+
+def load_excess_gestational_age_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load excess gestational age shift data from IFA and MMS from file.
+    Returns the sum of the shift data in the directories defined in data_dirs."""
+    try:
+        data_dirs = {
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: [paths.IFA_GA_SHIFT_DATA_DIR],
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: [
+                paths.MMS_GA_SHIFT_1_DATA_DIR
+            ],
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: [
+                paths.MMS_GA_SHIFT_1_DATA_DIR,
+                paths.MMS_GA_SHIFT_2_DATA_DIR,
+            ],
+        }[key]
+    except KeyError:
+        raise ValueError(f"Unrecognized key {key}")
+
+    index = get_data(data_keys.POPULATION.DEMOGRAPHY, location).index
+    all_shift_data = [
+        pd.read_csv(data_dir / f"{location.lower()}.csv") for data_dir in data_dirs
+    ]
+    shifts = [
+        pd.Series(shift_data["value"].values, index=shift_data["draw"])
+        for shift_data in all_shift_data
+    ]
+    if len(shifts) > 1:
+        shifts[1] = shifts[1].loc[shifts[1].notnull()]
+    summed_shifts = sum(shifts)  # only sum more than one Series for subpop 2
+
+    excess_shift = reshape_shift_data(
+        summed_shifts, index, data_values.PIPELINES.GESTATIONAL_AGE_EXPOSURE
+    )
+    excess_shift = excess_shift[metadata.ARTIFACT_COLUMNS]
+    return excess_shift.query("age_end <= 5.0").droplevel("location")
 
 
 def load_postpartum_depression_raw_incidence_risk(
@@ -1219,6 +1382,26 @@ def load_hemoglobin_tmred(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, str | bool | float]:
     return {"distribution": "uniform", "min": 120.0, "max": 120.0}
+
+
+def load_propensity_correlations(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> None:
+    return data_values.PROPENSITY_CORRELATIONS[location]
+
+
+def load_probability_low_ferritin(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    df = pd.read_csv(
+        paths.FERRITIN_TESTING_COVERAGE_DATA_DIR / "iron_responsive_fraction.csv"
+    )
+    df = df.drop("Unnamed: 0", axis=1)
+    location_id = utility_data.get_location_id(location)
+    # TODO: fix this once data has been updated
+    location_id = 169 if location_id == 179 else location_id
+    df = df.query("location_id==@location_id").drop("location_id", axis=1)
+    return reshape_to_vivarium_format(df, location)
 
 
 def reshape_to_vivarium_format(df, location):

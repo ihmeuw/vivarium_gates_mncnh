@@ -359,16 +359,19 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
         pop = pop.sort_values(["sex_of_child", "child_age"])
 
+        num_sexes = pop.sex_of_child.nunique()
+        assert num_sexes == 2
+
         lbwsg_categories = self.lbwsg_categories.keys()
-        num_repeats, remainder = divmod(len(pop), 2 * len(lbwsg_categories))
+        num_repeats, remainder = divmod(len(pop), num_sexes * len(lbwsg_categories))
         if remainder != 0:
             raise ValueError(
-                "Population size should be multiple of double the number of LBWSG categories."
+                "Population size should be multiple of the number of LBWSG categories times the number of sexes."
                 f"Population size is {len(pop)}, but should be a multiple of "
-                f"{2*len(lbwsg_categories)}."
+                f"{num_sexes * len(lbwsg_categories)}."
             )
 
-        assigned_categories = list(lbwsg_categories) * (2 * num_repeats)
+        assigned_categories = list(lbwsg_categories) * num_sexes * num_repeats
         pop["lbwsg_category"] = assigned_categories
         self.population_view.update(pop[["age_bin", "lbwsg_category"]])
 

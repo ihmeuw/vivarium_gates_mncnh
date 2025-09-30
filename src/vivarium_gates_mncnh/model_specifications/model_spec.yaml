@@ -5,16 +5,12 @@ plugins:
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
 components:
-    vivarium_public_health:
-        risks:
-            - Risk('risk_factor.hemoglobin')
-
     vivarium_gates_mncnh:
         components:
+            - Hemoglobin()
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
-            - BirthObserver()
             - AntenatalCare()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
@@ -31,12 +27,17 @@ components:
             - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
             - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
             - NeonatalMortality()
-            - InterventionRiskEffect('cpap')
-            - InterventionRiskEffect('acs')
+            - CPAPAndACSRiskEffect()
             - InterventionRiskEffect('antibiotics')
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
+            - OralIronInterventionExposure() # IFA and MMS
+            - OralIronInterventionEffect()
+            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
+            - MMSEffectOnGestationalAge()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -48,8 +49,10 @@ components:
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - CorrelatedPropensities()
+            - AnemiaScreening()
             # Observers 
             - ANCObserver()
+            - BirthObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
             - NeonatalCauseRelativeRiskObserver()
@@ -63,7 +66,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model16.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model18.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -107,16 +110,29 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
                 - 'ultrasound_type'
-                - 'delivery_facility_type'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'hemoglobin_screening_coverage'
+                - 'ferritin_screening_coverage'
+                - 'delivery_facility_type'
+                - 'preterm_birth'
                 - 'believed_preterm'
+                - 'acs_eligibility'
+                - 'ifa_coverage'
+                - 'mms_coverage'
+                - 'true_hemoglobin_exposure'
+                - 'tested_hemoglobin_exposure'
+                - 'ferritin_status'
         birth:
             include:
                 - 'child_sex'
                 - 'delivery_facility_type'
                 - 'pregnancy_outcome'
-                - 'preterm_birth'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'cpap_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
         maternal_disorders_burden:
             include:
                 - 'age_group'
@@ -126,12 +142,14 @@ configuration:
                 - 'misoprostol_availability'
         neonatal_burden:
             include:
-                - 'child_age_group'
                 - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
                 - 'cpap_availability'
                 - 'antibiotics_availability'
                 - 'probiotics_availability'
-                - 'delivery_facility_type'
+                - 'acs_availability'
+                - 'acs_eligibility'
                 - 'preterm_birth'
         neonatal_cause_relative_risk:
             include:

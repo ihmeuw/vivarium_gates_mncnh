@@ -280,6 +280,36 @@ class __FacilityChoice(NamedTuple):
 FACILITY_CHOICE = __FacilityChoice()
 
 
+class __PropensityCorrelations(NamedTuple):
+    PROPENSITY_CORRELATIONS: str = "propensity.correlations"
+
+    @property
+    def name(self):
+        return "propensity_correlations"
+
+    @property
+    def log_name(self):
+        return "propensity_correlations"
+
+
+PROPENSITY_CORRELATIONS = __PropensityCorrelations()
+
+
+class __Ferritin(NamedTuple):
+    PROBABILITY_LOW_FERRITIN: str = "ferritin.probability_of_low_ferritin"
+
+    @property
+    def name(self):
+        return "ferritin"
+
+    @property
+    def log_name(self):
+        return "ferritin"
+
+
+FERRITIN = __Ferritin()
+
+
 class __NoAntibioticsRisk(NamedTuple):
     P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotics_home"
     P_ANTIBIOTIC_BEMONC: str = (
@@ -371,21 +401,68 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
-class __OralIron(NamedTuple):
-    IFA_COVERAGE: str = "intervention.oral_iron.ifa_coverage"
-    IFA_EFFECT_SIZE: str = "intervention.oral_iron.ifa_effect_size"
-    MMS_EFFECT_SIZE: str = "intervention.oral_iron.mms_effect_size"
+class __IFASupplementation(NamedTuple):
+    COVERAGE: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.coverage"
+    )
+    EFFECT_SIZE: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.effect_size"
+    )
+    EXCESS_SHIFT: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.excess_shift"
+    )
+    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
+    )
+
+    CAT1 = "cat1"
+    CAT2 = "cat2"
 
     @property
     def name(self):
-        return "oral_iron"
+        return self.COVERAGE.name
 
     @property
     def log_name(self):
-        return "oral iron"
+        return self.name.replace("_", " ")
 
 
-ORAL_IRON = __OralIron()
+IFA_SUPPLEMENTATION = __IFASupplementation()
+
+
+class __MMN_Supplementation(NamedTuple):
+    EFFECT_SIZE: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.effect_size"
+    )
+    STILLBIRTH_RR: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.stillbirth_rr"
+    )
+    EXCESS_SHIFT: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.excess_shift"
+    )
+    EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
+    )
+    EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
+    )
+    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.risk_specific_shift"
+    )
+
+    CAT1 = "cat1"
+    CAT2 = "cat2"
+
+    @property
+    def name(self):
+        return self.EFFECT_SIZE.name
+
+    @property
+    def log_name(self):
+        return self.name.replace("_", " ")
+
+
+MMN_SUPPLEMENTATION = __MMN_Supplementation()
 
 
 class __IVIron(NamedTuple):
@@ -432,6 +509,7 @@ class __Hemoglobin(NamedTuple):
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
     PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
+    SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
 
     @property
     def name(self):
@@ -447,7 +525,6 @@ HEMOGLOBIN = __Hemoglobin()
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
-    # TODO: list all key groups here
     PREGNANCY,
     LBWSG,
     ANC,
@@ -460,11 +537,14 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_CPAP_RISK,
     NO_ACS_RISK,
     FACILITY_CHOICE,
+    PROPENSITY_CORRELATIONS,
+    FERRITIN,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
-    ORAL_IRON,
+    IFA_SUPPLEMENTATION,
+    MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
     IV_IRON,

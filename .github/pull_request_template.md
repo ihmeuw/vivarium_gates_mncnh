@@ -19,3 +19,9 @@ Include guidance to reviewers if changes are complex.
 Details on how code was verified. Consider: plots, images, (small) csv files.
 -->
 
+
+*** REMINDER ***
+CI WILL NOT RUN ANY TESTS.
+MANUALLY RUN TESTS WITH EACH PR.
+-->
+- [ ] all tests pass (`pytest --runslow`)

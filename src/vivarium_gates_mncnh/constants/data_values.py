@@ -3,10 +3,11 @@ from typing import NamedTuple
 
 from vivarium_gates_mncnh.constants.data_keys import (
     FACILITY_CHOICE,
+    IFA_SUPPLEMENTATION,
+    MMN_SUPPLEMENTATION,
     NO_ANTIBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_CPAP_RISK,
-    ORAL_IRON,
 )
 from vivarium_gates_mncnh.utilities import (
     get_lognorm_from_quantiles,
@@ -212,9 +213,15 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
+    HEMOGLOBIN_SCREENING_COVERAGE = "hemoglobin_screening_coverage"
+    FERRITIN_SCREENING_COVERAGE = "ferritin_screening_coverage"
+    TESTED_HEMOGLOBIN = "tested_hemoglobin"
+    TESTED_FERRITIN = "tested_ferritin"
+    ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
 
 
 COLUMNS = __Columns()
@@ -285,6 +292,10 @@ class __Pipelines(NamedTuple):
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
     MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
+    MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
+    IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
+    HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
 
 
 PIPELINES = __Pipelines()
@@ -430,11 +441,11 @@ IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
     # see research documentation here:  https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/iv_iron_antenatal/iv_iron_mncnh.html#id16
     "Ethiopia": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
     "Nigeria": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
-    "Pakistan": get_norm(26.3, (25.7 - 26.9) / (2 * 1.96)),
+    "Pakistan": get_norm(26.3, (26.9 - 25.7) / (2 * 1.96)),
 }
 
 ORAL_IRON_EFFECT_SIZES = {
-    ORAL_IRON.IFA_EFFECT_SIZE: {
+    IFA_SUPPLEMENTATION.EFFECT_SIZE: {
         "hemoglobin.exposure": get_norm(
             9.53, ninety_five_pct_confidence_interval=(6.99, 12.06)
         ),
@@ -442,10 +453,13 @@ ORAL_IRON_EFFECT_SIZES = {
             57.73, ninety_five_pct_confidence_interval=(7.66, 107.79)
         ),
     },
-    ORAL_IRON.MMS_EFFECT_SIZE: {
+    MMN_SUPPLEMENTATION.EFFECT_SIZE: {
         "birth_weight.birth_exposure": get_norm(
             45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
         )
+    },
+    MMN_SUPPLEMENTATION.STILLBIRTH_RR: {
+        "stillbirth": get_lognorm_from_quantiles(0.53, 0.34, 0.83)
     },
 }
 
@@ -459,14 +473,23 @@ POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
     0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
 )
 
+
 PROPENSITY_CORRELATIONS = {
-    tuple(sorted(["antenatal_care", "delivery_facility"])): 0.63,
-    tuple(
-        sorted(["antenatal_care", "risk_factor.low_birth_weight_and_short_gestation"])
-    ): 0.2,
-    tuple(
-        sorted(["delivery_facility", "risk_factor.low_birth_weight_and_short_gestation"])
-    ): 0.2,
+    "Ethiopia": {
+        "antenatal_care_AND_delivery_facility": 0.63,
+        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+    },
+    "Nigeria": {
+        "antenatal_care_AND_delivery_facility": 0.41,
+        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+    },
+    "Pakistan": {
+        "antenatal_care_AND_delivery_facility": 0.35,
+        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
+    },
 }
 
 
@@ -521,3 +544,8 @@ HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
     ],
     "value": [0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }
+HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # true positives that test positive
+HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # true negatives that test negative
+LOW_HEMOGLOBIN_THRESHOLD = 100
+
+ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
