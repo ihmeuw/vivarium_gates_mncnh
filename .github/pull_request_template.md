@@ -24,4 +24,4 @@ Details on how code was verified. Consider: plots, images, (small) csv files.
 CI WILL NOT RUN ANY TESTS.
 MANUALLY RUN TESTS WITH EACH PR.
 -->
-- [ ] all tests pass (`pytest`)
+- [ ] all tests pass (`pytest --runslow`)
