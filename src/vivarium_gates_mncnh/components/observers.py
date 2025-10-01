@@ -165,13 +165,15 @@ class ResultsStratifier(ResultsStratifier_):
         )
         builder.results.register_stratification(
             "ifa_coverage",
-            [IFA_SUPPLEMENTATION.CAT1, IFA_SUPPLEMENTATION.CAT2],
+            ["covered", "uncovered"],
+            mapper=self.map_oral_iron_coverage,
             is_vectorized=True,
             requires_values=[PIPELINES.IFA_SUPPLEMENTATION],
         )
         builder.results.register_stratification(
             "mms_coverage",
-            [MMN_SUPPLEMENTATION.CAT1, MMN_SUPPLEMENTATION.CAT2],
+            ["covered", "uncovered"],
+            mapper=self.map_oral_iron_coverage,
             is_vectorized=True,
             requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
         )
@@ -237,6 +239,9 @@ class ResultsStratifier(ResultsStratifier_):
             np.where(exposure < LOW_HEMOGLOBIN_THRESHOLD, "low", "adequate"),
             index=exposure.index,
         )
+
+    def map_oral_iron_coverage(self, pop: pd.DataFrame) -> pd.Series:
+        return pop.squeeze().replace({"cat1": "uncovered", "cat2": "covered"})
 
 
 class PAFResultsStratifier(ResultsStratifier_):

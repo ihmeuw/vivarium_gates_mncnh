@@ -1052,12 +1052,13 @@ def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
     df = df.query("location_id==@location_id")
     df = df[[f"draw_{i}" for i in range(vi_globals.NUM_DRAWS)]].reset_index(drop=True)
     # duplicate rows for each row in child demography
-    cat1_rows = pd.concat([df] * len(child_demography), ignore_index=True)
-    cat1_rows.index = child_demography.index
-    cat1_rows["parameter"] = "cat1"
-    cat2_rows = 1 - cat1_rows.drop(columns=["parameter"])
+    cat2_rows = pd.concat([df] * len(child_demography), ignore_index=True)
+    cat2_rows.index = child_demography.index
+    # cat2 is exposed to intervention
     cat2_rows["parameter"] = "cat2"
-    data = pd.concat([cat1_rows, cat2_rows])
+    cat1_rows = 1 - cat2_rows.drop(columns=["parameter"])
+    cat1_rows["parameter"] = "cat1"
+    data = pd.concat([cat2_rows, cat1_rows])
     return data.set_index("parameter", append=True).sort_index()
 
 
@@ -1401,7 +1402,15 @@ def load_probability_low_ferritin(
     # TODO: fix this once data has been updated
     location_id = 169 if location_id == 179 else location_id
     df = df.query("location_id==@location_id").drop("location_id", axis=1)
-    return reshape_to_vivarium_format(df, location)
+    df = df.rename(
+        {"anemia_severity": data_values.COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY}, axis=1
+    )
+    # duplicate draws 0 to 250 to get 500 draws
+    draw_cols = [f"draw_{i}" for i in range(250)]
+    duplicated_draws = df[draw_cols].copy()
+    duplicated_draws.columns = [f"draw_{i}" for i in range(250, 500)]
+    df_expanded = pd.concat([df, duplicated_draws], axis=1)
+    return reshape_to_vivarium_format(df_expanded, location)
 
 
 def reshape_to_vivarium_format(df, location):
