@@ -7,6 +7,7 @@ import pandas as pd
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RESIDUAL_CHOICE
@@ -21,6 +22,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     INTERVENTIONS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 
@@ -196,12 +198,17 @@ class OralIronInterventionExposure(Component):
     }
 
     @property
+    def time_step_cleanup_priority(self) -> int:
+        # ANC attendance will have been updated
+        return 6
+
+    @property
     def columns_created(self) -> list[str]:
         return [COLUMNS.ORAL_IRON_INTERVENTION]
 
     @property
     def columns_required(self) -> list[str]:
-        return ["tracked"]
+        return [COLUMNS.ANC_ATTENDANCE]
 
     def __init__(self):
         super().__init__()
@@ -210,6 +217,7 @@ class OralIronInterventionExposure(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
         self.clock = builder.time.clock()
         self.randomness = builder.randomness.get_stream(self.name)
 
@@ -228,17 +236,31 @@ class OralIronInterventionExposure(Component):
         )
 
     def on_initialize_simulants(self, pop: SimulantData) -> None:
+        pop_update = pd.DataFrame(
+            {COLUMNS.ORAL_IRON_INTERVENTION: "no_treatment"},
+            index=pop.index,
+        )
+
+        self.population_view.update(pop_update)
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
+            return
+        pop = self.population_view.get(event.index)
+        attends_anc = pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE
+        anc_pop = pop.loc[attends_anc]
+
         if (
             INTERVENTION_SCENARIOS[self.scenario].ifa_mms_coverage
             == models.ORAL_IRON_INTERVENTION.MMS
         ):
             pop_update = pd.DataFrame(
                 {COLUMNS.ORAL_IRON_INTERVENTION: models.ORAL_IRON_INTERVENTION.MMS},
-                index=pop.index,
+                index=anc_pop.index,
             )
         else:
             pop_update = self.randomness.choice(
-                pop.index,
+                anc_pop.index,
                 choices=[
                     models.ORAL_IRON_INTERVENTION.IFA,
                     models.ORAL_IRON_INTERVENTION.NO_TREATMENT,
