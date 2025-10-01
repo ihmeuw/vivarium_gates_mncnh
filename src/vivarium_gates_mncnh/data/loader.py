@@ -1100,7 +1100,7 @@ def load_risk_specific_shift(
 
     if key.name == "multiple_micronutrient_supplementation":
         excess_shift = get_data(key_group.EXCESS_SHIFT, location)
-        single_cat_shift = excess_shift.query("parameter=='cat1'").droplevel("parameter")
+        single_cat_shift = excess_shift.query("parameter=='cat2'").droplevel("parameter")
         risk_specific_shift = pd.DataFrame(
             0.0, columns=single_cat_shift.columns, index=single_cat_shift.index
         )
