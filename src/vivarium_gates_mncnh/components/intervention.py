@@ -237,7 +237,7 @@ class OralIronInterventionExposure(Component):
 
     def on_initialize_simulants(self, pop: SimulantData) -> None:
         pop_update = pd.DataFrame(
-            {COLUMNS.ORAL_IRON_INTERVENTION: "N/A"},
+            {COLUMNS.ORAL_IRON_INTERVENTION: "no_treatment"},
             index=pop.index,
         )
 
