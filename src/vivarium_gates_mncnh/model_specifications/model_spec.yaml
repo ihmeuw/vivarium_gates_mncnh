@@ -4,6 +4,7 @@ plugins:
             controller: vivarium_gates_mncnh.plugins.time.EventClock
             builder_interface: vivarium_gates_mncnh.plugins.time.TimeInterface
 
+components:
     vivarium_gates_mncnh:
         components:
             - Hemoglobin()
@@ -47,7 +48,6 @@ plugins:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.depressive_disorders.incidence_risk')
             - CorrelatedPropensities()
             - AnemiaScreening()
             # Observers 
@@ -190,20 +190,6 @@ configuration:
             - 'later_pregnancy_only'
             - 'first_trimester_only'
             - 'first_trimester_and_later_pregnancy'
-    disease_model.depressive_disorders:
-        data_sources:
-            cause_specific_mortality_rate: 0.0
-    disease_state.depressive_disorders:
-        data_sources:
-            prevalence: 1.0
-            disability_weight: 0.0
-            excess_mortality_rate: 0.0
-    rate_transition.'susceptible_state.susceptible_to_depressive_disorders'.'disease_state.depressive_disorders'.incidence_rate:
-        data_sources:
-            transition_rate: 0.0
-    non_log_linear_risk_effect.hemoglobin_on_cause.depressive_disorders.incidence_risk:
-        data_sources:
-            population_attributable_fraction: 0.0
 
     intervention:
         scenario:
