@@ -222,7 +222,12 @@ class OralIronInterventionExposure(Component):
         self.randomness = builder.randomness.get_stream(self.name)
 
         self.scenario = builder.configuration.intervention.scenario
-        self.ifa_coverage = builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE).value[0]
+        self.ifa_coverage = (
+            builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE)
+            .query("parameter=='cat2'")
+            .reset_index()
+            .value[0]
+        )
 
         self.ifa_exposure_pipeline = builder.value.register_value_producer(
             self.ifa_exposure_pipeline_name,
@@ -303,7 +308,6 @@ class OralIronInterventionEffect(Component):
     #################
 
     def setup(self, builder: Builder) -> None:
-        self.ifa_coverage = builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE).value[0]
         self.mms_stillbirth_rr = builder.data.load(
             data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
         ).value[0]
