@@ -1343,9 +1343,9 @@ def load_hemoglobin_relative_risk(
     ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
+    # Expand draw columns from 0-249 to 0-499 by repeating 2 times
     expanded_draws_df = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=100, num_repeats=5
+        hemoglobin_data, num_draws=250, num_repeats=2
     )
 
     return expanded_draws_df
