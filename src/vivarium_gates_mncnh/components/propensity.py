@@ -6,6 +6,7 @@ import pandas as pd
 from statsmodels.distributions.copula.api import GaussianCopula
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.randomness.stream import get_hash
 
 from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_keys import PROPENSITY_CORRELATIONS
@@ -52,7 +53,9 @@ class CorrelatedPropensities(Component):
             correlation_matrix[i, j] = correlation_matrix[j, i] = correlation
 
         copula = GaussianCopula(correlation_matrix)
-        propensities = copula.rvs(self.pop_size)
+        propensities = copula.rvs(
+            self.pop_size, random_state=get_hash("correlated_propensities")
+        )
         propensities_df = pd.DataFrame(propensities, columns=self.component_names)
         return propensities_df
 
