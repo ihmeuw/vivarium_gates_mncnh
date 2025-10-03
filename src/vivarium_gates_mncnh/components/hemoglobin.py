@@ -4,22 +4,35 @@ import numpy as np
 import pandas as pd
 import scipy
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import PIPELINES
+from vivarium_gates_mncnh.constants.data_values import PIPELINES, SIMULATION_EVENT_NAMES
 
 
 class Hemoglobin(Risk):
+    @property
+    def time_step_cleanup_priority(self) -> int:
+        # oral iron intervention will have been assigned
+        # when we update hemoglobin exposure in the state table
+        return 7
+
     def __init__(self) -> None:
         super().__init__("risk_factor.hemoglobin")
         self.exposure_pipeline_name = f"raw_{self.risk.name}.exposure"
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.ifa_coverage = builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE).value[0]
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.ifa_coverage = (
+            builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE)
+            .query("parameter=='cat2'")
+            .reset_index()
+            .value[0]
+        )
         self.ifa_effect_size = builder.data.load(
             data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
         ).value[0]
@@ -29,14 +42,30 @@ class Hemoglobin(Risk):
             self.get_ifa_deleted_hemoglobin,
             component=self,
         )
-        builder.value.register_value_producer(
+        self.final_hemoglobin_exposure = builder.value.register_value_producer(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             source=lambda index: self.ifa_deleted_hemoglobin(index),
             component=self,
         )
 
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        self.lookup_tables["ANC1"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(data_keys.ANC.ANC1),
+            value_columns=["value"],
+        )
+
     def get_ifa_deleted_hemoglobin(self, index: pd.Index) -> pd.Series[float]:
-        return self.exposure(index) - (self.ifa_effect_size * self.ifa_coverage)
+        return self.exposure(index) - (
+            self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
+        )
+
+    def on_time_step_cleanup(self, event: Event):
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
+            return
+        exposure = self.final_hemoglobin_exposure(event.index)
+        exposure.name = self.exposure_column_name
+        self.population_view.update(exposure)
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):
