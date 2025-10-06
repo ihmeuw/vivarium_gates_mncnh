@@ -42,8 +42,8 @@ def pytest_collection_modifyitems(config, items):
     skip_jenkins = pytest.mark.skip(reason="skipping tests in jenkins")
     is_on_jenkins = os.environ.get("JENKINS_URL")
 
-    for item in items:
-        if is_on_jenkins:
+    if is_on_jenkins:
+        for item in items:  
             item.add_marker(skip_jenkins)
 
     if config.getoption("--runslow"):
