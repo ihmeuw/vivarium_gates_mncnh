@@ -38,18 +38,21 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
+    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+    skip_jenkins = pytest.mark.skip(reason="skipping tests in jenkins")
+    is_on_jenkins = os.environ.get("JENKINS_URL")
+
+    if is_on_jenkins:
+        for item in items:
+            item.add_marker(skip_jenkins)
+
     if config.getoption("--runslow"):
         # --runslow given in cli: do not skip slow tests
         return
-    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip_slow)
-
-    skip_jenkins = pytest.mark.skip(reason="skipping tests in jenkins")
-    if os.environ.get("JENKINS_URL"):
-        for item in items:
-            item.add_marker(skip_jenkins)
 
 
 @pytest.fixture(scope="session")
