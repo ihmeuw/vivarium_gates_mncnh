@@ -65,12 +65,12 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
-        # data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
+        data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
         data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
         data_keys.LBWSG.RELATIVE_RISK_INTERPOLATOR: load_lbwsg_interpolated_rr,
-        # data_keys.LBWSG.PAF: load_paf_data,
+        data_keys.LBWSG.PAF: load_paf_data,
         data_keys.ANC.ANCfirst: load_anc_proportion,
         data_keys.ANC.ANC1: load_anc_proportion,
         data_keys.ANC.ANC4: load_anc_proportion,
@@ -83,8 +83,8 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
-        # data_keys.PRETERM_BIRTH.PAF: load_paf_data,
-        # data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
+        data_keys.PRETERM_BIRTH.PAF: load_paf_data,
+        data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.PRETERM_BIRTH.MORTALITY_RISK: load_mortality_risk,
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
@@ -445,7 +445,7 @@ def load_paf_data(
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    output_dir = paths.PAF_DIR / "temp_outputs" / location.lower()
+    output_dir = paths.PAF_DIR / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:

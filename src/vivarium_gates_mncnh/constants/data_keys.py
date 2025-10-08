@@ -57,16 +57,16 @@ class __LowBirthWeightShortGestation(NamedTuple):
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
-    # SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
-    #    "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
-    # )
+    SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
+    )
     RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
     RELATIVE_RISK_INTERPOLATOR: str = (
         "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
     )
-    # PAF: str = (
-    #    "risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction"
-    # )
+    PAF: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction"
+    )
 
     @property
     def name(self):
@@ -165,8 +165,8 @@ OBSTRUCTED_LABOR = __ObstructedLabor()
 class __NeonatalPretermBirth(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     # CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
-    # PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
-    # PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
+    PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
+    PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
     MORTALITY_RISK: str = "cause.neonatal_preterm_birth.mortality_risk"
 
     @property

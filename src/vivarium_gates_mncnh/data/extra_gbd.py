@@ -35,11 +35,15 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
 def load_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
     entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
     location_id = utility_data.get_location_id(location)
-    data = get_birth_exposure(
-        entity_id=entity.gbd_id,
+    data = get_draws(
+        gbd_id_type="rei_id",
+        gbd_id=entity.gbd_id,
+        source="exposure",
         location_id=location_id,
         year_id=2022,
-        data_type="draws",
+        sex_id=[1, 2],
+        age_group_id=164,
+        release_id=gbd_constants.RELEASE_IDS.GBD_2023,
     )
     return data
 
