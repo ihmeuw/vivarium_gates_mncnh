@@ -33,7 +33,7 @@ POPULATION = __Population()
 
 class __Pregnancy(NamedTuple):
     ASFR: str = "covariate.age_specific_fertility_rate.estimate"
-    SBR: str = "covariate.stillbirth_to_live_birth_ratio.estimate"
+    SBR: str = "covariate.stillbirth_20_weeks_to_live_birth_ratio.estimate"
     RAW_INCIDENCE_RATE_MISCARRIAGE: str = (
         "cause.maternal_abortion_and_miscarriage.raw_incidence_rate"
     )
@@ -57,16 +57,16 @@ class __LowBirthWeightShortGestation(NamedTuple):
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
-    SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
-        "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
-    )
+    # SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
+    #    "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
+    # )
     RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
     RELATIVE_RISK_INTERPOLATOR: str = (
         "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
     )
-    PAF: str = (
-        "risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction"
-    )
+    # PAF: str = (
+    #    "risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction"
+    # )
 
     @property
     def name(self):
@@ -165,8 +165,8 @@ OBSTRUCTED_LABOR = __ObstructedLabor()
 class __NeonatalPretermBirth(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     # CSMR: str = "cause.neonatal_preterm_birth.cause_specific_mortality_rate"
-    PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
-    PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
+    # PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
+    # PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
     MORTALITY_RISK: str = "cause.neonatal_preterm_birth.mortality_risk"
 
     @property
@@ -264,8 +264,8 @@ class __FacilityChoice(NamedTuple):
     P_HOME: str = "cause.facility_choice.probability_home_birth"
     P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
     P_CEmONC: str = "cause.facility_choice.probability_cemonc_birth"
-    P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
-    P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
+    # P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
+    # P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
     BEmONC_FACILITY_FRACTION: str = "cause.facility_choice.bemonc_facility_fraction"
 
     @property
@@ -405,15 +405,15 @@ class __IFASupplementation(NamedTuple):
     COVERAGE: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.coverage"
     )
-    EFFECT_SIZE: TargetString = TargetString(
-        "risk_factor.iron_folic_acid_supplementation.effect_size"
-    )
-    EXCESS_SHIFT: TargetString = TargetString(
-        "risk_factor.iron_folic_acid_supplementation.excess_shift"
-    )
-    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
-        "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
-    )
+    # EFFECT_SIZE: TargetString = TargetString(
+    #     "risk_factor.iron_folic_acid_supplementation.effect_size"
+    # )
+    # EXCESS_SHIFT: TargetString = TargetString(
+    #     "risk_factor.iron_folic_acid_supplementation.excess_shift"
+    # )
+    # RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+    #     "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
+    # )
 
     CAT1 = "cat1"
     CAT2 = "cat2"
@@ -431,31 +431,31 @@ IFA_SUPPLEMENTATION = __IFASupplementation()
 
 
 class __MMN_Supplementation(NamedTuple):
-    EFFECT_SIZE: TargetString = TargetString(
-        "risk_factor.multiple_micronutrient_supplementation.effect_size"
-    )
+    # EFFECT_SIZE: TargetString = TargetString(
+    #     "risk_factor.multiple_micronutrient_supplementation.effect_size"
+    # )
     STILLBIRTH_RR: TargetString = TargetString(
         "risk_factor.multiple_micronutrient_supplementation.stillbirth_rr"
     )
-    EXCESS_SHIFT: TargetString = TargetString(
-        "risk_factor.multiple_micronutrient_supplementation.excess_shift"
-    )
-    EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
-        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
-    )
-    EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
-        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
-    )
-    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
-        "risk_factor.multiple_micronutrient_supplementation.risk_specific_shift"
-    )
+    # EXCESS_SHIFT: TargetString = TargetString(
+    #     "risk_factor.multiple_micronutrient_supplementation.excess_shift"
+    # )
+    # EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
+    #     "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
+    # )
+    # EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
+    #     "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
+    # )
+    # RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+    #     "risk_factor.multiple_micronutrient_supplementation.risk_specific_shift"
+    # )
 
     CAT1 = "cat1"
     CAT2 = "cat2"
 
     @property
     def name(self):
-        return self.EFFECT_SIZE.name
+        return self.STILLBIRTH_RR.name
 
     @property
     def log_name(self):
@@ -507,7 +507,7 @@ class __Hemoglobin(NamedTuple):
     DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
     DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
-    PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
+    # PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
     SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
 
@@ -537,15 +537,15 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_CPAP_RISK,
     NO_ACS_RISK,
     FACILITY_CHOICE,
-    PROPENSITY_CORRELATIONS,
-    FERRITIN,
+    # PROPENSITY_CORRELATIONS,
+    # FERRITIN,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
     IFA_SUPPLEMENTATION,
     MMN_SUPPLEMENTATION,
-    POSTPARTUM_DEPRESSION,
+    # POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
     IV_IRON,
 ]

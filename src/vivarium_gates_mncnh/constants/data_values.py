@@ -94,7 +94,7 @@ INFANT_MALE_PERCENTAGES = {
 }
 
 
-NUM_DRAWS = 500
+NUM_DRAWS = 250
 
 
 class _SimulationEventNames(NamedTuple):
@@ -139,11 +139,6 @@ ANC_ATTENDANCE_TYPES = __ANCAttendanceTypes()
 
 
 class __ANCRates(NamedTuple):
-    ATTENDED_CARE_FACILITY = {
-        "Ethiopia": 0.757,
-        "Nigeria": 0.743,
-        "Pakistan": 0.908,
-    }
     RECEIVED_ULTRASOUND = {
         "Ethiopia": 0.607,
         "Nigeria": 0.587,
@@ -317,18 +312,18 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
-        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.55,
+        # FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
+        # FACILITY_CHOICE.P_HOME_FULL_TERM: 0.55,
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.160883,
     },
     "Nigeria": {
-        FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
-        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.51,
+        # FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
+        # FACILITY_CHOICE.P_HOME_FULL_TERM: 0.51,
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.004423,
     },
     "Pakistan": {
-        FACILITY_CHOICE.P_HOME_PRETERM: 0.17,
-        FACILITY_CHOICE.P_HOME_FULL_TERM: 0.26,
+        # FACILITY_CHOICE.P_HOME_PRETERM: 0.17,
+        # FACILITY_CHOICE.P_HOME_FULL_TERM: 0.26,
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.340528,
     },
 }
@@ -445,19 +440,19 @@ IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
 }
 
 ORAL_IRON_EFFECT_SIZES = {
-    IFA_SUPPLEMENTATION.EFFECT_SIZE: {
-        "hemoglobin.exposure": get_norm(
-            9.53, ninety_five_pct_confidence_interval=(6.99, 12.06)
-        ),
-        "birth_weight.birth_exposure": get_norm(
-            57.73, ninety_five_pct_confidence_interval=(7.66, 107.79)
-        ),
-    },
-    MMN_SUPPLEMENTATION.EFFECT_SIZE: {
-        "birth_weight.birth_exposure": get_norm(
-            45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
-        )
-    },
+    # IFA_SUPPLEMENTATION.EFFECT_SIZE: {
+    #     "hemoglobin.exposure": get_norm(
+    #         9.53, ninety_five_pct_confidence_interval=(6.99, 12.06)
+    #     ),
+    #     "birth_weight.birth_exposure": get_norm(
+    #         57.73, ninety_five_pct_confidence_interval=(7.66, 107.79)
+    #     ),
+    # },
+    # MMN_SUPPLEMENTATION.EFFECT_SIZE: {
+    #     "birth_weight.birth_exposure": get_norm(
+    #         45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
+    #     )
+    # },
     MMN_SUPPLEMENTATION.STILLBIRTH_RR: {
         "stillbirth": get_lognorm_from_quantiles(0.53, 0.34, 0.83)
     },

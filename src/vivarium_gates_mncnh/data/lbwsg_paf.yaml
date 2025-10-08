@@ -13,7 +13,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model18.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model18.1/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -29,7 +29,7 @@ configuration:
         end:
             year: 2022
             month: 1
-            day: 10
+            day: 2
         step_size: 8 # Days
     population:
         population_size: 194_996
