@@ -116,15 +116,15 @@ class AnemiaScreening(Component):
         true_hemoglobin_is_low = hemoglobin[screened_pop.index] < LOW_HEMOGLOBIN_THRESHOLD
 
         test_results_for_truly_low = self.randomness.choice(
-            index=screened_pop[true_hemoglobin_is_low].index,
+            index=screened_pop.index[true_hemoglobin_is_low],
             choices=["low", "adequate"],
-            p=[HEMOGLOBIN_TEST_SENSITIVITY],
+            p=[HEMOGLOBIN_TEST_SENSITIVITY, 1 - HEMOGLOBIN_TEST_SENSITIVITY],
             additional_key="low_hemoglobin_test_result",
         )
         test_results_for_truly_adequate = self.randomness.choice(
-            index=screened_pop[~true_hemoglobin_is_low].index,
+            index=screened_pop.index[~true_hemoglobin_is_low],
             choices=["adequate", "low"],
-            p=[HEMOGLOBIN_TEST_SPECIFICITY],
+            p=[HEMOGLOBIN_TEST_SPECIFICITY, 1 - HEMOGLOBIN_TEST_SPECIFICITY],
             additional_key="adequate_hemoglobin_test_result",
         )
 
