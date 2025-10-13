@@ -19,7 +19,8 @@ class InterventionScenario:
     bemonc_azithromycin_access: str = "baseline"
     cemonc_azithromycin_access: str = "baseline"
     home_misoprostol_access: str = "baseline"
-    ultrasound_vv: str = "baseline"
+    ultrasound_coverage: str = "baseline"
+    standard_ultrasound_coverage: str = "baseline"
     ifa_mms_coverage: str = "baseline"
     hemoglobin_screening_coverage: str = "baseline"
     ferritin_screening_coverage: str = "baseline"
@@ -27,58 +28,66 @@ class InterventionScenario:
 
 class __InterventionScenarios(NamedTuple):
     BASELINE: InterventionScenario = InterventionScenario("baseline")
-    # todo add additional intervention scenarios
-    FULL_CPAP_BEMONC: InterventionScenario = InterventionScenario(
-        "full_cpap_bemonc",
-        bemonc_cpap_access="full",
-    )
-    FULL_CPAP_CEMONC: InterventionScenario = InterventionScenario(
-        "full_cpap_cemonc",
-        cemonc_cpap_access="full",
-    )
-    FULL_CPAP_ALL: InterventionScenario = InterventionScenario(
-        "full_cpap_all",
+    CPAP_ACS_SCALEUP: InterventionScenario = InterventionScenario(
+        "cpap_acs_scaleup",
         bemonc_cpap_access="full",
         cemonc_cpap_access="full",
     )
-    FULL_ANTIBIOTICS_ALL: InterventionScenario = InterventionScenario(
-        "full_antibiotics_all",
+    CPAP_ACS_AI_ULTRASOUND_SCALEUP: InterventionScenario = InterventionScenario(
+        "cpap_acs_ai_ultrasound_scaleup",
+        ultrasound_coverage="full",
+        standard_ultrasound_coverage="none",
+        bemonc_cpap_access="full",
+        cemonc_cpap_access="full",
+    )
+    NEONATAL_ANTIBIOTICS_SCALEUP: InterventionScenario = InterventionScenario(
+        "neonatal_antibiotics_scaleup",
         bemonc_antibiotics_access="full",
         cemonc_antibiotics_access="full",
         home_antibiotics_access="full",
     )
-    FULL_PROBIOTICS_BEMONC: InterventionScenario = InterventionScenario(
-        "full_probiotics_bemonc",
-        bemonc_probiotics_access="full",
-    )
-    FULL_PROBIOTICS_CEMONC: InterventionScenario = InterventionScenario(
-        "full_probiotics_cemonc",
-        cemonc_probiotics_access="full",
-    )
-    FULL_PROBIOTICS_ALL: InterventionScenario = InterventionScenario(
-        "full_probiotics_all",
+    NEONATAL_PROBIOTICS_SCALEUP: InterventionScenario = InterventionScenario(
+        "neonatal_probiotics_scaleup",
         bemonc_probiotics_access="full",
         cemonc_probiotics_access="full",
     )
-    SCALE_UP_AZITHROMYCIN_ALL: InterventionScenario = InterventionScenario(
-        "scale_up_azithromycin_all",
-        bemonc_azithromycin_access="scale_up",
-        cemonc_azithromycin_access="scale_up",
-    )
-    FULL_AZITHROMYCIN_ALL: InterventionScenario = InterventionScenario(
-        "full_azithromycin_all",
+    AZITHROMYCIN_SCALEUP: InterventionScenario = InterventionScenario(
+        "azithromycin_scaleup",
         bemonc_azithromycin_access="full",
         cemonc_azithromycin_access="full",
     )
-    SCALE_UP_MISOPROSTOL_HOME: InterventionScenario = InterventionScenario(
-        "scale_up_misoprostol_home",
-        home_misoprostol_access="scale_up",
+    AI_ULTRASOUND_SCALEUP: InterventionScenario = InterventionScenario(
+        "ai_ultrasound_scaleup",
+        ultrasound_coverage="full",
+        standard_ultrasound_coverage="none",
+        cemonc_probiotics_access="full",
+    )
+    STANDARD_ULTRASOUND_SCALEUP: InterventionScenario = InterventionScenario(
+        "standard_ultrasound_scaleup",
+        ultrasound_coverage="full",
+        standard_ultrasound_coverage="full",
+        cemonc_probiotics_access="full",
+    )
+    FULL_PRODUCT_SCALEUP: InterventionScenario = InterventionScenario(
+        "full_product_scaleup",
+        ultrasound_coverage="full",
+        standard_ultrasound_coverage="none",
+        bemonc_cpap_access="full",
+        cemonc_cpap_access="full",
+        bemonc_probiotics_access="full",
+        cemonc_probiotics_access="full",
+        bemonc_azithromycin_access="full",
+        cemonc_azithromycin_access="full",
     )
     MMS_TOTAL_SCALEUP: InterventionScenario = InterventionScenario(
         "mms_total_scaleup",
         ifa_mms_coverage="mms",
     )
-    ULTRASOUND_VV: InterventionScenario = InterventionScenario("ultrasound_vv")
+    ULTRASOUND_VV: InterventionScenario = InterventionScenario(
+        "ultrasound_vv",
+        ultrasound_coverage="full",
+        standard_ultrasound_coverage="half",
+    )
     ANEMIA_SCREENING_SCALEUP: InterventionScenario = InterventionScenario(
         "anemia_screening_scaleup",
         hemoglobin_screening_coverage="full",
