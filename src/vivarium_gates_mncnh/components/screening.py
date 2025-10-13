@@ -10,6 +10,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     ANEMIA_THRESHOLDS,
     COLUMNS,
+    HEMOGLOBIN_TEST_RESULTS,
     HEMOGLOBIN_TEST_SENSITIVITY,
     HEMOGLOBIN_TEST_SPECIFICITY,
     LOW_HEMOGLOBIN_THRESHOLD,
@@ -117,13 +118,13 @@ class AnemiaScreening(Component):
 
         test_results_for_truly_low = self.randomness.choice(
             index=screened_pop.index[true_hemoglobin_is_low],
-            choices=["low", "adequate"],
+            choices=[HEMOGLOBIN_TEST_RESULTS.LOW, HEMOGLOBIN_TEST_RESULTS.ADEQUATE],
             p=[HEMOGLOBIN_TEST_SENSITIVITY, 1 - HEMOGLOBIN_TEST_SENSITIVITY],
             additional_key="low_hemoglobin_test_result",
         )
         test_results_for_truly_adequate = self.randomness.choice(
             index=screened_pop.index[~true_hemoglobin_is_low],
-            choices=["adequate", "low"],
+            choices=[HEMOGLOBIN_TEST_RESULTS.ADEQUATE, HEMOGLOBIN_TEST_RESULTS.LOW],
             p=[HEMOGLOBIN_TEST_SPECIFICITY, 1 - HEMOGLOBIN_TEST_SPECIFICITY],
             additional_key="adequate_hemoglobin_test_result",
         )
@@ -135,19 +136,27 @@ class AnemiaScreening(Component):
             test_results_for_truly_adequate.index, COLUMNS.TESTED_HEMOGLOBIN
         ] = test_results_for_truly_adequate
 
-        # ferritin screening
-        # if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
-        #     has_anemia_idx = pop.index[
-        #         pop[COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] != "not_anemic"
-        #     ]
-        #     low_ferritin_probabilities = self.lookup_tables["low_ferritin_probability"](
-        #         has_anemia_idx
-        #     )
-        #     propensities = self.randomness.get_draw(
-        #         index=has_anemia_idx, additional_key="tested_ferritin"
-        #     )
-        #     pop.loc[has_anemia_idx, COLUMNS.TESTED_FERRITIN] = np.where(
-        #         propensities < low_ferritin_probabilities, "low", "adequate"
-        #     )
-
         self.population_view.update(pop)
+
+        # ferritin screening
+        tested_low_hemoglobin_pop = pop[
+            pop[COLUMNS.TESTED_HEMOGLOBIN] == HEMOGLOBIN_TEST_RESULTS.LOW
+        ]
+        if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
+            has_anemia_idx = tested_low_hemoglobin_pop.index[
+                tested_low_hemoglobin_pop[COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY]
+                != "not_anemic"
+            ]
+            low_ferritin_probabilities = self.lookup_tables["low_ferritin_probability"](
+                has_anemia_idx
+            )
+            propensities = self.randomness.get_draw(
+                index=has_anemia_idx, additional_key="tested_ferritin"
+            )
+            tested_low_hemoglobin_pop.loc[has_anemia_idx, COLUMNS.TESTED_FERRITIN] = np.where(
+                propensities < low_ferritin_probabilities,
+                HEMOGLOBIN_TEST_RESULTS.LOW,
+                HEMOGLOBIN_TEST_RESULTS.ADEQUATE,
+            )
+
+        self.population_view.update(tested_low_hemoglobin_pop)
