@@ -60,13 +60,11 @@ class __InterventionScenarios(NamedTuple):
         "ai_ultrasound_scaleup",
         ultrasound_coverage="full",
         standard_ultrasound_coverage="none",
-        cemonc_probiotics_access="full",
     )
     STANDARD_ULTRASOUND_SCALEUP: InterventionScenario = InterventionScenario(
         "standard_ultrasound_scaleup",
         ultrasound_coverage="full",
         standard_ultrasound_coverage="full",
-        cemonc_probiotics_access="full",
     )
     FULL_PRODUCT_SCALEUP: InterventionScenario = InterventionScenario(
         "full_product_scaleup",
@@ -76,6 +74,9 @@ class __InterventionScenarios(NamedTuple):
         cemonc_cpap_access="full",
         bemonc_probiotics_access="full",
         cemonc_probiotics_access="full",
+        bemonc_antibiotics_access="full",
+        cemonc_antibiotics_access="full",
+        home_antibiotics_access="full",
         bemonc_azithromycin_access="full",
         cemonc_azithromycin_access="full",
     )
