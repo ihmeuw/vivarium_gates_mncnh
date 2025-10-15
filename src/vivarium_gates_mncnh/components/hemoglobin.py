@@ -47,6 +47,11 @@ class Hemoglobin(Risk):
             source=lambda index: self.ifa_deleted_hemoglobin(index),
             component=self,
         )
+        builder.value.register_value_producer(
+            PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE,
+            source=lambda index: self.ifa_deleted_hemoglobin(index),
+            component=self,
+        )
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["ANC1"] = self.build_lookup_table(
