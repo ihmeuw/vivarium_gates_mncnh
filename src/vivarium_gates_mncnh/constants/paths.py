@@ -12,7 +12,7 @@ ARTIFACT_ROOT = Path(
 J_DIR = Path("/home/j/Project/simulation_science/mnch_grant/MNCNH portfolio")
 CLUSTER_DATA_DIR = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data")
 PAF_DIR = CLUSTER_DATA_DIR / "lbwsg_paf/2023_outputs"
-PRETERM_PREVALENCE_DIR = CLUSTER_DATA_DIR / "preterm_prevalence"
+PRETERM_PREVALENCE_DIR = CLUSTER_DATA_DIR / "preterm_prevalence/2023_outputs"
 LBWSG_RR_CAPS_DIR = Path(__file__).parent.parent / "data" / "lbwsg_rr_caps" / "caps"
 ANC_DATA_DIR = CLUSTER_DATA_DIR / "antenatal_care"
 

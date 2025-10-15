@@ -92,6 +92,7 @@ def get_data(
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_CEmONC: load_overall_probability_birth_facility_type,
+        # RT owned
         # data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
         # data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_birth_facility_type,
@@ -124,15 +125,18 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
         data_keys.IFA_SUPPLEMENTATION.COVERAGE: load_ifa_coverage,
+        # RT owned
         # data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         # data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
         # data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
         # data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR: load_oral_iron_effect_size,
+        # RT owned
         # data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_mms_excess_shift,
         # data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: load_excess_gestational_age_shift,
         # data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: load_excess_gestational_age_shift,
         # data_keys.MMN_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
+        # RT owned
         # data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
         # data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
         # data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
@@ -143,10 +147,12 @@ def get_data(
         data_keys.HEMOGLOBIN.DISTRIBUTION_WEIGHTS: load_hemoglobin_distribution_weights,
         data_keys.HEMOGLOBIN.DISTRIBUTION: load_hemoglobin_distribution,
         data_keys.HEMOGLOBIN.RELATIVE_RISK: load_hemoglobin_relative_risk,
+        # RT owned
         # data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
+        # RT owned
         # data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
         # data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
     }
@@ -365,16 +371,25 @@ def load_lbwsg_rr(
     if key != data_keys.LBWSG.RELATIVE_RISK:
         raise ValueError(f"Unrecognized key {key}")
 
-    data = load_standard_data(key, location, years)
-    data = data.query(f"year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
-        ["affected_entity", "affected_measure"]
-    )
-    data = data[~data.index.duplicated()]
+    data = extra_gbd.load_2021_lbwsg_rr(location)
+    draw_cols = [col for col in data.columns if col.startswith("draw_")]
+    # Only keep draw columns with i < data_values.NUM_DRAWS
+    keep_draw_cols = [
+        col for col in draw_cols if int(col.split("_")[1]) < data_values.NUM_DRAWS
+    ]
+    other_cols = [col for col in data.columns if not col.startswith("draw_")]
+    data = data[other_cols + keep_draw_cols]
+    data = reshape_to_vivarium_format(data, location).reset_index()
+    keep_index_cols = ["sex", "age_start", "age_end", "year_start", "year_end", "parameter"]
+    data = data[keep_index_cols + keep_draw_cols]
+    data = data.set_index(keep_index_cols)
+
     caps = pd.read_csv(paths.LBWSG_RR_CAPS_DIR / f"{location.lower()}.csv")
     caps = caps.set_index(data.index.names)
     neonatal_data = data.query("age_start < 8 / 365")
     capped_neonatal_data = neonatal_data.where(neonatal_data <= caps, other=caps)
     data.loc[neonatal_data.index] = capped_neonatal_data
+
     return data
 
 
@@ -681,7 +696,7 @@ def load_lbwsg_birth_exposure(
     if key != data_keys.LBWSG.BIRTH_EXPOSURE:
         raise ValueError(f"Unrecognized key {key}")
 
-    birth_exposure = extra_gbd.load_lbwsg_birth_exposure(location)
+    birth_exposure = extra_gbd.load_2021_lbwsg_birth_exposure(location)
     # This category was a mistake in GBD 2019, so drop.
     exposure_key = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     entity = utilities.get_entity(exposure_key)
@@ -1306,11 +1321,14 @@ def load_hemoglobin_exposure_data(
         levels_to_drop.append("parameter")
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    expanded_draws_df = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=100, num_repeats=5
+    # Expand draw columns from 0-99 to 0-249 by repeating 2.5 times
+    expanded_draws_df_1 = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=2
     )
-
+    expanded_draws_df_2 = hemoglobin_data[[f"draw_{i}" for i in range(50)]].rename(
+        {f"draw_{i}": f"draw_{i+200}" for i in range(50)}, axis=1
+    )
+    expanded_draws_df = pd.concat([expanded_draws_df_1, expanded_draws_df_2], axis=1)
     return expanded_draws_df
 
 
@@ -1361,13 +1379,7 @@ def load_hemoglobin_relative_risk(
     ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
-    # TOOD: should we expand to 250 instead the same way?
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    expanded_draws_df = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=100, num_repeats=5
-    )
-
-    return expanded_draws_df
+    return hemoglobin_data
 
 
 def load_hemoglobin_paf(

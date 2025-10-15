@@ -57,6 +57,8 @@ class __LowBirthWeightShortGestation(NamedTuple):
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
+    # RT owned
+    # TODO: comment out
     SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
         "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
     )
@@ -264,6 +266,7 @@ class __FacilityChoice(NamedTuple):
     P_HOME: str = "cause.facility_choice.probability_home_birth"
     P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
     P_CEmONC: str = "cause.facility_choice.probability_cemonc_birth"
+    # RT owned
     # P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
     # P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
     BEmONC_FACILITY_FRACTION: str = "cause.facility_choice.bemonc_facility_fraction"
@@ -405,6 +408,7 @@ class __IFASupplementation(NamedTuple):
     COVERAGE: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.coverage"
     )
+    # RT owned
     # EFFECT_SIZE: TargetString = TargetString(
     #     "risk_factor.iron_folic_acid_supplementation.effect_size"
     # )
@@ -431,12 +435,14 @@ IFA_SUPPLEMENTATION = __IFASupplementation()
 
 
 class __MMN_Supplementation(NamedTuple):
+    # RT owned
     # EFFECT_SIZE: TargetString = TargetString(
     #     "risk_factor.multiple_micronutrient_supplementation.effect_size"
     # )
     STILLBIRTH_RR: TargetString = TargetString(
         "risk_factor.multiple_micronutrient_supplementation.stillbirth_rr"
     )
+    # RT owned
     # EXCESS_SHIFT: TargetString = TargetString(
     #     "risk_factor.multiple_micronutrient_supplementation.excess_shift"
     # )
@@ -507,6 +513,7 @@ class __Hemoglobin(NamedTuple):
     DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
     DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
+    # RT owned
     # PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
     SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
@@ -537,6 +544,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_CPAP_RISK,
     NO_ACS_RISK,
     FACILITY_CHOICE,
+    # RT owned
     # PROPENSITY_CORRELATIONS,
     # FERRITIN,
     NO_ANTIBIOTICS_RISK,
@@ -545,6 +553,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_MISOPROSTOL_RISK,
     IFA_SUPPLEMENTATION,
     MMN_SUPPLEMENTATION,
+    # RT owned
     # POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
     IV_IRON,

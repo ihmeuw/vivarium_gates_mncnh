@@ -31,24 +31,42 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
     return data
 
 
-# @vi_utils.cache
-def load_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
+@vi_utils.cache
+def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
     entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
     location_id = utility_data.get_location_id(location)
     data = get_draws(
         gbd_id_type="rei_id",
         gbd_id=entity.gbd_id,
-        source="exposure",
+        source=gbd_constants.SOURCES.EXPOSURE,
         location_id=location_id,
-        year_id=2022,
-        sex_id=[1, 2],
-        age_group_id=164,
-        release_id=gbd_constants.RELEASE_IDS.GBD_2023,
+        year_id=ARTIFACT_YEAR_START - 1,
+        sex_id=gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE,
+        age_group_id=164,  # Birth prevalence
+        release_id=gbd_constants.RELEASE_IDS.GBD_2021,
     )
+    data["year_id"] = ARTIFACT_YEAR_START
     return data
 
 
-# @vi_utils.cache
+@vi_utils.cache
+def load_2021_lbwsg_rr(location: str) -> pd.DataFrame:
+    entity = utilities.get_entity(data_keys.LBWSG.RELATIVE_RISK)
+    location_id = utility_data.get_location_id(location)
+    data = get_draws(
+        gbd_id_type="rei_id",
+        gbd_id=entity.gbd_id,
+        source=gbd_constants.SOURCES.RR,
+        location_id=location_id,
+        year_id=ARTIFACT_YEAR_START - 1,
+        sex_id=gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE,
+        release_id=gbd_constants.RELEASE_IDS.GBD_2021,
+    )
+    data["year_id"] = ARTIFACT_YEAR_START
+    return data
+
+
+@vi_utils.cache
 def get_birth_counts(location: str) -> pd.DataFrame:
     from db_queries import get_population
 
@@ -67,7 +85,7 @@ def get_birth_counts(location: str) -> pd.DataFrame:
     return births
 
 
-# @vi_utils.cache
+@vi_utils.cache
 def get_mortality_death_counts(location: str, age_group_id: int, gbd_id: int) -> pd.DataFrame:
     location_id = utility_data.get_location_id(location)
     data = get_draws(
