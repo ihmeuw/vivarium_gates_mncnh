@@ -138,6 +138,14 @@ class __ANCAttendanceTypes(NamedTuple):
 ANC_ATTENDANCE_TYPES = __ANCAttendanceTypes()
 
 
+class __HemoglobinTestResults(NamedTuple):
+    LOW: str = "low"
+    ADEQUATE: str = "adequate"
+
+
+HEMOGLOBIN_TEST_RESULTS = __HemoglobinTestResults()
+
+
 class __ANCRates(NamedTuple):
     ATTENDED_CARE_FACILITY = {
         "Ethiopia": 0.757,
