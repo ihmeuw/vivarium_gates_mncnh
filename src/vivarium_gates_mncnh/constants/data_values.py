@@ -138,6 +138,14 @@ class __ANCAttendanceTypes(NamedTuple):
 ANC_ATTENDANCE_TYPES = __ANCAttendanceTypes()
 
 
+class __HemoglobinTestResults(NamedTuple):
+    LOW: str = "low"
+    ADEQUATE: str = "adequate"
+
+
+HEMOGLOBIN_TEST_RESULTS = __HemoglobinTestResults()
+
+
 class __ANCRates(NamedTuple):
     RECEIVED_ULTRASOUND = {
         "Ethiopia": 0.607,
@@ -539,8 +547,8 @@ HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
     ],
     "value": [0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }
-HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # true positives that test positive
-HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # true negatives that test negative
+HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # low hemoglobin that tests low
+HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # adequate hemoglobin that tests adequate
 LOW_HEMOGLOBIN_THRESHOLD = 100
 
 ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild

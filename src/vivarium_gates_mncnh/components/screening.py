@@ -7,8 +7,10 @@ from vivarium.framework.population import SimulantData
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
+    ANC_ATTENDANCE_TYPES,
     ANEMIA_THRESHOLDS,
     COLUMNS,
+    HEMOGLOBIN_TEST_RESULTS,
     HEMOGLOBIN_TEST_SENSITIVITY,
     HEMOGLOBIN_TEST_SPECIFICITY,
     LOW_HEMOGLOBIN_THRESHOLD,
@@ -39,6 +41,10 @@ class AnemiaScreening(Component):
             COLUMNS.TESTED_FERRITIN,
         ]
 
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.ANC_ATTENDANCE]
+
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
@@ -51,26 +57,12 @@ class AnemiaScreening(Component):
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
-            ferritin_screening_coverage = True
-        else:  # 0% at baseline
-            ferritin_screening_coverage = False
-
-        if INTERVENTION_SCENARIOS[self.scenario].hemoglobin_screening_coverage == "baseline":
-            gets_hemoglobin_screening = self.randomness.choice(
-                index=pop_data.index,
-                choices=[True, False],
-                p=[self.hemoglobin_screening_coverage],
-                additional_key="hemoglobin_screening_coverage",
-            )
-        else:
-            gets_hemoglobin_screening = True
-
+        # need access to ANC attendance to define these
         anemia_screening_data = pd.DataFrame(
             {
                 COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY: "N/A",
-                COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE: gets_hemoglobin_screening,
-                COLUMNS.FERRITIN_SCREENING_COVERAGE: ferritin_screening_coverage,
+                COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE: False,
+                COLUMNS.FERRITIN_SCREENING_COVERAGE: False,
                 COLUMNS.TESTED_HEMOGLOBIN: "not_tested",
                 COLUMNS.TESTED_FERRITIN: "not_tested",
             },
@@ -83,10 +75,12 @@ class AnemiaScreening(Component):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
             return
         pop = self.population_view.get(event.index)
+        attends_anc = pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE
+        anc_pop = pop.loc[attends_anc]
 
         # anemia status during pregnancy
-        hemoglobin = self.ifa_deleted_hemoglobin(pop.index)
-        pop[COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] = (
+        hemoglobin = self.ifa_deleted_hemoglobin(anc_pop.index)
+        anc_pop.loc[:, COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] = (
             pd.cut(
                 hemoglobin,
                 bins=[-np.inf] + ANEMIA_THRESHOLDS,
@@ -97,21 +91,41 @@ class AnemiaScreening(Component):
             .fillna("not_anemic")
         )
 
-        self.population_view.update(pop)
+        self.population_view.update(anc_pop)
+
+        # hemoglobin screening
+        if INTERVENTION_SCENARIOS[self.scenario].hemoglobin_screening_coverage == "baseline":
+            hemoglobin_screening = self.randomness.choice(
+                index=anc_pop.index,
+                choices=[True, False],
+                p=[
+                    self.hemoglobin_screening_coverage,
+                    1 - self.hemoglobin_screening_coverage,
+                ],
+                additional_key="hemoglobin_screening_coverage",
+            )
+            hemoglobin_screening.name = COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE
+        else:
+            hemoglobin_screening = pd.DataFrame(
+                {COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE: True}, index=anc_pop.index
+            )
+
+        self.population_view.update(hemoglobin_screening)
+        pop = self.population_view.get(event.index)
 
         screened_pop = pop.loc[pop[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE]]
         true_hemoglobin_is_low = hemoglobin[screened_pop.index] < LOW_HEMOGLOBIN_THRESHOLD
 
         test_results_for_truly_low = self.randomness.choice(
-            index=screened_pop[true_hemoglobin_is_low].index,
-            choices=["low", "adequate"],
-            p=[HEMOGLOBIN_TEST_SENSITIVITY],
+            index=screened_pop.index[true_hemoglobin_is_low],
+            choices=[HEMOGLOBIN_TEST_RESULTS.LOW, HEMOGLOBIN_TEST_RESULTS.ADEQUATE],
+            p=[HEMOGLOBIN_TEST_SENSITIVITY, 1 - HEMOGLOBIN_TEST_SENSITIVITY],
             additional_key="low_hemoglobin_test_result",
         )
         test_results_for_truly_adequate = self.randomness.choice(
-            index=screened_pop[~true_hemoglobin_is_low].index,
-            choices=["adequate", "low"],
-            p=[HEMOGLOBIN_TEST_SPECIFICITY],
+            index=screened_pop.index[~true_hemoglobin_is_low],
+            choices=[HEMOGLOBIN_TEST_RESULTS.ADEQUATE, HEMOGLOBIN_TEST_RESULTS.LOW],
+            p=[HEMOGLOBIN_TEST_SPECIFICITY, 1 - HEMOGLOBIN_TEST_SPECIFICITY],
             additional_key="adequate_hemoglobin_test_result",
         )
 
@@ -122,10 +136,16 @@ class AnemiaScreening(Component):
             test_results_for_truly_adequate.index, COLUMNS.TESTED_HEMOGLOBIN
         ] = test_results_for_truly_adequate
 
+        self.population_view.update(pop)
+
         # ferritin screening
+        tested_low_hemoglobin_pop = pop[
+            pop[COLUMNS.TESTED_HEMOGLOBIN] == HEMOGLOBIN_TEST_RESULTS.LOW
+        ]
         if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
-            has_anemia_idx = pop.index[
-                pop[COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] != "not_anemic"
+            has_anemia_idx = tested_low_hemoglobin_pop.index[
+                tested_low_hemoglobin_pop[COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY]
+                != "not_anemic"
             ]
             low_ferritin_probabilities = self.lookup_tables["low_ferritin_probability"](
                 has_anemia_idx
@@ -133,8 +153,10 @@ class AnemiaScreening(Component):
             propensities = self.randomness.get_draw(
                 index=has_anemia_idx, additional_key="tested_ferritin"
             )
-            pop.loc[has_anemia_idx, COLUMNS.TESTED_FERRITIN] = np.where(
-                propensities < low_ferritin_probabilities, "low", "adequate"
+            tested_low_hemoglobin_pop.loc[has_anemia_idx, COLUMNS.TESTED_FERRITIN] = np.where(
+                propensities < low_ferritin_probabilities,
+                HEMOGLOBIN_TEST_RESULTS.LOW,
+                HEMOGLOBIN_TEST_RESULTS.ADEQUATE,
             )
 
-        self.population_view.update(pop)
+        self.population_view.update(tested_low_hemoglobin_pop)

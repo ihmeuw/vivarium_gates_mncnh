@@ -1094,17 +1094,12 @@ def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
 def load_oral_iron_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    effect_size_dists = data_values.ORAL_IRON_EFFECT_SIZES[key]
-    effect_size_data = []
-
-    for target, dist in effect_size_dists.items():
-        draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
-        data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
-        data["affected_target"] = target
-        data = data.set_index("affected_target")
-        effect_size_data.append(data)
-
-    return pd.concat(effect_size_data)
+    dist = data_values.ORAL_IRON_EFFECT_SIZES[key]["hemoglobin.exposure"]
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+    data["affected_target"] = "hemoglobin.exposure"
+    data = data.set_index("affected_target")
+    return data
 
 
 def load_ifa_excess_shift(
@@ -1136,9 +1131,10 @@ def load_risk_specific_shift(
     else:
         exposure = get_data(key_group.COVERAGE, location)
         excess_shift = get_data(key_group.EXCESS_SHIFT, location)
+        anc_proportion = get_data(data_keys.ANC.ANC1, location)
 
         risk_specific_shift = (
-            (exposure * excess_shift)
+            (exposure * excess_shift * anc_proportion)
             .groupby(
                 metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
             )
