@@ -32,12 +32,12 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
-            - OralIronInterventionExposure() # IFA and MMS
-            - OralIronInterventionEffect()
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
-            - MMSEffectOnGestationalAge()
+            #- OralIronInterventionExposure() # IFA and MMS
+            #- OralIronInterventionEffect()
+            #- AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            #- AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            #- AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
+            #- MMSEffectOnGestationalAge()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -51,7 +51,8 @@ components:
             - CorrelatedPropensities()
             - AnemiaScreening()
             # Observers 
-            - ANCObserver()
+            - ANCHemoglobinObserver()
+            - ANCOtherObserver()
             - BirthObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
@@ -104,25 +105,32 @@ configuration:
         include_sex: "Female"
     
     stratification:
-        anc:
+        anc_hemoglobin:
             include:
                 - 'age_group'
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
                 - 'ultrasound_type'
-                - 'azithromycin_availability'
-                - 'misoprostol_availability'
                 - 'hemoglobin_screening_coverage'
                 - 'ferritin_screening_coverage'
+                - 'preterm_birth'
+                #- 'ifa_coverage'
+                #- 'mms_coverage'
+                - 'true_hemoglobin_exposure'
+                - 'tested_hemoglobin_exposure'
+                - 'ferritin_status'
+        anc_other:
+            include:
+                - 'age_group'
+                - 'pregnancy_outcome'
+                - 'anc_coverage'
+                - 'ultrasound_type'
                 - 'delivery_facility_type'
                 - 'preterm_birth'
                 - 'believed_preterm'
                 - 'acs_eligibility'
-                - 'ifa_coverage'
-                - 'mms_coverage'
-                - 'true_hemoglobin_exposure'
-                - 'tested_hemoglobin_exposure'
-                - 'ferritin_status'
+                - 'azithromycin_availability'
+                - 'misoprostol_availability'
         birth:
             include:
                 - 'child_sex'

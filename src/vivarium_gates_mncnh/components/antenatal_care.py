@@ -328,7 +328,8 @@ class AntenatalCare(Component):
 
         # State A, B, C, D transitions to gets_ultrasound or end_state
         def get_ultrasound_probability(index: pd.Index) -> pd.Series:
-            if self.scenario == INTERVENTION_SCENARIOS["ultrasound_vv"]:
+            # ultrasound coverage is either full or baseline
+            if self.scenario.ultrasound_coverage == "full":
                 ultrasound_prob = 1.0
             else:
                 ultrasound_prob = ANC_RATES.RECEIVED_ULTRASOUND[self.location]
@@ -338,8 +339,12 @@ class AntenatalCare(Component):
             return 1 - get_ultrasound_probability(index)
 
         def get_standard_ultrasound_probability(index: pd.Index) -> pd.Series:
-            if self.scenario == INTERVENTION_SCENARIOS["ultrasound_vv"]:
+            if self.scenario.standard_ultrasound_coverage == "none":
+                standard_probability = 0.0
+            elif self.scenario.standard_ultrasound_coverage == "half":
                 standard_probability = 0.5
+            elif self.scenario.standard_ultrasound_coverage == "full":
+                standard_probability = 1.0
             else:
                 standard_probability = ANC_RATES.ULTRASOUND_TYPE[self.location][
                     ULTRASOUND_TYPES.STANDARD

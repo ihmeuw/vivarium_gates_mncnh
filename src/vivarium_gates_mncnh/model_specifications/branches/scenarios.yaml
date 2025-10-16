@@ -10,14 +10,11 @@ branches:
   - intervention:
       scenario: 
         - 'baseline' 
-        - "full_cpap_bemonc"
-        - "full_cpap_cemonc" 
-        - "full_cpap_all"
-        - "full_antibiotics_all"
-        - "full_probiotics_bemonc"
-        - "full_probiotics_cemonc"
-        - "full_probiotics_all"
-        - "scale_up_azithromycin_all"
-        - "full_azithromycin_all"
-        - "scale_up_misoprostol_home"
-        - "ultrasound_vv"
+        - "cpap_acs_scaleup"
+        - "cpap_acs_ai_ultrasound_scaleup"
+        - "neonatal_antibiotics_scaleup"
+        - "neonatal_probiotics_scaleup"
+        - "azithromycin_scaleup"
+        - "ai_ultrasound_scaleup"
+        - "standard_ultrasound_scaleup"
+        - "full_product_scaleup"
