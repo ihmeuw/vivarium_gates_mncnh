@@ -65,7 +65,8 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
-        data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
+        # RT owned
+        # data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
         data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
@@ -260,7 +261,6 @@ def load_sbr(
     return sbr_draws_df.set_index(["year_start", "year_end"])
 
 
-# TODO: remove now that we are pulling from GBD 2023
 def load_raw_incidence_data(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
