@@ -44,12 +44,12 @@ class Hemoglobin(Risk):
         )
         self.final_hemoglobin_exposure = builder.value.register_value_producer(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
-            source=lambda index: self.ifa_deleted_hemoglobin(index),
+            source=self.ifa_deleted_hemoglobin,
             component=self,
         )
         builder.value.register_value_producer(
             PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE,
-            source=lambda index: self.ifa_deleted_hemoglobin(index),
+            source=self.ifa_deleted_hemoglobin,
             component=self,
         )
 
