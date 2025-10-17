@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -670,7 +670,7 @@ def register_continuous_observations(
     columns_required: list[str],
     values_required: list[str],
     quantity_name: str,
-    get_values: callable[[pd.DataFrame], pd.Series],
+    get_values: Callable[[pd.DataFrame], pd.Series],
 ):
     def count_values(data: pd.DataFrame) -> float:
         return len(data)
