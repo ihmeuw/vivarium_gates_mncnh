@@ -322,6 +322,12 @@ class OralIronInterventionEffect(Component):
         )
 
         builder.value.register_value_modifier(
+            PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE,
+            self.get_first_anc_hemoglobin,
+            component=self,
+        )
+
+        builder.value.register_value_modifier(
             PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             self.adjust_stillbirth_probability,
             requires_columns=self.columns_created,
@@ -355,6 +361,27 @@ class OralIronInterventionEffect(Component):
 
         exposure.loc[needs_first_trimester_update] += self.ifa_effect_size
         exposure.loc[needs_later_pregnancy_update] += self.ifa_effect_size
+
+        return exposure
+
+    def get_first_anc_hemoglobin(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        pop = self.population_view.get(index)
+
+        has_first_trimester_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
+            [
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
+        oral_iron_covered = (
+            pop[COLUMNS.ORAL_IRON_INTERVENTION] != models.ORAL_IRON_INTERVENTION.NO_TREATMENT
+        )
+
+        needs_first_trimester_update = has_first_trimester_anc & oral_iron_covered
+
+        exposure.loc[needs_first_trimester_update] += self.ifa_effect_size
 
         return exposure
 
