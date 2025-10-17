@@ -1,8 +1,7 @@
 import pandas as pd
 from vivarium_gbd_access import constants as gbd_constants
 from vivarium_gbd_access import utilities as vi_utils
-from vivarium_gbd_access.gbd.base_data import get_draws
-from vivarium_gbd_access.gbd.measures import get_birth_exposure
+from vivarium_gbd_access.gbd import base_data
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
 
@@ -18,7 +17,7 @@ from vivarium_gates_mncnh.data import utilities
 def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
     entity = utilities.get_entity(key)
     location_id = utility_data.get_location_id(location)
-    data = get_draws(
+    data = base_data.get_draws(
         "cause_id",
         entity.gbd_id,
         source=gbd_constants.SOURCES.COMO,
@@ -35,12 +34,12 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
 def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
     entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
     location_id = utility_data.get_location_id(location)
-    data = get_draws(
+    data = base_data.get_draws(
         gbd_id_type="rei_id",
         gbd_id=entity.gbd_id,
         source=gbd_constants.SOURCES.EXPOSURE,
         location_id=location_id,
-        year_id=ARTIFACT_YEAR_START - 1,
+        year_id=2022,
         sex_id=gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE,
         age_group_id=164,  # Birth prevalence
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
@@ -53,12 +52,12 @@ def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
 def load_2021_lbwsg_rr(location: str) -> pd.DataFrame:
     entity = utilities.get_entity(data_keys.LBWSG.RELATIVE_RISK)
     location_id = utility_data.get_location_id(location)
-    data = get_draws(
+    data = base_data.get_draws(
         gbd_id_type="rei_id",
         gbd_id=entity.gbd_id,
         source=gbd_constants.SOURCES.RR,
         location_id=location_id,
-        year_id=ARTIFACT_YEAR_START - 1,
+        year_id=2022,
         sex_id=gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE,
         release_id=gbd_constants.RELEASE_IDS.GBD_2021,
     )
@@ -88,7 +87,7 @@ def get_birth_counts(location: str) -> pd.DataFrame:
 @vi_utils.cache
 def get_mortality_death_counts(location: str, age_group_id: int, gbd_id: int) -> pd.DataFrame:
     location_id = utility_data.get_location_id(location)
-    data = get_draws(
+    data = base_data.get_draws(
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
         location_id=location_id,
         age_group_id=age_group_id,
@@ -112,7 +111,7 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
     }
     source = source_map[key]
     location_id = utility_data.get_location_id(location)
-    data = get_draws(
+    data = base_data.get_draws(
         gbd_id_type="rei_id",
         gbd_id=376,
         source=source,
@@ -126,7 +125,7 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
 
 @vi_utils.cache
 def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
-    data = get_draws(
+    data = base_data.get_draws(
         release_id=33,
         gbd_id_type="rei_id",
         gbd_id=376,
@@ -142,7 +141,7 @@ def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
 @vi_utils.cache
 def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
     location_id = utility_data.get_location_id(location)
-    data = get_draws(
+    data = base_data.get_draws(
         release_id=33,
         version_id=393,
         gbd_id_type="rei_id",
