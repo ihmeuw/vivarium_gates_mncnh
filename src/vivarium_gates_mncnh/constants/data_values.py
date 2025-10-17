@@ -294,6 +294,8 @@ class __Pipelines(NamedTuple):
     ACMR_RR = "effect_of_low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
+    RAW_BIRTH_WEIGHT_EXPOSURE = "raw_birth_weight.birth_exposure"
+    RAW_GESTATIONAL_AGE_EXPOSURE = "raw_gestational_age.birth_exposure"
     PREGNANCY_DURATION = "pregnancy_duration"
     BIRTH_OUTCOME_PROBABILITIES = "birth_outcome_probabilities"
     MATERNAL_SEPSIS_INCIDENCE_RISK = (

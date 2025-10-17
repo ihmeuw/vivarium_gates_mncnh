@@ -150,6 +150,24 @@ class LBWSGRisk(LBWSGRisk_):
             f"{self.name}.correlated_propensity"
         )
 
+        required_columns = get_lookup_columns(
+            self.exposure_distribution.lookup_tables.values()
+        )
+        builder.value.register_value_producer(
+            PIPELINES.RAW_BIRTH_WEIGHT_EXPOSURE,
+            source=lambda index: self.get_birth_exposure(BIRTH_WEIGHT, index),
+            component=self,
+            required_resources=required_columns + [self.randomness],
+            preferred_post_processor=get_exposure_post_processor(builder, self.name),
+        )
+        builder.value.register_value_producer(
+            PIPELINES.RAW_GESTATIONAL_AGE_EXPOSURE,
+            source=lambda index: self.get_birth_exposure(GESTATIONAL_AGE, index),
+            component=self,
+            required_resources=required_columns + [self.randomness],
+            preferred_post_processor=get_exposure_post_processor(builder, self.name),
+        )
+
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
         categorical_propensity = self.categorical_propensity(
             index
