@@ -296,7 +296,7 @@ class BirthObserver(PublicHealthObserver):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
 
 
-class ANCObserver(PublicHealthObserver):
+class ANCHemoglobinObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
@@ -306,7 +306,27 @@ class ANCObserver(PublicHealthObserver):
     def register_observations(self, builder: Builder) -> None:
         self.register_adding_observation(
             builder=builder,
-            name="anc",
+            name="anc_hemoglobin",
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+        )
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
+
+
+class ANCOtherObserver(PublicHealthObserver):
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    def get_configuration(self, builder: Builder) -> dict[str, Any]:
+        return builder.configuration["stratification"][self.get_configuration_name()]
+
+    def register_observations(self, builder: Builder) -> None:
+        self.register_adding_observation(
+            builder=builder,
+            name="anc_other",
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
