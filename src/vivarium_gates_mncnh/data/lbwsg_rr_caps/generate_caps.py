@@ -13,15 +13,15 @@ Arguments:
                       Default: Ethiopia
 
     -o, --output-dir   The output directory where the generated CSV file will be saved.
-                      Default: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data/lbwsg_rr_caps
+                      Default: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/caps/
 
 Example:
     python generate_caps.py -l Nigeria -o /path/to/output_dir
 
 The output will be a CSV file named <location>.csv in the specified output directory.
 """
-
 import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -201,7 +201,7 @@ if __name__ == "__main__":
         "-o",
         "--output-dir",
         type=str,
-        default="/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data/lbwsg_rr_caps",
+        default=Path(__file__).parent / "caps",
         help="The output directory where we will write our LBWSG RR caps data.",
     )
     args = parser.parse_args()
