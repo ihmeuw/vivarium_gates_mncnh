@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any
 
@@ -581,7 +581,9 @@ class InterventionObserver(PublicHealthObserver):
             INTERVENTIONS.ANTIBIOTICS,
             INTERVENTIONS.PROBIOTICS,
         ]:
-            pop_filter += f" & pregnancy_outcome == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'"
+            pop_filter += (
+                f" & {COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'"
+            )
         self.register_adding_observation(
             builder=builder,
             name=self.intervention,
@@ -660,3 +662,142 @@ class PostpartumDepressionObserver(PublicHealthObserver):
 
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION
+
+
+def register_continuous_observations(
+    observer: PublicHealthObserver,
+    builder: Builder,
+    columns_required: list[str],
+    values_required: list[str],
+    quantity_name: str,
+    get_values: callable[[pd.DataFrame], pd.Series],
+):
+    def count_values(data: pd.DataFrame) -> float:
+        return len(data)
+
+    def count_nonzero_values(data: pd.DataFrame) -> float:
+        return (get_values(data) > 0).sum()
+
+    def sum_values(data: pd.DataFrame) -> float:
+        return get_values(data).sum()
+
+    def sum_squared_values(data: pd.DataFrame) -> float:
+        return (get_values(data) ** 2).sum()
+
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_count",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=count_values,
+    )
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_nonzero_count",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=count_nonzero_values,
+    )
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_sum",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=sum_values,
+    )
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_sum_of_squares",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=sum_squared_values,
+    )
+
+
+class NeonatalObserver(PublicHealthObserver, ABC):
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    @abstractmethod
+    def register_observations(self, builder: Builder) -> None:
+        pass
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() in (
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+        )
+
+
+class NeonatalACMRiskObserver(NeonatalObserver):
+    def register_observations(self, builder: Builder):
+        register_continuous_observations(
+            self,
+            builder,
+            columns_required=[COLUMNS.PREGNANCY_OUTCOME],
+            values_required=[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
+            quantity_name="acmrisk",
+            get_values=lambda data: data[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
+        )
+
+
+class NeonatalCSMRiskObserver(NeonatalObserver):
+    def __init__(self) -> None:
+        super().__init__()
+        self.neonatal_causes = CAUSES_OF_NEONATAL_MORTALITY
+
+    def register_observations(self, builder: Builder):
+        for cause in self.neonatal_causes:
+            register_continuous_observations(
+                self,
+                builder,
+                columns_required=[COLUMNS.PREGNANCY_OUTCOME],
+                values_required=[f"{cause}.csmr"],
+                quantity_name=f"{cause}_csmrisk",
+                get_values=lambda data, cause=cause: data[f"{cause}.csmr"],
+            )
+
+
+class ImpossibleNeonatalCSMRiskObserver(NeonatalObserver):
+    def register_observations(self, builder: Builder):
+        register_continuous_observations(
+            self,
+            builder,
+            columns_required=[COLUMNS.PREGNANCY_OUTCOME],
+            values_required=[
+                PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
+                PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+                PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR,
+                PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+                PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR,
+            ],
+            quantity_name="impossible_csmrisk",
+            get_values=self.get_values,
+        )
+
+    def get_values(self, data: pd.DataFrame) -> pd.Series:
+        total_csmrisk = data[
+            [
+                PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+                PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR,
+                PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+                PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR,
+            ]
+        ].sum(axis=1)
+        return ((total_csmrisk / data[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY]) - 1).clip(0)
