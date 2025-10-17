@@ -52,6 +52,8 @@ def test_birth_exposure_coverage(
     )
     birth_exposure = artifact.load(LBWSG.BIRTH_EXPOSURE)[draw].reset_index()
     sim_exposure = get_simulation_exposure_categories(population, birth_state)
+    # remove simulants who aren't in a LBWSG category from GBD
+    sim_exposure = sim_exposure[sim_exposure["category"] != ""]
 
     # Check each combination of sex and category
     for sex in ["Female", "Male"]:
@@ -134,7 +136,9 @@ def get_simulation_exposure_categories(
 
     # Get single category from set returned above but throw error if simulant is in two categories
     def extract_set_value(s: set) -> str:
-        if len(s) <= 1:
+        if len(s) == 0:
+            return ""
+        elif len(s) == 1:
             return s.pop()
         else:
             raise ValueError("Simulant is in multiple LBWSG categories")
