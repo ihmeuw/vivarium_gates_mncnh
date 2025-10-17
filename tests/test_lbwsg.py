@@ -99,6 +99,14 @@ def get_simulation_exposure_categories(
             COLUMNS.BIRTH_WEIGHT_EXPOSURE,
         ]
     ].copy()
+    sim_exposure = pd.concat(
+        [
+            pop[COLUMNS.SEX_OF_CHILD],
+            sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)(pop.index),
+            sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)(pop.index),
+        ],
+        axis=1,
+    )
     category_intervals = sim.get_component(
         "risk_factor.low_birth_weight_and_short_gestation"
     ).exposure_distribution.category_intervals
@@ -111,11 +119,11 @@ def get_simulation_exposure_categories(
         return categories
 
     # Map 'gestational_age' to its categories
-    sim_exposure["gestational_age_category"] = sim_exposure["gestational_age_exposure"].apply(
-        lambda x: map_to_category(x, category_intervals["gestational_age"])
-    )
+    sim_exposure["gestational_age_category"] = sim_exposure[
+        "gestational_age.birth_exposure"
+    ].apply(lambda x: map_to_category(x, category_intervals["gestational_age"]))
     # Map 'birth_weight' to its categories
-    sim_exposure["birth_weight_category"] = sim_exposure["birth_weight_exposure"].apply(
+    sim_exposure["birth_weight_category"] = sim_exposure["birth_weight.birth_exposure"].apply(
         lambda x: map_to_category(x, category_intervals["birth_weight"])
     )
     # Get common category
@@ -126,7 +134,7 @@ def get_simulation_exposure_categories(
 
     # Get single category from set returned above but throw error if simulant is in two categories
     def extract_set_value(s: set) -> str:
-        if len(s) == 1:
+        if len(s) <= 1:
             return s.pop()
         else:
             raise ValueError("Simulant is in multiple LBWSG categories")
