@@ -664,7 +664,7 @@ class PostpartumDepressionObserver(PublicHealthObserver):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION
 
 
-def register_continuous_observations(
+def register_observations_of_continuous_quantity(
     observer: PublicHealthObserver,
     builder: Builder,
     columns_required: list[str],
@@ -672,11 +672,31 @@ def register_continuous_observations(
     quantity_name: str,
     get_values: Callable[[pd.DataFrame], pd.Series],
 ):
+    """
+    Register observations that compute summary statistics about a continuous quantity:
+    the number of values, the number of nonzero values, the sum of the values,
+    and the sum of the squares of the values.
+    These are "moments" with respect to the count measure, which:
+    (a) aggregate additively, and
+    (b) allow calculation of the mean and variance, as well as the mean among nonzero values
+        and the variance among nonzero values.
+
+    The quantity in question is called `quantity_name` in the resulting observations,
+    and `get_values` is a callable that returns the values of this quantity.
+    `get_values` will be passed a dataframe containing the `columns_required` from the state table
+    and the `values_required` from pipelines.
+
+    We use composition (this function which is passed an observer) rather than inheritance
+    (the observer inheriting from a base class containing this functionality)
+    because for one of our observers below, we want to register these observations for *each*
+    cause.
+    This is much easier to do with composition.
+    """
     def count_values(data: pd.DataFrame) -> float:
         return len(data)
 
     def count_nonzero_values(data: pd.DataFrame) -> float:
-        return (get_values(data) > 0).sum()
+        return (get_values(data) != 0).sum()
 
     def sum_values(data: pd.DataFrame) -> float:
         return get_values(data).sum()
@@ -747,7 +767,7 @@ class NeonatalObserver(PublicHealthObserver, ABC):
 
 class NeonatalACMRiskObserver(NeonatalObserver):
     def register_observations(self, builder: Builder):
-        register_continuous_observations(
+        register_observations_of_continuous_quantity(
             self,
             builder,
             columns_required=[COLUMNS.PREGNANCY_OUTCOME],
@@ -764,7 +784,7 @@ class NeonatalCSMRiskObserver(NeonatalObserver):
 
     def register_observations(self, builder: Builder):
         for cause in self.neonatal_causes:
-            register_continuous_observations(
+            register_observations_of_continuous_quantity(
                 self,
                 builder,
                 columns_required=[COLUMNS.PREGNANCY_OUTCOME],
@@ -776,7 +796,7 @@ class NeonatalCSMRiskObserver(NeonatalObserver):
 
 class ImpossibleNeonatalCSMRiskObserver(NeonatalObserver):
     def register_observations(self, builder: Builder):
-        register_continuous_observations(
+        register_observations_of_continuous_quantity(
             self,
             builder,
             columns_required=[COLUMNS.PREGNANCY_OUTCOME],
