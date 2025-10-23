@@ -692,6 +692,7 @@ def register_observations_of_continuous_quantity(
     cause.
     This is much easier to do with composition.
     """
+
     def count_values(data: pd.DataFrame) -> float:
         return len(data)
 
