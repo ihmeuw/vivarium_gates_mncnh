@@ -65,8 +65,7 @@ def get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC: load_raw_incidence_data,
         data_keys.LBWSG.DISTRIBUTION: load_metadata,
         data_keys.LBWSG.CATEGORIES: load_metadata,
-        # RT owned
-        # data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
+        data_keys.LBWSG.SEX_SPECIFIC_ORDERED_CATEGORIES: load_sex_specific_ordered_lbwsg_categories,
         data_keys.LBWSG.BIRTH_EXPOSURE: load_lbwsg_birth_exposure,
         data_keys.LBWSG.EXPOSURE: load_lbwsg_exposure,
         data_keys.LBWSG.RELATIVE_RISK: load_lbwsg_rr,
@@ -371,18 +370,11 @@ def load_lbwsg_rr(
     if key != data_keys.LBWSG.RELATIVE_RISK:
         raise ValueError(f"Unrecognized key {key}")
 
-    data = extra_gbd.load_2021_lbwsg_rr(location)
-    draw_cols = [col for col in data.columns if col.startswith("draw_")]
-    # Only keep draw columns with i < data_values.NUM_DRAWS
-    keep_draw_cols = [
-        col for col in draw_cols if int(col.split("_")[1]) < data_values.NUM_DRAWS
-    ]
-    other_cols = [col for col in data.columns if not col.startswith("draw_")]
-    data = data[other_cols + keep_draw_cols]
-    data = reshape_to_vivarium_format(data, location).reset_index()
-    keep_index_cols = ["sex", "age_start", "age_end", "year_start", "year_end", "parameter"]
-    data = data[keep_index_cols + keep_draw_cols]
-    data = data.set_index(keep_index_cols)
+    data = load_standard_data(key, location, years)
+    data = data.query(f"year_start == {metadata.ARTIFACT_YEAR_START}").droplevel(
+        ["affected_entity", "affected_measure"]
+    )
+    data = data[~data.index.duplicated()]
 
     caps = pd.read_csv(paths.LBWSG_RR_CAPS_DIR / f"{location.lower()}.csv")
     caps = caps.set_index(data.index.names)

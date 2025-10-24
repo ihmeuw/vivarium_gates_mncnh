@@ -49,23 +49,6 @@ def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
 
 
 @vi_utils.cache
-def load_2021_lbwsg_rr(location: str) -> pd.DataFrame:
-    entity = utilities.get_entity(data_keys.LBWSG.RELATIVE_RISK)
-    location_id = utility_data.get_location_id(location)
-    data = base_data.get_draws(
-        gbd_id_type="rei_id",
-        gbd_id=entity.gbd_id,
-        source=gbd_constants.SOURCES.RR,
-        location_id=location_id,
-        year_id=2022,
-        sex_id=gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE,
-        release_id=gbd_constants.RELEASE_IDS.GBD_2021,
-    )
-    data["year_id"] = ARTIFACT_YEAR_START
-    return data
-
-
-@vi_utils.cache
 def get_birth_counts(location: str) -> pd.DataFrame:
     from db_queries import get_population
 
