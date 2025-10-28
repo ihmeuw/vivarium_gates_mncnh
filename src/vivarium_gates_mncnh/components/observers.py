@@ -164,19 +164,19 @@ class ResultsStratifier(ResultsStratifier_):
             requires_columns=[COLUMNS.MISOPROSTOL_AVAILABLE],
         )
         builder.results.register_stratification(
-            "ifa_coverage",
-            ["covered", "uncovered"],
+            "oral_iron_coverage",
+            ["ifa", "mms", "uncovered"],
             mapper=self.map_oral_iron_coverage,
             is_vectorized=True,
-            requires_values=[PIPELINES.IFA_SUPPLEMENTATION],
+            requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
         )
-        builder.results.register_stratification(
-            "mms_coverage",
-            ["covered", "uncovered"],
-            mapper=self.map_oral_iron_coverage,
-            is_vectorized=True,
-            requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
-        )
+        # builder.results.register_stratification(
+        #     "mms_coverage",
+        #     ["covered", "uncovered"],
+        #     mapper=self.map_oral_iron_coverage,
+        #     is_vectorized=True,
+        #     requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
+        # )
         builder.results.register_stratification(
             "hemoglobin_screening_coverage",
             [True, False],
@@ -241,7 +241,19 @@ class ResultsStratifier(ResultsStratifier_):
         )
 
     def map_oral_iron_coverage(self, pop: pd.DataFrame) -> pd.Series:
-        return pop.squeeze().replace({"cat1": "uncovered", "cat2": "covered"})
+        mapped = pop.replace({"cat1": "uncovered", "cat2": "covered"})
+        
+        # Create coverage masks
+        ifa_covered_mms_uncovered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "covered") & (mapped[PIPELINES.MMN_SUPPLEMENTATION] == "uncovered")
+        mms_covered_ifa_covered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "uncovered") & (mapped[PIPELINES.MMN_SUPPLEMENTATION] == "covered")
+        
+        # Create the series with the mapping
+        oral_iron_coverage = pd.Series("uncovered", index=mapped.index)
+        oral_iron_coverage[ifa_covered_mms_uncovered] = "ifa"
+        oral_iron_coverage[mms_covered_ifa_covered] = "mms"
+        breakpoint()
+        
+        return oral_iron_coverage
 
 
 class PAFResultsStratifier(ResultsStratifier_):

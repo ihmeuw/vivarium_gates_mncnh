@@ -70,10 +70,11 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model18.1/ethiopia.hdf"
+        artifact_path: /home/albrja/scratch/artifacts/ethiopia.hdf
+        # artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model18.1/ethiopia.hdf"
     interpolation:
         order: 0
-        extrapolate: True
+        extrapolate: True`  
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time', 'age']
@@ -113,12 +114,9 @@ configuration:
                 - 'age_group'
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
-                - 'ultrasound_type'
-                - 'hemoglobin_screening_coverage'
-                - 'ferritin_screening_coverage'
+                # - 'ultrasound_type'
                 - 'preterm_birth'
-                - 'ifa_coverage'
-                - 'mms_coverage'
+                - 'oral_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
@@ -151,6 +149,8 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'true_hemoglobin_exposure'
+                - 'oral_iron_coverage'
         neonatal_burden:
             include:
                 - 'child_sex'
@@ -237,4 +237,4 @@ configuration:
 
     intervention:
         scenario:
-            'baseline'
+            'full_product_scaleup'
