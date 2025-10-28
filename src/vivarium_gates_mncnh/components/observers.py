@@ -242,17 +242,20 @@ class ResultsStratifier(ResultsStratifier_):
 
     def map_oral_iron_coverage(self, pop: pd.DataFrame) -> pd.Series:
         mapped = pop.replace({"cat1": "uncovered", "cat2": "covered"})
-        
+
         # Create coverage masks
-        ifa_covered_mms_uncovered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "covered") & (mapped[PIPELINES.MMN_SUPPLEMENTATION] == "uncovered")
-        mms_covered_ifa_covered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "uncovered") & (mapped[PIPELINES.MMN_SUPPLEMENTATION] == "covered")
-        
+        ifa_covered_mms_uncovered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "covered") & (
+            mapped[PIPELINES.MMN_SUPPLEMENTATION] == "uncovered"
+        )
+        mms_covered_ifa_covered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "covered") & (
+            mapped[PIPELINES.MMN_SUPPLEMENTATION] == "covered"
+        )
+
         # Create the series with the mapping
         oral_iron_coverage = pd.Series("uncovered", index=mapped.index)
         oral_iron_coverage[ifa_covered_mms_uncovered] = "ifa"
         oral_iron_coverage[mms_covered_ifa_covered] = "mms"
-        breakpoint()
-        
+
         return oral_iron_coverage
 
 
