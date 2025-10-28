@@ -819,13 +819,8 @@ def load_antibiotic_coverage_probability(
     location: str,
     years: Optional[Union[int, str, List[int]]] = None,
 ) -> pd.DataFrame:
-    # Model 8.3 sets coverage values at population level and not birth facility/location level
-    coverage_dict = {
-        "Ethiopia": 0.5,
-        "Nigeria": 0.0,
-        "Pakistan": 0.0,
-    }
-    return coverage_dict[location]
+    # Model 8.3+ sets coverage values at location level and not birth facility/location level
+    return data_values.ANTIBIOTIC_BASELINE_COVERAGE[location]
 
 
 def load_no_antibiotics_relative_risk(

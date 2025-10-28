@@ -5,7 +5,6 @@ from vivarium_gates_mncnh.constants.data_keys import (
     FACILITY_CHOICE,
     IFA_SUPPLEMENTATION,
     MMN_SUPPLEMENTATION,
-    NO_ANTIBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_CPAP_RISK,
 )
@@ -40,12 +39,6 @@ PREGNANCY_OUTCOMES = __PregnancyOutcome()
 
 
 class _Durations(NamedTuple):
-    FULL_TERM_DAYS = 40 * 7
-    POSTPARTUM_DAYS = 6 * 7
-    PARTURITION_DAYS = 1 * 7
-    DETECTION_DAYS = 6 * 7
-    PARTIAL_TERM_DAYS = 24 * 7
-    INTERVENTION_DELAY_DAYS = 8 * 7
     PARTIAL_TERM_LOWER_WEEKS = 6.0
     PARTIAL_TERM_UPPER_WEEKS = 24.0
 
@@ -107,10 +100,12 @@ HEMOGLOBIN_TEST_RESULTS = __HemoglobinTestResults()
 
 class __ANCRates(NamedTuple):
     RECEIVED_ULTRASOUND = {
+        # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/ai_ultrasound_module/module_document.html#id7
         "Ethiopia": 0.607,
         "Nigeria": 0.587,
         "Pakistan": 0.667,
     }
+    # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/ai_ultrasound_module/module_document.html#baseline-coverage
     ULTRASOUND_TYPE = {
         "Ethiopia": {
             ULTRASOUND_TYPES.STANDARD: 1.0,
@@ -130,6 +125,7 @@ class __ANCRates(NamedTuple):
         ULTRASOUND_TYPES.STANDARD: 0.61,
         ULTRASOUND_TYPES.AI_ASSISTED: 0.80,
     }
+    # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/ai_ultrasound_module/module_document.html#calculation-of-estimated-gestational-age
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
         ULTRASOUND_TYPES.NO_ULTRASOUND: 10.0 / 7,
         ULTRASOUND_TYPES.STANDARD: 6.7 / 7,
@@ -263,7 +259,20 @@ class __Pipelines(NamedTuple):
 PIPELINES = __Pipelines()
 
 
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/neonatal/preterm_birth.html#id5
 PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY = 0.85
+# NOTE: This is an arbitrary value that must be greater than 0 and less than LATE_NEONATAL_AGE_START.
+# It is used in a tricky-to-understand way to deal with stillbirths.
+# Basically, to record YLLs due to stillbirths, we make stillbirth an "age group" for Vivarium purposes,
+# which spans from EARLY_NEONATAL_AGE_START (zero) to CHILD_INITIALIZATION_AGE.
+# Then when simulants are initialized, we put them in this stillbirth age group; if they are stillborn,
+# we have them die in that age group.
+# If they are a live birth, their age is updated to be greater than CHILD_INITIALIZATION_AGE so that they formally enter
+# the early neonatal age group.
+# It is a bit tricky to think through when we need to modify our approach to match this.
+# For example, we leave all early neonatal PAFs as starting at 0, which is fine because the early neonatal
+# period in GBD (0-7 days) is a superset of the early neonatal period in our sim (0.1 days-7 days) and
+# we don't apply any risk effects that would use a PAF to stillbirths.
 CHILD_INITIALIZATION_AGE = 0.1 / 365.0
 
 
@@ -297,60 +306,42 @@ DELIVERY_FACILITY_TYPE_PROBABILITIES = {
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {
+        # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/cpap_intervention.html#baseline-coverage-and-rr-data
         NO_CPAP_RISK.P_CPAP_BEMONC: get_norm(0.075, 0.02**2),
         NO_CPAP_RISK.P_CPAP_CEMONC: get_norm(0.393, 0.05**2),
         NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
+    # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/cpap_intervention.html#baseline-coverage-and-rr-data
     "Nigeria": {
         NO_CPAP_RISK.P_CPAP_BEMONC: get_norm(0.075, 0.02**2),
         NO_CPAP_RISK.P_CPAP_CEMONC: get_norm(0.393, 0.05**2),
         NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
+    # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/cpap_intervention.html#baseline-coverage-and-rr-data
     "Pakistan": {
         NO_CPAP_RISK.P_CPAP_BEMONC: get_norm(0.075, 0.02**2),
         NO_CPAP_RISK.P_CPAP_CEMONC: get_norm(0.393, 0.05**2),
         NO_CPAP_RISK.P_CPAP_HOME: get_norm(0.0, 0.00**2),
     },
 }
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/cpap_intervention.html#id7
 CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
 
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#id22
 ACS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.84, 0.72, 0.97)
 
-
-ANTIBIOTIC_FACILITY_TYPE_DISTRIBUTION = {
-    # NOTE: This is not being used as of model 8.3
-    "Ethiopia": {
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
-            0.302, 0.529
-        ),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: get_uniform_distribution_from_limits(
-            0.768, 0.972
-        ),
-    },
-    "Nigeria": {
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
-            0.302, 0.529
-        ),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: get_uniform_distribution_from_limits(
-            0.768, 0.972
-        ),
-    },
-    "Pakistan": {
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME: get_uniform_distribution_from_limits(0, 0.10),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_BEMONC: get_uniform_distribution_from_limits(
-            0.302, 0.529
-        ),
-        NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_CEMONC: get_uniform_distribution_from_limits(
-            0.768, 0.972
-        ),
-    },
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/antibiotics_intervention.html#id32
+# Model 8.3+ sets coverage values at location level and not birth facility/location level
+ANTIBIOTIC_BASELINE_COVERAGE = {
+    "Ethiopia": 0.5,
+    "Nigeria": 0.0,
+    "Pakistan": 0.0,
 }
 ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.78, 0.60, 1.00)
 
-
+# http://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/probiotics_intervention.html#baseline-coverage-data
 PROBIOTICS_BASELINE_COVERAGE_PROABILITY = 0.0
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/probiotics_intervention.html#id14
 PROBIOTICS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.81, 0.72, 0.91)
 
 
@@ -376,6 +367,7 @@ INTERVENTION_TYPE_MAPPER = {
 
 
 AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
+    # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/azithromycin_intervention.html#id12
     "Ethiopia": {
         NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_HOME: get_norm(0.0, 0.00**2),
         NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_BEMONC: get_norm(0.0, 0.00**2),
@@ -395,7 +387,9 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
     },
 }
 # RR of no azithromycin intervention
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/azithromycin_intervention.html#id13
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/misoprostol_intervention.html#id17
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
 
 # Effects of IV iron intervention
@@ -477,12 +471,14 @@ class __PostpartumDepressionCaseTypes(NamedTuple):
 POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
 
 
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18
 POSTPARTUM_DEPRESSION_CASE_SEVERITY_PROBABILITIES = {
     POSTPARTUM_DEPRESSION_CASE_TYPES.ASYMPTOMATIC: 0.14,
     POSTPARTUM_DEPRESSION_CASE_TYPES.MILD: 0.59,
     POSTPARTUM_DEPRESSION_CASE_TYPES.MODERATE: 0.17,
     POSTPARTUM_DEPRESSION_CASE_TYPES.SEVERE: 0.10,
 }
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18
 POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS = {
     POSTPARTUM_DEPRESSION_CASE_TYPES.ASYMPTOMATIC: get_truncnorm(
         0.0,
@@ -531,6 +527,7 @@ HEMOGLOBIN_ENSEMBLE_DISTRIBUTION_WEIGHTS = {
     ],
     "value": [0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/anemia_screening.html#hemoglobin-screening-accuracy-instructions
 HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # low hemoglobin that tests low
 HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # adequate hemoglobin that tests adequate
 LOW_HEMOGLOBIN_THRESHOLD = 100
