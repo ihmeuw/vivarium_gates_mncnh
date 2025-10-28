@@ -16,40 +16,6 @@ from vivarium_gates_mncnh.utilities import (
     get_uniform_distribution_from_limits,
 )
 
-############################
-# Disease Model Parameters #
-############################
-
-REMISSION_RATE = 0.1
-MEAN_SOJOURN_TIME = 10
-
-
-##############################
-# Screening Model Parameters #
-##############################
-
-PROBABILITY_ATTENDING_SCREENING_KEY = "probability_attending_screening"
-PROBABILITY_ATTENDING_SCREENING_START_MEAN = 0.25
-PROBABILITY_ATTENDING_SCREENING_START_STDDEV = 0.0025
-PROBABILITY_ATTENDING_SCREENING_END_MEAN = 0.5
-PROBABILITY_ATTENDING_SCREENING_END_STDDEV = 0.005
-
-FIRST_SCREENING_AGE = 21
-MID_SCREENING_AGE = 30
-LAST_SCREENING_AGE = 65
-
-
-###################################
-# Scale-up Intervention Constants #
-###################################
-SCALE_UP_START_DT = datetime(2021, 1, 1)
-SCALE_UP_END_DT = datetime(2030, 1, 1)
-SCREENING_SCALE_UP_GOAL_COVERAGE = 0.50
-SCREENING_SCALE_UP_DIFFERENCE = (
-    SCREENING_SCALE_UP_GOAL_COVERAGE - PROBABILITY_ATTENDING_SCREENING_START_MEAN
-)
-
-
 ##########################
 # Constant scalar values #
 ##########################
@@ -435,9 +401,9 @@ MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 
 # Effects of IV iron intervention
 IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
     # see research documentation here:  https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/iv_iron_antenatal/iv_iron_mncnh.html#id16
-    "Ethiopia": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
-    "Nigeria": get_norm(20.2, (21.5 - 18.9) / (2 * 1.96)),
-    "Pakistan": get_norm(26.3, (26.9 - 25.7) / (2 * 1.96)),
+    "Ethiopia": get_norm(20.2, ninety_five_pct_confidence_interval=(18.9, 21.5)),
+    "Nigeria": get_norm(20.2, ninety_five_pct_confidence_interval=(18.9, 21.5)),
+    "Pakistan": get_norm(26.3, ninety_five_pct_confidence_interval=(25.7, 26.9)),
 }
 
 ORAL_IRON_EFFECT_SIZES = {
@@ -461,12 +427,19 @@ ORAL_IRON_EFFECT_SIZES = {
 
 
 # Postpartum depression constants
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id17
 POSTPARTUM_DEPRESSION_INCIDENCE_RISK = get_truncnorm(
-    0.12, ninety_five_pct_confidence_interval=(0.04, 0.20)
+    0.12,
+    ninety_five_pct_confidence_interval=(0.04, 0.20),
+    lower_clip=0.0,
+    upper_clip=1.0,
 )
 # Case duration is in years
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id17
 POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
-    0.65, ninety_five_pct_confidence_interval=(0.59, 0.70)
+    0.65,
+    ninety_five_pct_confidence_interval=(0.59, 0.70),
+    lower_clip=0.0,
 )
 
 
@@ -507,15 +480,29 @@ POSTPARTUM_DEPRESSION_CASE_SEVERITY_PROBABILITIES = {
     POSTPARTUM_DEPRESSION_CASE_TYPES.SEVERE: 0.10,
 }
 POSTPARTUM_DEPRESSION_CASE_SEVERITY_DISABILITY_WEIGHTS = {
-    POSTPARTUM_DEPRESSION_CASE_TYPES.ASYMPTOMATIC: get_truncnorm(0.0, 0.00**2),
+    POSTPARTUM_DEPRESSION_CASE_TYPES.ASYMPTOMATIC: get_truncnorm(
+        0.0,
+        0.00**2,
+        lower_clip=0,
+        upper_clip=1,
+    ),
     POSTPARTUM_DEPRESSION_CASE_TYPES.MILD: get_truncnorm(
-        0.145, ninety_five_pct_confidence_interval=(0.099, 0.209)
+        0.145,
+        ninety_five_pct_confidence_interval=(0.099, 0.209),
+        lower_clip=0,
+        upper_clip=1,
     ),
     POSTPARTUM_DEPRESSION_CASE_TYPES.MODERATE: get_truncnorm(
-        0.396, ninety_five_pct_confidence_interval=(0.267, 0.531)
+        0.396,
+        ninety_five_pct_confidence_interval=(0.267, 0.531),
+        lower_clip=0,
+        upper_clip=1,
     ),
     POSTPARTUM_DEPRESSION_CASE_TYPES.SEVERE: get_truncnorm(
-        0.658, ninety_five_pct_confidence_interval=(0.477, 0.807)
+        0.658,
+        ninety_five_pct_confidence_interval=(0.477, 0.807),
+        lower_clip=0,
+        upper_clip=1,
     ),
 }
 

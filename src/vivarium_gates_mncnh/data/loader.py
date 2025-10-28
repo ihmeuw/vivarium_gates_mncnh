@@ -29,7 +29,7 @@ from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws
+from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
 
 
 def get_data(
@@ -267,8 +267,10 @@ def load_sbr(
     upper_value = sbr.loc[(year_start, year_end, "upper_value"), "value"]
     sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
 
-    sbr_dist = sampling.get_truncnorm_from_quantiles(
-        mean=mean_value, lower=lower_value, upper=upper_value
+    sbr_dist = get_truncnorm(
+        mean=mean_value,
+        ninety_five_pct_confidence_interval=(lower_value, upper_value),
+        lower_clip=0.0,
     )
     sbr_draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, sbr_dist)
     sbr_draws = sbr_draws.values.flatten()
@@ -351,8 +353,11 @@ def load_anc_proportion(
         upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
 
         try:
-            anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
-                mean=mean_value, lower=lower_value, upper=upper_value
+            anc_proportion_dist = get_truncnorm(
+                mean=mean_value,
+                ninety_five_pct_confidence_interval=(lower_value, upper_value),
+                lower_clip=0.0,
+                upper_clip=1.0,
             )
             anc_proportion_draws = get_random_variable_draws(
                 metadata.ARTIFACT_COLUMNS, key, anc_proportion_dist
