@@ -407,19 +407,22 @@ IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
 }
 
 ORAL_IRON_EFFECT_SIZES = {
-    # IFA_SUPPLEMENTATION.EFFECT_SIZE: {
-    #     "hemoglobin.exposure": get_norm(
-    #         9.53, ninety_five_pct_confidence_interval=(6.99, 12.06)
-    #     ),
-    #     "birth_weight.birth_exposure": get_norm(
-    #         57.73, ninety_five_pct_confidence_interval=(7.66, 107.79)
-    #     ),
-    # },
-    # MMN_SUPPLEMENTATION.EFFECT_SIZE: {
-    #     "birth_weight.birth_exposure": get_norm(
-    #         45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
-    #     )
-    # },
+    IFA_SUPPLEMENTATION.EFFECT_SIZE: {
+        # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/oral_iron_antenatal/oral_iron_antenatal.html#id24
+        "hemoglobin.exposure": get_norm(
+            9.53, ninety_five_pct_confidence_interval=(6.99, 12.06)
+        ),
+        # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/oral_iron_antenatal/oral_iron_antenatal.html#id26
+        "birth_weight.birth_exposure": get_norm(
+            57.73, ninety_five_pct_confidence_interval=(7.66, 107.79)
+        ),
+    },
+    MMN_SUPPLEMENTATION.EFFECT_SIZE: {
+        # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/oral_iron_antenatal/oral_iron_antenatal.html#id26
+        "birth_weight.birth_exposure": get_norm(
+            45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
+        )
+    },
     # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/oral_iron_antenatal/oral_iron_antenatal.html#id31
     MMN_SUPPLEMENTATION.STILLBIRTH_RR: {
         "stillbirth": get_lognorm_from_quantiles(0.91, 0.86, 0.98)
