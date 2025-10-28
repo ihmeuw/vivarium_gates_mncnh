@@ -420,8 +420,9 @@ ORAL_IRON_EFFECT_SIZES = {
     #         45.16, ninety_five_pct_confidence_interval=(32.31, 58.02)
     #     )
     # },
+    # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/oral_iron_antenatal/oral_iron_antenatal.html#id31
     MMN_SUPPLEMENTATION.STILLBIRTH_RR: {
-        "stillbirth": get_lognorm_from_quantiles(0.53, 0.34, 0.83)
+        "stillbirth": get_lognorm_from_quantiles(0.91, 0.86, 0.98)
     },
 }
 
