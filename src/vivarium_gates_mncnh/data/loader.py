@@ -1108,12 +1108,17 @@ def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
 def load_oral_iron_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    dist = data_values.ORAL_IRON_EFFECT_SIZES[key]["hemoglobin.exposure"]
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
-    data["affected_target"] = "hemoglobin.exposure"
-    data = data.set_index("affected_target")
-    return data
+    effect_size_dists = data_values.ORAL_IRON_EFFECT_SIZES[key]
+    effect_size_data = []
+
+    for target, dist in effect_size_dists.items():
+        draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+        data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+        data["affected_target"] = target
+        data = data.set_index("affected_target")
+        effect_size_data.append(data)
+
+    return pd.concat(effect_size_data)
 
 
 def load_ifa_excess_shift(
