@@ -18,3 +18,4 @@ branches:
         - "ai_ultrasound_scaleup"
         - "standard_ultrasound_scaleup"
         - "full_product_scaleup"
+        - "mms_total_scaleup"
