@@ -589,7 +589,26 @@ def load_probability_birth_facility_type_given_term_status(
 def load_probability_bemonc(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    return data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][lookup_key]
+    # https://vivarium-research.readthedocs.io/en/latest/models/other_models/facility_choice/index.html#choosing-bemonc-vs-cemonc
+    hosp_any = pd.read_csv('/snfs1/Project/simulation_science/mnch_grant/MNCNH portfolio/hosp_any_st-gpr_results_weighted_aggregates_2025-06-06.csv')
+    location_id = utility_data.get_location_id(location)
+
+    assert (hosp_any.sex_id == 3).all()
+    assert (hosp_any.age_group_id == 22).all()
+    hosp_ifd_proportion = hosp_any.loc[
+        (hosp_any.location_id == location_id) &
+        (hosp_any.year_id == hosp_any.year_id.max()) # Use most recent year available
+    ].assign(
+        year_start=lambda df: df.year_id,
+        year_end=lambda df: df.year_id + 1,
+    ).drop(columns=['mean', 'lower', 'upper', 'location_id', 'sex_id', 'age_group_id', 'year_id'])
+    assert len(hosp_ifd_proportion) == 1
+    hosp_ifd_proportion = hosp_ifd_proportion.set_index(['year_start', 'year_end'])
+    # Repeat draws until 250
+    import itertools
+    hosp_ifd_proportion = hosp_ifd_proportion[[d for d, _ in zip(itertools.cycle(hosp_ifd_proportion.filter(like='draw_').columns), vi_globals.DRAW_COLUMNS)]]
+    hosp_ifd_proportion.columns = vi_globals.DRAW_COLUMNS
+    return hosp_ifd_proportion
 
 
 def load_cpap_facility_access_probability(

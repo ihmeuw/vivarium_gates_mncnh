@@ -286,17 +286,6 @@ class __DeliveryFacilityTypes(NamedTuple):
 DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 
-DELIVERY_FACILITY_TYPE_PROBABILITIES = {
-    "Ethiopia": {
-        FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.160883,
-    },
-    "Nigeria": {
-        FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.004423,
-    },
-    "Pakistan": {
-        FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.340528,
-    },
-}
 # Probability each of these facility types has access to CPAP
 CPAP_ACCESS_PROBABILITIES = {
     "Ethiopia": {

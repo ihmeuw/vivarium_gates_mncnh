@@ -35,11 +35,15 @@ class DeliveryFacility(Component):
             FACILITY_CHOICE.P_HOME_FULL_TERM: builder.data.load(
                 FACILITY_CHOICE.P_HOME_FULL_TERM
             ),
-            FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: builder.data.load(
-                FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
-            ),
         }
         self.propensity = builder.value.get_value(f"{self.name}.correlated_propensity")
+    
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        self.lookup_tables[FACILITY_CHOICE.BEmONC_FACILITY_FRACTION] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(FACILITY_CHOICE.BEmONC_FACILITY_FRACTION),
+            value_columns=["value"],
+        )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
@@ -82,7 +86,7 @@ class DeliveryFacility(Component):
         ] = DELIVERY_FACILITY_TYPES.CEmONC
         is_bemonc = (
             self.randomness.get_draw(pop.index)
-            < self.delivery_facility_probabilities[FACILITY_CHOICE.BEmONC_FACILITY_FRACTION]
+            < self.lookup_tables[FACILITY_CHOICE.BEmONC_FACILITY_FRACTION](pop.index)
         )
         pop.loc[
             is_bemonc & ~assigned_home, COLUMNS.DELIVERY_FACILITY_TYPE
