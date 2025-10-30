@@ -87,13 +87,6 @@ class _Durations(NamedTuple):
 DURATIONS = _Durations()
 
 
-INFANT_MALE_PERCENTAGES = {
-    "Ethiopia": 0.514271,
-    "Nigeria": 0.511785,
-    "Pakistan": 0.514583,
-}
-
-
 NUM_DRAWS = 250
 
 

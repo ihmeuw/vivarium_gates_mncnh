@@ -53,6 +53,7 @@ def get_data(
     mapping = {
         data_keys.POPULATION.LOCATION: load_population_location,
         data_keys.POPULATION.STRUCTURE: load_population_structure,
+        data_keys.POPULATION.INFANT_MALE_PERCENTAGE: load_infant_male_percentage,
         data_keys.POPULATION.AGE_BINS: load_age_bins,
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
@@ -179,6 +180,30 @@ def load_population_structure(
     return interface.get_population_structure(location, years)
 
 
+def load_infant_male_percentage(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
+
+    live_births_by_sex = load_standard_data(
+        "covariate.live_births_by_sex.estimate", location, years
+    )
+    infant_male_percentage = (
+        live_births_by_sex.loc["Male"]
+        / live_births_by_sex.groupby(
+            [c for c in live_births_by_sex.index.names if c != "sex"]
+        ).sum()
+    )
+    lower_value = infant_male_percentage.loc[(year_start, year_end, "lower_value"), "value"]
+    mean_value = infant_male_percentage.loc[(year_start, year_end, "mean_value"), "value"]
+    upper_value = infant_male_percentage.loc[(year_start, year_end, "upper_value"), "value"]
+    assert np.isclose(lower_value, mean_value) and np.isclose(
+        upper_value, mean_value
+    ), "There should not be uncertainty in the infant male percentage"
+
+    return mean_value
+
+
 def load_age_bins(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -214,9 +239,6 @@ def load_metadata(
     if hasattr(entity_metadata, "to_dict"):
         entity_metadata = entity_metadata.to_dict()
     return entity_metadata
-
-
-# TODO - add project-specific data functions here
 
 
 def load_asfr(

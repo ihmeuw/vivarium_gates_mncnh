@@ -11,7 +11,6 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     CHILD_INITIALIZATION_AGE,
     COLUMNS,
-    INFANT_MALE_PERCENTAGES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
@@ -46,9 +45,9 @@ class NewChildren(Component):
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
         self._sim_step_name = builder.time.simulation_event_name()
-        self.male_sex_percentage = INFANT_MALE_PERCENTAGES[
-            builder.data.load(data_keys.POPULATION.LOCATION)
-        ]
+        self.male_sex_percentage = builder.data.load(
+            data_keys.POPULATION.INFANT_MALE_PERCENTAGE
+        )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         index = pop_data.index
