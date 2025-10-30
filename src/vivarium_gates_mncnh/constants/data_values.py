@@ -288,18 +288,12 @@ DELIVERY_FACILITY_TYPES = __DeliveryFacilityTypes()
 
 DELIVERY_FACILITY_TYPE_PROBABILITIES = {
     "Ethiopia": {
-        # FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
-        # FACILITY_CHOICE.P_HOME_FULL_TERM: 0.55,
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.160883,
     },
     "Nigeria": {
-        # FACILITY_CHOICE.P_HOME_PRETERM: 0.38,
-        # FACILITY_CHOICE.P_HOME_FULL_TERM: 0.51,
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.004423,
     },
     "Pakistan": {
-        # FACILITY_CHOICE.P_HOME_PRETERM: 0.17,
-        # FACILITY_CHOICE.P_HOME_FULL_TERM: 0.26,
         FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: 0.340528,
     },
 }
@@ -439,25 +433,6 @@ POSTPARTUM_DEPRESSION_CASE_DURATION = get_truncnorm(
     ninety_five_pct_confidence_interval=(0.59, 0.70),
     lower_clip=0.0,
 )
-
-
-PROPENSITY_CORRELATIONS = {
-    "Ethiopia": {
-        "antenatal_care_AND_delivery_facility": 0.63,
-        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
-        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
-    },
-    "Nigeria": {
-        "antenatal_care_AND_delivery_facility": 0.41,
-        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
-        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
-    },
-    "Pakistan": {
-        "antenatal_care_AND_delivery_facility": 0.35,
-        "antenatal_care_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
-        "delivery_facility_AND_risk_factor.low_birth_weight_and_short_gestation": 0.2,
-    },
-}
 
 
 class __PostpartumDepressionCaseTypes(NamedTuple):

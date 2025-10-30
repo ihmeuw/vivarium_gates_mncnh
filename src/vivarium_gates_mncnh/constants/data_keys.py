@@ -265,9 +265,8 @@ class __FacilityChoice(NamedTuple):
     P_HOME: str = "cause.facility_choice.probability_home_birth"
     P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
     P_CEmONC: str = "cause.facility_choice.probability_cemonc_birth"
-    # RT owned
-    # P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
-    # P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
+    P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
+    P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
     BEmONC_FACILITY_FRACTION: str = "cause.facility_choice.bemonc_facility_fraction"
 
     @property
@@ -410,12 +409,12 @@ class __IFASupplementation(NamedTuple):
     EFFECT_SIZE: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.effect_size"
     )
-    # EXCESS_SHIFT: TargetString = TargetString(
-    #     "risk_factor.iron_folic_acid_supplementation.excess_shift"
-    # )
-    # RISK_SPECIFIC_SHIFT: TargetString = TargetString(
-    #     "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
-    # )
+    EXCESS_SHIFT: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.excess_shift"
+    )
+    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
+    )
 
     CAT1 = "cat1"
     CAT2 = "cat2"
@@ -439,19 +438,18 @@ class __MMN_Supplementation(NamedTuple):
     STILLBIRTH_RR: TargetString = TargetString(
         "risk_factor.multiple_micronutrient_supplementation.stillbirth_rr"
     )
-    # RT owned
-    # EXCESS_SHIFT: TargetString = TargetString(
-    #     "risk_factor.multiple_micronutrient_supplementation.excess_shift"
-    # )
-    # EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
-    #     "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
-    # )
-    # EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
-    #     "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
-    # )
-    # RISK_SPECIFIC_SHIFT: TargetString = TargetString(
-    #     "risk_factor.multiple_micronutrient_supplementation.risk_specific_shift"
-    # )
+    EXCESS_SHIFT: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.excess_shift"
+    )
+    EXCESS_GA_SHIFT_SUBPOP_1: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_1"
+    )
+    EXCESS_GA_SHIFT_SUBPOP_2: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.excess_gestational_age_shift_subpop_2"
+    )
+    RISK_SPECIFIC_SHIFT: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.risk_specific_shift"
+    )
 
     CAT1 = "cat1"
     CAT2 = "cat2"
@@ -510,8 +508,7 @@ class __Hemoglobin(NamedTuple):
     DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
     DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
-    # RT owned
-    # PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
+    PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
     SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
 
@@ -541,17 +538,15 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_CPAP_RISK,
     NO_ACS_RISK,
     FACILITY_CHOICE,
-    # RT owned
-    # PROPENSITY_CORRELATIONS,
-    # FERRITIN,
+    PROPENSITY_CORRELATIONS,
+    FERRITIN,
     NO_ANTIBIOTICS_RISK,
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
     IFA_SUPPLEMENTATION,
     MMN_SUPPLEMENTATION,
-    # RT owned
-    # POSTPARTUM_DEPRESSION,
+    POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
     IV_IRON,
 ]
