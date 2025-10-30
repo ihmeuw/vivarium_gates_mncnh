@@ -102,7 +102,6 @@ class AntenatalCare(Component):
             COLUMNS.ANC_ATTENDANCE,
             COLUMNS.ULTRASOUND_TYPE,
             COLUMNS.STATED_GESTATIONAL_AGE,
-            COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION,
             COLUMNS.FIRST_TRIMESTER_ANC,
             COLUMNS.LATER_PREGNANCY_ANC,
         ]
@@ -157,15 +156,6 @@ class AntenatalCare(Component):
             data_source=stated_ga_standard_deviation,
             value_columns=["value"],
         )
-        lbw_identification_rates = self.format_dict_for_lookup_table(
-            ANC_RATES.SUCCESSFUL_LBW_IDENTIFICATION,
-            COLUMNS.ULTRASOUND_TYPE,
-        )
-        self.lookup_tables["low_birth_weight_identification_rates"] = self.build_lookup_table(
-            builder=builder,
-            data_source=lbw_identification_rates,
-            value_columns=["value"],
-        )
 
     def format_dict_for_lookup_table(self, data: dict, column: str) -> pd.DataFrame:
         series = pd.Series(data)
@@ -177,7 +167,6 @@ class AntenatalCare(Component):
                 COLUMNS.ANC_ATTENDANCE: ANC_ATTENDANCE_TYPES.NONE,
                 COLUMNS.ULTRASOUND_TYPE: ULTRASOUND_TYPES.NO_ULTRASOUND,
                 COLUMNS.STATED_GESTATIONAL_AGE: np.nan,
-                COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION: False,
                 COLUMNS.FIRST_TRIMESTER_ANC: False,
                 COLUMNS.LATER_PREGNANCY_ANC: False,
             },
@@ -191,7 +180,6 @@ class AntenatalCare(Component):
             return
         pop = self.population_view.get(event.index)
         pop[COLUMNS.STATED_GESTATIONAL_AGE] = self._calculate_stated_gestational_age(pop)
-        pop[COLUMNS.SUCCESSFUL_LBW_IDENTIFICATION] = self._determine_lbw_identification(pop)
         pop[COLUMNS.FIRST_TRIMESTER_ANC] = pop[COLUMNS.ANC_ATTENDANCE].isin(
             [
                 ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
@@ -219,16 +207,6 @@ class AntenatalCare(Component):
         return stats.norm.ppf(
             measurement_error_draws, loc=gestational_age, scale=measurement_errors
         )
-
-    def _determine_lbw_identification(self, pop: pd.DataFrame) -> pd.Series:
-        identification = pd.Series(False, index=pop.index)
-        lbw_index = pop.index[pop[COLUMNS.BIRTH_WEIGHT_EXPOSURE] < LOW_BIRTH_WEIGHT_THRESHOLD]
-        identification_rates = self.lookup_tables["low_birth_weight_identification_rates"](
-            lbw_index
-        )
-        draws = self.randomness.get_draw(lbw_index, additional_key="lbw_identification")
-        identification[lbw_index] = draws < identification_rates
-        return identification
 
     def is_full_term(self, index: pd.Index) -> pd.Series:
         """Returns a boolean Series indicating if the pregnancy is full term."""
