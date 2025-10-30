@@ -93,10 +93,9 @@ def get_data(
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_CEmONC: load_overall_probability_birth_facility_type,
-        # RT owned
-        # data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
-        # data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type_given_term_status,
+        data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type_given_term_status,
+        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_bemonc,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.P_CPAP_BEMONC: load_cpap_facility_access_probability,
@@ -127,34 +126,30 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
         data_keys.IFA_SUPPLEMENTATION.COVERAGE: load_ifa_coverage,
         data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
-        # data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
-        # data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
+        data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
         data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR: load_oral_iron_effect_size,
-        # RT owned
-        # data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_mms_excess_shift,
-        # data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: load_excess_gestational_age_shift,
-        # data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: load_excess_gestational_age_shift,
-        # data_keys.MMN_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
-        # RT owned
-        # data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
-        # data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
-        # data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
-        # data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY: load_postpartum_depression_case_severity,
-        # data_keys.POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT: load_postpartum_depression_disability_weight,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_mms_excess_shift,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: load_excess_gestational_age_shift,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: load_excess_gestational_age_shift,
+        data_keys.MMN_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
+        data_keys.POSTPARTUM_DEPRESSION.INCIDENCE_RISK: load_postpartum_depression_raw_incidence_risk,
+        data_keys.POSTPARTUM_DEPRESSION.CASE_FATALITY_RATE: load_postpartum_depression_case_fatality_rate,
+        data_keys.POSTPARTUM_DEPRESSION.CASE_DURATION: load_postpartum_depression_case_duration,
+        data_keys.POSTPARTUM_DEPRESSION.CASE_SEVERITY: load_postpartum_depression_case_severity,
+        data_keys.POSTPARTUM_DEPRESSION.DISABILITY_WEIGHT: load_postpartum_depression_disability_weight,
         data_keys.HEMOGLOBIN.EXPOSURE: load_hemoglobin_exposure_data,
         data_keys.HEMOGLOBIN.STANDARD_DEVIATION: load_hemoglobin_exposure_data,
         data_keys.HEMOGLOBIN.DISTRIBUTION_WEIGHTS: load_hemoglobin_distribution_weights,
         data_keys.HEMOGLOBIN.DISTRIBUTION: load_hemoglobin_distribution,
         data_keys.HEMOGLOBIN.RELATIVE_RISK: load_hemoglobin_relative_risk,
-        # RT owned
-        # data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
+        data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
-        # RT owned
-        # data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
-        # data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
+        data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
+        data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
     }
 
     data = mapping[lookup_key](lookup_key, location, years)
@@ -576,7 +571,22 @@ def load_overall_probability_birth_facility_type(
         raise ValueError(f"Unrecognized key {key}")
 
 
-def load_probability_birth_facility_type(
+def load_probability_birth_facility_type_given_term_status(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    parameter_name = {
+        data_keys.FACILITY_CHOICE.P_HOME_PRETERM: "prob_home_given_believed_preterm",
+        data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: "prob_home_given_believed_term",
+    }[lookup_key]
+    facility_choice_optimization_results = pd.read_csv(
+        paths.FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV
+    )
+    return facility_choice_optimization_results.set_index("parameter_name").loc[
+        parameter_name
+    ][location]
+
+
+def load_probability_bemonc(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
     return data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][lookup_key]
@@ -616,11 +626,6 @@ def load_no_cpap_paf(
     rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
 
     # get p_CPAP and p_no_CPAP
-    p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
-        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
-    ]
-    p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
-
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
     p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
 
@@ -1220,33 +1225,28 @@ def load_excess_gestational_age_shift(
     """Load excess gestational age shift data from IFA and MMS from file.
     Returns the sum of the shift data in the directories defined in data_dirs."""
     try:
-        data_dirs = {
-            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: [paths.IFA_GA_SHIFT_DATA_DIR],
-            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: [
-                paths.MMS_GA_SHIFT_1_DATA_DIR
-            ],
-            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: [
-                paths.MMS_GA_SHIFT_1_DATA_DIR,
-                paths.MMS_GA_SHIFT_2_DATA_DIR,
-            ],
+        data_file = {
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: "ifa_ga_shifts.csv",
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: "updated_mms_shifts.csv",
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: "updated_mms_shifts.csv",
         }[key]
     except KeyError:
         raise ValueError(f"Unrecognized key {key}")
 
     index = get_data(data_keys.POPULATION.DEMOGRAPHY, location).index
-    all_shift_data = [
-        pd.read_csv(data_dir / f"{location.lower()}.csv") for data_dir in data_dirs
-    ]
-    shifts = [
-        pd.Series(shift_data["value"].values, index=shift_data["draw"])
-        for shift_data in all_shift_data
-    ]
-    if len(shifts) > 1:
-        shifts[1] = shifts[1].loc[shifts[1].notnull()]
-    summed_shifts = sum(shifts)  # only sum more than one Series for subpop 2
+    location_id = utility_data.get_location_id(location)
+    shift_data = pd.read_csv(paths.ORAL_IRON_DATA_DIR / data_file).pipe(
+        lambda df: df[df.location_id == location_id]
+    )
+    shift_columns = {
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: ["value"],
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: ["shift1"],
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: ["shift1", "shift2"],
+    }[key]
+    shifts = shift_data.set_index("draw")[shift_columns].sum(axis=1)
 
     excess_shift = reshape_shift_data(
-        summed_shifts, index, data_values.PIPELINES.GESTATIONAL_AGE_EXPOSURE
+        shifts, index, data_values.PIPELINES.GESTATIONAL_AGE_EXPOSURE
     )
     excess_shift = excess_shift[metadata.ARTIFACT_COLUMNS]
     return excess_shift.query("age_end <= 5.0").droplevel("location")
@@ -1429,7 +1429,39 @@ def load_hemoglobin_tmred(
 def load_propensity_correlations(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> None:
-    return data_values.PROPENSITY_CORRELATIONS[location]
+    facility_choice_optimization_results = pd.read_csv(
+        paths.FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV
+    )
+    propensity_correlations = facility_choice_optimization_results[
+        facility_choice_optimization_results.parameter_name.str.contains("corr(", regex=False)
+    ]
+
+    # Extract A and B from corr(A, B) pattern
+    extracted = propensity_correlations["parameter_name"].str.extract(
+        r"corr\(([^,]+),\s*([^)]+)\)"
+    )
+
+    # Apply replacements to both A and B
+    def apply_replacements(series):
+        return (
+            series.str.replace("anc", "antenatal_care", regex=False)
+            .str.replace("facility", "delivery_facility", regex=False)
+            .str.replace(
+                "lbwsg_category",
+                "risk_factor.low_birth_weight_and_short_gestation",
+                regex=False,
+            )
+        )
+
+    a_modified = apply_replacements(extracted[0])
+    b_modified = apply_replacements(extracted[1])
+
+    # Ensure alphabetical order (A before B)
+    first = a_modified.where(a_modified <= b_modified, b_modified)
+    second = b_modified.where(a_modified <= b_modified, a_modified)
+
+    propensity_correlations["parameter_name"] = first + "_AND_" + second
+    return propensity_correlations.set_index("parameter_name")[location].to_dict()
 
 
 def load_probability_low_ferritin(
