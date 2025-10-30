@@ -29,7 +29,7 @@ from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws
+from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
 
 
 def get_data(
@@ -126,11 +126,10 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
         data_keys.IFA_SUPPLEMENTATION.COVERAGE: load_ifa_coverage,
-        # RT owned
-        # data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         # data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
         # data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
-        # data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
+        data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR: load_oral_iron_effect_size,
         # RT owned
         # data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_mms_excess_shift,
@@ -267,8 +266,10 @@ def load_sbr(
     upper_value = sbr.loc[(year_start, year_end, "upper_value"), "value"]
     sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
 
-    sbr_dist = sampling.get_truncnorm_from_quantiles(
-        mean=mean_value, lower=lower_value, upper=upper_value
+    sbr_dist = get_truncnorm(
+        mean=mean_value,
+        ninety_five_pct_confidence_interval=(lower_value, upper_value),
+        lower_clip=0.0,
     )
     sbr_draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, sbr_dist)
     sbr_draws = sbr_draws.values.flatten()
@@ -351,8 +352,11 @@ def load_anc_proportion(
         upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
 
         try:
-            anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
-                mean=mean_value, lower=lower_value, upper=upper_value
+            anc_proportion_dist = get_truncnorm(
+                mean=mean_value,
+                ninety_five_pct_confidence_interval=(lower_value, upper_value),
+                lower_clip=0.0,
+                upper_clip=1.0,
             )
             anc_proportion_draws = get_random_variable_draws(
                 metadata.ARTIFACT_COLUMNS, key, anc_proportion_dist
@@ -815,13 +819,8 @@ def load_antibiotic_coverage_probability(
     location: str,
     years: Optional[Union[int, str, List[int]]] = None,
 ) -> pd.DataFrame:
-    # Model 8.3 sets coverage values at population level and not birth facility/location level
-    coverage_dict = {
-        "Ethiopia": 0.5,
-        "Nigeria": 0.0,
-        "Pakistan": 0.0,
-    }
-    return coverage_dict[location]
+    # Model 8.3+ sets coverage values at location level and not birth facility/location level
+    return data_values.ANTIBIOTIC_BASELINE_COVERAGE[location]
 
 
 def load_no_antibiotics_relative_risk(
@@ -1108,12 +1107,17 @@ def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
 def load_oral_iron_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    dist = data_values.ORAL_IRON_EFFECT_SIZES[key]["hemoglobin.exposure"]
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
-    data["affected_target"] = "hemoglobin.exposure"
-    data = data.set_index("affected_target")
-    return data
+    effect_size_dists = data_values.ORAL_IRON_EFFECT_SIZES[key]
+    effect_size_data = []
+
+    for target, dist in effect_size_dists.items():
+        draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+        data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+        data["affected_target"] = target
+        data = data.set_index("affected_target")
+        effect_size_data.append(data)
+
+    return pd.concat(effect_size_data)
 
 
 def load_ifa_excess_shift(
