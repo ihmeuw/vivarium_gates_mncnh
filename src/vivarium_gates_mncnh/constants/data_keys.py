@@ -407,10 +407,9 @@ class __IFASupplementation(NamedTuple):
     COVERAGE: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.coverage"
     )
-    # RT owned
-    # EFFECT_SIZE: TargetString = TargetString(
-    #     "risk_factor.iron_folic_acid_supplementation.effect_size"
-    # )
+    EFFECT_SIZE: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.effect_size"
+    )
     # EXCESS_SHIFT: TargetString = TargetString(
     #     "risk_factor.iron_folic_acid_supplementation.excess_shift"
     # )
@@ -434,10 +433,9 @@ IFA_SUPPLEMENTATION = __IFASupplementation()
 
 
 class __MMN_Supplementation(NamedTuple):
-    # RT owned
-    # EFFECT_SIZE: TargetString = TargetString(
-    #     "risk_factor.multiple_micronutrient_supplementation.effect_size"
-    # )
+    EFFECT_SIZE: TargetString = TargetString(
+        "risk_factor.multiple_micronutrient_supplementation.effect_size"
+    )
     STILLBIRTH_RR: TargetString = TargetString(
         "risk_factor.multiple_micronutrient_supplementation.stillbirth_rr"
     )
