@@ -37,9 +37,11 @@ class DeliveryFacility(Component):
             ),
         }
         self.propensity = builder.value.get_value(f"{self.name}.correlated_propensity")
-    
+
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        self.lookup_tables[FACILITY_CHOICE.BEmONC_FACILITY_FRACTION] = self.build_lookup_table(
+        self.lookup_tables[
+            FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
+        ] = self.build_lookup_table(
             builder=builder,
             data_source=builder.data.load(FACILITY_CHOICE.BEmONC_FACILITY_FRACTION),
             value_columns=["value"],
@@ -84,10 +86,9 @@ class DeliveryFacility(Component):
         pop.loc[
             ~assigned_home, COLUMNS.DELIVERY_FACILITY_TYPE
         ] = DELIVERY_FACILITY_TYPES.CEmONC
-        is_bemonc = (
-            self.randomness.get_draw(pop.index)
-            < self.lookup_tables[FACILITY_CHOICE.BEmONC_FACILITY_FRACTION](pop.index)
-        )
+        is_bemonc = self.randomness.get_draw(pop.index) < self.lookup_tables[
+            FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
+        ](pop.index)
         pop.loc[
             is_bemonc & ~assigned_home, COLUMNS.DELIVERY_FACILITY_TYPE
         ] = DELIVERY_FACILITY_TYPES.BEmONC
