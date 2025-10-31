@@ -120,11 +120,6 @@ class __ANCRates(NamedTuple):
             ULTRASOUND_TYPES.AI_ASSISTED: 0.0,
         },
     }
-    SUCCESSFUL_LBW_IDENTIFICATION = {
-        ULTRASOUND_TYPES.NO_ULTRASOUND: 0.10,
-        ULTRASOUND_TYPES.STANDARD: 0.61,
-        ULTRASOUND_TYPES.AI_ASSISTED: 0.80,
-    }
     # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/ai_ultrasound_module/module_document.html#calculation-of-estimated-gestational-age
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
         ULTRASOUND_TYPES.NO_ULTRASOUND: 10.0 / 7,
@@ -160,7 +155,6 @@ class __Columns(NamedTuple):
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
-    SUCCESSFUL_LBW_IDENTIFICATION = "successful_lbw_identification"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
