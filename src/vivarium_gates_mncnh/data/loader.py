@@ -620,19 +620,18 @@ def load_probability_bemonc(
     )
     assert len(hosp_ifd_proportion) == 1
     hosp_ifd_proportion = hosp_ifd_proportion.set_index(["year_start", "year_end"])
-    # Repeat draws until 250
-    import itertools
-
-    hosp_ifd_proportion = hosp_ifd_proportion[
-        [
-            d
-            for d, _ in zip(
-                itertools.cycle(hosp_ifd_proportion.filter(like="draw_").columns),
-                vi_globals.DRAW_COLUMNS,
-            )
-        ]
-    ]
-    hosp_ifd_proportion.columns = vi_globals.DRAW_COLUMNS
+    # Repeat our 100 draws of this parameter for all the draws we need, taking draw_num % 100
+    assert set(hosp_ifd_proportion.filter(like="draw_").columns) == {
+        f"draw_{n}" for n in range(100)
+    }
+    hosp_ifd_proportion = pd.DataFrame(
+        {
+            draw_col: hosp_ifd_proportion[
+                "draw_" + str(int(draw_col.replace("draw_", "")) % 100)
+            ]
+            for draw_col in vi_globals.DRAW_COLUMNS
+        }
+    )
     return hosp_ifd_proportion
 
 
