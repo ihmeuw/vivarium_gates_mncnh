@@ -70,9 +70,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 0
-        # TODO: currently filling in RT owned keys with GBD 2021 data
-        # TODO: replace with model 19.0 once artifact has been fully updated
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model19.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model19.1.1/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
