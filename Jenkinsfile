@@ -28,7 +28,12 @@ Note that updating the shared repo will take affect on the next pipeline invocat
 library("vivarium_build_utils@${get_vbu_version()}")
 
 reusable_pipeline(
-    scheduled_branches: ["main"],
+    scheduled_branches: [
+      // Add additional branches for cron jobs below.
+      // Note: Newly added branches will require a manual trigger of the first build 
+      // for subsequent scheduled builds to run.
+      "main"
+    ],
     requires_slurm: true,
     skip_doc_build: true,
     upstream_repos: ["vivarium", "vivarium_inputs", "vivarium_public_health", "vivarium_cluster_tools", "gbd_mapping", "layered_config_tree"],
