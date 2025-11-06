@@ -44,6 +44,8 @@ help:
 	@echo "      Name of the conda environment to create (defaults to package name)"
 	@echo "  include_timestamp [optional]"
 	@echo "      If 'yes', appends a timestamp to the environment name. Defaults to 'no'"
+	@echo "  lfs [optional]"
+	@echo "      If 'yes', installs git-lfs in the environment. Defaults to 'no'"
 	@echo "  py [optional]"
 	@echo "      Python version (defaults to latest supported)"
 	@echo
@@ -58,16 +60,35 @@ help:
 endif
 
 build-env: # Create a new environment with installed packages
+#	Validate arguments - exit if unsupported arguments are passed
+	@allowed="type name lfs py include_timestamp"; \
+	for arg in $(filter-out build-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
+		case $$arg in \
+			*=*) \
+				arg_name=$${arg%%=*}; \
+				if ! echo " $$allowed " | grep -q " $$arg_name "; then \
+					allowed_list=$$(echo $$allowed | sed 's/ /, /g'); \
+					echo "Error: Invalid argument '$$arg_name'. Allowed arguments are: $$allowed_list" >&2; \
+					exit 1; \
+				fi \
+				;; \
+		esac; \
+	done
+	
 #   Handle arguments and set defaults
+#   type
 	@$(eval type ?= simulation)
 	@$(if $(filter-out simulation artifact,$(type)),$(error Error: 'type' must be either 'simulation' or 'artifact', got '$(type)'))
+#	name
+	@$(eval name ?= $(PACKAGE_NAME)_$(type))
+#	timestamp
 	@$(eval include_timestamp ?= no)
 	@$(if $(filter-out yes no,$(include_timestamp)),$(error Error: 'include_timestamp' must be either 'yes' or 'no', got '$(include_timestamp)'))
-#	Set name with type suffix if not provided, otherwise use provided name as-is
-	@$(eval name ?= $(PACKAGE_NAME)_$(type))
-#	Append timestamp if requested (only if name wasn't explicitly provided)
 	@$(if $(filter yes,$(include_timestamp)),$(eval override name := $(name)_$(shell date +%Y%m%d_%H%M%S)),)
-#	Check if py is set, otherwise use the latest supported version
+#	lfs
+	@$(eval lfs ?= no)
+	@$(if $(filter-out yes no,$(lfs)),$(error Error: 'lfs' must be either 'yes' or 'no', got '$(lfs)'))
+#	python version
 	@$(eval py ?= $(shell python -c "import json; versions = json.load(open('python_versions.json')); print(max(versions, key=lambda x: tuple(map(int, x.split('.')))))"))
 	
 	conda create -n $(name) python=$(py) --yes
@@ -80,11 +101,16 @@ build-env: # Create a new environment with installed packages
 	elif [ "$(type)" = "artifact" ]; then \
 		conda run -n $(name) make install ENV_REQS=data; \
 	fi
+	@if [ "$(lfs)" = "yes" ]; then \
+		conda run -n $(name) conda install -c conda-forge git-lfs --yes; \
+		conda run -n $(name) git lfs install; \
+	fi
 
 	@echo
 	@echo "Finished building environment"
 	@echo "  name: $(name)"
 	@echo "  type: $(type)"
+	@echo "  git-lfs installed: $(lfs)"
 	@echo "  python version: $(py)"
 	@echo
 	@echo "Don't forget to activate it with: 'conda activate $(name)'"
