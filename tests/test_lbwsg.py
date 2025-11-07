@@ -51,8 +51,9 @@ def test_birth_exposure_coverage(
         f"draw_{birth_state.model_specification.configuration.input_data.input_draw_number}"
     )
     birth_exposure = artifact.load(LBWSG.BIRTH_EXPOSURE)[draw].reset_index()
+    # Use exposure before we apply intervention effects, so it was sampled directly from GBD
     sim_exposure = get_simulation_exposure_categories(population, birth_state, intervention_effects=False)
-    # remove simulants who aren't in a LBWSG category from GBD
+    # all simulants should be in a LBWSG category from GBD
     assert (sim_exposure["category"] != "").all()
 
     # Check each combination of sex and category
