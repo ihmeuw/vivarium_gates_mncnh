@@ -41,7 +41,7 @@ help:
 	@echo "  type [optional]"
 	@echo "      Type of conda environment. Either 'simulation' (default) or 'artifact'"
 	@echo "  name [optional]"
-	@echo "      Name of the conda environment to create (defaults to package name)"
+	@echo "      Name of the conda environment to create (defaults to <PACKAGE_NAME>_<TYPE>)"
 	@echo "  include_timestamp [optional]"
 	@echo "      If 'yes', appends a timestamp to the environment name. Defaults to 'no'"
 	@echo "  lfs [optional]"
