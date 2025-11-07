@@ -51,9 +51,9 @@ def test_birth_exposure_coverage(
         f"draw_{birth_state.model_specification.configuration.input_data.input_draw_number}"
     )
     birth_exposure = artifact.load(LBWSG.BIRTH_EXPOSURE)[draw].reset_index()
-    sim_exposure = get_simulation_exposure_categories(population, birth_state)
+    sim_exposure = get_simulation_exposure_categories(population, birth_state, intervention_effects=False)
     # remove simulants who aren't in a LBWSG category from GBD
-    sim_exposure = sim_exposure[sim_exposure["category"] != ""]
+    assert (sim_exposure["category"] != "").all()
 
     # Check each combination of sex and category
     for sex in ["Female", "Male"]:
@@ -89,10 +89,13 @@ def test_relative_risk(
     )
     rr_pipeline = mortality_state.get_value(PIPELINES.ACMR_RR)(population.index)
 
+    # TODO: Test something?
+
 
 def get_simulation_exposure_categories(
     pop: pd.DataFrame,
     sim: InteractiveContext,
+    intervention_effects: bool = True,
 ) -> pd.DataFrame:
     sim_exposure = pop[
         [
@@ -101,14 +104,24 @@ def get_simulation_exposure_categories(
             COLUMNS.BIRTH_WEIGHT_EXPOSURE,
         ]
     ].copy()
-    sim_exposure = pd.concat(
-        [
-            pop[COLUMNS.SEX_OF_CHILD],
-            sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)(pop.index),
-            sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)(pop.index),
-        ],
-        axis=1,
-    )
+    if intervention_effects:
+        sim_exposure = pd.concat(
+            [
+                pop[COLUMNS.SEX_OF_CHILD],
+                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)(pop.index),
+                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)(pop.index),
+            ],
+            axis=1,
+        )
+    else:
+        sim_exposure = pd.concat(
+            [
+                pop[COLUMNS.SEX_OF_CHILD],
+                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE).source(pop.index).rename("gestational_age.birth_exposure"),
+                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE).source(pop.index).rename("birth_weight.birth_exposure"),
+            ],
+            axis=1,
+        )
     category_intervals = sim.get_component(
         "risk_factor.low_birth_weight_and_short_gestation"
     ).exposure_distribution.category_intervals
