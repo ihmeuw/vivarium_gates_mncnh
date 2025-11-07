@@ -238,6 +238,8 @@ class __Pipelines(NamedTuple):
     ACMR_RR = "effect_of_low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
+    RAW_BIRTH_WEIGHT_EXPOSURE = "raw_birth_weight.birth_exposure"
+    RAW_GESTATIONAL_AGE_EXPOSURE = "raw_gestational_age.birth_exposure"
     PREGNANCY_DURATION = "pregnancy_duration"
     BIRTH_OUTCOME_PROBABILITIES = "birth_outcome_probabilities"
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
@@ -246,8 +248,9 @@ class __Pipelines(NamedTuple):
     MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
-    IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
+    FIRST_ANC_HEMOGLOBIN_EXPOSURE = "first_anc_hemoglobin.exposure"
+    IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
 
 
 PIPELINES = __Pipelines()

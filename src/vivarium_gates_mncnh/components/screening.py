@@ -52,8 +52,8 @@ class AnemiaScreening(Component):
         self.hemoglobin_screening_coverage = builder.data.load(
             data_keys.HEMOGLOBIN.SCREENING_COVERAGE
         ).value[0]
-        self.ifa_deleted_hemoglobin = builder.value.get_value(
-            PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE
+        self.first_anc_hemoglobin = builder.value.get_value(
+            PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -79,7 +79,7 @@ class AnemiaScreening(Component):
         anc_pop = pop.loc[attends_anc]
 
         # anemia status during pregnancy
-        hemoglobin = self.ifa_deleted_hemoglobin(anc_pop.index)
+        hemoglobin = self.first_anc_hemoglobin(anc_pop.index)
         anc_pop.loc[:, COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] = (
             pd.cut(
                 hemoglobin,

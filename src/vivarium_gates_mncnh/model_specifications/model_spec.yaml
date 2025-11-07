@@ -63,6 +63,9 @@ components:
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
             - PostpartumDepressionObserver()
+            - NeonatalACMRiskObserver()
+            - NeonatalCSMRiskObserver()
+            - ImpossibleNeonatalCSMRiskObserver()
 
 configuration:
     input_data:
@@ -110,12 +113,8 @@ configuration:
                 - 'age_group'
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
-                - 'ultrasound_type'
-                - 'hemoglobin_screening_coverage'
-                - 'ferritin_screening_coverage'
                 - 'preterm_birth'
-                - 'ifa_coverage'
-                - 'mms_coverage'
+                - 'oral_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
@@ -148,6 +147,8 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'true_hemoglobin_exposure'
+                - 'oral_iron_coverage'
         neonatal_burden:
             include:
                 - 'child_sex'
@@ -188,6 +189,39 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+        neonatal_acm_risk:
+            include:
+                - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
+                - 'preterm_birth'
+        neonatal_csm_risk:
+            include:
+                - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
+                - 'preterm_birth'
+        impossible_neonatal_csm_risk:
+            include:
+                - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
+                - 'preterm_birth'
     correlated_propensity_components:
         - 'antenatal_care'
         - 'delivery_facility'
