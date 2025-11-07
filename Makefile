@@ -43,9 +43,9 @@ help:
 	@echo "  name [optional]"
 	@echo "      Name of the conda environment to create (defaults to <PACKAGE_NAME>_<TYPE>)"
 	@echo "  include_timestamp [optional]"
-	@echo "      If 'yes', appends a timestamp to the environment name. Defaults to 'no'"
+	@echo "      Whether to append a timestamp to the environment name. Either 'yes' or 'no' (default)
 	@echo "  lfs [optional]"
-	@echo "      If 'yes', installs git-lfs in the environment. Defaults to 'no'"
+	@echo "      Whether to install git-lfs in the environment. Either 'yes' or 'no' (default)
 	@echo "  py [optional]"
 	@echo "      Python version (defaults to latest supported)"
 	@echo
