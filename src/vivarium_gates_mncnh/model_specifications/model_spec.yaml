@@ -69,7 +69,7 @@ components:
 
 configuration:
     input_data:
-        input_draw_number: 0
+        input_draw_number: 60
         artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0.1/ethiopia.hdf"
     interpolation:
         order: 0
