@@ -52,7 +52,9 @@ def test_birth_exposure_coverage(
     )
     birth_exposure = artifact.load(LBWSG.BIRTH_EXPOSURE)[draw].reset_index()
     # Use exposure before we apply intervention effects, so it was sampled directly from GBD
-    sim_exposure = get_simulation_exposure_categories(population, birth_state, intervention_effects=False)
+    sim_exposure = get_simulation_exposure_categories(
+        population, birth_state, intervention_effects=False
+    )
     # all simulants should be in a LBWSG category from GBD
     assert (sim_exposure["category"] != "").all()
 
@@ -118,8 +120,12 @@ def get_simulation_exposure_categories(
         sim_exposure = pd.concat(
             [
                 pop[COLUMNS.SEX_OF_CHILD],
-                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE).source(pop.index).rename("gestational_age.birth_exposure"),
-                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE).source(pop.index).rename("birth_weight.birth_exposure"),
+                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
+                .source(pop.index)
+                .rename("gestational_age.birth_exposure"),
+                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
+                .source(pop.index)
+                .rename("birth_weight.birth_exposure"),
             ],
             axis=1,
         )
