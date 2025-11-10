@@ -13,7 +13,7 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import PIPELINES, SIMULATION_EVENT_NAMES
 
 
-class Hemoglobin(Risk):
+class OldHemoglobin(Risk):
     @property
     def time_step_cleanup_priority(self) -> int:
         # oral iron intervention will have been assigned

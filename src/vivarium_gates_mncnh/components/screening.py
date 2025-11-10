@@ -20,7 +20,7 @@ from vivarium_gates_mncnh.constants.data_values import (
 from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 
 
-class AnemiaScreening(Component):
+class OldAnemiaScreening(Component):
     @property
     def configuration_defaults(self) -> dict:
         return {

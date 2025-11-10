@@ -91,27 +91,27 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_columns=[COLUMNS.DELIVERY_FACILITY_TYPE],
         )
-        builder.results.register_stratification(
-            "anc_coverage",
-            [
-                ANC_ATTENDANCE_TYPES.NONE,
-                ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
-                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
-                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
-            ],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.ANC_ATTENDANCE],
-        )
-        builder.results.register_stratification(
-            "ultrasound_type",
-            [
-                ULTRASOUND_TYPES.STANDARD,
-                ULTRASOUND_TYPES.AI_ASSISTED,
-                ULTRASOUND_TYPES.NO_ULTRASOUND,
-            ],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.ULTRASOUND_TYPE],
-        )
+        # builder.results.register_stratification(
+        #     "anc_coverage",
+        #     [
+        #         ANC_ATTENDANCE_TYPES.NONE,
+        #         ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+        #         ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+        #         ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+        #     ],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.ANC_ATTENDANCE],
+        # )
+        # builder.results.register_stratification(
+        #     "ultrasound_type",
+        #     [
+        #         ULTRASOUND_TYPES.STANDARD,
+        #         ULTRASOUND_TYPES.AI_ASSISTED,
+        #         ULTRASOUND_TYPES.NO_ULTRASOUND,
+        #     ],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.ULTRASOUND_TYPE],
+        # )
         builder.results.register_stratification(
             "cpap_availability",
             [True, False],
@@ -163,44 +163,44 @@ class ResultsStratifier(ResultsStratifier_):
             [True, False],
             requires_columns=[COLUMNS.MISOPROSTOL_AVAILABLE],
         )
-        builder.results.register_stratification(
-            "oral_iron_coverage",
-            ["ifa", "mms", "uncovered"],
-            mapper=self.map_oral_iron_coverage,
-            is_vectorized=True,
-            requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
-        )
-        builder.results.register_stratification(
-            "hemoglobin_screening_coverage",
-            [True, False],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE],
-        )
-        builder.results.register_stratification(
-            "ferritin_screening_coverage",
-            [True, False],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.FERRITIN_SCREENING_COVERAGE],
-        )
-        builder.results.register_stratification(
-            "true_hemoglobin_exposure",
-            ["low", "adequate"],
-            mapper=self.map_true_hemoglobin,
-            is_vectorized=True,
-            requires_values=[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE],
-        )
-        builder.results.register_stratification(
-            "tested_hemoglobin_exposure",
-            ["low", "adequate", "not_tested"],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.TESTED_HEMOGLOBIN],
-        )
-        builder.results.register_stratification(
-            "ferritin_status",
-            ["low", "adequate", "not_tested"],
-            is_vectorized=True,
-            requires_columns=[COLUMNS.TESTED_FERRITIN],
-        )
+        # builder.results.register_stratification(
+        #     "oral_iron_coverage",
+        #     ["ifa", "mms", "uncovered"],
+        #     mapper=self.map_oral_iron_coverage,
+        #     is_vectorized=True,
+        #     requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
+        # )
+        # builder.results.register_stratification(
+        #     "hemoglobin_screening_coverage",
+        #     [True, False],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE],
+        # )
+        # builder.results.register_stratification(
+        #     "ferritin_screening_coverage",
+        #     [True, False],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.FERRITIN_SCREENING_COVERAGE],
+        # )
+        # builder.results.register_stratification(
+        #     "true_hemoglobin_exposure",
+        #     ["low", "adequate"],
+        #     mapper=self.map_true_hemoglobin,
+        #     is_vectorized=True,
+        #     requires_values=[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE],
+        # )
+        # builder.results.register_stratification(
+        #     "tested_hemoglobin_exposure",
+        #     ["low", "adequate", "not_tested"],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.TESTED_HEMOGLOBIN],
+        # )
+        # builder.results.register_stratification(
+        #     "ferritin_status",
+        #     ["low", "adequate", "not_tested"],
+        #     is_vectorized=True,
+        #     requires_columns=[COLUMNS.TESTED_FERRITIN],
+        # )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
