@@ -603,8 +603,9 @@ def load_probability_bemonc(
             & (hosp_any.year_id == hosp_any.year_id.max())  # Use most recent year available
         ]
         .assign(
-            year_start=lambda df: df.year_id,
-            year_end=lambda df: df.year_id + 1,
+            # Relabel with same year as other keys
+            year_start=metadata.ARTIFACT_YEAR_START,
+            year_end=metadata.ARTIFACT_YEAR_END,
         )
         .drop(
             columns=[
