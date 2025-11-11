@@ -33,66 +33,144 @@ from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class UltrasoundState(TransientState):
-    def __init__(self, ultrasound_type: str) -> None:
-        super().__init__(f"{ultrasound_type}_ultrasound")
-        self.ultrasound_type = ultrasound_type
+class AntenatalCare(Component):
+    @property
+    def columns_created(self):
+        return [COLUMNS.ANC_ATTENDANCE]
 
     @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.ULTRASOUND_TYPE]
+    def columns_required(self):
+        return [COLUMNS.PREGNANCY_OUTCOME]
 
-    def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
-        pop = self.population_view.get(index)
-        pop[COLUMNS.ULTRASOUND_TYPE] = self.ultrasound_type
-        self.population_view.update(pop)
-
-
-class ANCInitialState(State):
-    def __init__(
-        self,
-        state_id: str,
-        allow_self_transition: bool = False,
-        initialization_weights: DataInput = 0.0,
-    ) -> None:
-        super().__init__(state_id)
-        self.transition_set = ANCTransitionSet(
-            self.state_id, allow_self_transition=allow_self_transition
-        )
-        self._sub_components = [self.transition_set]
-
-
-class ANCTransitionSet(TransitionSet):
-    def setup(self, builder: Builder) -> None:
-        super().setup(builder)
+    def setup(self, builder: Builder):
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.randomness = builder.randomness.get_stream(self.name)
         self.propensity = builder.value.get_value(f"antenatal_care.correlated_propensity")
-        self.transitions = self.get_ordered_transitions(builder, self.transitions)
 
-    def choose_new_state(
-        self, index: pd.Index[int]
-    ) -> tuple[list[State | str], pd.Series[Any]]:
-        """Use propensities to choose new state."""
-        outputs, probabilities = zip(
-            *[
-                (transition.output_state, np.array(transition.probability(index)))
-                for transition in self.transitions
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        anc_data = pd.DataFrame(
+            {
+                COLUMNS.ANC_ATTENDANCE: pd.NA,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(anc_data)
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        self.lookup_tables["ANCfirst"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(ANC.ANCfirst),
+            value_columns=["value"],
+        )
+        self.lookup_tables["ANC1"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(ANC.ANC1),
+            value_columns=["value"],
+        )
+        self.lookup_tables["ANC4"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(ANC.ANC4),
+            value_columns=["value"],
+        )
+
+    def is_full_term(self, index: pd.Index) -> pd.Series:
+        """Returns a boolean Series indicating if the pregnancy is full term."""
+        pregnancy_outcome = self.population_view.get(index)[COLUMNS.PREGNANCY_OUTCOME]
+        return pregnancy_outcome.isin(
+            [
+                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
             ]
         )
-        probabilities = np.transpose(probabilities)
-        outputs, probabilities = self._normalize_probabilities(outputs, probabilities)
-        propensities = self.propensity(index)
-        output_indexes = _choice(propensities, np.arange(4), probabilities)
-        return outputs, pd.Series([outputs[i] for i in output_indexes])
 
-    def get_ordered_transitions(
-        self, builder: Builder, transitions: list[Transition]
-    ) -> list[Transition]:
-        transition_ordering = builder.configuration.propensity_ordering.antenatal_care
-        order_map = {state_id: i for i, state_id in enumerate(transition_ordering)}
-        return sorted(
-            self.transitions,
-            key=lambda transition: order_map[transition.output_state.state_id],
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            return
+
+        def get_both_visits_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            result = pd.Series(0.0, index=index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            anc4 = self.lookup_tables["ANC4"](index)
+            # Keep as 0 if not full term
+            result[is_full_term] = np.minimum(ancfirst[is_full_term], anc4[is_full_term])
+            return result
+
+        def get_early_visit_only_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            anc4 = self.lookup_tables["ANC4"](index)
+            result = pd.Series(ancfirst, index=index)
+            # Return ANCfirst if not full term
+            result[is_full_term] = ancfirst[is_full_term] - np.minimum(
+                ancfirst[is_full_term], anc4[is_full_term]
+            )
+            return result
+
+        def get_later_visit_only_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            result = pd.Series(0.0, index=index)
+            anc1 = self.lookup_tables["ANC1"](index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            # Keep as 0 if not full term
+            result[is_full_term] = anc1[is_full_term] - ancfirst[is_full_term]
+            return result
+
+        def get_no_visit_probability(index: pd.Index) -> pd.Series:
+            is_full_term = self.is_full_term(index)
+            anc1 = self.lookup_tables["ANC1"](index)
+            ancfirst = self.lookup_tables["ANCfirst"](index)
+            result = pd.Series(0.0, index=index)
+            result[is_full_term] = 1 - anc1[is_full_term]
+            result[~is_full_term] = 1 - ancfirst[~is_full_term]
+            return result
+
+        probabilities = {}
+        # we need this specific ordering when calling randomness.choice
+        # to get the desired correlations with the facility choice model
+        probabilities[ANC_ATTENDANCE_TYPES.NONE] = get_no_visit_probability(event.index)
+        probabilities[
+            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY
+        ] = get_later_visit_only_probability(event.index)
+        probabilities[
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY
+        ] = get_early_visit_only_probability(event.index)
+        probabilities[
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY
+        ] = get_both_visits_probability(event.index)
+
+        # create 2-d array of probabilities where the columns are ANC attendance type
+        # and the index is the population index
+        all_probabilities = [
+            probability_series for probability_series in probabilities.values()
+        ]
+        probabilities_array = pd.concat(all_probabilities, axis=1).values
+
+        # use correlated propensity to decide ANC attendance
+        propensities = self.propensity(event.index)
+        anc_choices = list(probabilities.keys())
+        anc_attendance = _choice(propensities, anc_choices, probabilities_array)
+        anc_attendance.name = COLUMNS.ANC_ATTENDANCE
+
+        self.population_view.update(anc_attendance)
+
+
+class StatedGestationalAge(Component):
+    @property
+    def columns_created(self):
+        return [
+            COLUMNS.STATED_GESTATIONAL_AGE,
+        ]
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        ga_data = pd.DataFrame(
+            {
+                COLUMNS.STATED_GESTATIONAL_AGE: 38,
+            },
+            index=pop_data.index,
         )
+
+        self.population_view.update(ga_data)
 
 
 class OldAntenatalCare(Component):

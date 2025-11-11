@@ -11,7 +11,9 @@ components:
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
-            - OldAntenatalCare()
+            - AntenatalCare()
+            # TODO: remove once MIC-6596 has been implemented
+            - StatedGestationalAge()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
@@ -85,7 +87,7 @@ configuration:
             month: 1
             day: 1 
         simulation_events: 
-            - 'pregnancy'
+            - 'first_trimester_anc'
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'
