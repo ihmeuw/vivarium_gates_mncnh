@@ -1,4 +1,4 @@
-from vivarium_gates_mncnh.components.antenatal_care import OldAntenatalCare
+from vivarium_gates_mncnh.components.antenatal_care import ANCAttendance, Ultrasound
 from vivarium_gates_mncnh.components.delivery_facility import DeliveryFacility
 
 # from vivarium_gates_mncnh.components.hemoglobin import Hemoglobin, HemoglobinRiskEffect
