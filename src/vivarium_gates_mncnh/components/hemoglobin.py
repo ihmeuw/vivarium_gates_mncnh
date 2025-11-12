@@ -13,6 +13,46 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import PIPELINES, SIMULATION_EVENT_NAMES
 
 
+class Hemoglobin(Risk):
+    def __init__(self) -> None:
+        super().__init__("risk_factor.hemoglobin")
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.ifa_coverage = (
+            builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE)
+            .query("parameter=='cat2'")
+            .reset_index()
+            .value[0]
+        )
+        self.ifa_effect_size = builder.data.load(
+            data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
+        ).value[0]
+
+        self.ifa_deleted_hemoglobin = builder.value.register_value_producer(
+            PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE,
+            self.get_ifa_deleted_hemoglobin,
+            component=self,
+        )
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        self.lookup_tables["ANC1"] = self.build_lookup_table(
+            builder=builder,
+            data_source=builder.data.load(data_keys.ANC.ANC1),
+            value_columns=["value"],
+        )
+
+    def get_ifa_deleted_hemoglobin(self, index: pd.Index) -> pd.Series[float]:
+        return self.exposure(index) - (
+            self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
+        )
+
+    def get_current_exposure(self, index: pd.Index) -> pd.Series:
+        propensity = self.propensity(index)
+        baseline_exposure = pd.Series(self.exposure_distribution.ppf(propensity), index=index)
+        return baseline_exposure - (self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index))
+
+
 class OldHemoglobin(Risk):
     @property
     def time_step_cleanup_priority(self) -> int:
