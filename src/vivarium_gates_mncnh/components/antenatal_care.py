@@ -146,7 +146,6 @@ class ANCAttendance(Component):
         anc_choices = probabilities.columns
         anc_attendance = _choice(propensities, anc_choices, probabilities.values)
         anc_attendance.name = COLUMNS.ANC_ATTENDANCE
-        breakpoint()
 
         self.population_view.update(anc_attendance)
 
