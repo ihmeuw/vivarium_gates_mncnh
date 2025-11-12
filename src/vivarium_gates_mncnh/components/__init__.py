@@ -1,11 +1,11 @@
-from vivarium_gates_mncnh.components.antenatal_care import AntenatalCare
+from vivarium_gates_mncnh.components.antenatal_care import ANCAttendance, Ultrasound
 from vivarium_gates_mncnh.components.delivery_facility import DeliveryFacility
 from vivarium_gates_mncnh.components.hemoglobin import Hemoglobin, HemoglobinRiskEffect
 from vivarium_gates_mncnh.components.intervention import (
     AdditiveRiskEffect,
     CPAPAndACSRiskEffect,
     InterventionRiskEffect,
-    MMSEffectOnGestationalAge,
+    OralIronEffectsOnGestationalAge,
     OralIronInterventionEffect,
     OralIronInterventionExposure,
 )
@@ -50,6 +50,9 @@ from vivarium_gates_mncnh.components.population import (
     EvenlyDistributedPopulation,
 )
 from vivarium_gates_mncnh.components.pregnancy import Pregnancy
-from vivarium_gates_mncnh.components.propensity import CorrelatedPropensities
+from vivarium_gates_mncnh.components.propensity import (
+    AnemiaInterventionPropensity,
+    CorrelatedPropensities,
+)
 from vivarium_gates_mncnh.components.screening import AnemiaScreening
 from vivarium_gates_mncnh.plugins.time import EventClock, TimeInterface

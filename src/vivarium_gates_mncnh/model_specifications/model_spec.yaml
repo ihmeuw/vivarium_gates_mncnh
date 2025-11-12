@@ -8,10 +8,12 @@ components:
     vivarium_gates_mncnh:
         components:
             - Hemoglobin()
+            - AnemiaInterventionPropensity()
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
-            - AntenatalCare()
+            - ANCAttendance()
+            - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
@@ -34,13 +36,11 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
-            # HACK: Commenting out oral iron due to known issues, uncomment when LBWSG refactor is complete
-            # - OralIronInterventionExposure() # IFA and MMS
-            # - OralIronInterventionEffect()
-            # - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            # - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            # - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
-            # - MMSEffectOnGestationalAge()
+            - OralIronInterventionExposure() # IFA and MMS
+            - OralIronInterventionEffect()
+            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - OralIronEffectsOnGestationalAge()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -73,7 +73,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model22.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model21.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -88,7 +88,10 @@ configuration:
             month: 1
             day: 1 
         simulation_events: 
-            - 'pregnancy'
+            - 'first_trimester_anc'
+            - 'later_pregnancy_screening'
+            - 'later_pregnancy_intervention'
+            - 'ultrasound'
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'
@@ -119,11 +122,11 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
                 - 'preterm_birth'
-                # HACK: Commenting out oral iron due to known issues, uncomment when LBWSG refactor is complete
-                # - 'oral_iron_coverage'
+                - 'oral_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
+                - 'preterm_birth'
         anc_other:
             include:
                 - 'age_group'
@@ -134,6 +137,7 @@ configuration:
                 - 'preterm_birth'
                 - 'believed_preterm'
                 - 'acs_eligibility'
+                - 'acs_availability'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
         birth:
@@ -146,6 +150,7 @@ configuration:
                 - 'cpap_availability'
                 - 'acs_availability'
                 - 'acs_eligibility'
+                - 'preterm_birth'
         maternal_disorders_burden:
             include:
                 - 'age_group'
@@ -153,9 +158,6 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
-                - 'true_hemoglobin_exposure'
-                # HACK: Commenting out oral iron due to known issues, uncomment when LBWSG refactor is complete
-                # - 'oral_iron_coverage'
         neonatal_burden:
             include:
                 - 'child_sex'
