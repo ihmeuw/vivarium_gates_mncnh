@@ -33,7 +33,7 @@ from vivarium_gates_mncnh.constants.scenarios import INTERVENTION_SCENARIOS
 from vivarium_gates_mncnh.utilities import get_location
 
 
-class AntenatalCare(Component):
+class ANCAttendance(Component):
     @property
     def columns_created(self):
         return [COLUMNS.ANC_ATTENDANCE]
@@ -125,37 +125,33 @@ class AntenatalCare(Component):
             result[~is_full_term] = 1 - ancfirst[~is_full_term]
             return result
 
-        probabilities = {}
-        # we need this specific ordering when calling randomness.choice
-        # to get the desired correlations with the facility choice model
-        probabilities[ANC_ATTENDANCE_TYPES.NONE] = get_no_visit_probability(event.index)
-        probabilities[
-            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY
-        ] = get_later_visit_only_probability(event.index)
-        probabilities[
-            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY
-        ] = get_early_visit_only_probability(event.index)
-        probabilities[
-            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY
-        ] = get_both_visits_probability(event.index)
-
-        # create 2-d array of probabilities where the columns are ANC attendance type
-        # and the index is the population index
-        all_probabilities = [
-            probability_series for probability_series in probabilities.values()
+        probabilities = pd.concat(
+            [
+                get_no_visit_probability(event.index),
+                get_later_visit_only_probability(event.index),
+                get_early_visit_only_probability(event.index),
+                get_both_visits_probability(event.index),
+            ],
+            axis=1,
+        )
+        probabilities.columns = [
+            ANC_ATTENDANCE_TYPES.NONE,
+            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
         ]
-        probabilities_array = pd.concat(all_probabilities, axis=1).values
 
         # use correlated propensity to decide ANC attendance
         propensities = self.propensity(event.index)
-        anc_choices = list(probabilities.keys())
-        anc_attendance = _choice(propensities, anc_choices, probabilities_array)
+        anc_choices = probabilities.columns
+        anc_attendance = _choice(propensities, anc_choices, probabilities.values)
         anc_attendance.name = COLUMNS.ANC_ATTENDANCE
+        breakpoint()
 
         self.population_view.update(anc_attendance)
 
 
-class StatedGestationalAge(Component):
+class Ultrasound(Component):
     @property
     def columns_created(self):
         return [
