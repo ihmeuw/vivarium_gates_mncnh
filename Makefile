@@ -19,6 +19,9 @@ endif
 # Set the package name as the last part of this file's parent directory path
 PACKAGE_NAME = $(notdir $(CURDIR))
 
+# Helper function for validating enum arguments
+validate_arg = $(if $(filter-out $(2),$(1)),$(error Error: '$(3)' must be one of: $(2), got '$(1)'))
+
 ifneq ($(MAKE_INCLUDES),) # not empty
 # Include makefiles from vivarium_build_utils
 include $(MAKE_INCLUDES)/base.mk
@@ -35,7 +38,7 @@ help:
 	@echo "make build-env"
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-env name=<environment_name> [py=<python_version>]"
+	@echo "  make build-env [type=<environment type>] [name=<environment name>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
@@ -43,15 +46,11 @@ help:
 	@echo "  name [optional]"
 	@echo "      Name of the conda environment to create (defaults to <PACKAGE_NAME>_<TYPE>)"
 	@echo "  include_timestamp [optional]"
-	@echo "      Whether to append a timestamp to the environment name. Either 'yes' or 'no' (default)
+	@echo "      Whether to append a timestamp to the environment name. Either 'yes' or 'no' (default)"
 	@echo "  lfs [optional]"
-	@echo "      Whether to install git-lfs in the environment. Either 'yes' or 'no' (default)
+	@echo "      Whether to install git-lfs in the environment. Either 'yes' or 'no' (default)"
 	@echo "  py [optional]"
 	@echo "      Python version (defaults to latest supported)"
-	@echo
-	@echo "EXAMPLE:"
-	@echo "  make build-env name=vivarium_dev"
-	@echo "  make build-env name=vivarium_dev py=3.9"
 	@echo
 	@echo "After creating the environment:"
 	@echo "  1. Activate it: 'conda activate <environment_name>'"
@@ -78,16 +77,16 @@ build-env: # Create a new environment with installed packages
 #   Handle arguments and set defaults
 #   type
 	@$(eval type ?= simulation)
-	@$(if $(filter-out simulation artifact,$(type)),$(error Error: 'type' must be either 'simulation' or 'artifact', got '$(type)'))
+	@$(call validate_arg,$(type),simulation artifact,type)
 #	name
 	@$(eval name ?= $(PACKAGE_NAME)_$(type))
 #	timestamp
 	@$(eval include_timestamp ?= no)
-	@$(if $(filter-out yes no,$(include_timestamp)),$(error Error: 'include_timestamp' must be either 'yes' or 'no', got '$(include_timestamp)'))
+	@$(call validate_arg,$(include_timestamp),yes no,include_timestamp)
 	@$(if $(filter yes,$(include_timestamp)),$(eval override name := $(name)_$(shell date +%Y%m%d_%H%M%S)),)
 #	lfs
 	@$(eval lfs ?= no)
-	@$(if $(filter-out yes no,$(lfs)),$(error Error: 'lfs' must be either 'yes' or 'no', got '$(lfs)'))
+	@$(call validate_arg,$(lfs),yes no,lfs)
 #	python version
 	@$(eval py ?= $(shell python -c "import json; versions = json.load(open('python_versions.json')); print(max(versions, key=lambda x: tuple(map(int, x.split('.')))))"))
 	
