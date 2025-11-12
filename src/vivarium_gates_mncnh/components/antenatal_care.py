@@ -125,6 +125,8 @@ class ANCAttendance(Component):
             result[~is_full_term] = 1 - ancfirst[~is_full_term]
             return result
 
+        # this ordering is important when using propensities
+        # to preserve correlations in facility choice model
         probabilities = pd.concat(
             [
                 get_no_visit_probability(event.index),
