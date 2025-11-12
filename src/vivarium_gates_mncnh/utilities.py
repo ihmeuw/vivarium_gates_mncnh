@@ -102,12 +102,21 @@ def get_truncnorm(
     mean: float,
     sd: float = None,
     ninety_five_pct_confidence_interval: Tuple[float, float] = None,
-    lower_clip: float = 0.0,
-    upper_clip: float = 1.0,
+    lower_clip: float = None,
+    upper_clip: float = None,
 ) -> stats.norm:
+    if lower_clip is None and upper_clip is None:
+        raise ValueError("Must provide either a lower or upper clip for truncnorm.")
     sd = _get_standard_deviation(mean, sd, ninety_five_pct_confidence_interval)
-    a = (lower_clip - mean) / sd if sd else mean - 1e-03
-    b = (upper_clip - mean) / sd if sd else mean + 1e03
+
+    if sd == 0:
+        # degenerate case: use stats.norm for this point mass
+        return stats.norm(loc=mean, scale=sd)
+
+    # See note on https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.truncnorm.html
+    # Use inf to avoid truncation (on one side) altogether: https://stackoverflow.com/a/61673195/
+    a = (lower_clip - mean) / sd if lower_clip is not None else -np.inf
+    b = (upper_clip - mean) / sd if upper_clip is not None else np.inf
     return stats.truncnorm(loc=mean, scale=sd, a=a, b=b)
 
 

@@ -1,11 +1,13 @@
+# NOTE: This file is a copy of baseline_only.yaml with the scenarios added.
+# If you're editing, make sure to keep these two files in sync!
+
 input_draw_count: 10
 random_seed_count: 10
 
-input_draws: [115, 60, 368, 197, 79, 244, 272, 167, 146, 71] 
+input_draws: [115, 60, 118, 197, 79, 244, 22, 167, 146, 71]
 # Draws should NOT be equal to mod 100, meaning draws 115 and 215 should not be used together
 # due to the 2023 Hemoglobin exposure data only having 100 draws.
-# Other draws that have been generated available to use: 278, 406, 94, 420, 109, 26, 35, 114, 428, 170
-
+# Other draws that have been generated available to use: 28, 156, 94, 170, 109, 26, 35, 114, 178, 127
 branches:
   - intervention:
       scenario: 

@@ -135,3 +135,13 @@ src/*/_version.py
 
 # Visual Studio Code project settings
 .vscode/
+
+# Private data
+src/vivarium_gates_mncnh/data/facility_choice/facility_choice_data.xlsx
+
+# Directories used for intermediates in a "local" workflow (described in README.rst)
+artifacts/
+paf_sim_results/
+sim_results/
+calculated_pafs/
+calculated_preterm_prevalence/

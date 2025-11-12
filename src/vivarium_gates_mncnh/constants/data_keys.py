@@ -12,6 +12,7 @@ METADATA_LOCATIONS = "metadata.locations"
 class __Population(NamedTuple):
     LOCATION: str = "population.location"
     STRUCTURE: str = "population.structure"
+    INFANT_MALE_PERCENTAGE: str = "population.infant_male_percentage"
     AGE_BINS: str = "population.age_bins"
     DEMOGRAPHY: str = "population.demographic_dimensions"
     TMRLE: str = "population.theoretical_minimum_risk_life_expectancy"
@@ -33,7 +34,7 @@ POPULATION = __Population()
 
 class __Pregnancy(NamedTuple):
     ASFR: str = "covariate.age_specific_fertility_rate.estimate"
-    SBR: str = "covariate.stillbirth_to_live_birth_ratio.estimate"
+    SBR: str = "covariate.stillbirth_20_weeks_to_live_birth_ratio.estimate"
     RAW_INCIDENCE_RATE_MISCARRIAGE: str = (
         "cause.maternal_abortion_and_miscarriage.raw_incidence_rate"
     )
@@ -455,7 +456,7 @@ class __MMN_Supplementation(NamedTuple):
 
     @property
     def name(self):
-        return self.EFFECT_SIZE.name
+        return self.STILLBIRTH_RR.name
 
     @property
     def log_name(self):

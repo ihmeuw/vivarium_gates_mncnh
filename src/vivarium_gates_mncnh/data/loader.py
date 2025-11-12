@@ -29,7 +29,7 @@ from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws
+from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
 
 
 def get_data(
@@ -53,13 +53,13 @@ def get_data(
     mapping = {
         data_keys.POPULATION.LOCATION: load_population_location,
         data_keys.POPULATION.STRUCTURE: load_population_structure,
+        data_keys.POPULATION.INFANT_MALE_PERCENTAGE: load_infant_male_percentage,
         data_keys.POPULATION.AGE_BINS: load_age_bins,
         data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
-        # TODO - add appropriate mappings
         data_keys.PREGNANCY.ASFR: load_asfr,
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
@@ -84,21 +84,18 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
-        # data_keys.PRETERM_BIRTH.CSMR: load_standard_data,
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
         data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.PRETERM_BIRTH.MORTALITY_RISK: load_mortality_risk,
-        # data_keys.NEONATAL_SEPSIS.CSMR: load_standard_data,
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
-        # data_keys.NEONATAL_ENCEPHALOPATHY.CSMR: load_standard_data,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
         data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION: load_facility_proportion,
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
         data_keys.FACILITY_CHOICE.P_CEmONC: load_overall_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type,
-        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_birth_facility_type,
+        data_keys.FACILITY_CHOICE.P_HOME_PRETERM: load_probability_birth_facility_type_given_term_status,
+        data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: load_probability_birth_facility_type_given_term_status,
+        data_keys.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION: load_probability_bemonc,
         data_keys.NO_CPAP_RISK.P_RDS: load_p_rds,
         data_keys.NO_CPAP_RISK.P_CPAP_HOME: load_cpap_facility_access_probability,
         data_keys.NO_CPAP_RISK.P_CPAP_BEMONC: load_cpap_facility_access_probability,
@@ -177,6 +174,30 @@ def load_population_structure(
     return interface.get_population_structure(location, years)
 
 
+def load_infant_male_percentage(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
+
+    live_births_by_sex = load_standard_data(
+        "covariate.live_births_by_sex.estimate", location, years
+    )
+    infant_male_percentage = (
+        live_births_by_sex.loc["Male"]
+        / live_births_by_sex.groupby(
+            [c for c in live_births_by_sex.index.names if c != "sex"]
+        ).sum()
+    )
+    lower_value = infant_male_percentage.loc[(year_start, year_end, "lower_value"), "value"]
+    mean_value = infant_male_percentage.loc[(year_start, year_end, "mean_value"), "value"]
+    upper_value = infant_male_percentage.loc[(year_start, year_end, "upper_value"), "value"]
+    assert np.isclose(lower_value, mean_value) and np.isclose(
+        upper_value, mean_value
+    ), "There should not be uncertainty in the infant male percentage"
+
+    return mean_value
+
+
 def load_age_bins(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -214,9 +235,6 @@ def load_metadata(
     return entity_metadata
 
 
-# TODO - add project-specific data functions here
-
-
 def load_asfr(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -235,9 +253,29 @@ def load_asfr(
 def load_sbr(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
+    year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
+
     sbr = load_standard_data(key, location)
+    lower_value = sbr.loc[(year_start, year_end, "lower_value"), "value"]
+    mean_value = sbr.loc[(year_start, year_end, "mean_value"), "value"]
+    upper_value = sbr.loc[(year_start, year_end, "upper_value"), "value"]
     sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
-    return sbr
+
+    sbr_dist = get_truncnorm(
+        mean=mean_value,
+        ninety_five_pct_confidence_interval=(lower_value, upper_value),
+        lower_clip=0.0,
+    )
+    sbr_draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, sbr_dist)
+    sbr_draws = sbr_draws.values.flatten()
+    # Ensure shape is (1, NUM_DRAWS)
+    sbr_draws = sbr_draws.reshape(1, -1)
+
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+    sbr_draws_df = pd.DataFrame(sbr_draws, columns=draw_columns)
+    sbr_draws_df["year_start"] = year_start
+    sbr_draws_df["year_end"] = year_end
+    return sbr_draws_df.set_index(["year_start", "year_end"])
 
 
 def load_raw_incidence_data(
@@ -280,7 +318,7 @@ def load_scaling_factor(
     )
 
     # Calculate pregnancy incidence
-    preg_inc = asfr + asfr.multiply(sbr["value"], axis=0) + incidence_c995 + incidence_c374
+    preg_inc = asfr + asfr * sbr + incidence_c995 + incidence_c374
 
     return preg_inc
 
@@ -309,8 +347,11 @@ def load_anc_proportion(
         upper_value = anc_proportion.loc[(year_start, year_end, "upper_value"), "value"]
 
         try:
-            anc_proportion_dist = sampling.get_truncnorm_from_quantiles(
-                mean=mean_value, lower=lower_value, upper=upper_value
+            anc_proportion_dist = get_truncnorm(
+                mean=mean_value,
+                ninety_five_pct_confidence_interval=(lower_value, upper_value),
+                lower_clip=0.0,
+                upper_clip=1.0,
             )
             anc_proportion_draws = get_random_variable_draws(
                 metadata.ARTIFACT_COLUMNS, key, anc_proportion_dist
@@ -355,11 +396,13 @@ def load_lbwsg_rr(
         ["affected_entity", "affected_measure"]
     )
     data = data[~data.index.duplicated()]
+
     caps = pd.read_csv(paths.LBWSG_RR_CAPS_DIR / f"{location.lower()}.csv")
     caps = caps.set_index(data.index.names)
     neonatal_data = data.query("age_start < 8 / 365")
     capped_neonatal_data = neonatal_data.where(neonatal_data <= caps, other=caps)
     data.loc[neonatal_data.index] = capped_neonatal_data
+
     return data
 
 
@@ -430,7 +473,7 @@ def load_paf_data(
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    output_dir = paths.PAF_DIR / "temp_outputs" / location.lower()
+    output_dir = paths.PAF_DIR / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
@@ -528,10 +571,69 @@ def load_overall_probability_birth_facility_type(
         raise ValueError(f"Unrecognized key {key}")
 
 
-def load_probability_birth_facility_type(
+def load_probability_birth_facility_type_given_term_status(
     lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
-    return data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][lookup_key]
+    parameter_name = {
+        data_keys.FACILITY_CHOICE.P_HOME_PRETERM: "prob_home_given_believed_preterm",
+        data_keys.FACILITY_CHOICE.P_HOME_FULL_TERM: "prob_home_given_believed_term",
+    }[lookup_key]
+    facility_choice_optimization_results = pd.read_csv(
+        paths.FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV
+    )
+    return facility_choice_optimization_results.set_index("parameter_name").loc[
+        parameter_name
+    ][location]
+
+
+def load_probability_bemonc(
+    lookup_key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float:
+    # https://vivarium-research.readthedocs.io/en/latest/models/other_models/facility_choice/index.html#choosing-bemonc-vs-cemonc
+    hosp_any = pd.read_csv(
+        "/snfs1/Project/simulation_science/mnch_grant/MNCNH portfolio/hosp_any_st-gpr_results_weighted_aggregates_2025-06-06.csv"
+    )
+    location_id = utility_data.get_location_id(location)
+
+    assert (hosp_any.sex_id == 3).all()
+    assert (hosp_any.age_group_id == 22).all()
+    hosp_ifd_proportion = (
+        hosp_any.loc[
+            (hosp_any.location_id == location_id)
+            & (hosp_any.year_id == hosp_any.year_id.max())  # Use most recent year available
+        ]
+        .assign(
+            # Relabel with same year as other keys
+            year_start=metadata.ARTIFACT_YEAR_START,
+            year_end=metadata.ARTIFACT_YEAR_END,
+        )
+        .drop(
+            columns=[
+                "mean",
+                "lower",
+                "upper",
+                "location_id",
+                "sex_id",
+                "age_group_id",
+                "year_id",
+            ]
+        )
+    )
+    assert len(hosp_ifd_proportion) == 1
+    hosp_ifd_proportion = hosp_ifd_proportion.set_index(["year_start", "year_end"])
+    # Repeat our 100 draws of this parameter for all the draws we need, taking draw_num % 100
+    assert set(hosp_ifd_proportion.filter(like="draw_").columns) == {
+        f"draw_{n}" for n in range(100)
+    }
+    hosp_ifd_proportion = pd.DataFrame(
+        {
+            draw_col: hosp_ifd_proportion[
+                "draw_" + str(int(draw_col.replace("draw_", "")) % 100)
+            ]
+            for draw_col in vi_globals.DRAW_COLUMNS
+        }
+    )
+    return hosp_ifd_proportion
 
 
 def load_cpap_facility_access_probability(
@@ -568,11 +670,6 @@ def load_no_cpap_paf(
     rr_no_CPAP = get_data(data_keys.NO_CPAP_RISK.RELATIVE_RISK, location, years)
 
     # get p_CPAP and p_no_CPAP
-    p_BEmONC_given_facility = data_values.DELIVERY_FACILITY_TYPE_PROBABILITIES[location][
-        data_values.FACILITY_CHOICE.BEmONC_FACILITY_FRACTION
-    ]
-    p_CEmONC_given_facility = 1 - p_BEmONC_given_facility
-
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location)
     p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location)
 
@@ -666,11 +763,10 @@ def load_lbwsg_birth_exposure(
     if key != data_keys.LBWSG.BIRTH_EXPOSURE:
         raise ValueError(f"Unrecognized key {key}")
 
-    # THis is using the old key due to VPH and VI update
+    birth_exposure = extra_gbd.load_2021_lbwsg_birth_exposure(location)
+    # This category was a mistake in GBD 2019, so drop.
     exposure_key = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     entity = utilities.get_entity(exposure_key)
-    birth_exposure = extra_gbd.load_lbwsg_exposure(location)
-    # This category was a mistake in GBD 2019, so drop.
     extra_residual_category = vi_globals.EXTRA_RESIDUAL_CATEGORY[entity.name]
     birth_exposure = birth_exposure.loc[
         birth_exposure["parameter"] != extra_residual_category
@@ -772,13 +868,8 @@ def load_antibiotic_coverage_probability(
     location: str,
     years: Optional[Union[int, str, List[int]]] = None,
 ) -> pd.DataFrame:
-    # Model 8.3 sets coverage values at population level and not birth facility/location level
-    coverage_dict = {
-        "Ethiopia": 0.5,
-        "Nigeria": 0.0,
-        "Pakistan": 0.0,
-    }
-    return coverage_dict[location]
+    # Model 8.3+ sets coverage values at location level and not birth facility/location level
+    return data_values.ANTIBIOTIC_BASELINE_COVERAGE[location]
 
 
 def load_no_antibiotics_relative_risk(
@@ -1065,12 +1156,17 @@ def load_coverage_from_file(filepath: Path, location: str) -> pd.DataFrame:
 def load_oral_iron_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    dist = data_values.ORAL_IRON_EFFECT_SIZES[key]["hemoglobin.exposure"]
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
-    data["affected_target"] = "hemoglobin.exposure"
-    data = data.set_index("affected_target")
-    return data
+    effect_size_dists = data_values.ORAL_IRON_EFFECT_SIZES[key]
+    effect_size_data = []
+
+    for target, dist in effect_size_dists.items():
+        draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+        data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+        data["affected_target"] = target
+        data = data.set_index("affected_target")
+        effect_size_data.append(data)
+
+    return pd.concat(effect_size_data)
 
 
 def load_ifa_excess_shift(
@@ -1173,33 +1269,28 @@ def load_excess_gestational_age_shift(
     """Load excess gestational age shift data from IFA and MMS from file.
     Returns the sum of the shift data in the directories defined in data_dirs."""
     try:
-        data_dirs = {
-            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: [paths.IFA_GA_SHIFT_DATA_DIR],
-            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: [
-                paths.MMS_GA_SHIFT_1_DATA_DIR
-            ],
-            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: [
-                paths.MMS_GA_SHIFT_1_DATA_DIR,
-                paths.MMS_GA_SHIFT_2_DATA_DIR,
-            ],
+        data_file = {
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: "ifa_ga_shifts.csv",
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: "updated_mms_shifts.csv",
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: "updated_mms_shifts.csv",
         }[key]
     except KeyError:
         raise ValueError(f"Unrecognized key {key}")
 
     index = get_data(data_keys.POPULATION.DEMOGRAPHY, location).index
-    all_shift_data = [
-        pd.read_csv(data_dir / f"{location.lower()}.csv") for data_dir in data_dirs
-    ]
-    shifts = [
-        pd.Series(shift_data["value"].values, index=shift_data["draw"])
-        for shift_data in all_shift_data
-    ]
-    if len(shifts) > 1:
-        shifts[1] = shifts[1].loc[shifts[1].notnull()]
-    summed_shifts = sum(shifts)  # only sum more than one Series for subpop 2
+    location_id = utility_data.get_location_id(location)
+    shift_data = pd.read_csv(paths.ORAL_IRON_DATA_DIR / data_file).pipe(
+        lambda df: df[df.location_id == location_id]
+    )
+    shift_columns = {
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: ["value"],
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: ["shift1"],
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: ["shift1", "shift2"],
+    }[key]
+    shifts = shift_data.set_index("draw")[shift_columns].sum(axis=1)
 
     excess_shift = reshape_shift_data(
-        summed_shifts, index, data_values.PIPELINES.GESTATIONAL_AGE_EXPOSURE
+        shifts, index, data_values.PIPELINES.GESTATIONAL_AGE_EXPOSURE
     )
     excess_shift = excess_shift[metadata.ARTIFACT_COLUMNS]
     return excess_shift.query("age_end <= 5.0").droplevel("location")
@@ -1288,11 +1379,14 @@ def load_hemoglobin_exposure_data(
         levels_to_drop.append("parameter")
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
-    expanded_draws_df = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=100, num_repeats=5
+    # Expand draw columns from 0-99 to 0-249 by repeating 2.5 times
+    expanded_draws_df_1 = utilities.expand_draw_columns(
+        hemoglobin_data, num_draws=100, num_repeats=2
     )
-
+    expanded_draws_df_2 = hemoglobin_data[[f"draw_{i}" for i in range(50)]].rename(
+        {f"draw_{i}": f"draw_{i+200}" for i in range(50)}, axis=1
+    )
+    expanded_draws_df = pd.concat([expanded_draws_df_1, expanded_draws_df_2], axis=1)
     return expanded_draws_df
 
 
@@ -1343,12 +1437,7 @@ def load_hemoglobin_relative_risk(
     ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
-    # Expand draw columns from 0-249 to 0-499 by repeating 2 times
-    expanded_draws_df = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=250, num_repeats=2
-    )
-
-    return expanded_draws_df
+    return hemoglobin_data
 
 
 def load_hemoglobin_paf(
@@ -1384,7 +1473,39 @@ def load_hemoglobin_tmred(
 def load_propensity_correlations(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> None:
-    return data_values.PROPENSITY_CORRELATIONS[location]
+    facility_choice_optimization_results = pd.read_csv(
+        paths.FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV
+    )
+    propensity_correlations = facility_choice_optimization_results[
+        facility_choice_optimization_results.parameter_name.str.contains("corr(", regex=False)
+    ]
+
+    # Extract A and B from corr(A, B) pattern
+    extracted = propensity_correlations["parameter_name"].str.extract(
+        r"corr\(([^,]+),\s*([^)]+)\)"
+    )
+
+    # Apply replacements to both A and B
+    def apply_replacements(series):
+        return (
+            series.str.replace("anc", "antenatal_care", regex=False)
+            .str.replace("facility", "delivery_facility", regex=False)
+            .str.replace(
+                "lbwsg_category",
+                "risk_factor.low_birth_weight_and_short_gestation",
+                regex=False,
+            )
+        )
+
+    a_modified = apply_replacements(extracted[0])
+    b_modified = apply_replacements(extracted[1])
+
+    # Ensure alphabetical order (A before B)
+    first = a_modified.where(a_modified <= b_modified, b_modified)
+    second = b_modified.where(a_modified <= b_modified, a_modified)
+
+    propensity_correlations["parameter_name"] = first + "_AND_" + second
+    return propensity_correlations.set_index("parameter_name")[location].to_dict()
 
 
 def load_probability_low_ferritin(
@@ -1401,12 +1522,7 @@ def load_probability_low_ferritin(
     df = df.rename(
         {"anemia_severity": data_values.COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY}, axis=1
     )
-    # duplicate draws 0 to 250 to get 500 draws
-    draw_cols = [f"draw_{i}" for i in range(250)]
-    duplicated_draws = df[draw_cols].copy()
-    duplicated_draws.columns = [f"draw_{i}" for i in range(250, 500)]
-    df_expanded = pd.concat([df, duplicated_draws], axis=1)
-    return reshape_to_vivarium_format(df_expanded, location)
+    return reshape_to_vivarium_format(df, location)
 
 
 def reshape_to_vivarium_format(df, location):

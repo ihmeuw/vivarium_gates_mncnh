@@ -1,0 +1,17 @@
+name: facility_choice
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip:
+    - jupyter
+    - pandas
+    - openpyxl # for reading Excel files
+    - tables
+    - numpy
+    - scipy
+    - statsmodels
+    - vivarium
+    - gbd_mapping
+    - "vivarium_helpers @ git+https://github.com/ihmeuw/vivarium_helpers.git@main"
