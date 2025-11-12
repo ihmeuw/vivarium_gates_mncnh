@@ -51,7 +51,12 @@ def test_birth_exposure_coverage(
         f"draw_{birth_state.model_specification.configuration.input_data.input_draw_number}"
     )
     birth_exposure = artifact.load(LBWSG.BIRTH_EXPOSURE)[draw].reset_index()
-    sim_exposure = get_simulation_exposure_categories(population, birth_state)
+    # Use exposure before we apply intervention effects, so it was sampled directly from GBD
+    sim_exposure = get_simulation_exposure_categories(
+        population, birth_state, intervention_effects=False
+    )
+    # all simulants should be in a LBWSG category from GBD
+    assert (sim_exposure["category"] != "").all()
 
     # Check each combination of sex and category
     for sex in ["Female", "Male"]:
@@ -87,10 +92,13 @@ def test_relative_risk(
     )
     rr_pipeline = mortality_state.get_value(PIPELINES.ACMR_RR)(population.index)
 
+    # TODO: Test something?
+
 
 def get_simulation_exposure_categories(
     pop: pd.DataFrame,
     sim: InteractiveContext,
+    intervention_effects: bool = True,
 ) -> pd.DataFrame:
     sim_exposure = pop[
         [
@@ -99,6 +107,28 @@ def get_simulation_exposure_categories(
             COLUMNS.BIRTH_WEIGHT_EXPOSURE,
         ]
     ].copy()
+    if intervention_effects:
+        sim_exposure = pd.concat(
+            [
+                pop[COLUMNS.SEX_OF_CHILD],
+                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)(pop.index),
+                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)(pop.index),
+            ],
+            axis=1,
+        )
+    else:
+        sim_exposure = pd.concat(
+            [
+                pop[COLUMNS.SEX_OF_CHILD],
+                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
+                .source(pop.index)
+                .rename("gestational_age.birth_exposure"),
+                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
+                .source(pop.index)
+                .rename("birth_weight.birth_exposure"),
+            ],
+            axis=1,
+        )
     category_intervals = sim.get_component(
         "risk_factor.low_birth_weight_and_short_gestation"
     ).exposure_distribution.category_intervals
@@ -111,11 +141,11 @@ def get_simulation_exposure_categories(
         return categories
 
     # Map 'gestational_age' to its categories
-    sim_exposure["gestational_age_category"] = sim_exposure["gestational_age_exposure"].apply(
-        lambda x: map_to_category(x, category_intervals["gestational_age"])
-    )
+    sim_exposure["gestational_age_category"] = sim_exposure[
+        "gestational_age.birth_exposure"
+    ].apply(lambda x: map_to_category(x, category_intervals["gestational_age"]))
     # Map 'birth_weight' to its categories
-    sim_exposure["birth_weight_category"] = sim_exposure["birth_weight_exposure"].apply(
+    sim_exposure["birth_weight_category"] = sim_exposure["birth_weight.birth_exposure"].apply(
         lambda x: map_to_category(x, category_intervals["birth_weight"])
     )
     # Get common category
@@ -126,7 +156,9 @@ def get_simulation_exposure_categories(
 
     # Get single category from set returned above but throw error if simulant is in two categories
     def extract_set_value(s: set) -> str:
-        if len(s) == 1:
+        if len(s) == 0:
+            return ""
+        elif len(s) == 1:
             return s.pop()
         else:
             raise ValueError("Simulant is in multiple LBWSG categories")

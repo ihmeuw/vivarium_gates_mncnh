@@ -32,12 +32,13 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
-            - OralIronInterventionExposure() # IFA and MMS
-            - OralIronInterventionEffect()
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
-            - MMSEffectOnGestationalAge()
+            # HACK: Commenting out oral iron due to known issues, uncomment when LBWSG refactor is complete
+            # - OralIronInterventionExposure() # IFA and MMS
+            # - OralIronInterventionEffect()
+            # - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            # - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            # - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
+            # - MMSEffectOnGestationalAge()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -63,11 +64,14 @@ components:
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
             - PostpartumDepressionObserver()
+            - NeonatalACMRiskObserver()
+            - NeonatalCSMRiskObserver()
+            - ImpossibleNeonatalCSMRiskObserver()
 
 configuration:
     input_data:
-        input_draw_number: 0
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0/ethiopia.hdf"
+        input_draw_number: 60
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0.2/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -110,12 +114,9 @@ configuration:
                 - 'age_group'
                 - 'pregnancy_outcome'
                 - 'anc_coverage'
-                - 'ultrasound_type'
-                - 'hemoglobin_screening_coverage'
-                - 'ferritin_screening_coverage'
                 - 'preterm_birth'
-                - 'ifa_coverage'
-                - 'mms_coverage'
+                # HACK: Commenting out oral iron due to known issues, uncomment when LBWSG refactor is complete
+                # - 'oral_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
@@ -148,6 +149,9 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+                - 'true_hemoglobin_exposure'
+                # HACK: Commenting out oral iron due to known issues, uncomment when LBWSG refactor is complete
+                # - 'oral_iron_coverage'
         neonatal_burden:
             include:
                 - 'child_sex'
@@ -188,6 +192,39 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
+        neonatal_acm_risk:
+            include:
+                - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
+                - 'preterm_birth'
+        neonatal_csm_risk:
+            include:
+                - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
+                - 'preterm_birth'
+        impossible_neonatal_csm_risk:
+            include:
+                - 'child_sex'
+                - 'child_age_group'
+                - 'delivery_facility_type'
+                - 'cpap_availability'
+                - 'antibiotics_availability'
+                - 'probiotics_availability'
+                - 'acs_availability'
+                - 'acs_eligibility'
+                - 'preterm_birth'
     correlated_propensity_components:
         - 'antenatal_care'
         - 'delivery_facility'

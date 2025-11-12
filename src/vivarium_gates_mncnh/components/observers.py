@@ -1,6 +1,6 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -164,18 +164,11 @@ class ResultsStratifier(ResultsStratifier_):
             requires_columns=[COLUMNS.MISOPROSTOL_AVAILABLE],
         )
         builder.results.register_stratification(
-            "ifa_coverage",
-            ["covered", "uncovered"],
+            "oral_iron_coverage",
+            ["ifa", "mms", "uncovered"],
             mapper=self.map_oral_iron_coverage,
             is_vectorized=True,
-            requires_values=[PIPELINES.IFA_SUPPLEMENTATION],
-        )
-        builder.results.register_stratification(
-            "mms_coverage",
-            ["covered", "uncovered"],
-            mapper=self.map_oral_iron_coverage,
-            is_vectorized=True,
-            requires_values=[PIPELINES.MMN_SUPPLEMENTATION],
+            requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
         )
         builder.results.register_stratification(
             "hemoglobin_screening_coverage",
@@ -194,7 +187,7 @@ class ResultsStratifier(ResultsStratifier_):
             ["low", "adequate"],
             mapper=self.map_true_hemoglobin,
             is_vectorized=True,
-            requires_values=[PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE],
+            requires_values=[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE],
         )
         builder.results.register_stratification(
             "tested_hemoglobin_exposure",
@@ -234,14 +227,29 @@ class ResultsStratifier(ResultsStratifier_):
         return is_eligible.rename("acs_eligibility")
 
     def map_true_hemoglobin(self, pop: pd.DataFrame) -> pd.Series:
-        exposure = pop[PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE]
+        exposure = pop[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE]
         return pd.Series(
             np.where(exposure < LOW_HEMOGLOBIN_THRESHOLD, "low", "adequate"),
             index=exposure.index,
         )
 
     def map_oral_iron_coverage(self, pop: pd.DataFrame) -> pd.Series:
-        return pop.squeeze().replace({"cat1": "uncovered", "cat2": "covered"})
+        mapped = pop.replace({"cat1": "uncovered", "cat2": "covered"})
+
+        # Create coverage masks
+        ifa_covered_mms_uncovered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "covered") & (
+            mapped[PIPELINES.MMN_SUPPLEMENTATION] == "uncovered"
+        )
+        mms_covered_ifa_covered = (mapped[PIPELINES.IFA_SUPPLEMENTATION] == "covered") & (
+            mapped[PIPELINES.MMN_SUPPLEMENTATION] == "covered"
+        )
+
+        # Create the series with the mapping
+        oral_iron_coverage = pd.Series("uncovered", index=mapped.index)
+        oral_iron_coverage[ifa_covered_mms_uncovered] = "ifa"
+        oral_iron_coverage[mms_covered_ifa_covered] = "mms"
+
+        return oral_iron_coverage
 
 
 class PAFResultsStratifier(ResultsStratifier_):
@@ -581,7 +589,9 @@ class InterventionObserver(PublicHealthObserver):
             INTERVENTIONS.ANTIBIOTICS,
             INTERVENTIONS.PROBIOTICS,
         ]:
-            pop_filter += f" & pregnancy_outcome == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'"
+            pop_filter += (
+                f" & {COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'"
+            )
         self.register_adding_observation(
             builder=builder,
             name=self.intervention,
@@ -660,3 +670,163 @@ class PostpartumDepressionObserver(PublicHealthObserver):
 
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION
+
+
+def register_observations_of_continuous_quantity(
+    observer: PublicHealthObserver,
+    builder: Builder,
+    columns_required: list[str],
+    values_required: list[str],
+    quantity_name: str,
+    get_values: Callable[[pd.DataFrame], pd.Series],
+):
+    """
+    Register observations that compute summary statistics about a continuous quantity:
+    the number of values, the number of nonzero values, the sum of the values,
+    and the sum of the squares of the values.
+    These are "moments" with respect to the count measure, which:
+    (a) aggregate additively, and
+    (b) allow calculation of the mean and variance, as well as the mean among nonzero values
+        and the variance among nonzero values.
+
+    The quantity in question is called `quantity_name` in the resulting observations,
+    and `get_values` is a callable that returns the values of this quantity.
+    `get_values` will be passed a dataframe containing the `columns_required` from the state table
+    and the `values_required` from pipelines.
+
+    We use composition (this function which is passed an observer) rather than inheritance
+    (the observer inheriting from a base class containing this functionality)
+    because for one of our observers below, we want to register these observations for *each*
+    cause.
+    This is much easier to do with composition.
+    """
+
+    def count_values(data: pd.DataFrame) -> float:
+        return len(data)
+
+    def count_nonzero_values(data: pd.DataFrame) -> float:
+        return (get_values(data) != 0).sum()
+
+    def sum_values(data: pd.DataFrame) -> float:
+        return get_values(data).sum()
+
+    def sum_squared_values(data: pd.DataFrame) -> float:
+        return (get_values(data) ** 2).sum()
+
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_count",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=count_values,
+    )
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_nonzero_count",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=count_nonzero_values,
+    )
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_sum",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=sum_values,
+    )
+    observer.register_adding_observation(
+        builder=builder,
+        name=f"neonatal_{quantity_name}_sum_of_squares",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        requires_columns=columns_required,
+        requires_values=values_required,
+        additional_stratifications=observer.configuration.include,
+        excluded_stratifications=observer.configuration.exclude,
+        to_observe=observer.to_observe,
+        aggregator=sum_squared_values,
+    )
+
+
+class NeonatalObserver(PublicHealthObserver, ABC):
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+
+    @abstractmethod
+    def register_observations(self, builder: Builder) -> None:
+        pass
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() in (
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+        )
+
+
+class NeonatalACMRiskObserver(NeonatalObserver):
+    def register_observations(self, builder: Builder):
+        register_observations_of_continuous_quantity(
+            self,
+            builder,
+            columns_required=[COLUMNS.PREGNANCY_OUTCOME],
+            values_required=[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
+            quantity_name="acmrisk",
+            get_values=lambda data: data[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
+        )
+
+
+class NeonatalCSMRiskObserver(NeonatalObserver):
+    def __init__(self) -> None:
+        super().__init__()
+        self.neonatal_causes = CAUSES_OF_NEONATAL_MORTALITY
+
+    def register_observations(self, builder: Builder):
+        for cause in self.neonatal_causes:
+            register_observations_of_continuous_quantity(
+                self,
+                builder,
+                columns_required=[COLUMNS.PREGNANCY_OUTCOME],
+                values_required=[f"{cause}.csmr"],
+                quantity_name=f"{cause}_csmrisk",
+                get_values=lambda data, cause=cause: data[f"{cause}.csmr"],
+            )
+
+
+class ImpossibleNeonatalCSMRiskObserver(NeonatalObserver):
+    def register_observations(self, builder: Builder):
+        register_observations_of_continuous_quantity(
+            self,
+            builder,
+            columns_required=[COLUMNS.PREGNANCY_OUTCOME],
+            values_required=[
+                PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
+                PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+                PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR,
+                PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+                PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR,
+            ],
+            quantity_name="impossible_csmrisk",
+            get_values=self.get_values,
+        )
+
+    def get_values(self, data: pd.DataFrame) -> pd.Series:
+        total_csmrisk = data[
+            [
+                PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+                PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR,
+                PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+                PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR,
+            ]
+        ].sum(axis=1)
+        return ((total_csmrisk / data[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY]) - 1).clip(0)
