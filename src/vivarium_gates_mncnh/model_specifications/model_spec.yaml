@@ -12,7 +12,7 @@ components:
             - Pregnancy()
             - ResultsStratifier()
             - ANCAttendance()
-            # TODO: remove once MIC-6596 has been implemented
+            # TODO: update once MIC-6596 has been implemented
             - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
@@ -72,7 +72,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0.2/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
