@@ -20,7 +20,7 @@ def pregnancy_state(
 ) -> InteractiveContext:
     sim = InteractiveContext(model_spec_path)
     return get_interactive_context_state(
-        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.PREGNANCY
+        sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.ULTRASOUND
     )
 
 

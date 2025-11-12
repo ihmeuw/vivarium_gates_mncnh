@@ -165,7 +165,7 @@ class ResultsStratifier(ResultsStratifier_):
         )
         builder.results.register_stratification(
             "oral_iron_coverage",
-            ["ifa", "mms", "uncovered"],
+            ["ifa", "mms", "none"],
             mapper=self.map_oral_iron_coverage,
             is_vectorized=True,
             requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
@@ -187,7 +187,7 @@ class ResultsStratifier(ResultsStratifier_):
             ["low", "adequate"],
             mapper=self.map_true_hemoglobin,
             is_vectorized=True,
-            requires_values=[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE],
+            requires_columns=[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE],
         )
         builder.results.register_stratification(
             "tested_hemoglobin_exposure",
@@ -227,7 +227,7 @@ class ResultsStratifier(ResultsStratifier_):
         return is_eligible.rename("acs_eligibility")
 
     def map_true_hemoglobin(self, pop: pd.DataFrame) -> pd.Series:
-        exposure = pop[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE]
+        exposure = pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE]
         return pd.Series(
             np.where(exposure < LOW_HEMOGLOBIN_THRESHOLD, "low", "adequate"),
             index=exposure.index,
@@ -245,7 +245,7 @@ class ResultsStratifier(ResultsStratifier_):
         )
 
         # Create the series with the mapping
-        oral_iron_coverage = pd.Series("uncovered", index=mapped.index)
+        oral_iron_coverage = pd.Series("none", index=mapped.index)
         oral_iron_coverage[ifa_covered_mms_uncovered] = "ifa"
         oral_iron_coverage[mms_covered_ifa_covered] = "mms"
 
