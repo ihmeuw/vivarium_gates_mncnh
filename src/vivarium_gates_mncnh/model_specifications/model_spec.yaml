@@ -7,11 +7,11 @@ plugins:
 components:
     vivarium_gates_mncnh:
         components:
-            - Hemoglobin()
+            #- Hemoglobin()
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
-            - AntenatalCare()
+            - OldAntenatalCare()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
@@ -32,12 +32,12 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
-            - OralIronInterventionExposure() # IFA and MMS
-            - OralIronInterventionEffect()
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
-            - MMSEffectOnGestationalAge()
+            #- OralIronInterventionExposure() # IFA and MMS
+            #- OralIronInterventionEffect()
+            #- AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            #- AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            #- AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.gestational_age.birth_exposure')
+            #- MMSEffectOnGestationalAge()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -46,12 +46,12 @@ components:
             - InterventionAccess('misoprostol')
             - ACSAccess()
             - PostpartumDepression()
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
+            #- HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
+            #- HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - CorrelatedPropensities()
-            - AnemiaScreening()
+            #- AnemiaScreening()
             # Observers 
-            - ANCHemoglobinObserver()
+            #- ANCHemoglobinObserver()
             - ANCOtherObserver()
             - BirthObserver()
             - MaternalDisordersBurdenObserver()
@@ -122,8 +122,8 @@ configuration:
             include:
                 - 'age_group'
                 - 'pregnancy_outcome'
-                - 'anc_coverage'
-                - 'ultrasound_type'
+                #- 'anc_coverage'
+                #- 'ultrasound_type'
                 - 'delivery_facility_type'
                 - 'preterm_birth'
                 - 'believed_preterm'
@@ -147,8 +147,8 @@ configuration:
                 - 'pregnancy_outcome'
                 - 'azithromycin_availability'
                 - 'misoprostol_availability'
-                - 'true_hemoglobin_exposure'
-                - 'oral_iron_coverage'
+                #- 'true_hemoglobin_exposure'
+                #- 'oral_iron_coverage'
         neonatal_burden:
             include:
                 - 'child_sex'

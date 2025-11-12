@@ -95,7 +95,7 @@ class ANCTransitionSet(TransitionSet):
         )
 
 
-class AntenatalCare(Component):
+class OldAntenatalCare(Component):
     @property
     def columns_created(self):
         return [

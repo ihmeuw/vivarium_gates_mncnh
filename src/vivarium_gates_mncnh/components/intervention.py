@@ -190,7 +190,7 @@ class CPAPAndACSRiskEffect(Component):
         return target_pipeline
 
 
-class OralIronInterventionExposure(Component):
+class OldOralIronInterventionExposure(Component):
     CONFIGURATION_DEFAULTS = {
         "intervention": {
             "scenario": "baseline",
@@ -296,7 +296,7 @@ class OralIronInterventionExposure(Component):
         return exposure
 
 
-class OralIronInterventionEffect(Component):
+class OldOralIronInterventionEffect(Component):
     """IFA and MMS effects on hemoglobin and stillbirth."""
 
     @property
