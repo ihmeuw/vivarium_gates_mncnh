@@ -136,3 +136,12 @@ def expand_draw_columns(data: pd.DataFrame, num_draws: int, num_repeats: int) ->
     expanded_draws_df = pd.concat(expanded_draws, axis=1)
 
     return expanded_draws_df
+
+
+def get_facility_choice_validation_targets() -> pd.DataFrame:
+    path = (
+        Path(__file__).resolve().parent
+        / "facility_choice"
+        / "facility_choice_validation_targets.csv"
+    )
+    return pd.read_csv(path)
