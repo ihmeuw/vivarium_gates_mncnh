@@ -238,3 +238,8 @@ def get_child_age_bins(_: Builder) -> pd.DataFrame:
         ],
     }
     return pd.DataFrame(age_bins_data)
+
+
+def get_facility_choice_validation_targets() -> pd.DataFrame:
+    path = Path(__file__).resolve().parent / "facility_choice" / "facility_choice_validation_targets.csv"
+    return pd.read_csv(path)
