@@ -171,6 +171,7 @@ class __Columns(NamedTuple):
     TESTED_HEMOGLOBIN = "tested_hemoglobin"
     TESTED_FERRITIN = "tested_ferritin"
     ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
+    ANEMIA_INTERVENTION_PROPENSITY = "anemia_intervention_propensity"
 
 
 COLUMNS = __Columns()
