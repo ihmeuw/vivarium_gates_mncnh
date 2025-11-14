@@ -52,6 +52,7 @@ NUM_DRAWS = 250
 class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
     FIRST_TRIMESTER_ANC = "first_trimester_anc"
+    LATER_PREGNANCY_SCREENING = "later_pregnancy_screening"
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
