@@ -52,7 +52,7 @@ components:
             #- HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             #- HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - CorrelatedPropensities()
-            #- AnemiaScreening()
+            - AnemiaScreening()
             # Observers 
             #- ANCHemoglobinObserver()
             - ANCOtherObserver()
@@ -73,7 +73,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0.2/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.0.3/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -89,6 +89,7 @@ configuration:
             day: 1 
         simulation_events: 
             - 'first_trimester_anc'
+            - 'later_pregnancy_screening'
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'

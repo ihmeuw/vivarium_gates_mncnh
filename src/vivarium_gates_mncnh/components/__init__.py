@@ -50,6 +50,5 @@ from vivarium_gates_mncnh.components.propensity import (
     AnemiaInterventionPropensity,
     CorrelatedPropensities,
 )
-
-# from vivarium_gates_mncnh.components.screening import AnemiaScreening
+from vivarium_gates_mncnh.components.screening import AnemiaScreening
 from vivarium_gates_mncnh.plugins.time import EventClock, TimeInterface
