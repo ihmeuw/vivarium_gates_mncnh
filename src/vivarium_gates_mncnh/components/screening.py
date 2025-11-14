@@ -143,7 +143,7 @@ class AnemiaScreening(Component):
             pop[COLUMNS.TESTED_HEMOGLOBIN] == HEMOGLOBIN_TEST_RESULTS.LOW
         ]
         tested_low_idx = tested_low_hemoglobin_pop.index
-        if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage != "full":
+        if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
             low_ferritin_probabilities = self.lookup_tables["low_ferritin_probability"](
                 tested_low_idx
             )
