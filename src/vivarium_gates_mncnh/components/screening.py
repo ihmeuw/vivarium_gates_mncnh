@@ -101,15 +101,14 @@ class AnemiaScreening(Component):
             screen_for_hemoglobin = (
                 propensity[later_anc_pop.index] < self.hemoglobin_screening_coverage
             )
-            screen_for_hemoglobin.name = COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE
         else:
             # screen all eligible simulants
             screen_for_hemoglobin = pd.Series(False, index=pop.index)
             screen_for_hemoglobin.loc[later_anc_pop.index] = True
-            screen_for_hemoglobin.name = COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE
 
-        self.population_view.update(screen_for_hemoglobin)
-        pop = self.population_view.get(event.index)
+        pop.loc[
+            later_anc_pop.index, COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE
+        ] = screen_for_hemoglobin
 
         # subset to screened population and determine hemoglobin test results (low or adequate)
         screened_pop = pop.loc[pop[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE]]
@@ -135,14 +134,11 @@ class AnemiaScreening(Component):
             test_results_for_truly_adequate.index, COLUMNS.TESTED_HEMOGLOBIN
         ] = test_results_for_truly_adequate
 
-        self.population_view.update(pop)
-
         # subset to those who tested low for hemoglobin and determine ferritin test results
         # in scenarios with ferritin screening (scenarios are either 0% or 100% coverage)
-        tested_low_hemoglobin_pop = pop[
+        tested_low_idx = pop[
             pop[COLUMNS.TESTED_HEMOGLOBIN] == HEMOGLOBIN_TEST_RESULTS.LOW
-        ]
-        tested_low_idx = tested_low_hemoglobin_pop.index
+        ].index
         if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
             low_ferritin_probabilities = self.lookup_tables["low_ferritin_probability"](
                 tested_low_idx
@@ -150,10 +146,10 @@ class AnemiaScreening(Component):
             propensities = self.randomness.get_draw(
                 index=tested_low_idx, additional_key="tested_ferritin"
             )
-            tested_low_hemoglobin_pop.loc[tested_low_idx, COLUMNS.TESTED_FERRITIN] = np.where(
+            pop.loc[tested_low_idx, COLUMNS.TESTED_FERRITIN] = np.where(
                 propensities < low_ferritin_probabilities,
                 HEMOGLOBIN_TEST_RESULTS.LOW,
                 HEMOGLOBIN_TEST_RESULTS.ADEQUATE,
             )
 
-        self.population_view.update(tested_low_hemoglobin_pop)
+        self.population_view.update(pop)
