@@ -163,13 +163,13 @@ class ResultsStratifier(ResultsStratifier_):
             [True, False],
             requires_columns=[COLUMNS.MISOPROSTOL_AVAILABLE],
         )
-        # builder.results.register_stratification(
-        #     "oral_iron_coverage",
-        #     ["ifa", "mms", "uncovered"],
-        #     mapper=self.map_oral_iron_coverage,
-        #     is_vectorized=True,
-        #     requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
-        # )
+        builder.results.register_stratification(
+            "oral_iron_coverage",
+            ["ifa", "mms", "none"],
+            mapper=self.map_oral_iron_coverage,
+            is_vectorized=True,
+            requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
+        )
         # builder.results.register_stratification(
         #     "hemoglobin_screening_coverage",
         #     [True, False],
@@ -245,7 +245,7 @@ class ResultsStratifier(ResultsStratifier_):
         )
 
         # Create the series with the mapping
-        oral_iron_coverage = pd.Series("uncovered", index=mapped.index)
+        oral_iron_coverage = pd.Series("none", index=mapped.index)
         oral_iron_coverage[ifa_covered_mms_uncovered] = "ifa"
         oral_iron_coverage[mms_covered_ifa_covered] = "mms"
 
