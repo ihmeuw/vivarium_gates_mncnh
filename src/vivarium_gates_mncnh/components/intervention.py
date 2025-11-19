@@ -244,6 +244,28 @@ class OralIronInterventionExposure(Component):
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
+        def get_pop_with_oral_iron(pop: pd.DataFrame) -> pd.DataFrame:
+            if (
+                INTERVENTION_SCENARIOS[self.scenario].ifa_mms_coverage
+                == models.ORAL_IRON_INTERVENTION.MMS
+            ):
+                pop_update = pd.DataFrame(
+                    {COLUMNS.ORAL_IRON_INTERVENTION: models.ORAL_IRON_INTERVENTION.MMS},
+                    index=anc_pop.index,
+                )
+            else:
+                pop_update = self.randomness.choice(
+                    anc_pop.index,
+                    choices=[
+                        models.ORAL_IRON_INTERVENTION.IFA,
+                        models.ORAL_IRON_INTERVENTION.NO_TREATMENT,
+                    ],
+                    p=[self.ifa_coverage, RESIDUAL_CHOICE],
+                    additional_key="baseline_ifa",
+                )
+                pop_update.name = COLUMNS.ORAL_IRON_INTERVENTION
+            return pop_update
+
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
             pop = self.population_view.get(event.index)
             attends_first_trimester_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
@@ -254,26 +276,8 @@ class OralIronInterventionExposure(Component):
             )
             anc_pop = pop.loc[attends_first_trimester_anc]
 
-            if (
-                INTERVENTION_SCENARIOS[self.scenario].ifa_mms_coverage
-                == models.ORAL_IRON_INTERVENTION.MMS
-            ):
-                pop_update = pd.DataFrame(
-                    {COLUMNS.ORAL_IRON_INTERVENTION: models.ORAL_IRON_INTERVENTION.MMS},
-                    index=anc_pop.index,
-                )
-            else:
-                pop_update = self.randomness.choice(
-                    anc_pop.index,
-                    choices=[
-                        models.ORAL_IRON_INTERVENTION.IFA,
-                        models.ORAL_IRON_INTERVENTION.NO_TREATMENT,
-                    ],
-                    p=[self.ifa_coverage, RESIDUAL_CHOICE],
-                    additional_key="baseline_ifa",
-                )
-                pop_update.name = COLUMNS.ORAL_IRON_INTERVENTION
-            self.population_view.update(pop_update)
+            updated_pop = get_pop_with_oral_iron(anc_pop)
+            self.population_view.update(updated_pop)
 
         elif self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
             pop = self.population_view.get(event.index)
@@ -282,26 +286,8 @@ class OralIronInterventionExposure(Component):
             )
             anc_pop = pop.loc[attends_later_pregnancy_anc]
 
-            if (
-                INTERVENTION_SCENARIOS[self.scenario].ifa_mms_coverage
-                == models.ORAL_IRON_INTERVENTION.MMS
-            ):
-                pop_update = pd.DataFrame(
-                    {COLUMNS.ORAL_IRON_INTERVENTION: models.ORAL_IRON_INTERVENTION.MMS},
-                    index=anc_pop.index,
-                )
-            else:
-                pop_update = self.randomness.choice(
-                    anc_pop.index,
-                    choices=[
-                        models.ORAL_IRON_INTERVENTION.IFA,
-                        models.ORAL_IRON_INTERVENTION.NO_TREATMENT,
-                    ],
-                    p=[self.ifa_coverage, RESIDUAL_CHOICE],
-                    additional_key="baseline_ifa",
-                )
-                pop_update.name = COLUMNS.ORAL_IRON_INTERVENTION
-            self.population_view.update(pop_update)
+            updated_pop = get_pop_with_oral_iron(anc_pop)
+            self.population_view.update(updated_pop)
 
     def _get_ifa_exposure(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
