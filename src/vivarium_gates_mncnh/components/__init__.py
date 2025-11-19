@@ -1,11 +1,13 @@
 from vivarium_gates_mncnh.components.antenatal_care import ANCAttendance, Ultrasound
 from vivarium_gates_mncnh.components.delivery_facility import DeliveryFacility
 from vivarium_gates_mncnh.components.hemoglobin import Hemoglobin
-from vivarium_gates_mncnh.components.intervention import (  # OralIronInterventionEffect,; OralIronInterventionExposure,
+from vivarium_gates_mncnh.components.intervention import (
     AdditiveRiskEffect,
     CPAPAndACSRiskEffect,
     InterventionRiskEffect,
     MMSEffectOnGestationalAge,
+    OralIronInterventionEffect,
+    OralIronInterventionExposure,
 )
 from vivarium_gates_mncnh.components.intrapartum import ACSAccess, InterventionAccess
 from vivarium_gates_mncnh.components.lbwsg import (
