@@ -24,7 +24,6 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     ANC_RATES,
     COLUMNS,
-    LOW_BIRTH_WEIGHT_THRESHOLD,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
@@ -156,18 +155,113 @@ class Ultrasound(Component):
     @property
     def columns_created(self):
         return [
+            COLUMNS.ULTRASOUND_TYPE,
             COLUMNS.STATED_GESTATIONAL_AGE,
         ]
 
+    @property
+    def columns_required(self):
+        return [COLUMNS.ANC_ATTENDANCE, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
+
+    def setup(self, builder: Builder):
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.randomness = builder.randomness.get_stream(self.name)
+        self.location = get_location(builder)
+        self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        stated_ga_standard_deviation = self.format_dict_for_lookup_table(
+            ANC_RATES.STATED_GESTATIONAL_AGE_STANDARD_DEVIATION,
+            COLUMNS.ULTRASOUND_TYPE,
+        )
+        self.lookup_tables[
+            "stated_gestational_age_standard_deviation"
+        ] = self.build_lookup_table(
+            builder=builder,
+            data_source=stated_ga_standard_deviation,
+            value_columns=["value"],
+        )
+
+    def format_dict_for_lookup_table(self, data: dict, column: str) -> pd.DataFrame:
+        series = pd.Series(data)
+        return series.reset_index().rename(columns={"index": column, 0: "value"})
+
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        ga_data = pd.DataFrame(
+        initial_data = pd.DataFrame(
             {
-                COLUMNS.STATED_GESTATIONAL_AGE: 38,
+                COLUMNS.ULTRASOUND_TYPE: pd.NA,
+                COLUMNS.STATED_GESTATIONAL_AGE: np.nan,
             },
             index=pop_data.index,
         )
+        self.population_view.update(initial_data)
 
-        self.population_view.update(ga_data)
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.ULTRASOUND:
+            return
+
+        def get_ultrasound_probability() -> float:
+            # ultrasound coverage is either full or baseline
+            if self.scenario.ultrasound_coverage == "full":
+                ultrasound_prob = 1.0
+            else:
+                ultrasound_prob = ANC_RATES.RECEIVED_ULTRASOUND[self.location]
+            return ultrasound_prob
+
+        def get_standard_ultrasound_probability() -> float:
+            if self.scenario.standard_ultrasound_coverage == "none":
+                standard_probability = 0.0
+            elif self.scenario.standard_ultrasound_coverage == "half":
+                standard_probability = 0.5
+            elif self.scenario.standard_ultrasound_coverage == "full":
+                standard_probability = 1.0
+            else:
+                standard_probability = ANC_RATES.ULTRASOUND_TYPE[self.location][
+                    ULTRASOUND_TYPES.STANDARD
+                ]
+            return standard_probability
+
+        pop = self.population_view.get(event.index)
+        anc_pop = pop.loc[pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE]
+
+        # determine who gets ultrasound
+        ultrasound_probability = get_ultrasound_probability()
+        gets_ultrasound = self.randomness.choice(
+            anc_pop.index,
+            choices=[True, False],
+            p=[ultrasound_probability, 1 - ultrasound_probability],
+            additional_key="gets_ultrasound",
+        )
+
+        # determine type of ultrasound for those who get it
+        standard_ultrasound_probability = get_standard_ultrasound_probability()
+        ultrasound_pop = anc_pop.loc[gets_ultrasound]
+        ultrasound_type = self.randomness.choice(
+            ultrasound_pop.index,
+            choices=[ULTRASOUND_TYPES.STANDARD, ULTRASOUND_TYPES.AI_ASSISTED],
+            p=[standard_ultrasound_probability, 1 - standard_ultrasound_probability],
+            additional_key="ultrasound_type",
+        )
+
+        pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.NO_ULTRASOUND
+        pop.loc[ultrasound_pop.index, COLUMNS.ULTRASOUND_TYPE] = ultrasound_type
+
+        def calculate_stated_gestational_age(pop: pd.DataFrame) -> pd.Series:
+            # Apply standard deviation based on ultrasound type
+            gestational_age = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE]
+            measurement_errors = self.lookup_tables[
+                "stated_gestational_age_standard_deviation"
+            ](pop.index)
+            measurement_error_draws = self.randomness.get_draw(
+                pop.index, additional_key="measurement_error"
+            )
+            return stats.norm.ppf(
+                measurement_error_draws, loc=gestational_age, scale=measurement_errors
+            )
+
+        pop[COLUMNS.STATED_GESTATIONAL_AGE] = calculate_stated_gestational_age(pop)
+
+        self.population_view.update(pop)
 
 
 class OldAntenatalCare(Component):
