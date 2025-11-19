@@ -13,7 +13,6 @@ components:
             - Pregnancy()
             - ResultsStratifier()
             - ANCAttendance()
-            # TODO: update once MIC-6596 has been implemented
             - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
