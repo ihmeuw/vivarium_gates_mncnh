@@ -16,6 +16,7 @@ components:
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - ResidualMaternalDisorders()
+            - AbortionMiscarriageEctopicPregnancy()
             - MaternalDisordersBurden()
             - LBWSGRisk()
             - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk')
