@@ -170,11 +170,9 @@ DAYS_PER_WEEK = 7  # for converting gestational age data
 # TODO: Revise these after a more careful reading, and add more
 # categories of ultrasound (e.g., ultrasound in 1st trimester,
 # ultrasound in later preganancy, ultrasound in both)
-# HACK: These are arbitrary large values to give AI ultrasound an extreme advantage,
-# to find the plausible upper bound of impact.
 ST_DEV_OF_GA_ERROR_GIVEN_ULTRASOUND = (
     pd.Series(
-        {NO_ULTRASOUND: 70, STANDARD_ULTRASOUND: 30},  # Units are days
+        {NO_ULTRASOUND: 10, STANDARD_ULTRASOUND: 6.7},  # Units are days
         index=pd.CategoricalIndex(
             ULTRASOUND_DTYPE.categories, dtype=ULTRASOUND_DTYPE, name=ULTRASOUND
         ),
