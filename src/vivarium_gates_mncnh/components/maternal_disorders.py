@@ -181,8 +181,21 @@ class PostpartumDepression(MaternalDisorder):
         )
         pop.loc[got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE] = case_type
         # PPD case duration
-        pop.loc[
-            got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION
-        ] = self.lookup_tables["case_duration"](got_disorder_idx)
+        pop.loc[got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION] = (
+            self.lookup_tables["case_duration"](got_disorder_idx)
+        )
 
         self.population_view.update(pop)
+
+
+class ResidualMaternalDisorders(MaternalDisorder):
+    def __init__(self) -> None:
+        super().__init__(COLUMNS.RESIDUAL_MATERNAL_DISORDERS)
+
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {"incidence_risk": lambda index: pd.Series(1.0, index=index)}
+            }
+        }
