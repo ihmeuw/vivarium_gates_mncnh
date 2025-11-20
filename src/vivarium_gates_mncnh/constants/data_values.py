@@ -158,6 +158,7 @@ class __Columns(NamedTuple):
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     CPAP_AVAILABLE = "cpap_available"
@@ -186,6 +187,7 @@ MATERNAL_DISORDERS = [
     COLUMNS.OBSTRUCTED_LABOR,
     COLUMNS.MATERNAL_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
+    COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
 ]
 
 
