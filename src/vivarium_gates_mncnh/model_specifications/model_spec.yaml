@@ -102,6 +102,7 @@ configuration:
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
             - 'postpartum_depression'
+            - 'abortion_miscarriage_ectopic_pregnancy'
 
     population:
         population_size: 20_000
