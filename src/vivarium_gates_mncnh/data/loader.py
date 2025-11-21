@@ -84,9 +84,6 @@ def get_data(
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.RAW_INCIDENCE_RATE: load_abortion_miscarriage_ectopic_incidence,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.CSMR: load_abortion_miscarriage_ectopic_csmr,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.YLD_RATE: load_abortion_miscarriage_ectopic_yld_rate,
-        # data_keys.RESIDUAL_MATERNAL_DISORDERS.RAW_INCIDENCE_RATE: load_residual_maternal_disorders_incidence,
-        # data_keys.RESIDUAL_MATERNAL_DISORDERS.CSMR: load_residual_maternal_disorders_csmr,
-        # data_keys.RESIDUAL_MATERNAL_DISORDERS.YLD_RATE: load_residual_maternal_disorders_yld_rate,
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
@@ -405,13 +402,11 @@ def load_abortion_miscarriage_ectopic_csmr(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
     csmr_c374 = load_standard_data(
-        data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.ABORTION_MISCARRIAGE_CSMR,
+        data_keys.ABORTION_MISCARRIAGE.CSMR,
         location,
         years,
     )
-    csmr_c995 = load_standard_data(
-        data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY, location, years
-    )
+    csmr_c995 = load_standard_data(data_keys.ECTOPIC_PREGNANCY.CSMR, location, years)
     return csmr_c374 + csmr_c995
 
 
@@ -419,12 +414,12 @@ def load_abortion_miscarriage_ectopic_yld_rate(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
     yld_rate_c374 = load_maternal_disorder_yld_rate(
-        data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.ABORTION_MISCARRIAGE_YLD_RATE,
+        data_keys.ABORTION_MISCARRIAGE.YLD_RATE,
         location,
         years,
     )
     yld_rate_c995 = load_maternal_disorder_yld_rate(
-        data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY, location, years
+        data_keys.ECTOPIC_PREGNANCY.YLD_RATE, location, years
     )
     return yld_rate_c374 + yld_rate_c995
 
@@ -1028,6 +1023,7 @@ def load_mortality_risk(
         births, interval_column="year", split_column_prefix="year"
     )
     births.index = births.index.droplevel("location")
+
     # Pull early and late neonatal death counts
     def get_deaths(age_group_id, gbd_id):
         deaths = extra_gbd.get_mortality_death_counts(
