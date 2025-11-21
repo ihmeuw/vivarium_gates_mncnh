@@ -183,6 +183,13 @@ class ResultsStratifier(ResultsStratifier_):
             requires_columns=[COLUMNS.FERRITIN_SCREENING_COVERAGE],
         )
         builder.results.register_stratification(
+            "true_hemoglobin_exposure",
+            ["low", "adequate"],
+            mapper=self.map_true_hemoglobin,
+            is_vectorized=True,
+            requires_columns=[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE],
+        )
+        builder.results.register_stratification(
             "tested_hemoglobin_exposure",
             ["low", "adequate", "not_tested"],
             is_vectorized=True,
@@ -220,7 +227,7 @@ class ResultsStratifier(ResultsStratifier_):
         return is_eligible.rename("acs_eligibility")
 
     def map_true_hemoglobin(self, pop: pd.DataFrame) -> pd.Series:
-        exposure = pop[PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE]
+        exposure = pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE]
         return pd.Series(
             np.where(exposure < LOW_HEMOGLOBIN_THRESHOLD, "low", "adequate"),
             index=exposure.index,
