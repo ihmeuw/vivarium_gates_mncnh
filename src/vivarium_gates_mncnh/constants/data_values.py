@@ -62,12 +62,12 @@ class _SimulationEventNames(NamedTuple):
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
+    ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
-    ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
