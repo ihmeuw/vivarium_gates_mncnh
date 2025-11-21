@@ -100,11 +100,11 @@ configuration:
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'residual_maternal_disorders'
+            - 'abortion_miscarriage_ectopic_pregnancy'
             - 'mortality'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
             - 'postpartum_depression'
-            - 'abortion_miscarriage_ectopic_pregnancy'
 
     population:
         population_size: 20_000
