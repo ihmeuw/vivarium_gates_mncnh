@@ -181,9 +181,9 @@ class PostpartumDepression(MaternalDisorder):
         )
         pop.loc[got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_TYPE] = case_type
         # PPD case duration
-        pop.loc[got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION] = (
-            self.lookup_tables["case_duration"](got_disorder_idx)
-        )
+        pop.loc[
+            got_disorder_idx, COLUMNS.POSTPARTUM_DEPRESSION_CASE_DURATION
+        ] = self.lookup_tables["case_duration"](got_disorder_idx)
 
         self.population_view.update(pop)
 
