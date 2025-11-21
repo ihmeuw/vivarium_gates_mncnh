@@ -192,13 +192,10 @@ class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
     def __init__(self) -> None:
         super().__init__(COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY)
 
-    @property
-    def configuration_defaults(self) -> dict:
-        return {
-            self.name: {
-                "data_sources": {"incidence_risk": lambda index: pd.Series(1.0, index=index)}
-            }
-        }
+    def load_incidence_risk(self, builder):
+        incidence_risk = super().load_incidence_risk(builder)
+        incidence_risk["value"] = 1.0
+        return incidence_risk
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.maternal_disorder:
@@ -216,5 +213,3 @@ class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
         )
         pop.loc[got_disorder, self.maternal_disorder] = True
         self.population_view.update(pop)
-
-
