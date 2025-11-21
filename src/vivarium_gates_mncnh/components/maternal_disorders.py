@@ -192,26 +192,15 @@ class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
     def __init__(self) -> None:
         super().__init__(COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY)
 
-    def load_incidence_risk(self, builder):
-        incidence_risk = super().load_incidence_risk(builder)
-        incidence_risk["value"] = 1.0
-        return incidence_risk
-
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.maternal_disorder:
             return
 
         pop = self.population_view.get(event.index)
-        partial_term = pop.loc[
-            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
-        ]
-        incidence_risk = self.incidence_risk(partial_term.index)
-        got_disorder = self.randomness.filter_for_probability(
-            partial_term.index,
-            incidence_risk,
-            f"got_{self.maternal_disorder}_choice",
-        )
-        pop.loc[got_disorder, self.maternal_disorder] = True
+        pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+            self.maternal_disorder,
+        ] = True
         self.population_view.update(pop)
 
 
