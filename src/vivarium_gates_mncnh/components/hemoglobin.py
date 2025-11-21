@@ -5,20 +5,27 @@ import pandas as pd
 import scipy
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import PIPELINES, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
 
 
 class Hemoglobin(Risk):
+    @property
+    def columns_created(self):
+        risk_cols = super().columns_created
+        return risk_cols + [COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE]
+
     def __init__(self) -> None:
         super().__init__("risk_factor.hemoglobin")
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
+        self._sim_step_name = builder.time.simulation_event_name()
         self.ifa_coverage = (
             builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE)
             .query("parameter=='cat2'")
@@ -28,6 +35,16 @@ class Hemoglobin(Risk):
         self.ifa_effect_size = builder.data.load(
             data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
         ).value[0]
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        super().on_initialize_simulants(pop_data)
+        first_trimester_hemoglobin = pd.DataFrame(
+            {
+                COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE: np.nan,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(first_trimester_hemoglobin)
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["ANC1"] = self.build_lookup_table(
@@ -42,6 +59,13 @@ class Hemoglobin(Risk):
         return gbd_exposure - (
             self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
         )
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            return
+        pop = self.population_view.get(event.index)
+        pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
+        self.population_view.update(pop)
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):
