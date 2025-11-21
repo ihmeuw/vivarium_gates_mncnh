@@ -121,12 +121,11 @@ class __ANCRates(NamedTuple):
             ULTRASOUND_TYPES.AI_ASSISTED: 0.0,
         },
     }
-    # HACK: These are arbitrary large values to give AI ultrasound an extreme advantage,
-    # to find the plausible upper bound of impact.
+    # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/ai_ultrasound_module/module_document.html#calculation-of-estimated-gestational-age
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
-        ULTRASOUND_TYPES.NO_ULTRASOUND: 70.0 / 7,
-        ULTRASOUND_TYPES.STANDARD: 30.0 / 7,
-        ULTRASOUND_TYPES.AI_ASSISTED: 2.0 / 7,
+        ULTRASOUND_TYPES.NO_ULTRASOUND: 10.0 / 7,
+        ULTRASOUND_TYPES.STANDARD: 6.7 / 7,
+        ULTRASOUND_TYPES.AI_ASSISTED: 5.0 / 7,
     }
 
 
