@@ -22,6 +22,7 @@ from vivarium_gates_mncnh.components.lbwsg import (
 from vivarium_gates_mncnh.components.maternal_disorders import (
     MaternalDisorder,
     PostpartumDepression,
+    ResidualMaternalDisorders,
 )
 from vivarium_gates_mncnh.components.mortality import (
     MaternalDisordersBurden,

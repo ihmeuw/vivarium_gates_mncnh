@@ -15,6 +15,7 @@ components:
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - ResidualMaternalDisorders()
             - MaternalDisordersBurden()
             - LBWSGRisk()
             - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk')
@@ -97,6 +98,7 @@ configuration:
             - 'maternal_obstructed_labor_and_uterine_rupture'
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
+            - 'residual_maternal_disorders'
             - 'mortality'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'

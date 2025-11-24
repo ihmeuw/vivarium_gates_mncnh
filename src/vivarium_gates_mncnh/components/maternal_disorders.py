@@ -192,10 +192,15 @@ class ResidualMaternalDisorders(MaternalDisorder):
     def __init__(self) -> None:
         super().__init__(COLUMNS.RESIDUAL_MATERNAL_DISORDERS)
 
-    @property
-    def configuration_defaults(self) -> dict:
-        return {
-            self.name: {
-                "data_sources": {"incidence_risk": lambda index: pd.Series(1.0, index=index)}
-            }
-        }
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != self.maternal_disorder:
+            return
+
+        pop = self.population_view.get(event.index)
+        pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            ),
+            self.maternal_disorder,
+        ] = True
+        self.population_view.update(pop)
