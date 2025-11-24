@@ -246,6 +246,8 @@ class Ultrasound(Component):
         pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.NO_ULTRASOUND
         pop.loc[ultrasound_pop.index, COLUMNS.ULTRASOUND_TYPE] = ultrasound_type
 
+        self.population_view.update(pop)
+
         def calculate_stated_gestational_age(pop: pd.DataFrame) -> pd.Series:
             # Apply standard deviation based on ultrasound type
             gestational_age = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE]
