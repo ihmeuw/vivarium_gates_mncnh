@@ -121,8 +121,7 @@ configuration:
                 - 'anc_coverage'
                 - 'preterm_birth'
                 - 'oral_iron_coverage'
-                # TODO: include in MIC-6623
-                #- 'true_hemoglobin_exposure'
+                - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
                 - 'preterm_birth'
