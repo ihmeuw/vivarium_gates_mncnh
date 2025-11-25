@@ -186,3 +186,19 @@ class PostpartumDepression(MaternalDisorder):
         ] = self.lookup_tables["case_duration"](got_disorder_idx)
 
         self.population_view.update(pop)
+
+
+class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
+    def __init__(self) -> None:
+        super().__init__(COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != self.maternal_disorder:
+            return
+
+        pop = self.population_view.get(event.index)
+        pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+            self.maternal_disorder,
+        ] = True
+        self.population_view.update(pop)

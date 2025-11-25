@@ -15,6 +15,7 @@ components:
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - AbortionMiscarriageEctopicPregnancy()
             - MaternalDisordersBurden()
             - LBWSGRisk()
             - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk')
@@ -71,7 +72,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model20.1.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model23.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -97,6 +98,7 @@ configuration:
             - 'maternal_obstructed_labor_and_uterine_rupture'
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
+            - 'abortion_miscarriage_ectopic_pregnancy'
             - 'mortality'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
