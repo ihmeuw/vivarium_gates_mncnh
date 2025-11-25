@@ -408,11 +408,12 @@ def load_residual_maternal_disorders_csmr(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
     csmrs = []
-    for maternal_disorder in data_values.RESIDUAL_MATERNAL_DISORDER_CAUSES:
-        csmr = load_standard_data(
-            f"cause.{maternal_disorder}.cause_specific_mortality_rate", location, years
-        )
-        csmrs.append(csmr)
+    for maternal_disorder in data_values.RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES:
+        disorder_key = f"cause.{maternal_disorder}.cause_specific_mortality_rate"
+        entity = utilities.get_entity(EntityKey(disorder_key))
+        if not entity.restrictions.yld_only and not entity.restrictions.yll_only:
+            csmr = load_standard_data(disorder_key, location, years)
+            csmrs.append(csmr)
     return pd.concat(csmrs).groupby(level=[c for c in csmr.index.names]).sum()
 
 
@@ -420,9 +421,14 @@ def load_residual_maternal_disorders_yld_rate(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
     yld_rates = []
-    for maternal_disorder in data_values.RESIDUAL_MATERNAL_DISORDER_CAUSES:
-        yld_rate = load_standard_data(f"cause.{maternal_disorder}.yld_rate", location, years)
-        yld_rates.append(yld_rate)
+    for maternal_disorder in data_values.RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES:
+        disorder_key = f"cause.{maternal_disorder}.cause_specific_mortality_rate"
+        entity = utilities.get_entity(EntityKey(disorder_key))
+        if not entity.restrictions.yll_only:
+            yld_rate = load_maternal_disorder_yld_rate(
+                f"cause.{maternal_disorder}.yld_rate", location, years
+            )
+            yld_rates.append(yld_rate)
     return pd.concat(yld_rates).groupby(level=[c for c in yld_rate.index.names]).sum()
 
 
