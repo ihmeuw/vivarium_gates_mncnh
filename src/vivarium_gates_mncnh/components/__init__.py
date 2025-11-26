@@ -20,6 +20,7 @@ from vivarium_gates_mncnh.components.lbwsg import (
     PretermPrevalenceObserver,
 )
 from vivarium_gates_mncnh.components.maternal_disorders import (
+    AbortionMiscarriageEctopicPregnancy,
     MaternalDisorder,
     PostpartumDepression,
     ResidualMaternalDisorders,
