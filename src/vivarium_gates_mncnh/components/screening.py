@@ -49,9 +49,12 @@ class AnemiaScreening(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.scenario = builder.configuration.intervention.scenario
-        self.hemoglobin_screening_coverage = builder.data.load(
-            data_keys.HEMOGLOBIN.SCREENING_COVERAGE
-        ).value[0]
+        self.hemoglobin_screening_coverage = (
+            builder.data.load(data_keys.HEMOGLOBIN.SCREENING_COVERAGE)
+            .query("parameter=='cat2'")
+            .reset_index()
+            .value[0]
+        )
         self.hemoglobin = builder.value.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
