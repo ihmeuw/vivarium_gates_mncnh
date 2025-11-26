@@ -33,9 +33,12 @@ class Hemoglobin(Risk):
             .reset_index()
             .value[0]
         )
-        self.ifa_effect_size = builder.data.load(
-            data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-        ).value[0]
+        self.ifa_effect_size = (
+            builder.data.load(data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE)
+            .query("affected_target=='hemoglobin.exposure'")
+            .reset_index()
+            .value[0]
+        )
 
         self.ifa_deleted_hemoglobin = builder.value.register_value_producer(
             PIPELINES.IFA_DELETED_HEMOGLOBIN_EXPOSURE,
