@@ -60,6 +60,7 @@ def get_data(
         data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
+        data_keys.POPULATION.BIRTH_RATE: load_birth_rate,
         data_keys.PREGNANCY.ASFR: load_asfr,
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
@@ -84,7 +85,6 @@ def get_data(
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
-        data_keys.RESIDUAL_MATERNAL_DISORDERS.RAW_INCIDENCE_RATE: load_residual_maternal_disorders_incidence,
         data_keys.RESIDUAL_MATERNAL_DISORDERS.CSMR: load_residual_maternal_disorders_csmr,
         data_keys.RESIDUAL_MATERNAL_DISORDERS.YLD_RATE: load_residual_maternal_disorders_yld_rate,
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
@@ -388,7 +388,7 @@ def load_maternal_disorder_yld_rate(
     return yld_rate
 
 
-def load_residual_maternal_disorders_incidence(
+def load_birth_rate(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
     # Return the birth rate
@@ -411,7 +411,7 @@ def load_residual_maternal_disorders_csmr(
     for maternal_disorder in data_values.RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES:
         disorder_key = f"cause.{maternal_disorder}.cause_specific_mortality_rate"
         entity = utilities.get_entity(EntityKey(disorder_key))
-        if not entity.restrictions.yld_only and not entity.restrictions.yll_only:
+        if not entity.restrictions.yld_only:
             csmr = load_standard_data(disorder_key, location, years)
             csmrs.append(csmr)
     return pd.concat(csmrs).groupby(level=[c for c in csmr.index.names]).sum()
@@ -1031,6 +1031,7 @@ def load_mortality_risk(
         births, interval_column="year", split_column_prefix="year"
     )
     births.index = births.index.droplevel("location")
+
     # Pull early and late neonatal death counts
     def get_deaths(age_group_id, gbd_id):
         deaths = extra_gbd.get_mortality_death_counts(
