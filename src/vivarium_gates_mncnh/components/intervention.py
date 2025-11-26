@@ -311,9 +311,12 @@ class OralIronInterventionEffect(Component):
         self.mms_stillbirth_rr = builder.data.load(
             data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
         ).value[0]
-        self.ifa_effect_size = builder.data.load(
-            data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-        ).value[0]
+        self.ifa_effect_size = (
+            builder.data.load(data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE)
+            .query("affected_target=='hemoglobin.exposure'")
+            .reset_index()
+            .value[0]
+        )
 
         builder.value.register_value_modifier(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
