@@ -139,10 +139,14 @@ class MaternalDisordersBurden(Component):
 
     def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
-        incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+        csmr = builder.data.load(f"cause.{cause}.cause_specific_mortality_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
-        csmr = builder.data.load(f"cause.{cause}.cause_specific_mortality_rate").set_index(
+        special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
+        incidence_rate_key = special_incidence_rates.get(
+            cause, f"cause.{cause}.incidence_rate"
+        )
+        incidence_rate = builder.data.load(incidence_rate_key).set_index(
             ARTIFACT_INDEX_COLUMNS
         )
         cfr = (csmr / incidence_rate).fillna(0).reset_index()
