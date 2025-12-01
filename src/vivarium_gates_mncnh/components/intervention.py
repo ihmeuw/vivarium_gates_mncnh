@@ -529,9 +529,6 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     #######################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        # NOTE: I have overwritten this method since PAF and RR lookup tables do not
-        # get used in this class. This is to prevent us from having to configure a scalar for all
-        # AdditiveRiskEffect instances in this model
         self.lookup_tables["relative_risk"] = self.build_lookup_table(builder, 1)
         self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
             builder, 0
