@@ -205,6 +205,12 @@ class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
 
 
 class ResidualMaternalDisorders(MaternalDisorder):
+
+    @property
+    def configuration_defaults(self) -> dict:
+        # Adding this to circumvent incidence rate pull
+        return {self.name: {"data_sources": {"incidence_risk": 1.0}}}
+
     def __init__(self) -> None:
         super().__init__(COLUMNS.RESIDUAL_MATERNAL_DISORDERS)
 

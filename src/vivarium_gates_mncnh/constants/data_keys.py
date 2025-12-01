@@ -220,7 +220,6 @@ OBSTRUCTED_LABOR = __ObstructedLabor()
 
 class __ResidualMaternalDisorders(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    RAW_INCIDENCE_RATE: str = "cause.residual_maternal_disorders.incidence_rate"
     CSMR: str = "cause.residual_maternal_disorders.cause_specific_mortality_rate"
     YLD_RATE: str = "cause.residual_maternal_disorders.yld_rate"
 
