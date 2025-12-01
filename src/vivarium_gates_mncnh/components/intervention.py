@@ -224,6 +224,11 @@ class OralIronInterventionExposure(Component):
             .value[0]
         )
 
+        self.oral_iron_exposure_pipeline = builder.value.register_value_producer(
+            PIPELINES.ORAL_IRON_INTERVENTION,
+            source=self._get_oral_iron_exposure,
+            requires_columns=[COLUMNS.ORAL_IRON_INTERVENTION],
+        )
         self.ifa_exposure_pipeline = builder.value.register_value_producer(
             self.ifa_exposure_pipeline_name,
             source=self._get_ifa_exposure,
@@ -288,6 +293,10 @@ class OralIronInterventionExposure(Component):
 
             updated_pop = get_pop_with_oral_iron(anc_pop)
             self.population_view.update(updated_pop)
+
+    def _get_oral_iron_exposure(self, index: pd.Index) -> pd.Series:
+        pop = self.population_view.get(index)
+        return pop[COLUMNS.ORAL_IRON_INTERVENTION]
 
     def _get_ifa_exposure(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
@@ -504,7 +513,7 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure = self.get_risk_exposure(builder)
+        self.exposure = builder.value.get_value(PIPELINES.ORAL_IRON_INTERVENTION)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.relative_risk = self.get_relative_risk_pipeline(builder)
@@ -514,17 +523,6 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
 
         self.ifa_effect = self.get_ifa_effect_pipeline(builder)
         self.ifa_excess_shift = self.get_ifa_excess_shift(builder)
-
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.register_value_producer(
-            PIPELINES.ORAL_IRON_INTERVENTION,
-            source=self.get_oral_iron_intervention,
-            component=self,
-        )
-
-    def get_oral_iron_intervention(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
-        return pop[COLUMNS.ORAL_IRON_INTERVENTION]
 
     #######################
     # LookupTable methods #
