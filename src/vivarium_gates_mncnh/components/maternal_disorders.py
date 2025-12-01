@@ -205,7 +205,6 @@ class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
 
 
 class ResidualMaternalDisorders(MaternalDisorder):
-
     @property
     def configuration_defaults(self) -> dict:
         # Adding this to circumvent incidence rate pull
