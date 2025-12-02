@@ -253,6 +253,7 @@ class __Pipelines(NamedTuple):
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
     FIRST_ANC_HEMOGLOBIN_EXPOSURE = "first_anc_hemoglobin.exposure"
     IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
+    ORAL_IRON_INTERVENTION = "oral_iron_intervention.exposure"
 
 
 PIPELINES = __Pipelines()
