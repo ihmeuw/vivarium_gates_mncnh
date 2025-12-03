@@ -3,6 +3,7 @@ from __future__ import annotations
 import itertools
 import math
 import pickle
+import re
 from typing import Any
 
 import numpy as np
@@ -124,6 +125,35 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
             np.array(sex_specific_ordering)[category_index],
             name=self.risk + ".exposure",
             index=quantiles.index,
+        )
+
+    ##################
+    # Helper methods #
+    ##################
+
+    @staticmethod
+    def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:
+        """Parses a string corresponding to a low birth weight and short gestation
+        category to an Interval. Sets the minimum gestational age value to 20
+        instead of 0.
+
+        An example of a standard description:
+        'Neonatal preterm and LBWSG (estimation years) - [0, 24) wks, [0, 500) g'
+        An example of an edge case for gestational age:
+        'Neonatal preterm and LBWSG (estimation years) - [40, 42+] wks, [2000, 2500) g'
+        An example of an edge case of birth weight:
+        'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
+        """
+        lbwsg_values = [float(val) for val in re.findall(r"(\d+)", description)]
+        if len(list(lbwsg_values)) != 4:
+            raise ValueError(
+                f"Could not parse LBWSG description '{description}'. Expected 4 numeric values."
+            )
+        # update gestational age to never be below 20
+        lbwsg_values[0] = max(lbwsg_values[0], 20.0)
+        return (
+            pd.Interval(*lbwsg_values[:2], closed="left"),  # Gestational Age
+            pd.Interval(*lbwsg_values[2:], closed="left"),  # Birth Weight
         )
 
 
