@@ -551,6 +551,7 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
             "risk_factor.gestational_age.birth_exposure",
         )
         self.ifa_effect_pipeline_name = f"ifa_on_{self.target.name}.effect"
+        self.exposure_pipeline_name = PIPELINES.ORAL_IRON_INTERVENTION
 
     #################
     # Setup methods #
@@ -558,14 +559,7 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure = builder.value.get_value(PIPELINES.ORAL_IRON_INTERVENTION)
-
-        self._relative_risk_source = self.get_relative_risk_source(builder)
-        self.relative_risk = self.get_relative_risk_pipeline(builder)
-
-        self.register_target_modifier(builder)
-        self.register_paf_modifier(builder)
-
+        super(AdditiveRiskEffect, self).setup(builder)
         self.ifa_effect = self.get_ifa_effect_pipeline(builder)
         self.ifa_excess_shift = self.get_ifa_excess_shift(builder)
 
