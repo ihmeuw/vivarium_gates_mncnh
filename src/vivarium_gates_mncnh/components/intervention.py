@@ -386,11 +386,6 @@ class OralIronEffectOnStillbirth(Component):
     #################
 
     def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
-        self.birth_outcome_probabilities = builder.value.get_value(
-            PIPELINES.BIRTH_OUTCOME_PROBABILITIES
-        )
-        self.randomness = builder.randomness.get_stream(self.name)
         self.mms_stillbirth_rr = builder.data.load(
             data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
         ).value[0]
@@ -427,28 +422,6 @@ class OralIronEffectOnStillbirth(Component):
         # This preserves normalization by construction
 
         return birth_outcome_probabilities
-
-    def on_time_step_cleanup(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
-            return
-
-        outcome_probabilities = self.birth_outcome_probabilities(event.index)[
-            [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
-        ]
-        pop = self.population_view.get(event.index)
-        is_full_term = pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
-        full_term_outcomes = self.randomness.choice(
-            pop.loc[is_full_term].index,
-            choices=[
-                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
-                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
-            ],
-            p=outcome_probabilities.loc[is_full_term],
-            additional_key="full_term_outcome",
-        )
-        pop.loc[is_full_term, COLUMNS.PREGNANCY_OUTCOME] = full_term_outcomes
-
-        self.population_view.update(pop)
 
 
 class AdditiveRiskEffect(RiskEffect):

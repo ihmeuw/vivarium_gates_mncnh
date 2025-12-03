@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
 from vivarium_public_health.utilities import get_lookup_columns
@@ -13,6 +14,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DURATIONS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 
@@ -54,6 +56,7 @@ class Pregnancy(Component):
         builder : `engine.Builder`
             Interface to several simulation tools.
         """
+        self._sim_step_name = builder.time.simulation_event_name()
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
         self.birth_outcome_probabilities = builder.value.register_value_producer(
@@ -102,6 +105,28 @@ class Pregnancy(Component):
         ] = self.get_partial_term_gestational_age(partial_term_idx)
 
         self.population_view.update(pregnancy_outcomes)
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            return
+
+        outcome_probabilities = self.birth_outcome_probabilities(event.index)[
+            [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+        ]
+        pop = self.population_view.get(event.index)
+        is_full_term = pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+        full_term_outcomes = self.randomness.choice(
+            pop.loc[is_full_term].index,
+            choices=[
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+            ],
+            p=outcome_probabilities.loc[is_full_term],
+            additional_key="full_term_outcome",
+        )
+        pop.loc[is_full_term, COLUMNS.PREGNANCY_OUTCOME] = full_term_outcomes
+
+        self.population_view.update(pop)
 
     ##################
     # Helper methods #
