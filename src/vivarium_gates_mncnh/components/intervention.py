@@ -317,8 +317,8 @@ class OralIronInterventionExposure(Component):
         return exposure
 
 
-class OralIronInterventionEffect(Component):
-    """IFA and MMS effects on hemoglobin and stillbirth."""
+class OralIronEffectOnHemoglobin(Component):
+    """IFA and MMS effects on hemoglobin."""
 
     @property
     def columns_required(self) -> list[str]:
@@ -329,9 +329,6 @@ class OralIronInterventionEffect(Component):
     #################
 
     def setup(self, builder: Builder) -> None:
-        self.mms_stillbirth_rr = builder.data.load(
-            data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
-        ).value[0]
         self.ifa_effect_size = (
             builder.data.load(data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE)
             .query("affected_target=='hemoglobin.exposure'")
@@ -342,12 +339,6 @@ class OralIronInterventionEffect(Component):
         builder.value.register_value_modifier(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.update_hemoglobin_exposure,
-            requires_columns=self.columns_created,
-        )
-
-        builder.value.register_value_modifier(
-            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
-            self.adjust_stillbirth_probability,
             requires_columns=self.columns_created,
         )
 
@@ -382,6 +373,38 @@ class OralIronInterventionEffect(Component):
 
         return exposure
 
+
+class OralIronEffectOnStillbirth(Component):
+    """IFA and MMS effects on stillbirth."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.PREGNANCY_OUTCOME]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.birth_outcome_probabilities = builder.value.get_value(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES
+        )
+        self.randomness = builder.randomness.get_stream(self.name)
+        self.mms_stillbirth_rr = builder.data.load(
+            data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
+        ).value[0]
+
+        builder.value.register_value_modifier(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            self.adjust_stillbirth_probability,
+            requires_columns=self.columns_created,
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
     def adjust_stillbirth_probability(
         self, index: pd.Index, birth_outcome_probabilities: pd.DataFrame
     ) -> pd.DataFrame:
@@ -404,6 +427,28 @@ class OralIronInterventionEffect(Component):
         # This preserves normalization by construction
 
         return birth_outcome_probabilities
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            return
+
+        outcome_probabilities = self.birth_outcome_probabilities(event.index)[
+            [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+        ]
+        pop = self.population_view.get(event.index)
+        is_full_term = pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+        full_term_outcomes = self.randomness.choice(
+            pop.loc[is_full_term].index,
+            choices=[
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+            ],
+            p=outcome_probabilities.loc[is_full_term],
+            additional_key="full_term_outcome",
+        )
+        pop.loc[is_full_term, COLUMNS.PREGNANCY_OUTCOME] = full_term_outcomes
+
+        self.population_view.update(pop)
 
 
 class AdditiveRiskEffect(RiskEffect):

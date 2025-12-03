@@ -75,12 +75,7 @@ class ANCAttendance(Component):
     def is_full_term(self, index: pd.Index) -> pd.Series:
         """Returns a boolean Series indicating if the pregnancy is full term."""
         pregnancy_outcome = self.population_view.get(index)[COLUMNS.PREGNANCY_OUTCOME]
-        return pregnancy_outcome.isin(
-            [
-                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
-                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
-            ]
-        )
+        return pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:

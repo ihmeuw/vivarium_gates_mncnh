@@ -144,15 +144,20 @@ class Pregnancy(Component):
 
     def sample_pregnancy_outcomes(self, pop_data: SimulantData) -> pd.DataFrame:
         # Order the columns so that partial_term isn't in the middle!
-        outcome_probabilities = self.birth_outcome_probabilities(pop_data.index)[
-            ["partial_term", "stillbirth", "live_birth"]
+        partial_term_probabilities = self.birth_outcome_probabilities(pop_data.index)[
+            PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
         ]
         pregnancy_outcomes = pd.DataFrame(
             {
                 "pregnancy_outcome": self.randomness.choice(
                     pop_data.index,
-                    choices=outcome_probabilities.columns.to_list(),
-                    p=outcome_probabilities,
+                    choices=[
+                        PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+                        PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME,
+                    ],
+                    p=pd.concat(
+                        [partial_term_probabilities, 1 - partial_term_probabilities], axis=1
+                    ),
                     additional_key="pregnancy_outcome",
                 )
             }
