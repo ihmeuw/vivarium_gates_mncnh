@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
 from vivarium_public_health.utilities import get_lookup_columns
@@ -13,6 +14,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DURATIONS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 
@@ -54,6 +56,7 @@ class Pregnancy(Component):
         builder : `engine.Builder`
             Interface to several simulation tools.
         """
+        self._sim_step_name = builder.time.simulation_event_name()
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
         self.birth_outcome_probabilities = builder.value.register_value_producer(
@@ -103,6 +106,28 @@ class Pregnancy(Component):
 
         self.population_view.update(pregnancy_outcomes)
 
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            return
+
+        outcome_probabilities = self.birth_outcome_probabilities(event.index)[
+            [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+        ]
+        pop = self.population_view.get(event.index)
+        is_full_term = pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+        full_term_outcomes = self.randomness.choice(
+            pop.loc[is_full_term].index,
+            choices=[
+                PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
+                PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
+            ],
+            p=outcome_probabilities.loc[is_full_term],
+            additional_key="full_term_outcome",
+        )
+        pop.loc[is_full_term, COLUMNS.PREGNANCY_OUTCOME] = full_term_outcomes
+
+        self.population_view.update(pop)
+
     ##################
     # Helper methods #
     ##################
@@ -144,15 +169,20 @@ class Pregnancy(Component):
 
     def sample_pregnancy_outcomes(self, pop_data: SimulantData) -> pd.DataFrame:
         # Order the columns so that partial_term isn't in the middle!
-        outcome_probabilities = self.birth_outcome_probabilities(pop_data.index)[
-            ["partial_term", "stillbirth", "live_birth"]
+        partial_term_probabilities = self.birth_outcome_probabilities(pop_data.index)[
+            PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
         ]
         pregnancy_outcomes = pd.DataFrame(
             {
                 "pregnancy_outcome": self.randomness.choice(
                     pop_data.index,
-                    choices=outcome_probabilities.columns.to_list(),
-                    p=outcome_probabilities,
+                    choices=[
+                        PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+                        PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME,
+                    ],
+                    p=pd.concat(
+                        [partial_term_probabilities, 1 - partial_term_probabilities], axis=1
+                    ),
                     additional_key="pregnancy_outcome",
                 )
             }
