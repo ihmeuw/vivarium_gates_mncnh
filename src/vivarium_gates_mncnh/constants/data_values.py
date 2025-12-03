@@ -30,6 +30,7 @@ LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
 
 class __PregnancyOutcome(NamedTuple):
     PARTIAL_TERM_OUTCOME = "partial_term"
+    FULL_TERM_OUTCOME = "full_term"
     LIVE_BIRTH_OUTCOME = "live_birth"
     STILLBIRTH_OUTCOME = "stillbirth"
     INVALID_OUTCOME = "invalid"  ## For sex of partial births

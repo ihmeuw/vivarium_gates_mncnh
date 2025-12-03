@@ -317,8 +317,8 @@ class OralIronInterventionExposure(Component):
         return exposure
 
 
-class OralIronInterventionEffect(Component):
-    """IFA and MMS effects on hemoglobin and stillbirth."""
+class OralIronEffectOnHemoglobin(Component):
+    """IFA and MMS effects on hemoglobin."""
 
     @property
     def columns_required(self) -> list[str]:
@@ -329,9 +329,6 @@ class OralIronInterventionEffect(Component):
     #################
 
     def setup(self, builder: Builder) -> None:
-        self.mms_stillbirth_rr = builder.data.load(
-            data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
-        ).value[0]
         self.ifa_effect_size = (
             builder.data.load(data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE)
             .query("affected_target=='hemoglobin.exposure'")
@@ -342,12 +339,6 @@ class OralIronInterventionEffect(Component):
         builder.value.register_value_modifier(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.update_hemoglobin_exposure,
-            requires_columns=self.columns_created,
-        )
-
-        builder.value.register_value_modifier(
-            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
-            self.adjust_stillbirth_probability,
             requires_columns=self.columns_created,
         )
 
@@ -381,6 +372,33 @@ class OralIronInterventionEffect(Component):
         exposure.loc[needs_later_pregnancy_update] += self.ifa_effect_size
 
         return exposure
+
+
+class OralIronEffectOnStillbirth(Component):
+    """IFA and MMS effects on stillbirth."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.PREGNANCY_OUTCOME]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self.mms_stillbirth_rr = builder.data.load(
+            data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
+        ).value[0]
+
+        builder.value.register_value_modifier(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            self.adjust_stillbirth_probability,
+            requires_columns=self.columns_created,
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def adjust_stillbirth_probability(
         self, index: pd.Index, birth_outcome_probabilities: pd.DataFrame
