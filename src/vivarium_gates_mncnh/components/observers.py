@@ -467,7 +467,11 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         yld_rate = builder.data.load(f"cause.{cause}.yld_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
-        incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+        special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
+        incidence_rate_key = special_incidence_rates.get(
+            cause, f"cause.{cause}.incidence_rate"
+        )
+        incidence_rate = builder.data.load(incidence_rate_key).set_index(
             ARTIFACT_INDEX_COLUMNS
         )
         ylds = (yld_rate / incidence_rate).fillna(0).reset_index()

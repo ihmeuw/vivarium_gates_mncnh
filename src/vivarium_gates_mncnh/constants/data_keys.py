@@ -19,6 +19,7 @@ class __Population(NamedTuple):
     SCALING_FACTOR: str = "population.scaling_factor"
     ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
     ALL_CAUSES_MORTALITY_RISK: str = "cause.all_causes.all_cause_mortality_risk"
+    BIRTH_RATE: str = "population.birth_rate"
 
     @property
     def name(self):
@@ -141,6 +142,60 @@ class __MaternalHemorrhage(NamedTuple):
 MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
 
 
+class __AbortionMiscarriageEctopicPregnancy(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RAW_INCIDENCE_RATE: str = "cause.abortion_miscarriage_ectopic_pregnancy.incidence_rate"
+    CSMR: str = "cause.abortion_miscarriage_ectopic_pregnancy.cause_specific_mortality_rate"
+    YLD_RATE: str = "cause.abortion_miscarriage_ectopic_pregnancy.yld_rate"
+
+    @property
+    def name(self):
+        return "abortion_miscarriage_ectopic_pregnancy"
+
+    @property
+    def log_name(self):
+        return "abortion miscarriage ectopic pregnancy"
+
+
+ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = __AbortionMiscarriageEctopicPregnancy()
+
+
+class __AbortionMiscarriage(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RAW_INCIDENCE_RATE: str = "cause.maternal_abortion_and_miscarriage.incidence_rate"
+    CSMR: str = "cause.maternal_abortion_and_miscarriage.cause_specific_mortality_rate"
+    YLD_RATE: str = "cause.maternal_abortion_and_miscarriage.yld_rate"
+
+    @property
+    def name(self):
+        return "abortion_miscarriage"
+
+    @property
+    def log_name(self):
+        return "abortion miscarriage"
+
+
+ABORTION_MISCARRIAGE = __AbortionMiscarriage()
+
+
+class __EctopicPregnancy(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    RAW_INCIDENCE_RATE: str = "cause.ectopic_pregnancy.incidence_rate"
+    CSMR: str = "cause.ectopic_pregnancy.cause_specific_mortality_rate"
+    YLD_RATE: str = "cause.ectopic_pregnancy.yld_rate"
+
+    @property
+    def name(self):
+        return "ectopic_pregnancy"
+
+    @property
+    def log_name(self):
+        return "ectopic pregnancy"
+
+
+ECTOPIC_PREGNANCY = __EctopicPregnancy()
+
+
 class __ObstructedLabor(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
     RAW_INCIDENCE_RATE: str = (
@@ -161,6 +216,23 @@ class __ObstructedLabor(NamedTuple):
 
 
 OBSTRUCTED_LABOR = __ObstructedLabor()
+
+
+class __ResidualMaternalDisorders(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    CSMR: str = "cause.residual_maternal_disorders.cause_specific_mortality_rate"
+    YLD_RATE: str = "cause.residual_maternal_disorders.yld_rate"
+
+    @property
+    def name(self):
+        return "residual_maternal_disorders"
+
+    @property
+    def log_name(self):
+        return "residual maternal disorders"
+
+
+RESIDUAL_MATERNAL_DISORDERS = __ResidualMaternalDisorders()
 
 
 class __NeonatalPretermBirth(NamedTuple):
@@ -532,6 +604,8 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     MATERNAL_SEPSIS,
     MATERNAL_HEMORRHAGE,
     OBSTRUCTED_LABOR,
+    RESIDUAL_MATERNAL_DISORDERS,
+    ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     PRETERM_BIRTH,
     NEONATAL_SEPSIS,
     NEONATAL_ENCEPHALOPATHY,

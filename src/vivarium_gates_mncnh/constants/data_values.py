@@ -66,7 +66,9 @@ class _SimulationEventNames(NamedTuple):
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
+    ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
+    RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
@@ -158,7 +160,9 @@ class __Columns(NamedTuple):
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
+    RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     CPAP_AVAILABLE = "cpap_available"
     ACS_AVAILABLE = "acs_available"
     ANTIBIOTICS_AVAILABLE = "antibiotics_available"
@@ -187,6 +191,8 @@ MATERNAL_DISORDERS = [
     COLUMNS.OBSTRUCTED_LABOR,
     COLUMNS.MATERNAL_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
+    COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
+    COLUMNS.RESIDUAL_MATERNAL_DISORDERS,
 ]
 
 
@@ -498,3 +504,13 @@ HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # adequate hemoglobin that tests adequate
 LOW_HEMOGLOBIN_THRESHOLD = 100
 
 ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
+
+RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
+    "maternal_hypertensive_disorders",  # 369
+    "gestational_diabetes",  # 1118
+    "peripartum_cardiomyopathy",  # 1119
+    "other_direct_maternal_disorders",  # 379
+    "indirect_maternal_deaths",  # 375
+    "late_maternal_deaths",  # 376
+    "maternal_deaths_aggravated_by_hiv_aids",  # 741
+]
