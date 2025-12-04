@@ -18,6 +18,7 @@ class InterventionScenario:
     cemonc_probiotics_access: str = "baseline"
     bemonc_azithromycin_access: str = "baseline"
     cemonc_azithromycin_access: str = "baseline"
+    acs_access: str = "baseline"
     home_misoprostol_access: str = "baseline"
     ultrasound_coverage: str = "baseline"
     standard_ultrasound_coverage: str = "baseline"
@@ -84,15 +85,26 @@ class __InterventionScenarios(NamedTuple):
         "mms_total_scaleup",
         ifa_mms_coverage="mms",
     )
-    ULTRASOUND_VV: InterventionScenario = InterventionScenario(
-        "ultrasound_vv",
-        ultrasound_coverage="full",
-        standard_ultrasound_coverage="half",
-    )
     ANEMIA_SCREENING_SCALEUP: InterventionScenario = InterventionScenario(
         "anemia_screening_scaleup",
         hemoglobin_screening_coverage="full",
         ferritin_screening_coverage="full",
+    )
+    AZITHROMYCIN_VV: InterventionScenario = InterventionScenario(
+        "azithromycin_vv",
+        bemonc_azithromycin_access="scale_up",
+        cemonc_azithromycin_access="scale_up",
+        acs_access="none",
+    )
+    MISOPROSTOL_VV: InterventionScenario = InterventionScenario(
+        "misoprostol_vv",
+        home_misoprostol_access="scale_up",
+        acs_access="none",
+    )
+    ULTRASOUND_VV: InterventionScenario = InterventionScenario(
+        "ultrasound_vv",
+        ultrasound_coverage="full",
+        standard_ultrasound_coverage="half",
     )
 
     def __getitem__(self, item) -> InterventionScenario:
