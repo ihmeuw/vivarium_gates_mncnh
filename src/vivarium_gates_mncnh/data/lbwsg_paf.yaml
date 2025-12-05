@@ -5,14 +5,14 @@ components:
             - EvenlyDistributedPopulation()
             - LBWSGMortality()
             - LBWSGPAFCalculationExposure()
-            - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk')
+            - LBWSGPAFRiskEffect('cause.all_causes.all_cause_mortality_risk')
             - LBWSGPAFObserver('cause.all_causes.all_cause_mortality_risk')
             - PretermPrevalenceObserver()
 
 
 configuration:
     input_data:
-        input_draw_number: 0
+        input_draw_number: 60
         artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model19.1.2/ethiopia.hdf"
     interpolation:
         order: 0
