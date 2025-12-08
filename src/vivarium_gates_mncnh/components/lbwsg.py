@@ -375,14 +375,57 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 ####################################
 # LBWSG PAF Calculation Components #
 ####################################
+class LBWSGPAFRiskEffect(LBWSGRiskEffect):
+    def setup(self, builder: Builder) -> None:
+        # subclass setup so we don't define sim step name attribute
+        self.paf = builder.value.register_value_producer(
+            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
+            source=self.lookup_tables["population_attributable_fraction"],
+            component=self,
+            required_resources=get_lookup_columns(
+                [self.lookup_tables["population_attributable_fraction"]]
+            ),
+        )
+        super(LBWSGRiskEffect, self).setup(builder)
 
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        pop = self.population_view.subview(
+            [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
+        ).get(pop_data.index)
+        birth_weight = pop[LBWSGRisk_.get_exposure_column_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk_.get_exposure_column_name(GESTATIONAL_AGE)]
 
-class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect):
-    """Risk effect component for calculating PAFs for LBWSG. This is only used in a
-    separate simulation to calculate the PAFs for the LBWSG risk effect."""
+        is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
+        is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
+            self.TMREL_BIRTH_WEIGHT_INTERVAL.left <= birth_weight
+        )
 
-    def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
-        return 0, []
+        def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
+            column_name = self.relative_risk_column_name(age_group)
+            log_relative_risk = pd.Series(0.0, index=pop_data.index, name=column_name)
+
+            male_interpolator = self.interpolator["Male", age_group]
+            log_relative_risk[is_male & ~is_tmrel] = male_interpolator(
+                gestational_age[is_male & ~is_tmrel],
+                birth_weight[is_male & ~is_tmrel],
+                grid=False,
+            )
+            female_interpolator = self.interpolator["Female", age_group]
+            log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
+                gestational_age[~is_male & ~is_tmrel],
+                birth_weight[~is_male & ~is_tmrel],
+                grid=False,
+            )
+
+            return np.exp(log_relative_risk)
+
+        relative_risk_columns = [
+            get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
+        ]
+        self.population_view.update(pd.concat(relative_risk_columns, axis=1))
+
+    def on_time_step(self, event: Event) -> None:
+        pass
 
 
 class LBWSGPAFCalculationExposure(LBWSGRisk):
@@ -398,7 +441,12 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         ]
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
+        # call grandparent setup avoid defining sim step name attribute
+        super(LBWSGRisk, self).setup(builder)
+        self.configuration_age_end = 0.0
+        self.categorical_propensity = builder.value.get_value(
+            f"{self.name}.correlated_propensity"
+        )
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
         self.age_bins = builder.data.load(data_keys.POPULATION.AGE_BINS)
 
