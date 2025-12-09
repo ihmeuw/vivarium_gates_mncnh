@@ -194,9 +194,15 @@ def load_infant_male_percentage(
             [c for c in live_births_by_sex.index.names if c != "sex"]
         ).sum()
     )
-    lower_value = infant_male_percentage.loc[(year_start, year_end, "lower_value"), "value"]
-    mean_value = infant_male_percentage.loc[(year_start, year_end, "mean_value"), "value"]
-    upper_value = infant_male_percentage.loc[(year_start, year_end, "upper_value"), "value"]
+    lower_value = infant_male_percentage.loc[
+        (year_start, year_end, "lower_value"), "value"
+    ]
+    mean_value = infant_male_percentage.loc[
+        (year_start, year_end, "mean_value"), "value"
+    ]
+    upper_value = infant_male_percentage.loc[
+        (year_start, year_end, "upper_value"), "value"
+    ]
     assert np.isclose(lower_value, mean_value) and np.isclose(
         upper_value, mean_value
     ), "There should not be uncertainty in the infant male percentage"
@@ -227,7 +233,9 @@ def load_standard_data(
 ) -> pd.DataFrame:
     key = EntityKey(key)
     entity = utilities.get_entity(key)
-    return interface.get_measure(entity, key.measure, location, years).droplevel("location")
+    return interface.get_measure(entity, key.measure, location, years).droplevel(
+        "location"
+    )
 
 
 def load_metadata(
@@ -261,11 +269,20 @@ def load_sbr(
 ) -> pd.DataFrame:
     year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
 
-    sbr = load_standard_data(key, location)
-    lower_value = sbr.loc[(year_start, year_end, "lower_value"), "value"]
-    mean_value = sbr.loc[(year_start, year_end, "mean_value"), "value"]
-    upper_value = sbr.loc[(year_start, year_end, "upper_value"), "value"]
-    sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
+    data = pd.read_csv(paths.STILLBIRTH_RATIO_24_WKS_CSV)
+    location_id = utility_data.get_location_id(location)
+    data = data.loc[data["location_id"] == location_id]
+    data = data.loc[data["year_id"] == metadata.ARTIFACT_YEAR_START].rename(
+        {"year_id": "year_start"}, axis=1
+    )
+    data["year_end"] = metadata.ARTIFACT_YEAR_END
+
+    data = data.drop(["age_group_id", "sex_id", "location_id"], axis=1)
+    data = data.set_index(["year_start", "year_end"])
+
+    lower_value = data.loc[(year_start, year_end), "lower_value"]
+    mean_value = data.loc[(year_start, year_end), "mean_value"]
+    upper_value = data.loc[(year_start, year_end), "upper_value"]
 
     sbr_dist = get_truncnorm(
         mean=mean_value,
@@ -296,8 +313,12 @@ def load_raw_incidence_data(
     validation.validate_for_simulation(
         data, entity, "incidence_rate", location, years, data_type.value_columns
     )
-    data = vi_utils.split_interval(data, interval_column="age", split_column_prefix="age")
-    data = vi_utils.split_interval(data, interval_column="year", split_column_prefix="year")
+    data = vi_utils.split_interval(
+        data, interval_column="age", split_column_prefix="age"
+    )
+    data = vi_utils.split_interval(
+        data, interval_column="year", split_column_prefix="year"
+    )
     return vi_utils.sort_hierarchical_data(data).droplevel("location")
 
 
@@ -370,7 +391,9 @@ def load_anc_proportion(
             anc_proportion_draws = np.full((1, data_values.NUM_DRAWS), mean_value)
 
         draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
-        anc_proportion_draws_df = pd.DataFrame(anc_proportion_draws, columns=draw_columns)
+        anc_proportion_draws_df = pd.DataFrame(
+            anc_proportion_draws, columns=draw_columns
+        )
         anc_proportion_draws_df["year_start"] = year_start
         anc_proportion_draws_df["year_end"] = year_end
         return anc_proportion_draws_df.set_index(["year_start", "year_end"])
@@ -438,7 +461,9 @@ def load_residual_maternal_disorders_yld_rate(
 def load_abortion_miscarriage_ectopic_incidence(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
-    incidence_c374 = get_data(data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC, location, years)
+    incidence_c374 = get_data(
+        data_keys.PREGNANCY.RAW_INCIDENCE_RATE_ECTOPIC, location, years
+    )
     incidence_c995 = get_data(
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE, location, years
     )
@@ -512,7 +537,9 @@ def load_lbwsg_interpolated_rr(
 
     # get category midpoints
     def get_category_midpoints(lbwsg_type: str) -> pd.Series:
-        categories = get_data(f"risk_factor.{data_keys.LBWSG.name}.categories", location)
+        categories = get_data(
+            f"risk_factor.{data_keys.LBWSG.name}.categories", location
+        )
         return utilities.get_intervals_from_categories(lbwsg_type, categories).apply(
             lambda x: x.mid
         )
@@ -555,7 +582,9 @@ def load_paf_data(
     key: str, location: str, years: Optional[Union[int, str, list[int]]]
 ) -> pd.DataFrame:
     if key == data_keys.LBWSG.PAF:
-        filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk.parquet"
+        filename = (
+            "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk.parquet"
+        )
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
@@ -686,7 +715,9 @@ def load_probability_bemonc(
     hosp_ifd_proportion = (
         hosp_any.loc[
             (hosp_any.location_id == location_id)
-            & (hosp_any.year_id == hosp_any.year_id.max())  # Use most recent year available
+            & (
+                hosp_any.year_id == hosp_any.year_id.max()
+            )  # Use most recent year available
         ]
         .assign(
             # Relabel with same year as other keys
@@ -727,8 +758,12 @@ def load_cpap_facility_access_probability(
 ) -> float:
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     facility_uniform_dist = data_values.CPAP_ACCESS_PROBABILITIES[location][key]
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    draws = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist
+    )
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     return utilities.set_non_neonnatal_values(data, 0.0)
@@ -740,7 +775,9 @@ def load_no_cpap_relative_risk(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     rr_distribution = data_values.CPAP_RELATIVE_RISK_DISTRIBUTION
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_distribution)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     # We want the relative risk of no cpap
@@ -775,7 +812,9 @@ def load_no_acs_relative_risk(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     rr_distribution = data_values.ACS_RELATIVE_RISK_DISTRIBUTION
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_distribution)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     # We want the relative risk of no cpap
@@ -795,12 +834,16 @@ def load_no_acs_paf(
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
     p_CEmONC = get_data(data_keys.FACILITY_CHOICE.P_CEmONC, location, years)
 
-    p_CPAP = (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
+    p_CPAP = (
+        (p_CPAP_BEmONC * p_BEmONC) + (p_CPAP_CEmONC * p_CEmONC) + (p_CPAP_home * p_home)
+    )
 
     p_intervention = p_CPAP
     p_no_intervention = 1 - p_intervention
 
-    population_average_RR = p_no_intervention * rr_no_CPAP * rr_no_ACS + p_intervention * 1
+    population_average_RR = (
+        p_no_intervention * rr_no_CPAP * rr_no_ACS + p_intervention * 1
+    )
     paf_no_CPAP_ACS = 1 - 1 / population_average_RR
 
     return paf_no_CPAP_ACS
@@ -809,7 +852,9 @@ def load_no_acs_paf(
 def load_sex_specific_ordered_lbwsg_categories(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, list[str]]:
-    rrs = get_data(data_keys.LBWSG.RELATIVE_RISK, location).query("child_age_start==0.0")
+    rrs = get_data(data_keys.LBWSG.RELATIVE_RISK, location).query(
+        "child_age_start==0.0"
+    )
     rrs = rrs.mean(axis=1)
     categories = get_data(data_keys.LBWSG.CATEGORIES, location)
     # Get preterm categories
@@ -926,7 +971,9 @@ def load_preterm_prevalence(
     filename = "calculated_late_neonatal_preterm_prevalence.parquet"
     filepath = paths.PRETERM_PREVALENCE_DIR / location.lower() / filename
     data = pd.read_parquet(filepath)
-    data = data.drop(columns=[c for c in ["scenario", "random_seed"] if c in data.columns])
+    data = data.drop(
+        columns=[c for c in ["scenario", "random_seed"] if c in data.columns]
+    )
     if "input_draw" in data.columns:
         data = data.pivot(index="child_sex", columns="input_draw", values="value")
     else:
@@ -964,7 +1011,9 @@ def load_no_antibiotics_relative_risk(
     rr_dist = data_values.ANTIBIOTIC_RELATIVE_RISK_DISTRIBUTION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
     # Update to distribution for model 8.3 requires inverting the rrs
     data = (1 / data).fillna(0.0)
@@ -985,7 +1034,9 @@ def load_iv_iron_hemoglobin_effect_size(
 def load_no_antibiotics_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    relative_risk = get_data(data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK, location, years)
+    relative_risk = get_data(
+        data_keys.NO_ANTIBIOTICS_RISK.RELATIVE_RISK, location, years
+    )
     # Only location specific coverage now
     p_antibiotics_coverage = get_data(
         data_keys.NO_ANTIBIOTICS_RISK.P_ANTIBIOTIC_HOME, location, years
@@ -1011,7 +1062,9 @@ def load_no_probiotics_relative_risk(
     rr_dist = data_values.PROBIOTICS_RELATIVE_RISK_DISTRIBUTION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
     # model 8.2 requires inverting the relative risks since the distribution has been updated
     data = (1 / data).fillna(0.0)
@@ -1038,7 +1091,9 @@ def load_no_probiotics_paf(
     p_probiotic_CEmONC = get_data(
         data_keys.NO_PROBIOTICS_RISK.P_PROBIOTIC_CEMONC, location, years
     )
-    relative_risk = get_data(data_keys.NO_PROBIOTICS_RISK.RELATIVE_RISK, location, years)
+    relative_risk = get_data(
+        data_keys.NO_PROBIOTICS_RISK.RELATIVE_RISK, location, years
+    )
     # This is derived in the CPAP PAF calculation
     p_sepsis_probiotic = p_sepsis / (
         (p_home * (1 - p_probiotic_home) * relative_risk)
@@ -1106,9 +1161,15 @@ def load_azithromycin_facility_probability(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> float:
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
-    facility_uniform_dist = data_values.AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION[location][key]
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    facility_uniform_dist = data_values.AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION[
+        location
+    ][key]
+    draws = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, facility_uniform_dist
+    )
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     return data
@@ -1121,7 +1182,9 @@ def load_no_azithromycin_relative_risk(
     rr_dist = data_values.AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     return data
@@ -1131,7 +1194,9 @@ def load_no_azithromycin_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # Get all required data for calculations
-    incidence_rate = get_data(data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE, location, years)
+    incidence_rate = get_data(
+        data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE, location, years
+    )
     p_sepsis = incidence_rate.copy()
     p_home = get_data(data_keys.FACILITY_CHOICE.P_HOME, location, years)
     p_BEmONC = get_data(data_keys.FACILITY_CHOICE.P_BEmONC, location, years)
@@ -1146,7 +1211,9 @@ def load_no_azithromycin_paf(
         data_keys.NO_AZITHROMYCIN_RISK.P_AZITHROMYCIN_CEMONC, location, years
     )
     # Relative risk of no azithromycin
-    relative_risk = get_data(data_keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK, location, years)
+    relative_risk = get_data(
+        data_keys.NO_AZITHROMYCIN_RISK.RELATIVE_RISK, location, years
+    )
     # This is derived in the CPAP PAF calculation
     p_sepsis_azith = p_sepsis / (
         (p_home * (1 - p_azith_home) * relative_risk)
@@ -1182,7 +1249,9 @@ def load_no_misoprostol_relative_risk(
     rr_dist = data_values.MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
     # Need to invert the relative risk to be a risk of no intervention
     data = (1 / data).fillna(0.0)
@@ -1193,7 +1262,9 @@ def load_no_misoprostol_relative_risk(
 def load_no_misoprostol_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    relative_risk = get_data(data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK, location, years)
+    relative_risk = get_data(
+        data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK, location, years
+    )
     # Only location specific coverage
     p_misoprostol_coverage = get_data(
         data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_HOME, location, years
@@ -1216,7 +1287,8 @@ def load_hemoglobin_screening_coverage(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     filepath = (
-        paths.J_DIR / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
+        paths.J_DIR
+        / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
     )
     return load_coverage_from_file(filepath, location)
 
@@ -1278,7 +1350,9 @@ def load_risk_specific_shift(
 
     if key.name == "multiple_micronutrient_supplementation":
         excess_shift = get_data(key_group.EXCESS_SHIFT, location)
-        single_cat_shift = excess_shift.query("parameter=='cat2'").droplevel("parameter")
+        single_cat_shift = excess_shift.query("parameter=='cat2'").droplevel(
+            "parameter"
+        )
         risk_specific_shift = pd.DataFrame(
             0.0, columns=single_cat_shift.columns, index=single_cat_shift.index
         )
@@ -1290,7 +1364,8 @@ def load_risk_specific_shift(
         risk_specific_shift = (
             (exposure * excess_shift * anc_proportion)
             .groupby(
-                metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+                metadata.ARTIFACT_INDEX_COLUMNS
+                + ["affected_entity", "affected_measure"]
             )
             .sum()
         )
@@ -1305,10 +1380,14 @@ def load_mms_excess_shift(
         distribution = {
             data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-            ]["birth_weight.birth_exposure"],
+            ][
+                "birth_weight.birth_exposure"
+            ],
             data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
-            ]["birth_weight.birth_exposure"],
+            ][
+                "birth_weight.birth_exposure"
+            ],
         }[key]
     except KeyError:
         raise ValueError(f"Unrecognized key {key}")
@@ -1337,7 +1416,9 @@ def reshape_shift_data(shift: pd.Series, index: pd.Index, target: str) -> pd.Dat
     """
     exposed = pd.DataFrame([shift], index=index)
     exposed["parameter"] = "cat2"
-    unexposed = pd.DataFrame([pd.Series(0.0, index=metadata.ARTIFACT_COLUMNS)], index=index)
+    unexposed = pd.DataFrame(
+        [pd.Series(0.0, index=metadata.ARTIFACT_COLUMNS)], index=index
+    )
     unexposed["parameter"] = "cat1"
 
     excess_shift = pd.concat([exposed, unexposed])
@@ -1389,7 +1470,9 @@ def load_postpartum_depression_raw_incidence_risk(
     dist = data_values.POSTPARTUM_DEPRESSION_INCIDENCE_RISK
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     return data
@@ -1408,7 +1491,9 @@ def load_postpartum_depression_case_duration(
     dist = data_values.POSTPARTUM_DEPRESSION_CASE_DURATION
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data = pd.DataFrame(
+        [draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index
+    )
     data.index = data.index.droplevel("location")
 
     return data
@@ -1515,7 +1600,9 @@ def load_hemoglobin_relative_risk(
     hemoglobin_data = hemoglobin_data.reset_index()
     hemoglobin_data["parameter"] = hemoglobin_data["exposure"]
     hemoglobin_data["affected_measure"] = "incidence_risk"
-    hemoglobin_data = hemoglobin_data.drop(["exposure", "morbidity", "mortality"], axis=1)
+    hemoglobin_data = hemoglobin_data.drop(
+        ["exposure", "morbidity", "mortality"], axis=1
+    )
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
     index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
         "affected_entity",
@@ -1540,7 +1627,10 @@ def load_hemoglobin_paf(
     # we are pulling PAF data for deaths to define incidence risk
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
-    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+    ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
     # Expand draw columns from 0-99 to 0-499 by repeating 5 times
@@ -1564,7 +1654,9 @@ def load_propensity_correlations(
         paths.FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV
     )
     propensity_correlations = facility_choice_optimization_results[
-        facility_choice_optimization_results.parameter_name.str.contains("corr(", regex=False)
+        facility_choice_optimization_results.parameter_name.str.contains(
+            "corr(", regex=False
+        )
     ]
 
     # Extract A and B from corr(A, B) pattern

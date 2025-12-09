@@ -35,7 +35,7 @@ POPULATION = __Population()
 
 class __Pregnancy(NamedTuple):
     ASFR: str = "covariate.age_specific_fertility_rate.estimate"
-    SBR: str = "covariate.stillbirth_20_weeks_to_live_birth_ratio.estimate"
+    SBR: str = "covariate.stillbirth_24_weeks_to_live_birth_ratio.estimate"
     RAW_INCIDENCE_RATE_MISCARRIAGE: str = (
         "cause.maternal_abortion_and_miscarriage.raw_incidence_rate"
     )
@@ -55,14 +55,18 @@ PREGNANCY = __Pregnancy()
 
 class __LowBirthWeightShortGestation(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    BIRTH_EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.birth_exposure"
+    BIRTH_EXPOSURE: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.birth_exposure"
+    )
     EXPOSURE: str = "risk_factor.low_birth_weight_and_short_gestation.exposure"
     DISTRIBUTION: str = "risk_factor.low_birth_weight_and_short_gestation.distribution"
     CATEGORIES: str = "risk_factor.low_birth_weight_and_short_gestation.categories"
     SEX_SPECIFIC_ORDERED_CATEGORIES: str = (
         "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
     )
-    RELATIVE_RISK: str = "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
+    RELATIVE_RISK: str = (
+        "risk_factor.low_birth_weight_and_short_gestation.relative_risk"
+    )
     RELATIVE_RISK_INTERPOLATOR: str = (
         "risk_factor.low_birth_weight_and_short_gestation.relative_risk_interpolator"
     )
@@ -144,8 +148,12 @@ MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
 
 class __AbortionMiscarriageEctopicPregnancy(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    RAW_INCIDENCE_RATE: str = "cause.abortion_miscarriage_ectopic_pregnancy.incidence_rate"
-    CSMR: str = "cause.abortion_miscarriage_ectopic_pregnancy.cause_specific_mortality_rate"
+    RAW_INCIDENCE_RATE: str = (
+        "cause.abortion_miscarriage_ectopic_pregnancy.incidence_rate"
+    )
+    CSMR: str = (
+        "cause.abortion_miscarriage_ectopic_pregnancy.cause_specific_mortality_rate"
+    )
     YLD_RATE: str = "cause.abortion_miscarriage_ectopic_pregnancy.yld_rate"
 
     @property
@@ -259,7 +267,9 @@ class __NeonatalSepsis(NamedTuple):
     # CSMR: str = (
     #     "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
     # )
-    MORTALITY_RISK: str = "cause.neonatal_sepsis_and_other_neonatal_infections.mortality_risk"
+    MORTALITY_RISK: str = (
+        "cause.neonatal_sepsis_and_other_neonatal_infections.mortality_risk"
+    )
 
     @property
     def name(self):
@@ -338,7 +348,9 @@ class __FacilityChoice(NamedTuple):
     P_BEmONC: str = "cause.facility_choice.probability_bemonc_birth"
     P_CEmONC: str = "cause.facility_choice.probability_cemonc_birth"
     P_HOME_PRETERM: str = "cause.facility_choice.probability_home_birth_given_preterm"
-    P_HOME_FULL_TERM: str = "cause.facility_choice.probability_home_birth_given_full_term"
+    P_HOME_FULL_TERM: str = (
+        "cause.facility_choice.probability_home_birth_given_full_term"
+    )
     BEmONC_FACILITY_FRACTION: str = "cause.facility_choice.bemonc_facility_fraction"
 
     @property
@@ -384,7 +396,9 @@ FERRITIN = __Ferritin()
 
 
 class __NoAntibioticsRisk(NamedTuple):
-    P_ANTIBIOTIC_HOME: str = "intervention.no_antibiotics_risk.probability_antibiotics_home"
+    P_ANTIBIOTIC_HOME: str = (
+        "intervention.no_antibiotics_risk.probability_antibiotics_home"
+    )
     P_ANTIBIOTIC_BEMONC: str = (
         "intervention.no_antibiotics_risk.probability_antibiotics_bemonc"
     )
@@ -407,9 +421,15 @@ NO_ANTIBIOTICS_RISK = __NoAntibioticsRisk()
 
 
 class __NoProbioticsRisk(NamedTuple):
-    P_PROBIOTIC_HOME: str = "intervention.no_probiotics_risk.probability_probiotics_home"
-    P_PROBIOTIC_BEMONC: str = "intervention.no_probiotics_risk.probability_probiotics_bemonc"
-    P_PROBIOTIC_CEMONC: str = "intervention.no_probiotics_risk.probability_probiotics_cemonc"
+    P_PROBIOTIC_HOME: str = (
+        "intervention.no_probiotics_risk.probability_probiotics_home"
+    )
+    P_PROBIOTIC_BEMONC: str = (
+        "intervention.no_probiotics_risk.probability_probiotics_bemonc"
+    )
+    P_PROBIOTIC_CEMONC: str = (
+        "intervention.no_probiotics_risk.probability_probiotics_cemonc"
+    )
     RELATIVE_RISK: str = "intervention.no_probiotics_risk.relative_risk"
     PAF: str = "intervention.no_probiotics_risk.population_attributable_fraction"
 
@@ -452,7 +472,9 @@ NO_AZITHROMYCIN_RISK = __NoAzithromycinRisk()
 
 # Misoprostol risk keys
 class __NoMisoprostolRisk(NamedTuple):
-    P_MISOPROSTOL_HOME: str = "intervention.no_misoprostol_risk.probability_misoprostol_home"
+    P_MISOPROSTOL_HOME: str = (
+        "intervention.no_misoprostol_risk.probability_misoprostol_home"
+    )
     P_MISOPROSTOL_BEMONC: str = (
         "intervention.no_misoprostol_risk.probability_misoprostol_bemonc"
     )
