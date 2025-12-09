@@ -4,8 +4,8 @@ from typing import Any, Generator
 
 import pandas as pd
 import pytest
-from pytest import TempPathFactory
 from layered_config_tree import LayeredConfigTree
+from pytest import TempPathFactory
 from vivarium import Artifact
 from vivarium_testing_utils import FuzzyChecker
 from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX

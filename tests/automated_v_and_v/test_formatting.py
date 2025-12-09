@@ -23,5 +23,6 @@ def test_births_formatter(get_births_observer_data: pd.DataFrame) -> None:
         ),
     )
 
-    pd.testing.assert_frame_equal(formatter.format_dataset(get_births_observer_data), expected_dataframe)
-    
+    pd.testing.assert_frame_equal(
+        formatter.format_dataset(get_births_observer_data), expected_dataframe
+    )
