@@ -1,4 +1,5 @@
 import pandas as pd
+from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
 
 from vivarium_gates_mncnh.validation.formatting import TotalLiveBirths
 
@@ -6,7 +7,7 @@ from vivarium_gates_mncnh.validation.formatting import TotalLiveBirths
 def test_births_formatter(get_births_observer_data: pd.DataFrame) -> None:
     """Test Births formatter."""
 
-    formatter = TotalLiveBirths()
+    formatter = TotalLiveBirths([])
 
     assert formatter.measure == "live_births"
     assert formatter.raw_dataset_name == "births"
@@ -15,11 +16,20 @@ def test_births_formatter(get_births_observer_data: pd.DataFrame) -> None:
 
     expected_dataframe = pd.DataFrame(
         {
-            "value": [70.0, 150.0] * 2,
+            "value": [40.0, 50.0, 60.0, 70.0, 21.0, 27.0, 40.0, 50.0],
         },
         index=pd.MultiIndex.from_tuples(
-            [("Male", "A"), ("Male", "B"), ("Female", "A"), ("Female", "B")],
-            names=["child_sex", "common_stratify_column"],
+            [
+                ("Male", 0, 0),
+                ("Male", 0, 1),
+                ("Male", 1, 0),
+                ("Male", 1, 1),
+                ("Female", 0, 0),
+                ("Female", 0, 1),
+                ("Female", 1, 0),
+                ("Female", 1, 1),
+            ],
+            names=["child_sex", DRAW_INDEX, SEED_INDEX],
         ),
     )
 
