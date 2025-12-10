@@ -152,7 +152,7 @@ def _create_deaths_observer_data() -> pd.DataFrame:
     """Create deaths observer data for testing."""
     return pd.DataFrame(
         {
-            "value": [10.0, 20.0, 30.0, 40.0] * 8,
+            "value": [1.0, 2.0, 3.0, 4.0] * 8,
         },
         index=pd.MultiIndex.from_product(
             [
