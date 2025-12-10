@@ -691,7 +691,7 @@ class IVIronExposure(Component):
             return
 
         pop = self.population_view.get(event.index)
-        pop[COLUMNS.IV_IRON_INTERVENTION] = models.IV_IRON_INTERVENTION.NO_TREATMENT
+        pop[COLUMNS.IV_IRON_INTERVENTION] = models.IV_IRON_INTERVENTION.UNCOVERED
 
         # IV iron coverage is either 0 or 100%
         if INTERVENTION_SCENARIOS[self.scenario].iv_iron_coverage == "full":
@@ -711,6 +711,6 @@ class IVIronExposure(Component):
             )
             pop.loc[
                 gets_iv_iron, COLUMNS.IV_IRON_INTERVENTION
-            ] = models.IV_IRON_INTERVENTION.IV_IRON
+            ] = models.IV_IRON_INTERVENTION.COVERED
 
         self.population_view.update(pop)
