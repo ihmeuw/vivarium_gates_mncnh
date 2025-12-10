@@ -43,6 +43,7 @@ components:
             - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
             - OralIronEffectsOnGestationalAge()
             - IVIronExposure()
+            - IVIronEffectOnHemoglobin()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')

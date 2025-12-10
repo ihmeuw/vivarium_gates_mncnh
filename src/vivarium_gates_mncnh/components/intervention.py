@@ -714,3 +714,39 @@ class IVIronExposure(Component):
             ] = models.IV_IRON_INTERVENTION.IV_IRON
 
         self.population_view.update(pop)
+
+
+class IVIronEffectOnHemoglobin(Component):
+    """IV iron effect on hemoglobin."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.IV_IRON_INTERVENTION]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self.iv_iron_on_hemoglobin_effect_size = (
+            builder.data.load(data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE).reset_index().value[0]
+        )
+
+        builder.value.register_value_modifier(
+            PIPELINES.HEMOGLOBIN_EXPOSURE,
+            self.apply_iv_iron_to_hemoglobin,
+            requires_columns=self.columns_created,
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def apply_iv_iron_to_hemoglobin(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        pop = self.population_view.get(index)
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == "iv_iron"
+        exposure.loc[has_iv_iron] += self.iv_iron_on_hemoglobin_effect_size
+
+        return exposure
