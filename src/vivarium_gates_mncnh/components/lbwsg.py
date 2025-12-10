@@ -161,6 +161,12 @@ class LBWSGRisk(LBWSGRisk_):
     exposure_distributions = {"lbwsg": OrderedLBWSGDistribution}
 
     @property
+    def columns_created(self):
+        return super().columns_created + [
+            self.continuous_propensity_column_name[axis] for axis in self.AXES
+        ]
+
+    @property
     def columns_required(self) -> list[str]:
         return [
             COLUMNS.SEX_OF_CHILD,
@@ -171,6 +177,16 @@ class LBWSGRisk(LBWSGRisk_):
         return [
             COLUMNS.SEX_OF_CHILD,
         ]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self):
+        super().__init__()
+        self.continuous_propensity_column_name = {
+            axis: f"{self.name}.{axis}.continuous_propensity" for axis in self.AXES
+        }
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
@@ -183,6 +199,14 @@ class LBWSGRisk(LBWSGRisk_):
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        propensity = {
+            self.continuous_propensity_column_name[axis]: self.get_continuous_propensity(
+                pop_data, axis
+            )
+            for axis in self.AXES
+        }
+        self.population_view.update(pd.DataFrame(propensity))
+
         exposures = {
             self.get_exposure_column_name(axis): pd.Series(np.nan, index=pop_data.index)
             for axis in self.AXES
@@ -190,12 +214,18 @@ class LBWSGRisk(LBWSGRisk_):
         self.population_view.update(pd.DataFrame(exposures))
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        categorical_propensity = self.categorical_propensity(
-            index
-        )  # only line change in this subclassed function
-        continuous_propensity = self.randomness.get_draw(index, additional_key=axis)
+        categorical_propensity = self.categorical_propensity(index)
+        continuous_propensity = self.population_view.get(index)[
+            self.continuous_propensity_column_name[axis]
+        ]
         return self.exposure_distribution.single_axis_ppf(
             axis, continuous_propensity, categorical_propensity
+        )
+
+    def get_continuous_propensity(self, pop_data: SimulantData, axis: str) -> pd.Series:
+        return pd.Series(
+            self.randomness.get_draw(pop_data.index, additional_key=axis),
+            name=self.continuous_propensity_column_name[axis],
         )
 
     def on_time_step_prepare(self, event: Event) -> None:
