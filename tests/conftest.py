@@ -148,6 +148,45 @@ def get_births_observer_data() -> pd.DataFrame:
     return _create_births_observer_data()
 
 
+def _create_deaths_observer_data() -> pd.DataFrame:
+    """Create deaths observer data for testing."""
+    return pd.DataFrame(
+        {
+            "value": [10.0, 20.0, 30.0, 40.0] * 8,
+        },
+        index=pd.MultiIndex.from_product(
+            [
+                ["death_counts"],
+                [pd.NA],
+                [pd.NA],
+                [pd.NA],
+                ["Male", "Female"],
+                ["early_neonatal", "late_neonatal"],
+                ["A", "B"],
+                [0, 1],
+                [0, 1],
+            ],
+            names=[
+                "measure",
+                "entity_type",
+                "entity",
+                "sub_entity",
+                "child_sex",
+                "child_age_group",
+                "common_stratify_column",
+                DRAW_INDEX,
+                SEED_INDEX,
+            ],
+        ),
+    )
+
+
+@pytest.fixture
+def get_deaths_observer_data() -> pd.DataFrame:
+    """Get deaths observer data for testing."""
+    return _create_deaths_observer_data()
+
+
 @pytest.fixture(scope="session")
 def mncnh_results_dir(tmp_path_factory: TempPathFactory) -> Path:
     """Create a temporary directory for simulation outputs."""
@@ -161,9 +200,11 @@ def mncnh_results_dir(tmp_path_factory: TempPathFactory) -> Path:
     # Create data directly within this session-scoped fixture
     # so we don't depend on function-scoped fixtures
     _births = _create_births_observer_data()
+    _deaths = _create_deaths_observer_data()
 
     # Save Sim DataFrames
     _births.reset_index().to_parquet(results_dir / "births.parquet")
+    _deaths.reset_index().to_parquet(results_dir / "neonatal_testing_death_counts.parquet")
 
     # TODO: MIC-6667. Create Artifact when updating measures to include artifact data
     # artifact_dir = tmp_path / "artifacts"

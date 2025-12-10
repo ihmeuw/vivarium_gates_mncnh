@@ -21,3 +21,18 @@ class LiveBirths(SimDataFormatter):
             "entity",
             "sub_entity",
         ]
+
+
+class CauseDeaths(SimDataFormatter):
+    """Formatter for simulation data that contains deaths. This specifically handles simulation
+    outputs for deaths separated by file instead of a single deaths file."""
+
+    def __init__(self, cause: str) -> None:
+        super().__init__(measure=cause, entity="death_counts", filter_value="total")
+        self.name = f"{cause}_deaths"
+        self.unused_columns = [
+            "measure",
+            "entity_type",
+            "entity",
+            "sub_entity",
+        ]
