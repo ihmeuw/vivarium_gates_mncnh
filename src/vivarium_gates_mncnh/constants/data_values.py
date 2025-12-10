@@ -171,6 +171,7 @@ class __Columns(NamedTuple):
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
+    IV_IRON_INTERVENTION = "iv_iron_intervention"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
