@@ -691,7 +691,7 @@ class IVIronExposure(Component):
             return
 
         pop = self.population_view.get(event.index)
-        pop[COLUMNS.IV_IRON_INTERVENTION] = "none"
+        pop[COLUMNS.IV_IRON_INTERVENTION] = models.IV_IRON_INTERVENTION.NO_TREATMENT
 
         # IV iron coverage is either 0 or 100%
         if INTERVENTION_SCENARIOS[self.scenario].iv_iron_coverage == "full":
@@ -709,6 +709,8 @@ class IVIronExposure(Component):
             gets_iv_iron = (
                 attends_later_pregnancy_anc & tested_low_hemoglobin & tested_low_ferritin
             )
-            pop.loc[gets_iv_iron, COLUMNS.IV_IRON_INTERVENTION] = "iv_iron"
+            pop.loc[
+                gets_iv_iron, COLUMNS.IV_IRON_INTERVENTION
+            ] = models.IV_IRON_INTERVENTION.IV_IRON
 
         self.population_view.update(pop)

@@ -11,3 +11,12 @@ class __OralIronIntervention:
 
 
 ORAL_IRON_INTERVENTION = __OralIronIntervention()
+
+# noinspection PyPep8Naming
+class __IVIronIntervention:
+    MODEL_NAME: str = "iv_iron_intervention"
+    NO_TREATMENT: str = "no_treatment"
+    IV_IRON: str = "iv_iron"
+
+
+IV_IRON_INTERVENTION = __IVIronIntervention()
