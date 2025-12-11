@@ -142,6 +142,7 @@ urllib3==2.5.0
 vivarium==3.5.6
 vivarium_build_utils==2.0.12
 vivarium_dependencies==1.0.1
+vivarium_helpers @ git+https://github.com/zmbc/vivarium_helpers.git@zeb_bug_fixes
 wcwidth==0.2.14
 webcolors==24.11.1
 webencodings==0.5.1

@@ -14,4 +14,4 @@ dependencies:
     - statsmodels
     - vivarium
     - gbd_mapping
-    - "vivarium_helpers @ git+https://github.com/ihmeuw/vivarium_helpers.git@main"
+    - "vivarium_helpers @ git+https://github.com/zmbc/vivarium_helpers.git@zeb_bug_fixes"
