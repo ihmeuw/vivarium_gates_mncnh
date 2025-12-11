@@ -1,0 +1,23 @@
+import pandas as pd
+from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
+from vivarium_testing_utils.automated_validation.data_transformation import calculations
+from vivarium_testing_utils.automated_validation.data_transformation.formatting import (
+    SimDataFormatter,
+)
+
+
+class LiveBirths(SimDataFormatter):
+    """Formatter for simulation data that contains total live births."""
+
+    def __init__(self, scenario_columns: list[str]) -> None:
+        super().__init__(measure="live_births", entity="births", filter_value="live_birth")
+        self.raw_dataset_name = "births"
+        self.name = "live_births"
+        self.filters = {"pregnancy_outcome": [self.filter_value]}
+        self.scenario_columns = scenario_columns
+        self.unused_columns = [
+            "measure",
+            "entity_type",
+            "entity",
+            "sub_entity",
+        ]

@@ -3,10 +3,13 @@ import shutil
 from pathlib import Path
 from typing import Any, Generator
 
+import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
+from pytest import TempPathFactory
 from vivarium import Artifact
 from vivarium_testing_utils import FuzzyChecker
+from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
 
 from vivarium_gates_mncnh.constants import paths
 from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
@@ -102,3 +105,85 @@ def is_on_slurm() -> bool:
 
 
 IS_ON_SLURM = is_on_slurm()
+
+
+def _create_births_observer_data() -> pd.DataFrame:
+    """Create births observer data for testing."""
+    return pd.DataFrame(
+        {
+            "value": [10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 1.0, 2.0] * 2,
+        },
+        index=pd.MultiIndex.from_tuples(
+            [
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "A", 0, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "A", 0, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "A", 1, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "A", 1, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "B", 0, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "B", 0, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "B", 1, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "live_birth", "B", 1, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "A", 0, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "A", 0, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "A", 1, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "A", 1, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "B", 0, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "B", 0, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "B", 1, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "live_birth", "B", 1, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "still_birth", "A", 0, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Male", "still_birth", "A", 0, 1),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "still_birth", "A", 1, 0),
+                ("births", pd.NA, pd.NA, pd.NA, "Female", "still_birth", "A", 1, 1),
+            ],
+            names=[
+                "measure",
+                "entity_type",
+                "entity",
+                "sub_entity",
+                "child_sex",
+                "pregnancy_outcome",
+                "common_stratify_column",
+                DRAW_INDEX,
+                SEED_INDEX,
+            ],
+        ),
+    )
+
+
+@pytest.fixture
+def get_births_observer_data() -> pd.DataFrame:
+    """Get births observer data for testing."""
+    return _create_births_observer_data()
+
+
+@pytest.fixture(scope="session")
+def mncnh_results_dir(tmp_path_factory: TempPathFactory) -> Path:
+    """Create a temporary directory for simulation outputs."""
+    # Create the temporary directory at session scope
+    tmp_path = tmp_path_factory.mktemp("mncnh_data")
+
+    # Create the directory structure
+    results_dir = tmp_path / "results"
+    results_dir.mkdir(parents=True)
+
+    # Create data directly within this session-scoped fixture
+    # so we don't depend on function-scoped fixtures
+    _births = _create_births_observer_data()
+
+    # Save Sim DataFrames
+    _births.reset_index().to_parquet(results_dir / "births.parquet")
+
+    # TODO: MIC-6667. Create Artifact when updating measures to include artifact data
+    # artifact_dir = tmp_path / "artifacts"
+    # artifact_dir.mkdir(exist_ok=True)
+    # artifact_path = artifact_dir / "artifact.hdf"
+    # artifact = Artifact(artifact_path)
+    # for key, data in _artifact_keys_mapper.items():
+    #     artifact.write(key, data)
+
+    # # Save model specification
+    # with open(tmp_path / "model_specification.yaml", "w") as f:
+    #     yaml.dump(get_model_spec(artifact_path), f)
+
+    return tmp_path
