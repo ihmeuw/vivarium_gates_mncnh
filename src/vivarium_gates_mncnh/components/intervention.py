@@ -198,11 +198,6 @@ class OralIronInterventionExposure(Component):
     }
 
     @property
-    def time_step_cleanup_priority(self) -> int:
-        # ANC attendance will have been updated
-        return 6
-
-    @property
     def columns_created(self) -> list[str]:
         return [COLUMNS.ORAL_IRON_INTERVENTION]
 
@@ -229,6 +224,11 @@ class OralIronInterventionExposure(Component):
             .value[0]
         )
 
+        self.oral_iron_exposure_pipeline = builder.value.register_value_producer(
+            PIPELINES.ORAL_IRON_INTERVENTION,
+            source=self._get_oral_iron_exposure,
+            requires_columns=[COLUMNS.ORAL_IRON_INTERVENTION],
+        )
         self.ifa_exposure_pipeline = builder.value.register_value_producer(
             self.ifa_exposure_pipeline_name,
             source=self._get_ifa_exposure,
@@ -248,34 +248,55 @@ class OralIronInterventionExposure(Component):
 
         self.population_view.update(pop_update)
 
-    def on_time_step_cleanup(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.PREGNANCY:
-            return
-        pop = self.population_view.get(event.index)
-        attends_anc = pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE
-        anc_pop = pop.loc[attends_anc]
+    def on_time_step(self, event: Event) -> None:
+        def get_pop_with_oral_iron(pop: pd.DataFrame) -> pd.DataFrame:
+            if (
+                INTERVENTION_SCENARIOS[self.scenario].ifa_mms_coverage
+                == models.ORAL_IRON_INTERVENTION.MMS
+            ):
+                pop_update = pd.DataFrame(
+                    {COLUMNS.ORAL_IRON_INTERVENTION: models.ORAL_IRON_INTERVENTION.MMS},
+                    index=anc_pop.index,
+                )
+            else:
+                pop_update = self.randomness.choice(
+                    anc_pop.index,
+                    choices=[
+                        models.ORAL_IRON_INTERVENTION.IFA,
+                        models.ORAL_IRON_INTERVENTION.NO_TREATMENT,
+                    ],
+                    p=[self.ifa_coverage, RESIDUAL_CHOICE],
+                    additional_key="baseline_ifa",
+                )
+                pop_update.name = COLUMNS.ORAL_IRON_INTERVENTION
+            return pop_update
 
-        if (
-            INTERVENTION_SCENARIOS[self.scenario].ifa_mms_coverage
-            == models.ORAL_IRON_INTERVENTION.MMS
-        ):
-            pop_update = pd.DataFrame(
-                {COLUMNS.ORAL_IRON_INTERVENTION: models.ORAL_IRON_INTERVENTION.MMS},
-                index=anc_pop.index,
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            pop = self.population_view.get(event.index)
+            attends_first_trimester_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
+                [
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+                ]
             )
-        else:
-            pop_update = self.randomness.choice(
-                anc_pop.index,
-                choices=[
-                    models.ORAL_IRON_INTERVENTION.IFA,
-                    models.ORAL_IRON_INTERVENTION.NO_TREATMENT,
-                ],
-                p=[self.ifa_coverage, RESIDUAL_CHOICE],
-                additional_key="baseline_ifa",
-            )
-            pop_update.name = COLUMNS.ORAL_IRON_INTERVENTION
+            anc_pop = pop.loc[attends_first_trimester_anc]
 
-        self.population_view.update(pop_update)
+            updated_pop = get_pop_with_oral_iron(anc_pop)
+            self.population_view.update(updated_pop)
+
+        elif self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            pop = self.population_view.get(event.index)
+            attends_later_pregnancy_anc = (
+                pop[COLUMNS.ANC_ATTENDANCE] == ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY
+            )
+            anc_pop = pop.loc[attends_later_pregnancy_anc]
+
+            updated_pop = get_pop_with_oral_iron(anc_pop)
+            self.population_view.update(updated_pop)
+
+    def _get_oral_iron_exposure(self, index: pd.Index) -> pd.Series:
+        pop = self.population_view.get(index)
+        return pop[COLUMNS.ORAL_IRON_INTERVENTION]
 
     def _get_ifa_exposure(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
@@ -296,8 +317,8 @@ class OralIronInterventionExposure(Component):
         return exposure
 
 
-class OralIronInterventionEffect(Component):
-    """IFA and MMS effects on hemoglobin and stillbirth."""
+class OralIronEffectOnHemoglobin(Component):
+    """IFA and MMS effects on hemoglobin."""
 
     @property
     def columns_required(self) -> list[str]:
@@ -308,9 +329,6 @@ class OralIronInterventionEffect(Component):
     #################
 
     def setup(self, builder: Builder) -> None:
-        self.mms_stillbirth_rr = builder.data.load(
-            data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
-        ).value[0]
         self.ifa_effect_size = (
             builder.data.load(data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE)
             .query("affected_target=='hemoglobin.exposure'")
@@ -321,18 +339,6 @@ class OralIronInterventionEffect(Component):
         builder.value.register_value_modifier(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.update_hemoglobin_exposure,
-            requires_columns=self.columns_created,
-        )
-
-        builder.value.register_value_modifier(
-            PIPELINES.FIRST_ANC_HEMOGLOBIN_EXPOSURE,
-            self.get_first_anc_hemoglobin,
-            component=self,
-        )
-
-        builder.value.register_value_modifier(
-            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
-            self.adjust_stillbirth_probability,
             requires_columns=self.columns_created,
         )
 
@@ -367,32 +373,37 @@ class OralIronInterventionEffect(Component):
 
         return exposure
 
-    def get_first_anc_hemoglobin(
-        self, index: pd.Index, exposure: pd.Series[float]
-    ) -> pd.Series[float]:
-        pop = self.population_view.get(index)
 
-        has_first_trimester_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
-            [
-                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
-                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
-            ]
+class OralIronEffectOnStillbirth(Component):
+    """IFA and MMS effects on stillbirth."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.PREGNANCY_OUTCOME]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self.mms_stillbirth_rr = builder.data.load(
+            data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR
+        ).value[0]
+
+        builder.value.register_value_modifier(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            self.adjust_stillbirth_probability,
+            requires_columns=self.columns_created,
         )
-        oral_iron_covered = (
-            pop[COLUMNS.ORAL_IRON_INTERVENTION] != models.ORAL_IRON_INTERVENTION.NO_TREATMENT
-        )
 
-        needs_first_trimester_update = has_first_trimester_anc & oral_iron_covered
-
-        exposure.loc[needs_first_trimester_update] += self.ifa_effect_size
-
-        return exposure
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def adjust_stillbirth_probability(
         self, index: pd.Index, birth_outcome_probabilities: pd.DataFrame
     ) -> pd.DataFrame:
         pop = self.population_view.subview([COLUMNS.ORAL_IRON_INTERVENTION]).get(index)
-
         on_treatment = (
             pop[COLUMNS.ORAL_IRON_INTERVENTION] == models.ORAL_IRON_INTERVENTION.MMS
         )
@@ -502,21 +513,18 @@ class AdditiveRiskEffect(RiskEffect):
         return effect
 
 
-class MMSEffectOnGestationalAge(AdditiveRiskEffect):
-    """Model effect of multiple micronutrient supplementation on gestational age.
-    Unique component because the excess shift value depends on IFA-shifted gestational age."""
+class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
+    @property
+    def columns_required(self):
+        return [COLUMNS.ORAL_IRON_INTERVENTION]
 
     def __init__(self):
         super().__init__(
-            "risk_factor.multiple_micronutrient_supplementation",
+            f"risk_factor.{COLUMNS.ORAL_IRON_INTERVENTION}",
             "risk_factor.gestational_age.birth_exposure",
         )
-        self.excess_shift_pipeline_name = (
-            f"{self.risk.name}_on_{self.target.name}.excess_shift"
-        )
-        self.risk_specific_shift_pipeline_name = (
-            f"{self.risk.name}_on_{self.target.name}.risk_specific_shift"
-        )
+        self.ifa_effect_pipeline_name = f"ifa_on_{self.target.name}.effect"
+        self.exposure_pipeline_name = PIPELINES.ORAL_IRON_INTERVENTION
 
     #################
     # Setup methods #
@@ -524,28 +532,57 @@ class MMSEffectOnGestationalAge(AdditiveRiskEffect):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
-        self.ifa_on_gestational_age = builder.components.get_component(
-            f"risk_effect.iron_folic_acid_supplementation_on_{self.target}"
-        )
-        self.raw_gestational_age_exposure = builder.value.get_value(
-            PIPELINES.RAW_GESTATIONAL_AGE_EXPOSURE
-        )
+        super(AdditiveRiskEffect, self).setup(builder)
+        self.ifa_effect = self.get_ifa_effect_pipeline(builder)
+        self.ifa_excess_shift = self.get_ifa_excess_shift(builder)
+
+    #######################
+    # LookupTable methods #
+    #######################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["relative_risk"] = self.build_lookup_table(builder, 1)
         self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
             builder, 0
         )
-        self.lookup_tables["risk_specific_shift"] = self.get_risk_specific_shift_lookup_table(
+        self.lookup_tables["ifa_excess_shift"] = self.get_ifa_excess_shift_lookup_table(
             builder
         )
+        self.lookup_tables[
+            "ifa_risk_specific_shift"
+        ] = self.get_ifa_risk_specific_shift_lookup_table(builder)
         self.lookup_tables["mms_subpop1_excess_shift"] = self._get_mms_excess_shift_data(
             builder, data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1
         )
         self.lookup_tables["mms_subpop2_excess_shift"] = self._get_mms_excess_shift_data(
             builder, data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2
         )
+
+    def get_ifa_excess_shift_lookup_table(self, builder: Builder) -> LookupTable:
+        excess_shift_data = builder.data.load(
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT,
+            affected_entity=self.target.name,
+            affected_measure=self.target.measure,
+        )
+        excess_shift_data, value_cols = self.process_categorical_data(
+            builder, excess_shift_data
+        )
+        # update data to match oral iron intervention exposure categories
+        excess_shift_data = excess_shift_data.rename(
+            {"cat1": "no_treatment", "cat2": "ifa"}, axis=1
+        )
+        excess_shift_data["mms"] = excess_shift_data["ifa"].values
+        value_cols = ["no_treatment", "ifa", "mms"]
+
+        return self.build_lookup_table(builder, excess_shift_data, value_cols)
+
+    def get_ifa_risk_specific_shift_lookup_table(self, builder: Builder) -> LookupTable:
+        risk_specific_shift_data = builder.data.load(
+            data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT,
+            affected_entity=self.target.name,
+            affected_measure=self.target.measure,
+        )
+        return self.build_lookup_table(builder, risk_specific_shift_data, ["value"])
 
     def _get_mms_excess_shift_data(self, builder: Builder, key: str) -> LookupTable:
         excess_shift_data = builder.data.load(
@@ -554,31 +591,59 @@ class MMSEffectOnGestationalAge(AdditiveRiskEffect):
         excess_shift_data, value_cols = self.process_categorical_data(
             builder, excess_shift_data
         )
+        excess_shift_data = excess_shift_data.rename(
+            {"cat1": "no_treatment", "cat2": "mms"}, axis=1
+        )
+        excess_shift_data["ifa"] = excess_shift_data["no_treatment"].values
+        value_cols = ["no_treatment", "ifa", "mms"]
         return self.build_lookup_table(builder, excess_shift_data, value_cols)
 
-    def get_excess_shift(self, builder: Builder) -> Pipeline:
+    ###############
+    # IFA methods #
+    ###############
+
+    def get_ifa_effect_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
-            self.excess_shift_pipeline_name,
-            source=self.get_excess_shift_source,
-            requires_values=[PIPELINES.RAW_GESTATIONAL_AGE_EXPOSURE],
+            self.ifa_effect_pipeline_name,
+            source=self.get_ifa_effect,
+            requires_values=[self.exposure_pipeline_name],
         )
 
-    ##################################
-    # Pipeline sources and modifiers #
-    ##################################
+    def get_ifa_effect(self, index: pd.Index) -> pd.Series:
+        excess_shift = self.ifa_excess_shift(index)
+        raw_effect = self.calculate_raw_effect(excess_shift, index)
 
-    def get_risk_specific_shift_lookup_table(self, builder: Builder) -> LookupTable:
-        return self.build_lookup_table(builder, 0)
+        risk_specific_shift = self.lookup_tables["ifa_risk_specific_shift"](index)
 
-    def get_excess_shift_source(self, index: pd.Index) -> pd.Series:
-        raw_gestational_age = self.raw_gestational_age_exposure(index)
-        ifa_shifted_gestational_age = (
-            raw_gestational_age + self.ifa_on_gestational_age.effect(index)
-        )
-        # excess shift is (mms_shift_1 + mms_shift_2) for subpop_2 and mms_shift_1 for subpop_1
+        ifa_effect = raw_effect - risk_specific_shift
+        return ifa_effect
+
+    def get_ifa_excess_shift(self, builder: Builder) -> LookupTable | Pipeline:
+        return self.lookup_tables["ifa_excess_shift"]
+
+    def calculate_raw_effect(self, excess_shift: pd.Series, index: pd.Index) -> pd.Series:
+        index_columns = ["index", self.risk.name]
+        exposure = self.exposure(index).reset_index()
+        exposure.columns = index_columns
+        exposure = exposure.set_index(index_columns)
+
+        relative_risk = excess_shift.stack().reset_index()
+        relative_risk.columns = index_columns + ["value"]
+        relative_risk = relative_risk.set_index(index_columns)
+
+        raw_effect = relative_risk.loc[exposure.index, "value"].droplevel(self.risk.name)
+        return raw_effect
+
+    ###############
+    # MMS methods #
+    ###############
+
+    def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
+        ifa_shifted_gestational_age = target + self.ifa_effect(index)
+        # mms shift is (mms_shift_1 + mms_shift_2) for subpop_2 and mms_shift_1 for subpop_1
         mms_shift_2 = (
-            self.lookup_tables["mms_subpop2_excess_shift"](index)["cat2"]
-            - self.lookup_tables["mms_subpop1_excess_shift"](index)["cat2"]
+            self.lookup_tables["mms_subpop2_excess_shift"](index)["mms"]
+            - self.lookup_tables["mms_subpop1_excess_shift"](index)["mms"]
         )
         is_subpop_1 = ifa_shifted_gestational_age < (32 - mms_shift_2)
         is_subpop_2 = ifa_shifted_gestational_age >= (32 - mms_shift_2)
@@ -592,5 +657,6 @@ class MMSEffectOnGestationalAge(AdditiveRiskEffect):
                 self.lookup_tables["mms_subpop2_excess_shift"](subpop_2_index),
             ]
         )
+        mms_effect = self.calculate_raw_effect(excess_shift, index)
 
-        return excess_shift
+        return ifa_shifted_gestational_age + mms_effect

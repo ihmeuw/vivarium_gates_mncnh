@@ -1609,6 +1609,14 @@ def load_probability_low_ferritin(
     df = df.rename(
         {"anemia_severity": data_values.COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY}, axis=1
     )
+    # Duplicate 'mild' rows as 'not_anemic' with and halve their values
+    draw_cols = [c for c in df.columns if c.startswith("draw")]
+    anemia_col = data_values.COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY
+    mild_mask = df[anemia_col] == "mild"
+    mild_copy = df.loc[mild_mask].copy()
+    mild_copy[draw_cols] = mild_copy[draw_cols].div(2)
+    mild_copy[anemia_col] = "not_anemic"
+    df = pd.concat([df, mild_copy], ignore_index=True)
     return reshape_to_vivarium_format(df, location)
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import itertools
 import math
 import pickle
+import re
 from typing import Any
 
 import numpy as np
@@ -38,6 +39,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     PIPELINES,
+    SIMULATION_EVENT_NAMES,
 )
 
 CATEGORICAL = "categorical"
@@ -125,9 +127,44 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
             index=quantiles.index,
         )
 
+    ##################
+    # Helper methods #
+    ##################
+
+    @staticmethod
+    def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:
+        """Parses a string corresponding to a low birth weight and short gestation
+        category to an Interval. Sets the minimum gestational age value to 20
+        instead of 0.
+
+        An example of a standard description:
+        'Neonatal preterm and LBWSG (estimation years) - [0, 24) wks, [0, 500) g'
+        An example of an edge case for gestational age:
+        'Neonatal preterm and LBWSG (estimation years) - [40, 42+] wks, [2000, 2500) g'
+        An example of an edge case of birth weight:
+        'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
+        """
+        lbwsg_values = [float(val) for val in re.findall(r"(\d+)", description)]
+        if len(list(lbwsg_values)) != 4:
+            raise ValueError(
+                f"Could not parse LBWSG description '{description}'. Expected 4 numeric values."
+            )
+        # update gestational age to never be below 20
+        lbwsg_values[0] = max(lbwsg_values[0], 20.0)
+        return (
+            pd.Interval(*lbwsg_values[:2], closed="left"),  # Gestational Age
+            pd.Interval(*lbwsg_values[2:], closed="left"),  # Birth Weight
+        )
+
 
 class LBWSGRisk(LBWSGRisk_):
     exposure_distributions = {"lbwsg": OrderedLBWSGDistribution}
+
+    @property
+    def columns_created(self):
+        return super().columns_created + [
+            self.continuous_propensity_column_name[axis] for axis in self.AXES
+        ]
 
     @property
     def columns_required(self) -> list[str]:
@@ -141,8 +178,19 @@ class LBWSGRisk(LBWSGRisk_):
             COLUMNS.SEX_OF_CHILD,
         ]
 
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self):
+        super().__init__()
+        self.continuous_propensity_column_name = {
+            axis: f"{self.name}.{axis}.continuous_propensity" for axis in self.AXES
+        }
+
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
+        self._sim_step_name = builder.time.simulation_event_name()
         # We have to override the age_end due to the wide state table and this is easier than
         # adding an extra population configuration key
         self.configuration_age_end = 0.0
@@ -150,32 +198,47 @@ class LBWSGRisk(LBWSGRisk_):
             f"{self.name}.correlated_propensity"
         )
 
-        required_columns = get_lookup_columns(
-            self.exposure_distribution.lookup_tables.values()
-        )
-        builder.value.register_value_producer(
-            PIPELINES.RAW_BIRTH_WEIGHT_EXPOSURE,
-            source=lambda index: self.get_birth_exposure(BIRTH_WEIGHT, index),
-            component=self,
-            required_resources=required_columns + [self.randomness],
-            preferred_post_processor=get_exposure_post_processor(builder, self.name),
-        )
-        builder.value.register_value_producer(
-            PIPELINES.RAW_GESTATIONAL_AGE_EXPOSURE,
-            source=lambda index: self.get_birth_exposure(GESTATIONAL_AGE, index),
-            component=self,
-            required_resources=required_columns + [self.randomness],
-            preferred_post_processor=get_exposure_post_processor(builder, self.name),
-        )
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        propensity = {
+            self.continuous_propensity_column_name[axis]: self.get_continuous_propensity(
+                pop_data, axis
+            )
+            for axis in self.AXES
+        }
+        self.population_view.update(pd.DataFrame(propensity))
+
+        exposures = {
+            self.get_exposure_column_name(axis): pd.Series(np.nan, index=pop_data.index)
+            for axis in self.AXES
+        }
+        self.population_view.update(pd.DataFrame(exposures))
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        categorical_propensity = self.categorical_propensity(
-            index
-        )  # only line change in this subclassed function
-        continuous_propensity = self.randomness.get_draw(index, additional_key=axis)
+        categorical_propensity = self.categorical_propensity(index)
+        continuous_propensity = self.population_view.get(index)[
+            self.continuous_propensity_column_name[axis]
+        ]
         return self.exposure_distribution.single_axis_ppf(
             axis, continuous_propensity, categorical_propensity
         )
+
+    def get_continuous_propensity(self, pop_data: SimulantData, axis: str) -> pd.Series:
+        return pd.Series(
+            self.randomness.get_draw(pop_data.index, additional_key=axis),
+            name=self.continuous_propensity_column_name[axis],
+        )
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.ULTRASOUND:
+            return
+
+        exposures = {
+            self.get_exposure_column_name(axis): self.birth_exposures[
+                self.birth_exposure_pipeline_name(axis)
+            ](event.index)
+            for axis in self.AXES
+        }
+        self.population_view.update(pd.DataFrame(exposures))
 
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
@@ -193,6 +256,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         return [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
 
     def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
         # Paf pipeline needs to be registered before the super setup is called
         self.paf = builder.value.register_value_producer(
             f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
@@ -289,6 +353,72 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        relative_risk_data = pd.DataFrame(
+            {
+                self.relative_risk_column_name(age_group): np.nan
+                for age_group in self.age_intervals
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(relative_risk_data)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.ULTRASOUND:
+            return
+
+        pop = self.population_view.subview(
+            [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
+        ).get(event.index)
+        birth_weight = pop[LBWSGRisk_.get_exposure_column_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk_.get_exposure_column_name(GESTATIONAL_AGE)]
+
+        is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
+        is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
+            self.TMREL_BIRTH_WEIGHT_INTERVAL.left <= birth_weight
+        )
+
+        def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
+            column_name = self.relative_risk_column_name(age_group)
+            log_relative_risk = pd.Series(0.0, index=event.index, name=column_name)
+
+            male_interpolator = self.interpolator["Male", age_group]
+            log_relative_risk[is_male & ~is_tmrel] = male_interpolator(
+                gestational_age[is_male & ~is_tmrel],
+                birth_weight[is_male & ~is_tmrel],
+                grid=False,
+            )
+            female_interpolator = self.interpolator["Female", age_group]
+            log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
+                gestational_age[~is_male & ~is_tmrel],
+                birth_weight[~is_male & ~is_tmrel],
+                grid=False,
+            )
+
+            return np.exp(log_relative_risk)
+
+        relative_risk_columns = [
+            get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
+        ]
+        self.population_view.update(pd.concat(relative_risk_columns, axis=1))
+
+
+####################################
+# LBWSG PAF Calculation Components #
+####################################
+class LBWSGPAFRiskEffect(LBWSGRiskEffect):
+    def setup(self, builder: Builder) -> None:
+        # subclass setup so we don't define sim step name attribute
+        self.paf = builder.value.register_value_producer(
+            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
+            source=self.lookup_tables["population_attributable_fraction"],
+            component=self,
+            required_resources=get_lookup_columns(
+                [self.lookup_tables["population_attributable_fraction"]]
+            ),
+        )
+        super(LBWSGRiskEffect, self).setup(builder)
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop = self.population_view.subview(
             [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
         ).get(pop_data.index)
@@ -324,18 +454,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         ]
         self.population_view.update(pd.concat(relative_risk_columns, axis=1))
 
-
-####################################
-# LBWSG PAF Calculation Components #
-####################################
-
-
-class LBWSGPAFCalculationRiskEffect(LBWSGRiskEffect):
-    """Risk effect component for calculating PAFs for LBWSG. This is only used in a
-    separate simulation to calculate the PAFs for the LBWSG risk effect."""
-
-    def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
-        return 0, []
+    def on_time_step(self, event: Event) -> None:
+        pass
 
 
 class LBWSGPAFCalculationExposure(LBWSGRisk):
@@ -351,7 +471,12 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         ]
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
+        # call grandparent setup avoid defining sim step name attribute
+        super(LBWSGRisk, self).setup(builder)
+        self.configuration_age_end = 0.0
+        self.categorical_propensity = builder.value.get_value(
+            f"{self.name}.correlated_propensity"
+        )
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
         self.age_bins = builder.data.load(data_keys.POPULATION.AGE_BINS)
 

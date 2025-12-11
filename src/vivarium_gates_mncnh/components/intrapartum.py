@@ -193,6 +193,7 @@ class ACSAccess(Component):
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
+        self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         simulants = pd.DataFrame(
@@ -206,9 +207,10 @@ class ACSAccess(Component):
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.time_step:
             return
+        if self.scenario.acs_access == "none":
+            return
 
         pop = self.population_view.get(event.index)
-
         pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
         is_early_or_moderate_preterm = pop.loc[
             pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
@@ -216,5 +218,4 @@ class ACSAccess(Component):
         has_cpap = pop.loc[pop[COLUMNS.CPAP_AVAILABLE] == True]
         has_acs = is_early_or_moderate_preterm.index.intersection(has_cpap.index)
         pop.loc[has_acs, COLUMNS.ACS_AVAILABLE] = True
-
         self.population_view.update(pop)

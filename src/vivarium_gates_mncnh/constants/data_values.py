@@ -30,6 +30,7 @@ LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
 
 class __PregnancyOutcome(NamedTuple):
     PARTIAL_TERM_OUTCOME = "partial_term"
+    FULL_TERM_OUTCOME = "full_term"
     LIVE_BIRTH_OUTCOME = "live_birth"
     STILLBIRTH_OUTCOME = "stillbirth"
     INVALID_OUTCOME = "invalid"  ## For sex of partial births
@@ -51,7 +52,10 @@ NUM_DRAWS = 250
 
 class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.
-    PREGNANCY = "pregnancy"
+    FIRST_TRIMESTER_ANC = "first_trimester_anc"
+    LATER_PREGNANCY_SCREENING = "later_pregnancy_screening"
+    LATER_PREGNANCY_INTERVENTION = "later_pregnancy_intervention"
+    ULTRASOUND = "ultrasound"
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
@@ -150,10 +154,7 @@ class __Columns(NamedTuple):
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
-    ANC_STATE = "anc_state"
     ANC_ATTENDANCE = "anc_attendance"
-    FIRST_TRIMESTER_ANC = "first_trimester_anc"
-    LATER_PREGNANCY_ANC = "later_pregnancy_anc"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
@@ -177,7 +178,9 @@ class __Columns(NamedTuple):
     FERRITIN_SCREENING_COVERAGE = "ferritin_screening_coverage"
     TESTED_HEMOGLOBIN = "tested_hemoglobin"
     TESTED_FERRITIN = "tested_ferritin"
+    FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE = "first_trimester_hemoglobin_exposure"
     ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
+    ANEMIA_INTERVENTION_PROPENSITY = "anemia_intervention_propensity"
 
 
 COLUMNS = __Columns()
@@ -257,6 +260,7 @@ class __Pipelines(NamedTuple):
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
     FIRST_ANC_HEMOGLOBIN_EXPOSURE = "first_anc_hemoglobin.exposure"
     IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
+    ORAL_IRON_INTERVENTION = "oral_iron_intervention.exposure"
 
 
 PIPELINES = __Pipelines()
