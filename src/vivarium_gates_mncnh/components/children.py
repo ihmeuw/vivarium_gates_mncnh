@@ -65,13 +65,19 @@ class NewChildren(Component):
             },
             index=index,
         )
-        # Find live births and set child status to alive
-        outcomes = self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index)
-        live_birth_index = outcomes.index[
-            outcomes[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
-        ]
-        new_children.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
         self.population_view.update(new_children)
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            return
+
+        # Find live births and set child status to alive
+        pop = self.population_view.get(event.index)
+        live_birth_index = pop.index[
+            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        ]
+        pop.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
+        self.population_view.update(pop)
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() not in [
