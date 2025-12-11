@@ -323,7 +323,11 @@ class OralIronEffectOnHemoglobin(Component):
 
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.ANC_ATTENDANCE]
+        return [
+            COLUMNS.ORAL_IRON_INTERVENTION,
+            COLUMNS.ANC_ATTENDANCE,
+            COLUMNS.IV_IRON_INTERVENTION,
+        ]
 
     #################
     # Setup methods #
@@ -364,10 +368,14 @@ class OralIronEffectOnHemoglobin(Component):
         oral_iron_covered = (
             pop[COLUMNS.ORAL_IRON_INTERVENTION] != models.ORAL_IRON_INTERVENTION.NO_TREATMENT
         )
+        iv_iron_covered = (
+            pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        )
 
         needs_first_trimester_update = has_first_trimester_anc & oral_iron_covered
-        # TODO: add boolean check for IV iron coverage when implemented
-        needs_later_pregnancy_update = has_later_pregnancy_anc & oral_iron_covered
+        needs_later_pregnancy_update = (
+            has_later_pregnancy_anc & oral_iron_covered & ~iv_iron_covered
+        )
 
         exposure.loc[needs_first_trimester_update] += self.ifa_effect_size
         exposure.loc[needs_later_pregnancy_update] += self.ifa_effect_size
@@ -746,7 +754,7 @@ class IVIronEffectOnHemoglobin(Component):
         self, index: pd.Index, exposure: pd.Series[float]
     ) -> pd.Series[float]:
         pop = self.population_view.get(index)
-        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == "iv_iron"
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
         exposure.loc[has_iv_iron] += self.iv_iron_on_hemoglobin_effect_size
 
         return exposure
