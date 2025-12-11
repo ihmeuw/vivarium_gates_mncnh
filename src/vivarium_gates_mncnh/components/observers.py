@@ -171,6 +171,12 @@ class ResultsStratifier(ResultsStratifier_):
             requires_values=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
         )
         builder.results.register_stratification(
+            "iv_iron_coverage",
+            ["covered", "uncovered"],
+            is_vectorized=True,
+            requires_columns=[COLUMNS.IV_IRON_INTERVENTION],
+        )
+        builder.results.register_stratification(
             "hemoglobin_screening_coverage",
             [True, False],
             is_vectorized=True,

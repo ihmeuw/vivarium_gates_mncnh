@@ -126,6 +126,7 @@ configuration:
                 - 'anc_coverage'
                 - 'preterm_birth'
                 - 'oral_iron_coverage'
+                - 'iv_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
