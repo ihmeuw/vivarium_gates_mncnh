@@ -49,13 +49,42 @@ class NeonatalCauseSpecificMortalityRates(RatioMeasure):
         """Process raw simulation data and return numerator and denominator DataFrames separately."""
         numerator_data = self.numerator.format_dataset(numerator_data)
         denominator_data = self.denominator.format_dataset(denominator_data)
-        numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
-        # TODO: Separate ENN deaths and LNN to have proper denominator (births in ENN and LNN)
+        # Separate ENN deaths and LNN to have proper denominator (births in ENN and LNN)
         denominator_data = self._adjust_births_by_age_group(numerator_data, denominator_data)
+        numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
+
         return {"numerator_data": numerator_data, "denominator_data": denominator_data}
 
     def _adjust_births_by_age_group(
         self, deaths: pd.DataFrame, births: pd.DataFrame
     ) -> pd.DataFrame:
-        """Adjust births due to deaths in early neonatal age group to have correct population."""
-        pass
+        """Adjust births due to deaths in early neonatal age group to have correct population.
+        This function does the following two things:
+        1. Adds child_age_group index level to births DataFrame to match deaths DataFrame.
+        2. Updates the births dataframe so that the deaths from the early neonatal age group have
+        been subtracted from the births of the late neonatal age group."""
+
+        age_group_values = {
+            "child_age_group": deaths.index.get_level_values("child_age_group").unique()
+        }
+        # Cast age groups onto births
+        births = births.reindex(
+            pd.MultiIndex.from_product(
+                [
+                    births.index.get_level_values(level).unique()
+                    for level in births.index.names
+                ]
+                + list(age_group_values.values()),
+                names=list(births.index.names) + list(age_group_values.keys()),
+            )
+        )
+
+        # Subtract early neonatal deaths from late neonatal births
+        enn_deaths = (
+            deaths.loc[deaths.index.get_level_values("child_age_group") == "early_neonatal"]
+            .droplevel("child_age_group")
+            .values
+        )
+        lnn_mask = births.index.get_level_values("child_age_group") == "late_neonatal"
+        births.loc[lnn_mask] -= enn_deaths
+        return births
