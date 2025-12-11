@@ -509,7 +509,7 @@ RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
     "maternal_hypertensive_disorders",  # 369
     "gestational_diabetes",  # 1118
     "peripartum_cardiomyopathy",  # 1119
-    "other_direct_maternal_disorders",  # 379
+    "other_direct_maternal_disorders_internal",  # 379
     "indirect_maternal_deaths",  # 375
     "late_maternal_deaths",  # 376
     "maternal_deaths_aggravated_by_hiv_aids",  # 741
