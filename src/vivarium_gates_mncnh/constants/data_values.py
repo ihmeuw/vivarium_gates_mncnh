@@ -120,11 +120,10 @@ class __ANCRates(NamedTuple):
             ULTRASOUND_TYPES.AI_ASSISTED: 0.0,
         },
     }
-    # HACK: These are arbitrary large values to give AI ultrasound an extreme advantage,
-    # to find the plausible upper bound of impact.
+    # HACK: Lower range values for sensitivity analysis
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
-        ULTRASOUND_TYPES.NO_ULTRASOUND: 70.0 / 7,
-        ULTRASOUND_TYPES.STANDARD: 30.0 / 7,
+        ULTRASOUND_TYPES.NO_ULTRASOUND: 5.0 / 7,
+        ULTRASOUND_TYPES.STANDARD: 3.5 / 7,
         ULTRASOUND_TYPES.AI_ASSISTED: 2.0 / 7,
     }
 
