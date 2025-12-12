@@ -29,13 +29,13 @@ class NeonatalCauseSpecificMortalityRates(RatioMeasure):
             entity=cause,
             measure="cause_specific_mortality_rate",
             numerator=CauseDeaths(cause),
-            # TODO: handle denominator, need to handle calculation across age group for deaths/births
             denominator=LiveBirths([]),
         )
 
     @utils.check_io(data=SingleNumericColumn, out=SingleNumericColumn)
     def get_measure_data_from_sim_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
-        raise NotImplementedError  # MIC-6675
+        # TODO: verify this is correct
+        return data
 
     @utils.check_io(
         numerator_data=SimOutputData,
