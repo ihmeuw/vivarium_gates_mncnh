@@ -25,6 +25,7 @@ class InterventionScenario:
     ifa_mms_coverage: str = "baseline"
     hemoglobin_screening_coverage: str = "baseline"
     ferritin_screening_coverage: str = "baseline"
+    iv_iron_coverage: str = "baseline"
 
 
 class __InterventionScenarios(NamedTuple):
@@ -85,10 +86,11 @@ class __InterventionScenarios(NamedTuple):
         "mms_total_scaleup",
         ifa_mms_coverage="mms",
     )
-    ANEMIA_SCREENING_SCALEUP: InterventionScenario = InterventionScenario(
-        "anemia_screening_scaleup",
+    ANEMIA_SCREENING_AND_IV_IRON_SCALEUP: InterventionScenario = InterventionScenario(
+        "anemia_screening_and_iv_iron_scaleup",
         hemoglobin_screening_coverage="full",
         ferritin_screening_coverage="full",
+        iv_iron_coverage="full",
     )
     AZITHROMYCIN_VV: InterventionScenario = InterventionScenario(
         "azithromycin_vv",
