@@ -21,7 +21,7 @@ branches:
         - "standard_ultrasound_scaleup"
         - "full_product_scaleup"
         - "mms_total_scaleup"
-        - "anemia_screening_and_iv_iron_scaleup"
+        - "anemia_screening_scaleup"
         - "azithromycin_vv"
         - "misoprostol_vv"
         #- "ultrasound_vv"
