@@ -61,7 +61,7 @@ class NewChildren(Component):
             {
                 COLUMNS.SEX_OF_CHILD: sex_of_child,
                 COLUMNS.CHILD_AGE: CHILD_INITIALIZATION_AGE / 2,
-                COLUMNS.CHILD_ALIVE: "dead",
+                COLUMNS.CHILD_ALIVE: pd.NA,
             },
             index=index,
         )
