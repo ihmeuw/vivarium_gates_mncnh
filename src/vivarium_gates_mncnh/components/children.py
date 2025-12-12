@@ -61,7 +61,7 @@ class NewChildren(Component):
             {
                 COLUMNS.SEX_OF_CHILD: sex_of_child,
                 COLUMNS.CHILD_AGE: CHILD_INITIALIZATION_AGE / 2,
-                COLUMNS.CHILD_ALIVE: "dead",
+                COLUMNS.CHILD_ALIVE: pd.NA,
             },
             index=index,
         )
@@ -76,6 +76,7 @@ class NewChildren(Component):
         live_birth_index = pop.index[
             pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         ]
+        pop[COLUMNS.CHILD_ALIVE] = "dead"
         pop.loc[live_birth_index, COLUMNS.CHILD_ALIVE] = "alive"
         self.population_view.update(pop)
 
