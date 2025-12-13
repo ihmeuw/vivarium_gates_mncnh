@@ -1,13 +1,13 @@
 import pandas as pd
 
-from vivarium_gates_mncnh.validation.measures import NeonatalCauseSpecificMortalityRates
+from vivarium_gates_mncnh.validation.measures import NeonatalCauseSpecificMortalityRisk
 
 
 def test_neonatal_csmr(
     get_births_observer_data: pd.DataFrame, get_deaths_observer_data: pd.DataFrame
 ) -> None:
     cause = "neonatal_testing"
-    measure = NeonatalCauseSpecificMortalityRates(cause)
+    measure = NeonatalCauseSpecificMortalityRisk(cause)
     assert measure.measure_key == f"cause.{cause}.cause_specific_mortality_rate"
     assert measure.title == "Neonatal Testing Cause Specific Mortality Rate"
     assert measure.sim_input_datasets == {"data": measure.measure_key}
@@ -30,7 +30,7 @@ def test_neonatal_csmr__adjust_births_by_age_group(
     get_deaths_observer_data: pd.DataFrame,
 ) -> None:
     cause = "neonatal_testing"
-    measure = NeonatalCauseSpecificMortalityRates(cause)
+    measure = NeonatalCauseSpecificMortalityRisk(cause)
     deaths = measure.numerator.format_dataset(get_deaths_observer_data)
     births = measure.denominator.format_dataset(get_births_observer_data)
 

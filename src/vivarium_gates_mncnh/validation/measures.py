@@ -15,9 +15,14 @@ from vivarium_testing_utils.automated_validation.data_transformation.rate_aggreg
 from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
 
 
-class NeonatalCauseSpecificMortalityRates(RatioMeasure):
+class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
     """Computes cause-specific mortality rate in the population."""
 
+    @property
+    def sim_input_datasets(self) -> dict[str, str]:
+        """Return a dictionary of required datasets for this measure."""
+        raise NotImplementedError  # MIC-6675
+    
     @property
     def rate_aggregation_weights(self) -> RateAggregationWeights:
         """Returns rate aggregated weights."""
@@ -35,7 +40,7 @@ class NeonatalCauseSpecificMortalityRates(RatioMeasure):
     @utils.check_io(data=SingleNumericColumn, out=SingleNumericColumn)
     def get_measure_data_from_sim_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
         # TODO: verify this is correct
-        return data
+        raise NotImplementedError  # MIC-6675
 
     @utils.check_io(
         numerator_data=SimOutputData,
