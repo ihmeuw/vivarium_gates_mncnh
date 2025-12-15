@@ -189,7 +189,10 @@ def get_deaths_observer_data() -> pd.DataFrame:
 
 
 def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
-    """Create artifact data for testing CSMRisk measure."""
+    """Create artifact data for testing CSMRisk measure. Note that the artifact data has already
+    been formatted to where the draw columns are melted into a single column and "input_draw" is
+    added as an index level. This happens in the data loader which processes the artifact data
+    before passing it to the measure class."""
     return pd.DataFrame(
         {
             "value": [
