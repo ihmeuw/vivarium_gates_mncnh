@@ -21,7 +21,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
     @property
     def rate_aggregation_weights(self) -> RateAggregationWeights:
         """Returns rate aggregated weights."""
-        raise NotImplementedError  # MIC-6675
+        raise NotImplementedError  # MIC-6688
 
     def __init__(self, cause: str) -> None:
         super().__init__(
