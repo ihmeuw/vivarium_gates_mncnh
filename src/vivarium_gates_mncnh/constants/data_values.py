@@ -122,8 +122,8 @@ class __ANCRates(NamedTuple):
     }
     # HACK: Lower range values for sensitivity analysis
     STATED_GESTATIONAL_AGE_STANDARD_DEVIATION = {
-        ULTRASOUND_TYPES.NO_ULTRASOUND: 5.0 / 7,
-        ULTRASOUND_TYPES.STANDARD: 3.5 / 7,
+        ULTRASOUND_TYPES.NO_ULTRASOUND: 14.0 / 7,
+        ULTRASOUND_TYPES.STANDARD: 10.0 / 7,
         ULTRASOUND_TYPES.AI_ASSISTED: 2.0 / 7,
     }
 

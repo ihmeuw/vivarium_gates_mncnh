@@ -173,7 +173,7 @@ DAYS_PER_WEEK = 7  # for converting gestational age data
 # HACK: Lower range values for sensitivity analysis
 ST_DEV_OF_GA_ERROR_GIVEN_ULTRASOUND = (
     pd.Series(
-        {NO_ULTRASOUND: 5, STANDARD_ULTRASOUND: 3.5},  # Units are days
+        {NO_ULTRASOUND: 14, STANDARD_ULTRASOUND: 10},  # Units are days
         index=pd.CategoricalIndex(
             ULTRASOUND_DTYPE.categories, dtype=ULTRASOUND_DTYPE, name=ULTRASOUND
         ),
