@@ -32,6 +32,10 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
             denominator=LiveBirths([]),
         )
 
+    @utils.check_io(data=SingleNumericColumn, out=SingleNumericColumn)
+    def get_measure_data_from_sim_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
+        return data
+
     @utils.check_io(
         numerator_data=SimOutputData,
         denominator_data=SimOutputData,

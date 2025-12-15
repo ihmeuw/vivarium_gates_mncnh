@@ -192,8 +192,24 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
     """Create artifact data for testing CSMRisk measure."""
     return pd.DataFrame(
         {
-            "draw_0": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-            "draw_1": [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            "value": [
+                0.1,
+                0.2,
+                0.3,
+                0.4,
+                0.5,
+                0.6,
+                0.7,
+                0.8,
+                0.9,
+                1.0,
+                1.1,
+                1.2,
+                1.3,
+                1.4,
+                1.5,
+                1.6,
+            ],
         },
         index=pd.MultiIndex.from_product(
             [
@@ -202,6 +218,7 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
                 [round(7 / 365.0, 8), round(28 / 365.0, 8)],
                 [2023],
                 [2024],
+                [0, 1],
             ],
             names=[
                 "child_sex",
@@ -209,6 +226,7 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
                 "child_age_group_end",
                 "year_start",
                 "year_end",
+                DRAW_INDEX,
             ],
         ),
     )
@@ -220,7 +238,8 @@ def get_csmrisk_artifact_data() -> pd.DataFrame:
     return _create_csmrisk_artifact_data()
 
 
-def v_and_v_artifact_keys_mapper() -> dict[str, pd.DataFrame]:
+@pytest.fixture(scope="session")
+def v_and_v_artifact_keys_mapper() -> dict[str, str | pd.DataFrame]:
     """Create a mapping of artifact keys to DataFrames for testing."""
     csmrisk = _create_csmrisk_artifact_data()
     return {

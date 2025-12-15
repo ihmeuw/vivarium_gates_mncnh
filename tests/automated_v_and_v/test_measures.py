@@ -8,8 +8,8 @@ def test_neonatal_csmr(
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
-    assert measure.measure_key == f"cause.{cause}.cause_specific_mortality_rate"
-    assert measure.title == "Neonatal Testing Cause Specific Mortality Rate"
+    assert measure.measure_key == f"cause.{cause}.cause_specific_mortality_risk"
+    assert measure.title == "Neonatal Testing Cause Specific Mortality Risk"
     assert measure.sim_input_datasets == {"data": measure.measure_key}
     assert measure.sim_output_datasets == {
         "numerator_data": f"{cause}_death_counts",
@@ -58,3 +58,17 @@ def test_neonatal_csmr__adjust_births_by_age_group(
     common_index = births.index.intersection(lnn_births.index).intersection(enn_deaths.index)
     expected_lnn = births.loc[common_index] - enn_deaths.loc[common_index]
     pd.testing.assert_frame_equal(lnn_births, expected_lnn)
+
+
+def test_neonatal_csmr_sim_input_datasets(
+    v_and_v_artifact_keys_mapper, get_csmrisk_artifact_data
+) -> None:
+    cause = "neonatal_testing"
+    measure = NeonatalCauseSpecificMortalityRisk(cause)
+    artifact_key = "cause.neonatal_testing.cause_specific_mortality_risk"
+    assert measure.artifact_key == artifact_key
+    assert measure.sim_input_datasets == {"data": measure.artifact_key}
+    artifact_data = measure.get_measure_data_from_sim_inputs(
+        **{"data": v_and_v_artifact_keys_mapper[artifact_key]}
+    )
+    assert artifact_data.equals(get_csmrisk_artifact_data)
