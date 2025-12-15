@@ -4,6 +4,7 @@ from typing import Any, Generator
 
 import pandas as pd
 import pytest
+import yaml
 from layered_config_tree import LayeredConfigTree
 from pytest import TempPathFactory
 from vivarium import Artifact
@@ -187,6 +188,47 @@ def get_deaths_observer_data() -> pd.DataFrame:
     return _create_deaths_observer_data()
 
 
+def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
+    """Create artifact data for testing CSMRisk measure."""
+    return pd.DataFrame(
+        {
+            "draw_0": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+            "draw_1": [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        },
+        index=pd.MultiIndex.from_product(
+            [
+                ["Male", "Female"],
+                [0.0, round(7 / 365.0, 8)],
+                [round(7 / 365.0, 8), round(28 / 365.0, 8)],
+                [2023],
+                [2024],
+            ],
+            names=[
+                "child_sex",
+                "child_age_group_start",
+                "child_age_group_end",
+                "year_start",
+                "year_end",
+            ],
+        ),
+    )
+
+
+@pytest.fixture
+def get_csmrisk_artifact_data() -> pd.DataFrame:
+    """Get artifact data for testing CSMRisk measure."""
+    return _create_csmrisk_artifact_data()
+
+
+def v_and_v_artifact_keys_mapper() -> dict[str, pd.DataFrame]:
+    """Create a mapping of artifact keys to DataFrames for testing."""
+    csmrisk = _create_csmrisk_artifact_data()
+    return {
+        "cause.neonatal_testing.cause_specific_mortality_risk": csmrisk,
+        "population.location": "Ethiopia",
+    }
+
+
 @pytest.fixture(scope="session")
 def mncnh_results_dir(tmp_path_factory: TempPathFactory) -> Path:
     """Create a temporary directory for simulation outputs."""
@@ -206,16 +248,26 @@ def mncnh_results_dir(tmp_path_factory: TempPathFactory) -> Path:
     _births.reset_index().to_parquet(results_dir / "births.parquet")
     _deaths.reset_index().to_parquet(results_dir / "neonatal_testing_death_counts.parquet")
 
-    # TODO: MIC-6667. Create Artifact when updating measures to include artifact data
-    # artifact_dir = tmp_path / "artifacts"
-    # artifact_dir.mkdir(exist_ok=True)
-    # artifact_path = artifact_dir / "artifact.hdf"
-    # artifact = Artifact(artifact_path)
-    # for key, data in _artifact_keys_mapper.items():
-    #     artifact.write(key, data)
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir(exist_ok=True)
+    artifact_path = artifact_dir / "artifact.hdf"
+    artifact = Artifact(artifact_path)
+    for key, data in v_and_v_artifact_keys_mapper().items():
+        artifact.write(key, data)
 
-    # # Save model specification
-    # with open(tmp_path / "model_specification.yaml", "w") as f:
-    #     yaml.dump(get_model_spec(artifact_path), f)
+    # Save model specification
+    with open(tmp_path / "model_specification.yaml", "w") as f:
+        yaml.dump(get_vv_model_spec(artifact_path), f)
 
     return tmp_path
+
+
+def get_vv_model_spec(artifact_path: Path) -> dict[str, dict[str, dict[str, str]]]:
+    """Sample model specification for testing."""
+    return {
+        "configuration": {
+            "input_data": {
+                "artifact_path": str(artifact_path),
+            }
+        }
+    }
