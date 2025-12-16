@@ -1108,11 +1108,19 @@ def load_adjusted_birth_counts(
     births.index = births.index.droplevel("location")
     
     # Get death counts
-    
+    if key == data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK:
+        gbd_id = 294  # All causes neonatal mortality
+    else:
+        entity = utilities.get_entity(key)
+        gbd_id = entity.gbd_id
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+    enn_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=gbd_id)
+    lnn_deaths = extra_gbd.get_deaths(age_group_id=3, gbd_id=gbd_id)
+    acmr_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=294)
 
     beginning_of_age_group_pop = pd.concat(enn_pop, lnn_pop)
     return beginning_of_age_group_pop
-)
+
 
 def load_azithromycin_facility_probability(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
