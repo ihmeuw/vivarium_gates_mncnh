@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     setup_requires = ["setuptools_scm"]
 
-    data_requirements = ["vivarium_inputs>=5.0.5"]
+    data_requirements = ["vivarium_inputs>=7.1.4"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
     test_requirements = [
         "vivarium_dependencies[pytest]",
