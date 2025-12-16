@@ -61,6 +61,7 @@ def get_data(
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
         data_keys.POPULATION.BIRTH_RATE: load_birth_rate,
+        data_keys.POPULATION.ALL_CAUSE_ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.PREGNANCY.ASFR: load_asfr,
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
@@ -93,8 +94,11 @@ def get_data(
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
         data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.PRETERM_BIRTH.MORTALITY_RISK: load_mortality_risk,
+        data_keys.PRETERM_BIRTH.ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
+        data_keys.NEONATAL_SEPSIS.ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
+        data_keys.NEONATAL_ENCEPHALOPATHY.ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION: load_facility_proportion,
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
@@ -1101,6 +1105,24 @@ def load_mortality_risk(
     )
     return mortality_risk
 
+
+def load_adjusted_birth_counts(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load birth counts adjusted for by deaths for the late neonatal age group. This is the 
+    population at the beginning of each neonatal age group. """
+    births = extra_gbd.get_birth_counts(location)
+    births = vi_utils.scrub_gbd_conventions(births, location)
+    births = vi_utils.split_interval(
+        births, interval_column="year", split_column_prefix="year"
+    )
+    births.index = births.index.droplevel("location")
+    
+    # TODO: actually need to have pop for each neonatal mortality risk
+
+    beginning_of_age_group_pop = pd.concat(enn_pop, lnn_pop)
+    return beginning_of_age_group_pop
+)
 
 def load_azithromycin_facility_probability(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
