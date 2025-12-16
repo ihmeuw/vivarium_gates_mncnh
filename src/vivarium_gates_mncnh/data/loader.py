@@ -1073,13 +1073,19 @@ def load_mortality_risk(
     births = vi_utils.split_interval(
         births, interval_column="year", split_column_prefix="year"
     )
-    births.index = births.index.droplevel("location")    
+    births.index = births.index.droplevel("location")
 
     # Early neonatal deaths (all-cause and cause-specific)
     # and cause-specific late neonatal deaths
-    enn_acmr_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=294)
-    enn_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=gbd_id)
-    lnn_deaths = extra_gbd.get_deaths(age_group_id=3, gbd_id=gbd_id)
+    enn_acmr_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=294
+    )
+    enn_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
+    lnn_deaths = get_deaths(
+        age_group_id=3, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
 
     # Build mortality risk dataframe
     enn = enn_deaths.merge(births, left_index=True, right_index=True)
@@ -1098,15 +1104,15 @@ def load_mortality_risk(
 def load_adjusted_birth_counts(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Load birth counts adjusted for by deaths for the late neonatal age group. This is the 
-    population at the beginning of each neonatal age group. """
+    """Load birth counts adjusted for by deaths for the late neonatal age group. This is the
+    population at the beginning of each neonatal age group."""
     births = extra_gbd.get_birth_counts(location)
     births = vi_utils.scrub_gbd_conventions(births, location)
     births = vi_utils.split_interval(
         births, interval_column="year", split_column_prefix="year"
     )
     births.index = births.index.droplevel("location")
-    
+
     # Get death counts
     if key == data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK:
         gbd_id = 294  # All causes neonatal mortality
@@ -1114,9 +1120,15 @@ def load_adjusted_birth_counts(
         entity = utilities.get_entity(key)
         gbd_id = entity.gbd_id
     draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
-    enn_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=gbd_id)
-    lnn_deaths = extra_gbd.get_deaths(age_group_id=3, gbd_id=gbd_id)
-    acmr_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=294)
+    enn_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
+    lnn_deaths = get_deaths(
+        age_group_id=3, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
+    acmr_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=294
+    )
 
     beginning_of_age_group_pop = pd.concat(enn_pop, lnn_pop)
     return beginning_of_age_group_pop
@@ -1648,3 +1660,12 @@ def reshape_to_vivarium_format(df, location):
     df = vi_utils.sort_hierarchical_data(df)
     df.index = df.index.droplevel("location")
     return df
+
+
+def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: int):
+    deaths = extra_gbd.get_mortality_death_counts(
+        location=location, age_group_id=age_group_id, gbd_id=gbd_id
+    )
+    deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[draw_cols]
+    deaths = reshape_to_vivarium_format(deaths, location)
+    return deaths

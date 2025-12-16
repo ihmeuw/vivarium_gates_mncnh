@@ -137,14 +137,3 @@ def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
         measure_id=vi_globals.MEASURES["Deaths"],
     )
     return data
-
-    # Pull early and late neonatal death counts
-    def get_deaths(age_group_id, gbd_id):
-        deaths = get_mortality_death_counts(
-            location=location, age_group_id=age_group_id, gbd_id=gbd_id
-        )
-        deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-            draw_columns
-        ]
-        deaths = reshape_to_vivarium_format(deaths, location)
-        return deaths
