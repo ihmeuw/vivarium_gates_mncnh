@@ -1073,24 +1073,13 @@ def load_mortality_risk(
     births = vi_utils.split_interval(
         births, interval_column="year", split_column_prefix="year"
     )
-    births.index = births.index.droplevel("location")
-
-    # Pull early and late neonatal death counts
-    def get_deaths(age_group_id, gbd_id):
-        deaths = extra_gbd.get_mortality_death_counts(
-            location=location, age_group_id=age_group_id, gbd_id=gbd_id
-        )
-        deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-            draw_columns
-        ]
-        deaths = reshape_to_vivarium_format(deaths, location)
-        return deaths
+    births.index = births.index.droplevel("location")    
 
     # Early neonatal deaths (all-cause and cause-specific)
     # and cause-specific late neonatal deaths
-    enn_acmr_deaths = get_deaths(age_group_id=2, gbd_id=294)
-    enn_deaths = get_deaths(age_group_id=2, gbd_id=gbd_id)
-    lnn_deaths = get_deaths(age_group_id=3, gbd_id=gbd_id)
+    enn_acmr_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=294)
+    enn_deaths = extra_gbd.get_deaths(age_group_id=2, gbd_id=gbd_id)
+    lnn_deaths = extra_gbd.get_deaths(age_group_id=3, gbd_id=gbd_id)
 
     # Build mortality risk dataframe
     enn = enn_deaths.merge(births, left_index=True, right_index=True)
@@ -1118,7 +1107,8 @@ def load_adjusted_birth_counts(
     )
     births.index = births.index.droplevel("location")
     
-    # TODO: actually need to have pop for each neonatal mortality risk
+    # Get death counts
+    
 
     beginning_of_age_group_pop = pd.concat(enn_pop, lnn_pop)
     return beginning_of_age_group_pop
