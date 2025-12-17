@@ -144,7 +144,7 @@ def _create_births_observer_data() -> pd.DataFrame:
 
 
 @pytest.fixture
-def get_births_observer_data() -> pd.DataFrame:
+def births_observer_data() -> pd.DataFrame:
     """Get births observer data for testing."""
     return _create_births_observer_data()
 
@@ -183,7 +183,7 @@ def _create_deaths_observer_data() -> pd.DataFrame:
 
 
 @pytest.fixture
-def get_deaths_observer_data() -> pd.DataFrame:
+def deaths_observer_data() -> pd.DataFrame:
     """Get deaths observer data for testing."""
     return _create_deaths_observer_data()
 
@@ -236,7 +236,7 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
 
 
 @pytest.fixture
-def get_csmrisk_artifact_data() -> pd.DataFrame:
+def csmrisk_artifact_data() -> pd.DataFrame:
     """Get artifact data for testing CSMRisk measure."""
     return _create_csmrisk_artifact_data()
 
@@ -277,19 +277,16 @@ def mncnh_results_dir(tmp_path_factory: TempPathFactory) -> Path:
     for key, data in v_and_v_artifact_keys_mapper().items():
         artifact.write(key, data)
 
-    # Save model specification
-    with open(tmp_path / "model_specification.yaml", "w") as f:
-        yaml.dump(get_vv_model_spec(artifact_path), f)
-
-    return tmp_path
-
-
-def get_vv_model_spec(artifact_path: Path) -> dict[str, dict[str, dict[str, str]]]:
-    """Sample model specification for testing."""
-    return {
+    model_spec = {
         "configuration": {
             "input_data": {
                 "artifact_path": str(artifact_path),
             }
         }
     }
+
+    # Save model specification
+    with open(tmp_path / "model_specification.yaml", "w") as f:
+        yaml.dump(model_spec, f)
+
+    return tmp_path

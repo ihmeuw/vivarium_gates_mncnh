@@ -4,7 +4,7 @@ from vivarium_gates_mncnh.validation.measures import NeonatalCauseSpecificMortal
 
 
 def test_neonatal_csmr(
-    get_births_observer_data: pd.DataFrame, get_deaths_observer_data: pd.DataFrame
+    births_observer_data: pd.DataFrame, deaths_observer_data: pd.DataFrame
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
@@ -17,8 +17,8 @@ def test_neonatal_csmr(
     }
 
     ratio_datasets = measure.get_ratio_datasets_from_sim(
-        numerator_data=get_deaths_observer_data,
-        denominator_data=get_births_observer_data,
+        numerator_data=deaths_observer_data,
+        denominator_data=births_observer_data,
     )
     measure_data_from_ratio = measure.get_measure_data_from_ratio(**ratio_datasets)
     expected = ratio_datasets["numerator_data"] / ratio_datasets["denominator_data"]
@@ -26,13 +26,13 @@ def test_neonatal_csmr(
 
 
 def test_neonatal_csmr__adjust_births_by_age_group(
-    get_births_observer_data: pd.DataFrame,
-    get_deaths_observer_data: pd.DataFrame,
+    births_observer_data: pd.DataFrame,
+    deaths_observer_data: pd.DataFrame,
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
-    deaths = measure.numerator.format_dataset(get_deaths_observer_data)
-    births = measure.denominator.format_dataset(get_births_observer_data)
+    deaths = measure.numerator.format_dataset(deaths_observer_data)
+    births = measure.denominator.format_dataset(births_observer_data)
 
     adjusted_births = measure._adjust_births_by_age_group(
         deaths=deaths,
@@ -61,7 +61,7 @@ def test_neonatal_csmr__adjust_births_by_age_group(
 
 
 def test_neonatal_csmr_sim_input_datasets(
-    v_and_v_artifact_keys_mapper, get_csmrisk_artifact_data
+    v_and_v_artifact_keys_mapper, csmrisk_artifact_data
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
@@ -71,4 +71,4 @@ def test_neonatal_csmr_sim_input_datasets(
     artifact_data = measure.get_measure_data_from_sim_inputs(
         **{"data": v_and_v_artifact_keys_mapper[artifact_key]}
     )
-    assert artifact_data.equals(get_csmrisk_artifact_data)
+    assert artifact_data.equals(csmrisk_artifact_data)
