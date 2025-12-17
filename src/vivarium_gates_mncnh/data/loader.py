@@ -1136,7 +1136,7 @@ def load_adjusted_birth_counts(
     lnn_pop = population_array - acmr_deaths[draw_columns]
     # Update age_start and age_end for late neonatal
     lnn_pop.index = lnn_deaths.index
-    beginning_of_age_group_pop = pd.concat(enn_pop, lnn_pop)
+    beginning_of_age_group_pop = pd.concat([enn_pop, lnn_pop])
     return beginning_of_age_group_pop
 
 
