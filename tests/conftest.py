@@ -245,15 +245,17 @@ def _create_adjusted_births_artifact_data() -> pd.DataFrame:
     """Create artifact data for testing AdjustedBirths measure."""
     return pd.DataFrame(
         {
-            "value": [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0],
+            "value": [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0] * 2,
         },
         index=pd.MultiIndex.from_product(
-            ["Male", "Female"],
-            [0, round(7 / 365.0, 8)],
-            [round(7 / 365.0, 8), round(28 / 365.0, 8)],
-            [2023],
-            [2024],
-            [0, 1],
+            [
+                ["Male", "Female"],
+                [0, round(7 / 365.0, 8)],
+                [round(7 / 365.0, 8), round(28 / 365.0, 8)],
+                [2023],
+                [2024],
+                [0, 1],
+            ],
             names=[
                 "child_sex",
                 "child_age_start",

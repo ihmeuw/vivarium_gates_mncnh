@@ -72,3 +72,15 @@ def test_neonatal_csmr_sim_input_datasets(
         **{"data": v_and_v_artifact_keys_mapper[artifact_key]}
     )
     assert artifact_data.equals(csmrisk_artifact_data)
+
+
+def test_neonatal_csmr_aggregated_weights(adjusted_births_artifact_data) -> None:
+    cause = "neonatal_testing"
+    measure = NeonatalCauseSpecificMortalityRisk(cause)
+    artifact_key = "cause.neonatal_testing.adjusted_birth_counts"
+    assert measure.rate_aggregation_weights.weight_keys == {"adjusted_births": artifact_key}
+
+    weights = measure.rate_aggregation_weights.get_weights(
+        adjusted_births=adjusted_births_artifact_data
+    )
+    assert weights.equals(adjusted_births_artifact_data)
