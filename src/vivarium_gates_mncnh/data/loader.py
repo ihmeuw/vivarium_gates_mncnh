@@ -1086,7 +1086,7 @@ def load_mortality_risk(
     # Build mortality risk dataframe
     deaths = pd.concat([enn_deaths, lnn_deaths])
     beginning_of_age_group_pop = get_data(
-        f"{key.string.split('.')[0]}.{key.string.split('.')[1]}.adjusted_birth_counts",
+        f"{key.split('.')[0]}.{key.split('.')[1]}.adjusted_birth_counts",
         location,
         years,
     )
