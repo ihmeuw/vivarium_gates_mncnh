@@ -4,7 +4,7 @@ from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SE
 from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
 
 
-def test_births_formatter(get_births_observer_data: pd.DataFrame) -> None:
+def test_births_formatter(births_observer_data: pd.DataFrame) -> None:
     """Test Births formatter."""
 
     formatter = LiveBirths([])
@@ -59,11 +59,11 @@ def test_births_formatter(get_births_observer_data: pd.DataFrame) -> None:
     )
 
     pd.testing.assert_frame_equal(
-        formatter.format_dataset(get_births_observer_data), expected_dataframe
+        formatter.format_dataset(births_observer_data), expected_dataframe
     )
 
 
-def test_deaths_formatter(get_deaths_observer_data: pd.DataFrame) -> None:
+def test_deaths_formatter(deaths_observer_data: pd.DataFrame) -> None:
     """Test Deaths formatter."""
 
     cause = "neonatal_testing"
@@ -74,9 +74,7 @@ def test_deaths_formatter(get_deaths_observer_data: pd.DataFrame) -> None:
     assert formatter.unused_columns == ["measure", "entity_type", "entity", "sub_entity"]
     assert formatter.filters == {"sub_entity": ["total"]}
 
-    expected = get_deaths_observer_data.copy().droplevel(
+    expected = deaths_observer_data.copy().droplevel(
         ["measure", "entity_type", "entity", "sub_entity"]
     )
-    pd.testing.assert_frame_equal(
-        formatter.format_dataset(get_deaths_observer_data), expected
-    )
+    pd.testing.assert_frame_equal(formatter.format_dataset(deaths_observer_data), expected)
