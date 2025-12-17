@@ -43,6 +43,7 @@ components:
             - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
             - OralIronEffectsOnGestationalAge()
             - IVIronExposure()
+            - IVIronEffectOnHemoglobin()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -75,7 +76,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model24.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model24.2/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -125,6 +126,7 @@ configuration:
                 - 'anc_coverage'
                 - 'preterm_birth'
                 - 'oral_iron_coverage'
+                - 'iv_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
