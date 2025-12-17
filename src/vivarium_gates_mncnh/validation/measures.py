@@ -34,7 +34,6 @@ class NeonatalCauseSpecificMortalityRates(RatioMeasure):
 
     @utils.check_io(data=SingleNumericColumn, out=SingleNumericColumn)
     def get_measure_data_from_sim_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
-        # TODO: verify this is correct
         return data
 
     @utils.check_io(
