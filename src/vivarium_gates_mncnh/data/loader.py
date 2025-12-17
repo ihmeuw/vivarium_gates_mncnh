@@ -1075,11 +1075,7 @@ def load_mortality_risk(
     )
     births.index = births.index.droplevel("location")
 
-    # Early neonatal deaths (all-cause and cause-specific)
-    # and cause-specific late neonatal deaths
-    enn_acmr_deaths = get_deaths(
-        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=294
-    )
+    # Early neonatal and late neonatal cause specific deaths
     enn_deaths = get_deaths(
         age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
     )
@@ -1088,16 +1084,14 @@ def load_mortality_risk(
     )
 
     # Build mortality risk dataframe
-    enn = enn_deaths.merge(births, left_index=True, right_index=True)
-    enn_mortality_risk = enn.filter(like="draw").div(enn.population, axis=0)
-    # Get denominator for late neonatal mortality risk
-    population_array = np.array(enn["population"]).reshape(-1, 1)
-    denominator = population_array - enn_acmr_deaths[draw_columns]
-    denominator = denominator.droplevel(["age_start", "age_end"])
-    lnn_mortality_risk = lnn_deaths / denominator
-    mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk]).reorder_levels(
-        ["sex", "age_start", "age_end", "year_start", "year_end"]
+    deaths = pd.concat([enn_deaths, lnn_deaths])
+    beginning_of_age_group_pop = get_data(
+        f"{key.string.split('.')[0]}.{key.string.split('.')[1]}.adjusted_birth_counts",
+        location,
+        years,
     )
+
+    mortality_risk = deaths / beginning_of_age_group_pop
     return mortality_risk
 
 
@@ -1130,6 +1124,18 @@ def load_adjusted_birth_counts(
         age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=294
     )
 
+    enn = enn_deaths.merge(births, left_index=True, right_index=True)
+    enn_pop = enn.copy()
+    # Set all draw columns to the population value (vectorized operation)
+    for col in draw_columns:
+        enn_pop[col] = enn_pop["population"]
+    # Drop the population column
+    enn_pop = enn_pop.drop(columns=["population"])
+    # Get denominator for late neonatal mortality risk
+    population_array = np.array(enn["population"]).reshape(-1, 1)
+    lnn_pop = population_array - acmr_deaths[draw_columns]
+    # Update age_start and age_end for late neonatal
+    lnn_pop.index = lnn_deaths.index
     beginning_of_age_group_pop = pd.concat(enn_pop, lnn_pop)
     return beginning_of_age_group_pop
 
