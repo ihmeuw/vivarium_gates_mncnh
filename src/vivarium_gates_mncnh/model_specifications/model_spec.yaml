@@ -42,6 +42,8 @@ components:
             - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
             - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
             - OralIronEffectsOnGestationalAge()
+            - IVIronExposure()
+            - IVIronEffectOnHemoglobin()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -124,6 +126,7 @@ configuration:
                 - 'anc_coverage'
                 - 'preterm_birth'
                 - 'oral_iron_coverage'
+                - 'iv_iron_coverage'
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'

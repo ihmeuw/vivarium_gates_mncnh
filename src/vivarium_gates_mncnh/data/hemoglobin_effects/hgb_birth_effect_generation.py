@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import scipy
-from vivarium import Artifact, InteractiveContext
+from vivarium import Artifact
 
 from vivarium_gates_mncnh.constants import metadata
 
@@ -124,18 +124,12 @@ def load_prepped_rrs(outcome):
     """Load relative risks of hemoglobin on specific outcome that are:
     - rescaled to a tmrel of 120 g/L,
     - interpolated to the exposure levels used in GBD,
-    - reordered by magnitude of risk at the lowest exposure level,
-    - and scale up to 500 draws by duplicating existing draws."""
+    - reordered by magnitude of risk at the lowest exposure level"""
     rrs = load_bop_rrs(outcome)
     exposure_levels = get_gbd_exposure_levels()
     rrs = convert_rrs_to_gbd_exposure(rrs, exposure_levels)
     rrs["outcome"] = outcome
     rrs = transform_and_reorder_rrs(rrs, exposure_levels)
-    rrs_copy = rrs.copy().set_index([x for x in rrs.columns if "draw" not in x])
-    assert len(rrs_copy.columns) == 250, f"Expected 250 draws but got {len(rrs_copy.columns)}"
-    rrs_copy.columns = [int(col.replace("draw_", "")) for col in rrs_copy.columns]
-    rrs_copy.columns = [f"draw_{i + 250}" for i in rrs_copy.columns]
-    rrs = rrs.merge(rrs_copy.reset_index(), on=[x for x in rrs.columns if "draw" not in x])
     return rrs
 
 

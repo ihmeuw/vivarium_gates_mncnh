@@ -171,6 +171,7 @@ class __Columns(NamedTuple):
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
+    IV_IRON_INTERVENTION = "iv_iron_intervention"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     POSTPARTUM_DEPRESSION_CASE_TYPE = "postpartum_depression_case_type"
     POSTPARTUM_DEPRESSION_CASE_DURATION = "postpartum_depression_case_duration"
@@ -509,7 +510,7 @@ RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
     "maternal_hypertensive_disorders",  # 369
     "gestational_diabetes",  # 1118
     "peripartum_cardiomyopathy",  # 1119
-    "other_direct_maternal_disorders",  # 379
+    "other_direct_maternal_disorders_internal",  # 379
     "indirect_maternal_deaths",  # 375
     "late_maternal_deaths",  # 376
     "maternal_deaths_aggravated_by_hiv_aids",  # 741

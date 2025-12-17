@@ -19,6 +19,7 @@ from vivarium_gates_mncnh.constants import data_keys, data_values, models
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     COLUMNS,
+    HEMOGLOBIN_TEST_RESULTS,
     INTERVENTIONS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
@@ -322,7 +323,11 @@ class OralIronEffectOnHemoglobin(Component):
 
     @property
     def columns_required(self) -> list[str]:
-        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.ANC_ATTENDANCE]
+        return [
+            COLUMNS.ORAL_IRON_INTERVENTION,
+            COLUMNS.ANC_ATTENDANCE,
+            COLUMNS.IV_IRON_INTERVENTION,
+        ]
 
     #################
     # Setup methods #
@@ -338,7 +343,7 @@ class OralIronEffectOnHemoglobin(Component):
 
         builder.value.register_value_modifier(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
-            self.update_hemoglobin_exposure,
+            self.apply_oral_iron_to_hemoglobin,
             requires_columns=self.columns_created,
         )
 
@@ -346,7 +351,7 @@ class OralIronEffectOnHemoglobin(Component):
     # Pipeline sources and modifiers #
     ##################################
 
-    def update_hemoglobin_exposure(
+    def apply_oral_iron_to_hemoglobin(
         self, index: pd.Index, exposure: pd.Series[float]
     ) -> pd.Series[float]:
         pop = self.population_view.get(index)
@@ -363,10 +368,14 @@ class OralIronEffectOnHemoglobin(Component):
         oral_iron_covered = (
             pop[COLUMNS.ORAL_IRON_INTERVENTION] != models.ORAL_IRON_INTERVENTION.NO_TREATMENT
         )
+        iv_iron_covered = (
+            pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        )
 
         needs_first_trimester_update = has_first_trimester_anc & oral_iron_covered
-        # TODO: add boolean check for IV iron coverage when implemented
-        needs_later_pregnancy_update = has_later_pregnancy_anc & oral_iron_covered
+        needs_later_pregnancy_update = (
+            has_later_pregnancy_anc & oral_iron_covered & ~iv_iron_covered
+        )
 
         exposure.loc[needs_first_trimester_update] += self.ifa_effect_size
         exposure.loc[needs_later_pregnancy_update] += self.ifa_effect_size
@@ -660,3 +669,92 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
         mms_effect = self.calculate_raw_effect(excess_shift, index)
 
         return ifa_shifted_gestational_age + mms_effect
+
+
+class IVIronExposure(Component):
+    @property
+    def columns_created(self) -> list[str]:
+        return [COLUMNS.IV_IRON_INTERVENTION]
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.ANC_ATTENDANCE, COLUMNS.TESTED_HEMOGLOBIN, COLUMNS.TESTED_FERRITIN]
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.scenario = builder.configuration.intervention.scenario
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        iv_iron_intervention = pd.DataFrame(
+            {
+                COLUMNS.IV_IRON_INTERVENTION: pd.NA,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(iv_iron_intervention)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            return
+
+        pop = self.population_view.get(event.index)
+        pop[COLUMNS.IV_IRON_INTERVENTION] = models.IV_IRON_INTERVENTION.UNCOVERED
+
+        # IV iron coverage is either 0 or 100%
+        if INTERVENTION_SCENARIOS[self.scenario].iv_iron_coverage == "full":
+            attends_later_pregnancy_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
+                [
+                    ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+                ]
+            )
+            tested_low_hemoglobin = (
+                pop[COLUMNS.TESTED_HEMOGLOBIN] == HEMOGLOBIN_TEST_RESULTS.LOW
+            )
+            tested_low_ferritin = pop[COLUMNS.TESTED_FERRITIN] == HEMOGLOBIN_TEST_RESULTS.LOW
+
+            gets_iv_iron = (
+                attends_later_pregnancy_anc & tested_low_hemoglobin & tested_low_ferritin
+            )
+            pop.loc[
+                gets_iv_iron, COLUMNS.IV_IRON_INTERVENTION
+            ] = models.IV_IRON_INTERVENTION.COVERED
+
+        self.population_view.update(pop)
+
+
+class IVIronEffectOnHemoglobin(Component):
+    """IV iron effect on hemoglobin."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.IV_IRON_INTERVENTION]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self.iv_iron_on_hemoglobin_effect_size = (
+            builder.data.load(data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE).reset_index().value[0]
+        )
+
+        builder.value.register_value_modifier(
+            PIPELINES.HEMOGLOBIN_EXPOSURE,
+            self.apply_iv_iron_to_hemoglobin,
+            requires_columns=self.columns_created,
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def apply_iv_iron_to_hemoglobin(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        pop = self.population_view.get(index)
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        exposure.loc[has_iv_iron] += self.iv_iron_on_hemoglobin_effect_size
+
+        return exposure
