@@ -1130,7 +1130,9 @@ def load_adjusted_birth_counts(
     for col in draw_columns:
         enn_pop[col] = enn_pop["population"]
     # Drop the population column
-    enn_pop = enn_pop.drop(columns=["population"])
+    enn_pop = enn_pop.drop(columns=["population"]).reorder_levels(
+        ["sex", "age_start", "age_end", "year_start", "year_end"]
+    )
     # Get denominator for late neonatal mortality risk
     population_array = np.array(enn["population"]).reshape(-1, 1)
     lnn_pop = population_array - acmr_deaths[draw_columns]
