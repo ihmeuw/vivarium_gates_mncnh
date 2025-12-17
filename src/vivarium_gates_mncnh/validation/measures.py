@@ -15,19 +15,19 @@ from vivarium_testing_utils.automated_validation.data_transformation.rate_aggreg
 from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
 
 
-class NeonatalCauseSpecificMortalityRates(RatioMeasure):
+class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
     """Computes cause-specific mortality rate in the population."""
 
     @property
     def rate_aggregation_weights(self) -> RateAggregationWeights:
         """Returns rate aggregated weights."""
-        raise NotImplementedError  # MIC-6675
+        raise NotImplementedError  # MIC-6688
 
     def __init__(self, cause: str) -> None:
         super().__init__(
             entity_type="cause",
             entity=cause,
-            measure="cause_specific_mortality_rate",
+            measure="cause_specific_mortality_risk",
             numerator=CauseDeaths(cause),
             denominator=LiveBirths([]),
         )
