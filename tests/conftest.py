@@ -143,7 +143,7 @@ def _create_births_observer_data() -> pd.DataFrame:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def births_observer_data() -> pd.DataFrame:
     """Get births observer data for testing."""
     return _create_births_observer_data()
@@ -182,7 +182,7 @@ def _create_deaths_observer_data() -> pd.DataFrame:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def deaths_observer_data() -> pd.DataFrame:
     """Get deaths observer data for testing."""
     return _create_deaths_observer_data()
@@ -235,7 +235,7 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def csmrisk_artifact_data() -> pd.DataFrame:
     """Get artifact data for testing CSMRisk measure."""
     return _create_csmrisk_artifact_data()
@@ -268,7 +268,7 @@ def _create_adjusted_births_artifact_data() -> pd.DataFrame:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def adjusted_births_artifact_data() -> pd.DataFrame:
     """Get artifact data for testing AdjustedBirths measure."""
     return _create_adjusted_births_artifact_data()
