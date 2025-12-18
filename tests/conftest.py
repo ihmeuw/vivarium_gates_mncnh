@@ -152,7 +152,7 @@ def _create_births_observer_data() -> pd.DataFrame:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def births_observer_data() -> pd.DataFrame:
     """Get births observer data for testing."""
     return _create_births_observer_data()
@@ -191,7 +191,7 @@ def _create_deaths_observer_data() -> pd.DataFrame:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def deaths_observer_data() -> pd.DataFrame:
     """Get deaths observer data for testing."""
     return _create_deaths_observer_data()
@@ -234,8 +234,8 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
             ],
             names=[
                 "child_sex",
-                "child_age_group_start",
-                "child_age_group_end",
+                "child_age_start",
+                "child_age_end",
                 "year_start",
                 "year_end",
                 DRAW_INDEX,
@@ -244,19 +244,54 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def csmrisk_artifact_data() -> pd.DataFrame:
     """Get artifact data for testing CSMRisk measure."""
     return _create_csmrisk_artifact_data()
+
+
+def _create_adjusted_births_artifact_data() -> pd.DataFrame:
+    """Create artifact data for testing AdjustedBirths measure."""
+    return pd.DataFrame(
+        {
+            "value": [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0] * 2,
+        },
+        index=pd.MultiIndex.from_product(
+            [
+                ["Male", "Female"],
+                [0, round(7 / 365.0, 8)],
+                [round(7 / 365.0, 8), round(28 / 365.0, 8)],
+                [2023],
+                [2024],
+                [0, 1],
+            ],
+            names=[
+                "child_sex",
+                "child_age_start",
+                "child_age_end",
+                "year_start",
+                "year_end",
+                DRAW_INDEX,
+            ],
+        ),
+    )
+
+
+@pytest.fixture(scope="session")
+def adjusted_births_artifact_data() -> pd.DataFrame:
+    """Get artifact data for testing AdjustedBirths measure."""
+    return _create_adjusted_births_artifact_data()
 
 
 @pytest.fixture(scope="session")
 def v_and_v_artifact_keys_mapper() -> dict[str, str | pd.DataFrame]:
     """Create a mapping of artifact keys to DataFrames for testing."""
     csmrisk = _create_csmrisk_artifact_data()
+    adjusted_births = _create_adjusted_births_artifact_data()
     return {
         "cause.neonatal_testing.cause_specific_mortality_risk": csmrisk,
         "population.location": "Ethiopia",
+        "cause.neonatal_testing.adjusted_birth_counts": adjusted_births,
     }
 
 
