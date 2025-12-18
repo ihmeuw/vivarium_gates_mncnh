@@ -26,3 +26,5 @@ FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
 )
 
 FERRITIN_TESTING_COVERAGE_DATA_DIR = CLUSTER_DATA_DIR / "ferritin_testing_coverage"
+
+STILLBIRTH_RATIO_24_WKS_CSV = "/snfs1/Project/simulation_science/mnch_grant/MNCNH portfolio/stillbirth_livebirth_ratio_24wks.csv"

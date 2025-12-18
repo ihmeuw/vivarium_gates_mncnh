@@ -265,11 +265,20 @@ def load_sbr(
 ) -> pd.DataFrame:
     year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
 
-    sbr = load_standard_data(key, location)
-    lower_value = sbr.loc[(year_start, year_end, "lower_value"), "value"]
-    mean_value = sbr.loc[(year_start, year_end, "mean_value"), "value"]
-    upper_value = sbr.loc[(year_start, year_end, "upper_value"), "value"]
-    sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
+    data = pd.read_csv(paths.STILLBIRTH_RATIO_24_WKS_CSV)
+    location_id = utility_data.get_location_id(location)
+    data = data.loc[data["location_id"] == location_id]
+    data = data.loc[data["year_id"] == metadata.ARTIFACT_YEAR_START].rename(
+        {"year_id": "year_start"}, axis=1
+    )
+    data["year_end"] = metadata.ARTIFACT_YEAR_END
+
+    data = data.drop(["age_group_id", "sex_id", "location_id"], axis=1)
+    data = data.set_index(["year_start", "year_end"])
+
+    lower_value = data.loc[(year_start, year_end), "lower_value"]
+    mean_value = data.loc[(year_start, year_end), "mean_value"]
+    upper_value = data.loc[(year_start, year_end), "upper_value"]
 
     sbr_dist = get_truncnorm(
         mean=mean_value,
@@ -1580,7 +1589,10 @@ def load_hemoglobin_paf(
     # we are pulling PAF data for deaths to define incidence risk
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
-    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+    ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
     # Expand draw columns from 0-99 to 0-499 by repeating 5 times
