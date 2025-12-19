@@ -280,7 +280,7 @@ def v_and_v_artifact_keys_mapper() -> dict[str, str | pd.DataFrame]:
     csmrisk = _create_csmrisk_artifact_data()
     adjusted_births = _create_adjusted_births_artifact_data()
     return {
-        "cause.neonatal_testing.cause_specific_mortality_risk": csmrisk,
+        "cause.neonatal_testing.mortality_risk": csmrisk,
         "population.location": "Ethiopia",
         "cause.neonatal_testing.adjusted_birth_counts": adjusted_births,
     }

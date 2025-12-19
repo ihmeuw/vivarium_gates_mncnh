@@ -33,7 +33,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
         super().__init__(
             entity_type="cause",
             entity=cause,
-            measure="cause_specific_mortality_risk",
+            measure="mortality_risk",
             numerator=CauseDeaths(cause),
             denominator=LiveBirths([]),
         )
