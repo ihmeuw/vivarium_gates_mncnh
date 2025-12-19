@@ -60,12 +60,20 @@ class Hemoglobin(Risk):
             self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
         )
 
+    def on_time_step_prepare(self, event: Event) -> None:
+        pass
+
     def on_time_step_cleanup(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
-            return
+        # Update state table values
+        hemoglobin_exposure = self.exposure(event.index)
         pop = self.population_view.get(event.index)
-        pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
+
+        pop[self.exposure_column_name] = hemoglobin_exposure
         self.population_view.update(pop)
+
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = hemoglobin_exposure
+            self.population_view.update(pop)
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):
