@@ -58,9 +58,9 @@ if __name__ == "__main__":
 
     data_requirements = ["vivarium_inputs>=7.1.4"]
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
-    test_requirements = [
-        "vivarium_dependencies[pytest]",
-        "vivarium_testing_utils[validation] @ git+https://github.com/ihmeuw/vivarium_testing_utils.git@epic/mncnh-vv",
+    test_requirements = ["vivarium_dependencies[pytest]"]
+    validation_requirements = [
+        "vivarium_testing_utils[validation] @ git+https://github.com/ihmeuw/vivarium_testing_utils.git@epic/mncnh-vv"
     ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
@@ -82,9 +82,10 @@ if __name__ == "__main__":
         include_package_data=True,
         install_requires=install_requirements,
         extras_require={
+            "validation": validation_requirements,
             "test": test_requirements,
             "cluster": cluster_requirements,
-            "data": data_requirements + cluster_requirements,
+            "data": data_requirements + cluster_requirements + validation_requirements,
             "interactive": interactive_requirements,
             "dev": test_requirements
             + cluster_requirements
