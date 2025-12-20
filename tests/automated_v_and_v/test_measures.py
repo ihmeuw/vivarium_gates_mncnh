@@ -8,8 +8,8 @@ def test_neonatal_csmr(
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
-    assert measure.measure_key == f"cause.{cause}.cause_specific_mortality_risk"
-    assert measure.title == "Neonatal Testing Cause Specific Mortality Risk"
+    assert measure.measure_key == f"cause.{cause}.mortality_risk"
+    assert measure.title == "Neonatal Testing Mortality Risk"
     assert measure.sim_input_datasets == {"data": measure.measure_key}
     assert measure.sim_output_datasets == {
         "numerator_data": f"{cause}_death_counts",
@@ -66,7 +66,7 @@ def test_neonatal_csmr_sim_input_datasets(
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
-    artifact_key = "cause.neonatal_testing.cause_specific_mortality_risk"
+    artifact_key = "cause.neonatal_testing.mortality_risk"
     assert measure.artifact_key == artifact_key
     assert measure.sim_input_datasets == {"data": measure.artifact_key}
     artifact_data = measure.get_measure_data_from_sim_inputs(
