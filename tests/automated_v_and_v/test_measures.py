@@ -88,3 +88,21 @@ def test_neonatal_csmr_aggregated_weights(
         adjusted_births=adjusted_births_artifact_data
     )
     assert weights.equals(adjusted_births_artifact_data)
+
+
+def test_neonatal_csmr_map_sim_input_datasets(
+    v_and_v_artifact_keys_mapper: dict[str, pd.DataFrame | str],
+) -> None:
+    cause = "neonatal_testing"
+    measure = NeonatalCauseSpecificMortalityRisk(cause)
+    artifact_key = "cause.neonatal_testing.mortality_risk"
+    sim_input_data = v_and_v_artifact_keys_mapper[artifact_key]
+    assert "child_age_start" in sim_input_data.index.names
+    assert "child_age_end" in sim_input_data.index.names
+    assert "child_sex" in sim_input_data.index.names
+
+    mapped_data = measure.get_measure_data_from_sim_inputs(data=sim_input_data)
+    expected_data = map_child_index_levels(sim_input_data)
+    pd.testing.assert_frame_equal(mapped_data, expected_data)
+    for level in mapped_data.index.names:
+        assert not level.startswith("child_")

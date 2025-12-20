@@ -13,6 +13,7 @@ from vivarium_testing_utils.automated_validation.data_transformation.rate_aggreg
 )
 
 from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
 
 class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
@@ -40,7 +41,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
 
     @utils.check_io(data=SingleNumericColumn, out=SingleNumericColumn)
     def get_measure_data_from_sim_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
-        return data
+        return map_child_index_levels(data)
 
     @utils.check_io(
         numerator_data=SimOutputData,
