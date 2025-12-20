@@ -1,5 +1,6 @@
 import pandas as pd
 
+from vivarium_gates_mncnh.validation.formatting import map_child_index_levels
 from vivarium_gates_mncnh.validation.measures import NeonatalCauseSpecificMortalityRisk
 
 
@@ -22,7 +23,7 @@ def test_neonatal_csmr(
     )
     measure_data_from_ratio = measure.get_measure_data_from_ratio(**ratio_datasets)
     expected = ratio_datasets["numerator_data"] / ratio_datasets["denominator_data"]
-    pd.testing.assert_frame_equal(measure_data_from_ratio, expected)
+    pd.testing.assert_frame_equal(measure_data_from_ratio, map_child_index_levels(expected))
 
 
 def test_neonatal_csmr__adjust_births_by_age_group(
@@ -40,20 +41,20 @@ def test_neonatal_csmr__adjust_births_by_age_group(
     )
 
     # Test 1: child_age_group should be added to adjusted_births
-    assert "child_age_group" in adjusted_births.index.names
-    assert "child_age_group" not in births.index.names
+    assert "age_group" in adjusted_births.index.names
+    assert "age_group" not in births.index.names
 
     # Early neonatal births equals original births
-    enn_mask = adjusted_births.index.get_level_values("child_age_group") == "early_neonatal"
-    enn_births = adjusted_births.loc[enn_mask].droplevel("child_age_group")
+    enn_mask = adjusted_births.index.get_level_values("age_group") == "early_neonatal"
+    enn_births = adjusted_births.loc[enn_mask].droplevel("age_group")
     pd.testing.assert_frame_equal(enn_births, births.loc[enn_births.index])
 
     # Late neonatal births equals original births minus early neonatal deaths
-    lnn_mask = adjusted_births.index.get_level_values("child_age_group") == "late_neonatal"
-    lnn_births = adjusted_births.loc[lnn_mask].droplevel("child_age_group")
+    lnn_mask = adjusted_births.index.get_level_values("age_group") == "late_neonatal"
+    lnn_births = adjusted_births.loc[lnn_mask].droplevel("age_group")
     enn_deaths = deaths.loc[
-        deaths.index.get_level_values("child_age_group") == "early_neonatal"
-    ].droplevel("child_age_group")
+        deaths.index.get_level_values("age_group") == "early_neonatal"
+    ].droplevel("age_group")
     # Expected late neonatal births = original births - early neonatal deaths
     common_index = births.index.intersection(lnn_births.index).intersection(enn_deaths.index)
     expected_lnn = births.loc[common_index] - enn_deaths.loc[common_index]

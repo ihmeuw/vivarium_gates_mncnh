@@ -69,9 +69,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
         2. Updates the births dataframe so that the deaths from the early neonatal age group have
         been subtracted from the births of the late neonatal age group."""
 
-        age_group_values = {
-            "child_age_group": deaths.index.get_level_values("child_age_group").unique()
-        }
+        age_group_values = {"age_group": deaths.index.get_level_values("age_group").unique()}
         # Cast age groups onto births
         births = births.reindex(
             pd.MultiIndex.from_product(
@@ -86,10 +84,10 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
 
         # Subtract early neonatal deaths from late neonatal births
         enn_deaths = (
-            deaths.loc[deaths.index.get_level_values("child_age_group") == "early_neonatal"]
-            .droplevel("child_age_group")
+            deaths.loc[deaths.index.get_level_values("age_group") == "early_neonatal"]
+            .droplevel("age_group")
             .values
         )
-        lnn_mask = births.index.get_level_values("child_age_group") == "late_neonatal"
+        lnn_mask = births.index.get_level_values("age_group") == "late_neonatal"
         births.loc[lnn_mask] -= enn_deaths
         return births
