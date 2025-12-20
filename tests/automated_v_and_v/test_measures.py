@@ -1,7 +1,7 @@
 import pandas as pd
 
-from vivarium_gates_mncnh.validation.formatting import map_child_index_levels
 from vivarium_gates_mncnh.validation.measures import NeonatalCauseSpecificMortalityRisk
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
 
 def test_neonatal_csmr(

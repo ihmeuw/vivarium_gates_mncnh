@@ -1,11 +1,8 @@
 import pandas as pd
 from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
 
-from vivarium_gates_mncnh.validation.formatting import (
-    CauseDeaths,
-    LiveBirths,
-    map_child_index_levels,
-)
+from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
 
 def test_births_formatter(births_observer_data: pd.DataFrame) -> None:
