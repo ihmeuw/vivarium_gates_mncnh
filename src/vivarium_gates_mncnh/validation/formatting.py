@@ -5,6 +5,8 @@ from vivarium_testing_utils.automated_validation.data_transformation.formatting 
     SimDataFormatter,
 )
 
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
+
 
 class ChildDataFormatter(SimDataFormatter):
     """Base formatter for simulation data for children data outputs."""
@@ -45,15 +47,3 @@ class CauseDeaths(ChildDataFormatter):
             "entity",
             "sub_entity",
         ]
-
-
-def map_child_index_levels(data: pd.DataFrame) -> pd.DataFrame:
-    """Maps index levels that start with 'child_' to remove the prefix."""
-    data = data.rename_axis(
-        index={
-            name: name.replace("child_", "")
-            for name in data.index.names
-            if name and name.startswith("child_")
-        }
-    )
-    return data
