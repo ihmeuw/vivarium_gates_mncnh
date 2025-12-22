@@ -13,6 +13,7 @@ from vivarium_testing_utils.automated_validation.data_transformation.rate_aggreg
 )
 
 from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
 
 class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
@@ -33,14 +34,14 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
         super().__init__(
             entity_type="cause",
             entity=cause,
-            measure="cause_specific_mortality_risk",
+            measure="mortality_risk",
             numerator=CauseDeaths(cause),
             denominator=LiveBirths([]),
         )
 
     @utils.check_io(data=SingleNumericColumn, out=SingleNumericColumn)
     def get_measure_data_from_sim_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
-        return data
+        return map_child_index_levels(data)
 
     @utils.check_io(
         numerator_data=SimOutputData,
@@ -69,9 +70,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
         2. Updates the births dataframe so that the deaths from the early neonatal age group have
         been subtracted from the births of the late neonatal age group."""
 
-        age_group_values = {
-            "child_age_group": deaths.index.get_level_values("child_age_group").unique()
-        }
+        age_group_values = {"age_group": deaths.index.get_level_values("age_group").unique()}
         # Cast age groups onto births
         births = births.reindex(
             pd.MultiIndex.from_product(
@@ -86,10 +85,10 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
 
         # Subtract early neonatal deaths from late neonatal births
         enn_deaths = (
-            deaths.loc[deaths.index.get_level_values("child_age_group") == "early_neonatal"]
-            .droplevel("child_age_group")
+            deaths.loc[deaths.index.get_level_values("age_group") == "early_neonatal"]
+            .droplevel("age_group")
             .values
         )
-        lnn_mask = births.index.get_level_values("child_age_group") == "late_neonatal"
+        lnn_mask = births.index.get_level_values("age_group") == "late_neonatal"
         births.loc[lnn_mask] -= enn_deaths
         return births

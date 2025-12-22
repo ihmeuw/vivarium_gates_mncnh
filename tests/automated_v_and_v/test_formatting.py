@@ -2,6 +2,7 @@ import pandas as pd
 from vivarium_testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
 
 from vivarium_gates_mncnh.validation.formatting import CauseDeaths, LiveBirths
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
 
 def test_births_formatter(births_observer_data: pd.DataFrame) -> None:
@@ -54,7 +55,7 @@ def test_births_formatter(births_observer_data: pd.DataFrame) -> None:
                 ("Female", "B", 1, 0),
                 ("Female", "B", 1, 1),
             ],
-            names=["child_sex", "common_stratify_column", DRAW_INDEX, SEED_INDEX],
+            names=["sex", "common_stratify_column", DRAW_INDEX, SEED_INDEX],
         ),
     )
 
@@ -74,7 +75,25 @@ def test_deaths_formatter(deaths_observer_data: pd.DataFrame) -> None:
     assert formatter.unused_columns == ["measure", "entity_type", "entity", "sub_entity"]
     assert formatter.filters == {"sub_entity": ["total"]}
 
+    # This is implementing the format_dataset method
     expected = deaths_observer_data.copy().droplevel(
         ["measure", "entity_type", "entity", "sub_entity"]
     )
+    expected = map_child_index_levels(expected)
     pd.testing.assert_frame_equal(formatter.format_dataset(deaths_observer_data), expected)
+
+
+def test_child_data_formatter(
+    deaths_observer_data: pd.DataFrame,
+) -> None:
+    """Test ChildDataFormatter removes 'child_' prefix from columns."""
+
+    formatter = CauseDeaths("neonatal_testing")
+    assert "child_age_group" in deaths_observer_data.index.names
+    assert "child_sex" in deaths_observer_data.index.names
+
+    formatted = formatter.format_dataset(deaths_observer_data)
+
+    # Check that no columns start with 'child_'
+    for level in formatted.index.names:
+        assert not level.startswith("child_")
