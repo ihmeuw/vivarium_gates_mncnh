@@ -61,22 +61,26 @@ class Hemoglobin(Risk):
         )
 
     def on_time_step_prepare(self, event: Event) -> None:
-        pass
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.MATERNAL_HEMORRHAGE:
+            return
 
-    def on_time_step_cleanup(self, event: Event) -> None:
-        # Update state table values
         hemoglobin_exposure = self.exposure(event.index)
         pop = self.population_view.get(event.index)
 
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
-            pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = hemoglobin_exposure
-            self.population_view.update(pop)
+        # update hemoglobin state table exposure so we apply hemoglobin effects
+        # on hemorrhage and infections with correct exposure
+        pop[self.exposure_column_name] = hemoglobin_exposure
+        self.population_view.update(pop)
 
-        # update hemoglobin state table exposure right before maternal mortality
-        # so we apply hemoglobin effects on hemorrhage and infections with correct exposure
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.PROBIOTICS_ACCESS:
-            pop[self.exposure_column_name] = hemoglobin_exposure
-            self.population_view.update(pop)
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            return
+
+        hemoglobin_exposure = self.exposure(event.index)
+        pop = self.population_view.get(event.index)
+
+        pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = hemoglobin_exposure
+        self.population_view.update(pop)
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):
