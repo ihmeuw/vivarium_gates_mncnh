@@ -224,7 +224,7 @@ def _create_csmrisk_artifact_data() -> dict[str, pd.DataFrame]:
                 [0, 1],
             ],
             names=[
-                "child_sex",
+                "sex_of_child",
                 "child_age_start",
                 "child_age_end",
                 "year_start",
@@ -257,7 +257,7 @@ def _create_adjusted_births_artifact_data() -> pd.DataFrame:
                 [0, 1],
             ],
             names=[
-                "child_sex",
+                "sex_of_child",
                 "child_age_start",
                 "child_age_end",
                 "year_start",
