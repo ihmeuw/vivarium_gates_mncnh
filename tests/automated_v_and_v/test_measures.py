@@ -1,6 +1,7 @@
 import pandas as pd
 
 from vivarium_gates_mncnh.validation.measures import NeonatalCauseSpecificMortalityRisk
+from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
 
 def test_neonatal_csmr(
@@ -8,8 +9,8 @@ def test_neonatal_csmr(
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
-    assert measure.measure_key == f"cause.{cause}.cause_specific_mortality_risk"
-    assert measure.title == "Neonatal Testing Cause Specific Mortality Risk"
+    assert measure.measure_key == f"cause.{cause}.mortality_risk"
+    assert measure.title == "Neonatal Testing Mortality Risk"
     assert measure.sim_input_datasets == {"data": measure.measure_key}
     assert measure.sim_output_datasets == {
         "numerator_data": f"{cause}_death_counts",
@@ -22,7 +23,7 @@ def test_neonatal_csmr(
     )
     measure_data_from_ratio = measure.get_measure_data_from_ratio(**ratio_datasets)
     expected = ratio_datasets["numerator_data"] / ratio_datasets["denominator_data"]
-    pd.testing.assert_frame_equal(measure_data_from_ratio, expected)
+    pd.testing.assert_frame_equal(measure_data_from_ratio, map_child_index_levels(expected))
 
 
 def test_neonatal_csmr__adjust_births_by_age_group(
@@ -40,20 +41,20 @@ def test_neonatal_csmr__adjust_births_by_age_group(
     )
 
     # Test 1: child_age_group should be added to adjusted_births
-    assert "child_age_group" in adjusted_births.index.names
-    assert "child_age_group" not in births.index.names
+    assert "age_group" in adjusted_births.index.names
+    assert "age_group" not in births.index.names
 
     # Early neonatal births equals original births
-    enn_mask = adjusted_births.index.get_level_values("child_age_group") == "early_neonatal"
-    enn_births = adjusted_births.loc[enn_mask].droplevel("child_age_group")
+    enn_mask = adjusted_births.index.get_level_values("age_group") == "early_neonatal"
+    enn_births = adjusted_births.loc[enn_mask].droplevel("age_group")
     pd.testing.assert_frame_equal(enn_births, births.loc[enn_births.index])
 
     # Late neonatal births equals original births minus early neonatal deaths
-    lnn_mask = adjusted_births.index.get_level_values("child_age_group") == "late_neonatal"
-    lnn_births = adjusted_births.loc[lnn_mask].droplevel("child_age_group")
+    lnn_mask = adjusted_births.index.get_level_values("age_group") == "late_neonatal"
+    lnn_births = adjusted_births.loc[lnn_mask].droplevel("age_group")
     enn_deaths = deaths.loc[
-        deaths.index.get_level_values("child_age_group") == "early_neonatal"
-    ].droplevel("child_age_group")
+        deaths.index.get_level_values("age_group") == "early_neonatal"
+    ].droplevel("age_group")
     # Expected late neonatal births = original births - early neonatal deaths
     common_index = births.index.intersection(lnn_births.index).intersection(enn_deaths.index)
     expected_lnn = births.loc[common_index] - enn_deaths.loc[common_index]
@@ -66,7 +67,7 @@ def test_neonatal_csmr_sim_input_datasets(
 ) -> None:
     cause = "neonatal_testing"
     measure = NeonatalCauseSpecificMortalityRisk(cause)
-    artifact_key = "cause.neonatal_testing.cause_specific_mortality_risk"
+    artifact_key = "cause.neonatal_testing.mortality_risk"
     assert measure.artifact_key == artifact_key
     assert measure.sim_input_datasets == {"data": measure.artifact_key}
     artifact_data = measure.get_measure_data_from_sim_inputs(
@@ -87,3 +88,21 @@ def test_neonatal_csmr_aggregated_weights(
         adjusted_births=adjusted_births_artifact_data
     )
     assert weights.equals(adjusted_births_artifact_data)
+
+
+def test_neonatal_csmr_map_sim_input_datasets(
+    v_and_v_artifact_keys_mapper: dict[str, pd.DataFrame | str],
+) -> None:
+    cause = "neonatal_testing"
+    measure = NeonatalCauseSpecificMortalityRisk(cause)
+    artifact_key = "cause.neonatal_testing.mortality_risk"
+    sim_input_data = v_and_v_artifact_keys_mapper[artifact_key]
+    assert "child_age_start" in sim_input_data.index.names
+    assert "child_age_end" in sim_input_data.index.names
+    assert "child_sex" in sim_input_data.index.names
+
+    mapped_data = measure.get_measure_data_from_sim_inputs(data=sim_input_data)
+    expected_data = map_child_index_levels(sim_input_data)
+    pd.testing.assert_frame_equal(mapped_data, expected_data)
+    for level in mapped_data.index.names:
+        assert not level.startswith("child_")
