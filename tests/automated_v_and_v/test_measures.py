@@ -99,7 +99,7 @@ def test_neonatal_csmr_map_sim_input_datasets(
     sim_input_data = v_and_v_artifact_keys_mapper[artifact_key]
     assert "child_age_start" in sim_input_data.index.names
     assert "child_age_end" in sim_input_data.index.names
-    assert "child_sex" in sim_input_data.index.names
+    assert "sex_of_child" in sim_input_data.index.names
 
     mapped_data = measure.get_measure_data_from_sim_inputs(data=sim_input_data)
     expected_data = map_child_index_levels(sim_input_data)
