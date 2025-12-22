@@ -60,7 +60,7 @@ if __name__ == "__main__":
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
     test_requirements = [
         "vivarium_dependencies[pytest]",
-        "vivarium_testing_utils",
+        "vivarium_testing_utils[validation] @ git+https://github.com/ihmeuw/vivarium_testing_utils.git@epic/mncnh-vv",
     ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
