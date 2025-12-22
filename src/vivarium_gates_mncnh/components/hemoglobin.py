@@ -68,11 +68,14 @@ class Hemoglobin(Risk):
         hemoglobin_exposure = self.exposure(event.index)
         pop = self.population_view.get(event.index)
 
-        pop[self.exposure_column_name] = hemoglobin_exposure
-        self.population_view.update(pop)
-
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
             pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = hemoglobin_exposure
+            self.population_view.update(pop)
+
+        # update hemoglobin state table exposure right before maternal mortality
+        # so we apply hemoglobin effects on hemorrhage and infections with correct exposure
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.PROBIOTICS_ACCESS:
+            pop[self.exposure_column_name] = hemoglobin_exposure
             self.population_view.update(pop)
 
 
