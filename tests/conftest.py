@@ -35,6 +35,38 @@ SIMULATION_STEPS = [
 
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
+    # Notebook testing options
+    parser.addoption(
+        "--notebook-dir",
+        action="store",
+        default=None,
+        help="Directory containing notebooks to test",
+    )
+    parser.addoption(
+        "--results-dir",
+        action="store",
+        default=None,
+        help="Directory for results (passed as parameter to notebooks)",
+    )
+    parser.addoption(
+        "--notebook-kernel",
+        action="store",
+        default=None,
+        help="Kernel name to use for notebook execution",
+    )
+    parser.addoption(
+        "--notebook-timeout",
+        action="store",
+        type=int,
+        default=300,
+        help="Timeout in seconds for notebook execution (default: 300)",
+    )
+    parser.addoption(
+        "--keep-notebooks",
+        action="store_true",
+        default=False,
+        help="Keep executed notebooks instead of cleaning them up",
+    )
 
 
 def pytest_configure(config):
@@ -102,3 +134,15 @@ def is_on_slurm() -> bool:
 
 
 IS_ON_SLURM = is_on_slurm()
+
+
+@pytest.fixture
+def notebook_config(request):
+    """Fixture to provide notebook testing configuration from CLI args."""
+    return {
+        "notebook_directory": request.config.getoption("--notebook-dir"),
+        "results_dir": request.config.getoption("--results-dir"),
+        "kernel_name": request.config.getoption("--notebook-kernel"),
+        "timeout": request.config.getoption("--notebook-timeout"),
+        "cleanup_notebooks": not request.config.getoption("--keep-notebooks"),
+    }
