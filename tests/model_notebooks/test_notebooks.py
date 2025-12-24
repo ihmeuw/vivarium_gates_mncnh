@@ -220,12 +220,14 @@ class NotebookTestRunner:
 # Pytest test functions
 def test_interactive_notebooks(notebook_config):
     """Test all notebooks in the interactive directory."""
-    # Use CLI args if provided, otherwise use defaults
-    notebook_dir = notebook_config["notebook_directory"]
     results_dir = notebook_config["results_dir"]
-    
+
+    # Skip test if results_dir not provided
+    if results_dir is None:
+        pytest.skip("Test skipped: use --results-dir to specify results directory")
+
     runner = NotebookTestRunner(
-        notebook_directory=notebook_dir,
+        notebook_directory="tests/model_notebooks/interactive",
         results_dir=results_dir,
         kernel_name=notebook_config["kernel_name"],
         timeout=notebook_config["timeout"],
@@ -236,12 +238,14 @@ def test_interactive_notebooks(notebook_config):
 
 def test_results_notebooks(notebook_config):
     """Test all notebooks in the results directory."""
-    # Use CLI args if provided, otherwise use defaults
-    notebook_dir = notebook_config["notebook_directory"]
     results_dir = notebook_config["results_dir"]
-    
+
+    # Skip test if results_dir not provided
+    if results_dir is None:
+        pytest.skip("Test skipped: use --results-dir to specify results directory")
+
     runner = NotebookTestRunner(
-        notebook_directory=notebook_dir,
+        notebook_directory="tests/model_notebooks/results",
         results_dir=results_dir,
         kernel_name=notebook_config["kernel_name"],
         timeout=notebook_config["timeout"],
@@ -252,26 +256,23 @@ def test_results_notebooks(notebook_config):
 
 def test_artifact_notebooks(notebook_config):
     """
-    Test notebooks based on CLI arguments only.
+    Test notebooks in the artifact directory.
     
-    This test requires both --notebook-dir and --results-dir to be specified.
-    It will skip if these arguments are not provided.
+    This test requires --results-dir to be specified.
+    It will skip if the argument is not provided.
     
     Usage:
-        pytest tests/model_notebooks/test_notebooks.py::test_notebooks \
-            --notebook-dir=path/to/notebooks --results-dir=path/to/results
+        pytest tests/model_notebooks/test_notebooks.py::test_artifact_notebooks \
+            --results-dir=path/to/results
     """
-    notebook_dir = notebook_config["notebook_directory"]
     results_dir = notebook_config["results_dir"]
-    
-    # Skip test if required arguments not provided
-    if not notebook_dir or not results_dir:
-        pytest.skip(
-            "Test skipped: use --notebook-dir and --results-dir to specify directories"
-        )
-    
+
+    # Skip test if results_dir not provided
+    if results_dir is None:
+        pytest.skip("Test skipped: use --results-dir to specify results directory")
+
     runner = NotebookTestRunner(
-        notebook_directory=notebook_dir,
+        notebook_directory="tests/model_notebooks/artifact",
         results_dir=results_dir,
         kernel_name=notebook_config["kernel_name"],
         timeout=notebook_config["timeout"],

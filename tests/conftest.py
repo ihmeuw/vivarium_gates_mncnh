@@ -37,12 +37,6 @@ def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
     # Notebook testing options
     parser.addoption(
-        "--notebook-dir",
-        action="store",
-        default=None,
-        help="Directory containing notebooks to test",
-    )
-    parser.addoption(
         "--results-dir",
         action="store",
         default=None,
@@ -140,7 +134,6 @@ IS_ON_SLURM = is_on_slurm()
 def notebook_config(request):
     """Fixture to provide notebook testing configuration from CLI args."""
     return {
-        "notebook_directory": request.config.getoption("--notebook-dir"),
         "results_dir": request.config.getoption("--results-dir"),
         "kernel_name": request.config.getoption("--notebook-kernel"),
         "timeout": request.config.getoption("--notebook-timeout"),
