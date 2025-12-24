@@ -6,6 +6,7 @@ from vivarium_gates_mncnh.components.intervention import (
     CPAPAndACSRiskEffect,
     InterventionRiskEffect,
     IVIronEffectOnHemoglobin,
+    IVIronEffectOnLBWSG,
     IVIronExposure,
     OralIronEffectOnHemoglobin,
     OralIronEffectOnStillbirth,
