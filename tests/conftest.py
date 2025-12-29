@@ -33,13 +33,16 @@ SIMULATION_STEPS = [
 ]
 
 
+DEFAULT_RESULTS_DIR = "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/"
+
+
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
     # Notebook testing options
     parser.addoption(
         "--results-dir",
         action="store",
-        default=None,
+        default=DEFAULT_RESULTS_DIR,
         help="Directory for results (passed as parameter to notebooks)",
     )
     parser.addoption(

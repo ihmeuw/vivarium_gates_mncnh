@@ -10,7 +10,7 @@ import papermill as pm
 import pytest
 from loguru import logger
 
-from tests.conftest import IS_ON_SLURM
+from tests.conftest import DEFAULT_RESULTS_DIR, IS_ON_SLURM
 
 
 class NotebookTestRunner:
@@ -223,7 +223,7 @@ def test_interactive_notebooks(notebook_config: dict[str, Any]) -> None:
     results_dir = notebook_config["results_dir"]
 
     # Skip test if results_dir not provided
-    if results_dir is None:
+    if results_dir == DEFAULT_RESULTS_DIR:
         pytest.skip("Test skipped: use --results-dir to specify results directory")
 
     runner = NotebookTestRunner(
@@ -244,7 +244,7 @@ def test_results_notebooks(notebook_config: dict[str, Any]) -> None:
     results_dir = notebook_config["results_dir"]
 
     # Skip test if results_dir not provided
-    if results_dir is None:
+    if results_dir == DEFAULT_RESULTS_DIR:
         pytest.skip("Test skipped: use --results-dir to specify results directory")
 
     runner = NotebookTestRunner(
@@ -274,7 +274,7 @@ def test_artifact_notebooks(notebook_config: dict[str, Any]) -> None:
     results_dir = notebook_config["results_dir"]
 
     # Skip test if results_dir not provided
-    if results_dir is None:
+    if results_dir == DEFAULT_RESULTS_DIR:
         pytest.skip("Test skipped: use --results-dir to specify results directory")
 
     runner = NotebookTestRunner(
