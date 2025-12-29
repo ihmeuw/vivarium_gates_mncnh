@@ -22,7 +22,6 @@ class NotebookTestRunner:
     Attributes:
         notebook_directory: Directory containing notebooks to test
         results_dir: Directory path to inject into notebooks as a parameter
-        kernel_name: Optional kernel name to use for execution
         timeout: Maximum execution time per notebook in seconds
         cleanup_notebooks: Whether to delete executed notebooks after testing
         notebooks_found: List of discovered notebook paths
@@ -34,7 +33,6 @@ class NotebookTestRunner:
         self,
         notebook_directory: str,
         results_dir: str,
-        kernel_name: Optional[str] = None,
         timeout: int = 300,
         cleanup_notebooks: bool = True,
     ):
@@ -44,7 +42,6 @@ class NotebookTestRunner:
         Args:
             notebook_directory: Path to directory containing notebooks to test
             results_dir: Path to results directory (injected as parameter into notebooks)
-            kernel_name: Optional kernel name to use for execution (uses notebook default if None)
             timeout: Maximum execution time per notebook in seconds (default: 300 = 5 minutes)
             cleanup_notebooks: Whether to delete executed notebooks after testing (default: True)
 
@@ -53,7 +50,6 @@ class NotebookTestRunner:
         """
         self.notebook_directory = Path(notebook_directory)
         self.results_dir = Path(results_dir)
-        self.kernel_name = kernel_name
         self.timeout = timeout
         self.cleanup_notebooks = cleanup_notebooks
 
@@ -113,7 +109,6 @@ class NotebookTestRunner:
                 input_path=str(notebook_path),
                 output_path=str(output_path),
                 parameters={"results_dir": str(self.results_dir)},
-                kernel_name=self.kernel_name,
                 execution_timeout=self.timeout,
             )
 
@@ -156,7 +151,6 @@ class NotebookTestRunner:
         logger.info("Starting notebook test run")
         logger.info(f"Notebook directory: {self.notebook_directory}")
         logger.info(f"Results directory: {self.results_dir}")
-        logger.info(f"Kernel: {self.kernel_name or 'notebook default'}")
         logger.info(f"Timeout: {self.timeout} seconds")
         logger.info(f"Cleanup notebooks: {self.cleanup_notebooks}")
 
@@ -229,7 +223,6 @@ def test_interactive_notebooks(notebook_config):
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/interactive",
         results_dir=results_dir,
-        kernel_name=notebook_config["kernel_name"],
         timeout=notebook_config["timeout"],
         cleanup_notebooks=notebook_config["cleanup_notebooks"],
     )
@@ -247,7 +240,6 @@ def test_results_notebooks(notebook_config):
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/results",
         results_dir=results_dir,
-        kernel_name=notebook_config["kernel_name"],
         timeout=notebook_config["timeout"],
         cleanup_notebooks=notebook_config["cleanup_notebooks"],
     )
@@ -274,7 +266,6 @@ def test_artifact_notebooks(notebook_config):
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/artifact",
         results_dir=results_dir,
-        kernel_name=notebook_config["kernel_name"],
         timeout=notebook_config["timeout"],
         cleanup_notebooks=notebook_config["cleanup_notebooks"],
     )

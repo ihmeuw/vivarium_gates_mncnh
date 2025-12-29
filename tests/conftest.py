@@ -43,12 +43,6 @@ def pytest_addoption(parser):
         help="Directory for results (passed as parameter to notebooks)",
     )
     parser.addoption(
-        "--notebook-kernel",
-        action="store",
-        default=None,
-        help="Kernel name to use for notebook execution",
-    )
-    parser.addoption(
         "--notebook-timeout",
         action="store",
         type=int,
@@ -135,7 +129,6 @@ def notebook_config(request):
     """Fixture to provide notebook testing configuration from CLI args."""
     return {
         "results_dir": request.config.getoption("--results-dir"),
-        "kernel_name": request.config.getoption("--notebook-kernel"),
         "timeout": request.config.getoption("--notebook-timeout"),
         "cleanup_notebooks": not request.config.getoption("--keep-notebooks"),
     }
