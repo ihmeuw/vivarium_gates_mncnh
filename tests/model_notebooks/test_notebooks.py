@@ -10,6 +10,8 @@ import papermill as pm
 import pytest
 from loguru import logger
 
+from tests.conftest import IS_ON_SLURM
+
 
 class NotebookTestRunner:
     """
@@ -66,7 +68,7 @@ class NotebookTestRunner:
         if not self.notebook_directory.is_dir():
             raise NotADirectoryError(f"Path is not a directory: {self.notebook_directory}")
 
-    def _discover_notebooks(self) -> List[Path]:
+    def _discover_notebook_paths(self) -> List[Path]:
         """
         Discover all Jupyter notebook files in the notebook directory.
 
@@ -155,7 +157,7 @@ class NotebookTestRunner:
         logger.info(f"Cleanup notebooks: {self.cleanup_notebooks}")
 
         # Discover notebooks
-        self.notebooks_found = self._discover_notebooks()
+        self.notebooks_found = self._discover_notebook_paths()
 
         # Handle empty directory case
         if not self.notebooks_found:
@@ -214,6 +216,10 @@ class NotebookTestRunner:
 # Pytest test functions
 def test_interactive_notebooks(notebook_config):
     """Test all notebooks in the interactive directory."""
+    # Skip test if not on SLURM
+    if not IS_ON_SLURM:
+        pytest.skip("Test skipped: must be run on SLURM cluster")
+
     results_dir = notebook_config["results_dir"]
 
     # Skip test if results_dir not provided
@@ -231,6 +237,10 @@ def test_interactive_notebooks(notebook_config):
 
 def test_results_notebooks(notebook_config):
     """Test all notebooks in the results directory."""
+    # Skip test if not on SLURM
+    if not IS_ON_SLURM:
+        pytest.skip("Test skipped: must be run on SLURM cluster")
+
     results_dir = notebook_config["results_dir"]
 
     # Skip test if results_dir not provided
@@ -257,6 +267,10 @@ def test_artifact_notebooks(notebook_config):
         pytest tests/model_notebooks/test_notebooks.py::test_artifact_notebooks \
             --results-dir=path/to/results
     """
+    # Skip test if not on SLURM
+    if not IS_ON_SLURM:
+        pytest.skip("Test skipped: must be run on SLURM cluster")
+
     results_dir = notebook_config["results_dir"]
 
     # Skip test if results_dir not provided
