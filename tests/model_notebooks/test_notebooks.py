@@ -10,7 +10,7 @@ import papermill as pm
 import pytest
 from loguru import logger
 
-from tests.conftest import IS_ON_SLURM
+from tests.conftest import IS_ON_SLURM, MODEL_RESULTS_DIR
 
 
 class NotebookTestRunner:
@@ -34,16 +34,15 @@ class NotebookTestRunner:
     def __init__(
         self,
         notebook_directory: str,
-        results_dir: str,
-        timeout: int = 300,
-        cleanup_notebooks: bool = True,
+        model_dir: str,
+        environment_type: str = "simulation",
     ):
         """
         Initialize the notebook test runner.
 
         Args:
             notebook_directory: Path to directory containing notebooks to test
-            results_dir: Path to results directory (injected as parameter into notebooks)
+            model_dir: Path to model results directory (injected as parameter into notebooks)
             timeout: Maximum execution time per notebook in seconds (default: 300 = 5 minutes)
             cleanup_notebooks: Whether to delete executed notebooks after testing (default: True)
 
@@ -51,9 +50,9 @@ class NotebookTestRunner:
             FileNotFoundError: If notebook_directory does not exist
         """
         self.notebook_directory = Path(notebook_directory)
-        self.results_dir = Path(results_dir)
-        self.timeout = timeout
-        self.cleanup_notebooks = cleanup_notebooks
+        self.model_dir = Path(model_dir)
+        self.timeout = -1  # No timeout by default
+        self.kernel_name = "vivarium_gates_mncnh_simulation_" + environment_type
 
         self.notebooks_found: List[Path] = []
         self.successful_notebooks: List[Path] = []
@@ -98,28 +97,19 @@ class NotebookTestRunner:
         Returns:
             True if execution succeeded, False if it failed
         """
-        # Create output path with _executed suffix
-        output_path = (
-            notebook_path.parent / f"{notebook_path.stem}_executed{notebook_path.suffix}"
-        )
-
         try:
             logger.info(f"Running notebook {notebook_path.name}...")
 
             # Execute notebook with papermill
             pm.execute_notebook(
                 input_path=str(notebook_path),
-                output_path=str(output_path),
-                parameters={"results_dir": str(self.results_dir)},
+                output_path=str(notebook_path),
+                parameters={"model_dir": str(self.model_dir)},
+                kernel_name=self.kernel_name,
                 execution_timeout=self.timeout,
             )
 
             logger.success(f"✓ {notebook_path.name} completed successfully")
-
-            # Clean up executed notebook if requested
-            if self.cleanup_notebooks and output_path.exists():
-                output_path.unlink()
-                logger.debug(f"Cleaned up executed notebook: {output_path.name}")
 
             return True
 
@@ -128,11 +118,6 @@ class NotebookTestRunner:
                 f"✗ {notebook_path.name} failed with error: {type(e).__name__}: {str(e)}"
             )
             self.failed_notebooks[notebook_path] = e
-
-            # Clean up failed executed notebook if requested
-            if self.cleanup_notebooks and output_path.exists():
-                output_path.unlink()
-                logger.debug(f"Cleaned up failed executed notebook: {output_path.name}")
 
             return False
 
@@ -152,10 +137,8 @@ class NotebookTestRunner:
         """
         logger.info("Starting notebook test run")
         logger.info(f"Notebook directory: {self.notebook_directory}")
-        logger.info(f"Results directory: {self.results_dir}")
-        logger.info(f"Timeout: {self.timeout} seconds")
-        logger.info(f"Cleanup notebooks: {self.cleanup_notebooks}")
-
+        logger.info(f"Model directory: {self.model_dir}")
+        logger.info(f"Kernel name: {self.kernel_name}")
         # Discover notebooks
         self.notebooks_found = self._discover_notebook_paths()
 
@@ -209,54 +192,39 @@ class NotebookTestRunner:
             "failed_notebooks": len(self.failed_notebooks),
             "failed_notebook_names": [nb.name for nb in self.failed_notebooks.keys()],
             "notebook_directory": str(self.notebook_directory),
-            "results_directory": str(self.results_dir),
+            "model_directory": str(self.model_dir),
         }
 
 
 # Pytest test functions
-def test_interactive_notebooks(notebook_config: dict[str, Any]) -> None:
+def test_interactive_notebooks() -> None:
     """Test all notebooks in the interactive directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
-    results_dir = notebook_config["results_dir"]
-
-    # Skip test if results_dir not provided
-    if results_dir is None:
-        pytest.skip("Test skipped: use --results-dir to specify results directory")
-
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/interactive",
-        results_dir=results_dir,
-        timeout=notebook_config["timeout"],
-        cleanup_notebooks=notebook_config["cleanup_notebooks"],
+        environment_type="simulation",
     )
     runner.test_run_notebooks()
 
 
-def test_results_notebooks(notebook_config: dict[str, Any]) -> None:
+def test_results_notebooks() -> None:
     """Test all notebooks in the results directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
-    results_dir = notebook_config["results_dir"]
-
-    # Skip test if results_dir not provided
-    if results_dir is None:
-        pytest.skip("Test skipped: use --results-dir to specify results directory")
-
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/results",
-        results_dir=results_dir,
-        timeout=notebook_config["timeout"],
-        cleanup_notebooks=notebook_config["cleanup_notebooks"],
+        model_dir=MODEL_RESULTS_DIR,
+        environment_type="artifact",
     )
     runner.test_run_notebooks()
 
 
-def test_artifact_notebooks(notebook_config: dict[str, Any]) -> None:
+def test_artifact_notebooks() -> None:
     """
     Test notebooks in the artifact directory.
     
@@ -271,16 +239,8 @@ def test_artifact_notebooks(notebook_config: dict[str, Any]) -> None:
     if not IS_ON_SLURM:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
-    results_dir = notebook_config["results_dir"]
-
-    # Skip test if results_dir not provided
-    if results_dir is None:
-        pytest.skip("Test skipped: use --results-dir to specify results directory")
-
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/artifact",
-        results_dir=results_dir,
-        timeout=notebook_config["timeout"],
-        cleanup_notebooks=notebook_config["cleanup_notebooks"],
+        environment_type="artifact",
     )
     runner.test_run_notebooks()
