@@ -214,7 +214,7 @@ class NotebookTestRunner:
 
 
 # Pytest test functions
-def test_interactive_notebooks(notebook_config):
+def test_interactive_notebooks(notebook_config: dict[str, Any]) -> None:
     """Test all notebooks in the interactive directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
@@ -235,7 +235,7 @@ def test_interactive_notebooks(notebook_config):
     runner.test_run_notebooks()
 
 
-def test_results_notebooks(notebook_config):
+def test_results_notebooks(notebook_config: dict[str, Any]) -> None:
     """Test all notebooks in the results directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
@@ -256,7 +256,7 @@ def test_results_notebooks(notebook_config):
     runner.test_run_notebooks()
 
 
-def test_artifact_notebooks(notebook_config):
+def test_artifact_notebooks(notebook_config: dict[str, Any]) -> None:
     """
     Test notebooks in the artifact directory.
     
