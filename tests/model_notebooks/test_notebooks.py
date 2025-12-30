@@ -4,7 +4,7 @@ will run each notebook and record whether the notebook runs successfully or not.
 If the notebook has any cell that errors out, the test will fail.
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import papermill as pm
 import pytest
@@ -52,7 +52,8 @@ class NotebookTestRunner:
         self.notebook_directory = Path(notebook_directory)
         self.model_dir = Path(model_dir)
         self.timeout = -1  # No timeout by default
-        self.kernel_name = "vivarium_gates_mncnh_simulation_" + environment_type
+        # Use nb_conda_kernels naming convention: conda-env-<env_name>-py
+        self.kernel_name = f"conda-env-vivarium_gates_mncnh_{environment_type}-py"
 
         self.notebooks_found: List[Path] = []
         self.successful_notebooks: List[Path] = []
