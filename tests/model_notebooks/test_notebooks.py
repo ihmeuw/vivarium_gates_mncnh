@@ -338,6 +338,7 @@ def test_results_notebooks() -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.skip(reason="No notebooks currently in artifact directory")
 def test_artifact_notebooks() -> None:
     """
     Test notebooks in the artifact directory.
