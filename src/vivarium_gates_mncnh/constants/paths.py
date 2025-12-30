@@ -17,6 +17,7 @@ LBWSG_RR_CAPS_DIR = Path(__file__).parent.parent / "data" / "lbwsg_rr_caps" / "c
 ANC_DATA_DIR = CLUSTER_DATA_DIR / "antenatal_care"
 
 ORAL_IRON_DATA_DIR = Path(__file__).parent.parent / "data" / "ifa_mms_gestation_shifts"
+HEMOGLOBIN_EFFECTS_DATA_DIR = Path(__file__).parent.parent / "data" / "hemoglobin_effects"
 
 FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
     Path(__file__).parent.parent
