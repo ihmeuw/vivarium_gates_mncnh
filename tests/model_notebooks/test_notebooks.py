@@ -1,6 +1,6 @@
 """
-Script to test Jupyter notebooks in the model_notebooks directory. This script 
-will run each notebook and record whether the notebook runs successfully or not. 
+Module to test Jupyter notebooks in the model_notebooks directory. This module provides  
+framework to run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
 import json
@@ -310,7 +310,7 @@ class NotebookTestRunner:
 
 # Pytest test functions
 @pytest.mark.slow
-def test_interactive_notebooks() -> None:
+def test_interactive_context_notebooks() -> None:
     """Test all notebooks in the interactive directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
