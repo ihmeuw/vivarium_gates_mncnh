@@ -170,6 +170,7 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    HEMOGLOBIN_EXPOSURE = "hemoglobin_exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     IV_IRON_INTERVENTION = "iv_iron_intervention"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
