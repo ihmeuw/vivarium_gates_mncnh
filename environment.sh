@@ -183,6 +183,11 @@ if [[ $create_env == 'yes' ]]; then
   echo "Creating new conda environment $env_name"
   conda create -n $env_name python=3.11 -c anaconda -y
   conda activate $env_name
+  # Install conda packages first to ensure proper library linking
+  # - nb_conda_kernels: makes conda envs available in jupyter
+  # - libstdcxx-ng: provides compatible C++ standard library for zmq/jupyter kernels
+  # - pyzmq: must be installed via conda before pip packages to avoid library conflicts
+  conda install nb_conda_kernels libstdcxx-ng pyzmq -c anaconda -y
   # NOTE: update branch name if you update requirements.txt in a branch
   echo
   echo "Installing packages for $env_type environment"
@@ -191,10 +196,6 @@ if [[ $create_env == 'yes' ]]; then
   uv pip install -r $install_file --extra-index-url $artifactory_url --index-strategy unsafe-best-match
   # Editable install of repo
   uv pip install -e .[dev] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
-  # Install conda packages
-  # - nb_conda_kernels: makes conda envs available in jupyter
-  # - libstdcxx-ng: provides compatible C++ standard library for zmq/jupyter kernels
-  conda install nb_conda_kernels libstdcxx-ng -c anaconda -y
   # Install redis for simulation environments
   if [ $env_type == 'simulation' ]; then
     conda install redis -c anaconda -y
