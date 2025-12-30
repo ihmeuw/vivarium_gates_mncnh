@@ -191,8 +191,10 @@ if [[ $create_env == 'yes' ]]; then
   uv pip install -r $install_file --extra-index-url $artifactory_url --index-strategy unsafe-best-match
   # Editable install of repo
   uv pip install -e .[dev] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
-  # Install nb_conda_kernels to make conda envs available in jupyter
-  conda install nb_conda_kernels -c anaconda -y
+  # Install conda packages
+  # - nb_conda_kernels: makes conda envs available in jupyter
+  # - libstdcxx-ng: provides compatible C++ standard library for zmq/jupyter kernels
+  conda install nb_conda_kernels libstdcxx-ng -c anaconda -y
   # Install redis for simulation environments
   if [ $env_type == 'simulation' ]; then
     conda install redis -c anaconda -y
