@@ -3,6 +3,8 @@ Script to test Jupyter notebooks in the model_notebooks directory. This script
 will run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
+import json
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -52,7 +54,9 @@ class NotebookTestRunner:
         self.notebook_directory = Path(notebook_directory)
         self.model_dir = Path(model_dir)
         self.timeout = -1  # No timeout by default
-        self.kernel_name = f"conda-env-vivarium_gates_mncnh_{environment_type}-py"
+        self.environment_type = environment_type
+        self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
+        self.kernel_name = f"conda-env-{self.conda_env_name}-py"
 
         self.notebooks_found: List[Path] = []
         self.successful_notebooks: List[Path] = []
@@ -66,6 +70,98 @@ class NotebookTestRunner:
 
         if not self.notebook_directory.is_dir():
             raise NotADirectoryError(f"Path is not a directory: {self.notebook_directory}")
+
+        # Ensure the required Jupyter kernel is registered
+        self._ensure_kernel_registered()
+
+    def _check_kernel_exists(self) -> bool:
+        """
+        Check if the required Jupyter kernel is already registered.
+
+        Returns:
+            True if kernel exists, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["jupyter", "kernelspec", "list", "--json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            kernelspecs = json.loads(result.stdout)
+            kernel_exists = self.kernel_name in kernelspecs.get("kernelspecs", {})
+
+            if kernel_exists:
+                logger.debug(f"Kernel '{self.kernel_name}' is already registered")
+            else:
+                logger.debug(f"Kernel '{self.kernel_name}' not found")
+
+            return kernel_exists
+        except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:
+            logger.warning(f"Could not check kernel specs: {e}")
+            return False
+
+    def _register_kernel(self) -> bool:
+        """
+        Register the conda environment as a Jupyter kernel.
+
+        Returns:
+            True if registration succeeded, False otherwise
+        """
+        try:
+            logger.info(
+                f"Registering kernel '{self.kernel_name}' for conda env '{self.conda_env_name}'"
+            )
+
+            # Use conda run to execute ipykernel install in the target environment
+            result = subprocess.run(
+                [
+                    "conda",
+                    "run",
+                    "-n",
+                    self.conda_env_name,
+                    "python",
+                    "-m",
+                    "ipykernel",
+                    "install",
+                    "--user",
+                    "--name",
+                    self.kernel_name,
+                    "--display-name",
+                    f"Python (vivarium_gates_mncnh_{self.environment_type})",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            logger.success(f"Successfully registered kernel '{self.kernel_name}'")
+            logger.debug(f"Output: {result.stdout}")
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to register kernel: {e.stderr}")
+            return False
+        except FileNotFoundError:
+            logger.error("conda command not found. Ensure conda is in PATH.")
+            return False
+
+    def _ensure_kernel_registered(self) -> None:
+        """
+        Ensure the required Jupyter kernel is registered, registering it if necessary.
+
+        Raises:
+            RuntimeError: If kernel cannot be registered
+        """
+        if not self._check_kernel_exists():
+            logger.info(f"Kernel '{self.kernel_name}' not found, attempting to register...")
+
+            if not self._register_kernel():
+                raise RuntimeError(
+                    f"Failed to register kernel '{self.kernel_name}'. "
+                    f"Ensure conda environment '{self.conda_env_name}' exists and "
+                    f"has ipykernel installed."
+                )
 
     def _discover_notebook_paths(self) -> List[Path]:
         """
@@ -99,8 +195,10 @@ class NotebookTestRunner:
         """
         try:
             logger.info(f"Running notebook {notebook_path.name}...")
+            logger.info(f"Using kernel: {self.kernel_name}")
 
             # Execute notebook with papermill
+            # The kernel is automatically registered in __init__ if not already present
             pm.execute_notebook(
                 input_path=str(notebook_path),
                 output_path=str(notebook_path),
