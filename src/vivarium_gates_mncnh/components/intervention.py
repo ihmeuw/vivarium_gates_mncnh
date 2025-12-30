@@ -440,7 +440,6 @@ class IVIronEffectOnLBWSG(Component):
     def columns_required(self) -> list[str]:
         return [
             COLUMNS.IV_IRON_INTERVENTION,
-            COLUMNS.HEMOGLOBIN_EXPOSURE,
         ]
 
     #################
