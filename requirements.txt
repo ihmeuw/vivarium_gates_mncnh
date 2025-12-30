@@ -17,4 +17,3 @@ isort
 jupyterlab
 matplotlib
 papermill
-nb_conda_kernels
