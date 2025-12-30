@@ -309,6 +309,7 @@ class NotebookTestRunner:
 
 
 # Pytest test functions
+@pytest.mark.slow
 def test_interactive_notebooks() -> None:
     """Test all notebooks in the interactive directory."""
     # Skip test if not on SLURM
@@ -322,6 +323,7 @@ def test_interactive_notebooks() -> None:
     runner.test_run_notebooks()
 
 
+@pytest.mark.slow
 def test_results_notebooks() -> None:
     """Test all notebooks in the results directory."""
     # Skip test if not on SLURM
@@ -335,6 +337,7 @@ def test_results_notebooks() -> None:
     runner.test_run_notebooks()
 
 
+@pytest.mark.slow
 def test_artifact_notebooks() -> None:
     """
     Test notebooks in the artifact directory.
