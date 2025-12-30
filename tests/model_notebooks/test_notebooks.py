@@ -36,7 +36,6 @@ class NotebookTestRunner:
     def __init__(
         self,
         notebook_directory: str,
-        model_dir: str,
         environment_type: str = "simulation",
     ):
         """
@@ -52,7 +51,7 @@ class NotebookTestRunner:
             FileNotFoundError: If notebook_directory does not exist
         """
         self.notebook_directory = Path(notebook_directory)
-        self.model_dir = Path(model_dir)
+        self.model_dir = Path(MODEL_RESULTS_DIR)
         self.timeout = -1  # No timeout by default
         self.environment_type = environment_type
         self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
@@ -316,7 +315,6 @@ def test_results_notebooks() -> None:
 
     runner = NotebookTestRunner(
         notebook_directory="tests/model_notebooks/results",
-        model_dir=MODEL_RESULTS_DIR,
         environment_type="artifact",
     )
     runner.test_run_notebooks()
