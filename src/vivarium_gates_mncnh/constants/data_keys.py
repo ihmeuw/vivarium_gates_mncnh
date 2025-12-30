@@ -540,6 +540,10 @@ MMN_SUPPLEMENTATION = __MMN_Supplementation()
 
 class __IVIron(NamedTuple):
     HEMOGLOBIN_EFFECT_SIZE: str = "intervention.iv_iron.hemoglobin_effect_size"
+    LBWSG_EFFECT_SIZE: str = (
+        "intervention.iv_iron.low_birth_weight_and_short_gestation_effect_size"
+    )
+    STILLBIRTH_RR: str = "intervention.iv_iron.stillbirth_relative_risk"
 
     @property
     def name(self):
