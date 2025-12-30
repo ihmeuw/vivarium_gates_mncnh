@@ -3,7 +3,6 @@ Script to test Jupyter notebooks in the model_notebooks directory. This script
 will run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
-import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -53,7 +52,6 @@ class NotebookTestRunner:
         self.notebook_directory = Path(notebook_directory)
         self.model_dir = Path(model_dir)
         self.timeout = -1  # No timeout by default
-        # Use nb_conda_kernels naming convention: conda-env-<env_name>-py
         self.kernel_name = f"conda-env-vivarium_gates_mncnh_{environment_type}-py"
 
         self.notebooks_found: List[Path] = []
@@ -68,24 +66,6 @@ class NotebookTestRunner:
 
         if not self.notebook_directory.is_dir():
             raise NotADirectoryError(f"Path is not a directory: {self.notebook_directory}")
-
-        # Set environment variables to fix library path issues on SLURM
-        self._setup_environment()
-
-    def _setup_environment(self) -> None:
-        """
-        Setup environment variables to fix GLIBCXX issues on SLURM clusters.
-
-        This ensures that the conda environment's C++ libraries are prioritized
-        over the system libraries when kernels are started.
-        """
-        conda_prefix = os.environ.get("CONDA_PREFIX", "")
-        if conda_prefix:
-            conda_lib = os.path.join(conda_prefix, "lib")
-            current_ld_path = os.environ.get("LD_LIBRARY_PATH", "")
-            new_ld_path = f"{conda_lib}:{current_ld_path}" if current_ld_path else conda_lib
-            os.environ["LD_LIBRARY_PATH"] = new_ld_path
-            logger.debug(f"Set LD_LIBRARY_PATH to prioritize: {conda_lib}")
 
     def _discover_notebook_paths(self) -> List[Path]:
         """
@@ -127,7 +107,6 @@ class NotebookTestRunner:
                 parameters={"model_dir": str(self.model_dir)},
                 kernel_name=self.kernel_name,
                 execution_timeout=self.timeout,
-                cwd=str(notebook_path.parent),
             )
 
             logger.success(f"✓ {notebook_path.name} completed successfully")

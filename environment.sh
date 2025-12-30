@@ -183,11 +183,6 @@ if [[ $create_env == 'yes' ]]; then
   echo "Creating new conda environment $env_name"
   conda create -n $env_name python=3.11 -c anaconda -y
   conda activate $env_name
-  # Install conda packages first to ensure proper library linking
-  # - nb_conda_kernels: makes conda envs available in jupyter
-  # - libstdcxx-ng: provides compatible C++ standard library for zmq/jupyter kernels
-  # - pyzmq: must be installed via conda before pip packages to avoid library conflicts
-  conda install nb_conda_kernels libstdcxx-ng pyzmq -c anaconda -y
   # NOTE: update branch name if you update requirements.txt in a branch
   echo
   echo "Installing packages for $env_type environment"
