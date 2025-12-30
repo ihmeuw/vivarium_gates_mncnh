@@ -23,6 +23,11 @@ class NotebookTestRunner:
     papermill while injecting a results_dir parameter, and tracks success/failure
     of each notebook execution.
 
+    All exceptions (including SystemExit and KeyboardInterrupt) are caught and
+    converted to test failures to prevent pytest exit code 2, which would kill
+    SLURM sessions. Tests fail with exit code 1 instead, allowing the test suite
+    to continue running.
+
     Attributes:
         notebook_directory: Directory containing notebooks to test
         results_dir: Directory path to inject into notebooks as a parameter
@@ -186,6 +191,10 @@ class NotebookTestRunner:
         """
         Execute a single notebook using papermill.
 
+        Catches all exceptions including SystemExit and KeyboardInterrupt to prevent
+        pytest from exiting with code 2 (which would kill the SLURM session).
+        All failures are converted to regular test failures (AssertionError).
+
         Args:
             notebook_path: Path to the notebook to execute
 
@@ -210,10 +219,12 @@ class NotebookTestRunner:
 
             return True
 
-        except Exception as e:
-            logger.error(
-                f"✗ {notebook_path.name} failed with error: {type(e).__name__}: {str(e)}"
-            )
+        except BaseException as e:
+            # Catch ALL exceptions including SystemExit and KeyboardInterrupt
+            # to prevent pytest exit code 2 which kills the SLURM session.
+            # This ensures test failures (exit code 1) instead of interruptions (exit code 2).
+            error_msg = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
+            logger.error(f"✗ {notebook_path.name} failed with error: {error_msg}")
             self.failed_notebooks[notebook_path] = e
 
             return False
@@ -222,12 +233,16 @@ class NotebookTestRunner:
         """
         Execute all discovered notebooks and track results.
 
-        This is the main method that orchestrates the testing process:
+        This method orchestrates the testing process:
         1. Discovers notebooks in the directory
         2. Executes each notebook with papermill
-        3. Tracks successes and failures
-        4. Logs summary of results
-        5. Raises AssertionError if any notebooks failed
+        3. Catches all exceptions (including SystemExit/KeyboardInterrupt) to prevent
+           pytest exit code 2 which would kill SLURM sessions
+        4. Tracks successes and failures
+        5. Logs summary of results
+        6. Raises AssertionError (exit code 1) if any notebooks failed
+
+        This ensures notebooks can fail without terminating the SLURM session.
 
         Raises:
             AssertionError: If any notebooks failed to execute successfully
