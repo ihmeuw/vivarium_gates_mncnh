@@ -440,7 +440,6 @@ class IVIronEffectOnLBWSG(Component):
     def columns_required(self) -> list[str]:
         return [
             COLUMNS.IV_IRON_INTERVENTION,
-            COLUMNS.HEMOGLOBIN_EXPOSURE,
         ]
 
     #################
@@ -507,6 +506,62 @@ class IVIronEffectOnLBWSG(Component):
         exposure.loc[has_iv_iron] += iv_iron_effect
 
         return exposure
+
+
+class IVIronEffectOnStillbirth(Component):
+    """IV iron effects on stillbirth."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.IV_IRON_INTERVENTION,
+        ]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            self.adjust_stillbirth_probability,
+            requires_columns=self.columns_created,
+        )
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        stillbirth_rrs = builder.data.load(data_keys.IV_IRON.STILLBIRTH_RR)
+        self.lookup_tables["stillbirth_relative_risk"] = self.build_lookup_table(
+            builder=builder,
+            data_source=stillbirth_rrs,
+            value_columns=["value"],
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def adjust_stillbirth_probability(
+        self, index: pd.Index, birth_outcome_probabilities: pd.DataFrame
+    ) -> pd.DataFrame:
+        pop = self.population_view.get(index)
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        rrs = self.lookup_tables["stillbirth_relative_risk"](pop.loc[has_iv_iron].index)
+
+        # Add spare probability onto live births first
+        birth_outcome_probabilities.loc[
+            has_iv_iron, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        ] += birth_outcome_probabilities.loc[
+            has_iv_iron, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        ] * (
+            1 - rrs
+        )
+        # Then re-scale stillbirth probability
+        birth_outcome_probabilities.loc[
+            has_iv_iron, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        ] *= rrs
+        # This preserves normalization by construction
+
+        return birth_outcome_probabilities
 
 
 class AdditiveRiskEffect(RiskEffect):
