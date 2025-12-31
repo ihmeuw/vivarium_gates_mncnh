@@ -102,8 +102,3 @@ def is_on_slurm() -> bool:
 
 
 IS_ON_SLURM = is_on_slurm()
-
-
-# Update for new model results directory after model changes and runs
-# This should match the directory after /mnt/team/simulation_sicence/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model26.0"

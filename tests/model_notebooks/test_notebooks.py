@@ -3,6 +3,7 @@ Module to test Jupyter notebooks in the model_notebooks directory. This module p
 framework to run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
+import cmd
 import json
 import subprocess
 from pathlib import Path
@@ -12,7 +13,8 @@ import papermill as pm
 import pytest
 from loguru import logger
 
-from tests.conftest import IS_ON_SLURM, MODEL_RESULTS_DIR
+from tests.conftest import IS_ON_SLURM
+from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR, MODEL_RESULTS_DIR
 
 
 class NotebookTestRunner:
@@ -118,25 +120,12 @@ class NotebookTestRunner:
             )
 
             # Use conda run to execute ipykernel install in the target environment
+            cmd = (
+                f" conda run -n {self.conda_env_name} python -m ipykernel install --user --name {self.kernel.name} "
+                "--display-name Python (vivarium_gates_mncnh_{self.environment_type})"
+            )
             result = subprocess.run(
-                [
-                    "conda",
-                    "run",
-                    "-n",
-                    self.conda_env_name,
-                    "python",
-                    "-m",
-                    "ipykernel",
-                    "install",
-                    "--user",
-                    "--name",
-                    self.kernel_name,
-                    "--display-name",
-                    f"Python (vivarium_gates_mncnh_{self.environment_type})",
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
+                cmd.split(" "), capture_output=True, text=True, check=True
             )
 
             logger.success(f"Successfully registered kernel '{self.kernel_name}'")
@@ -261,8 +250,7 @@ class NotebookTestRunner:
 
         # Execute each notebook
         for notebook_path in self.notebooks_found:
-            success = self._execute_notebook(notebook_path)
-            if success:
+            if self._execute_notebook(notebook_path):
                 self.successful_notebooks.append(notebook_path)
 
         # Log summary
@@ -275,7 +263,7 @@ class NotebookTestRunner:
         logger.info(f"{success_count}/{total_count} notebook(s) passed")
 
         if self.failed_notebooks:
-            failed_names = [nb.name for nb in self.failed_notebooks.keys()]
+            failed_names = [nb.name for nb in self.failed_notebooks]
             logger.error(f"{fail_count} notebook(s) failed: {', '.join(failed_names)}")
 
             # Raise assertion error to fail the test
@@ -302,7 +290,7 @@ class NotebookTestRunner:
             "total_notebooks": len(self.notebooks_found),
             "successful_notebooks": len(self.successful_notebooks),
             "failed_notebooks": len(self.failed_notebooks),
-            "failed_notebook_names": [nb.name for nb in self.failed_notebooks.keys()],
+            "failed_notebook_names": [nb.name for nb in self.failed_notebooks],
             "notebook_directory": str(self.notebook_directory),
             "model_directory": str(self.model_dir),
         }
@@ -317,7 +305,7 @@ def test_interactive_context_notebooks() -> None:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
     runner = NotebookTestRunner(
-        notebook_directory="tests/model_notebooks/interactive",
+        notebook_directory=MODEL_NOTEBOOKS_DIR / "interactive",
         environment_type="simulation",
     )
     runner.test_run_notebooks()
@@ -331,7 +319,7 @@ def test_results_notebooks() -> None:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
     runner = NotebookTestRunner(
-        notebook_directory="tests/model_notebooks/results",
+        notebook_directory=MODEL_NOTEBOOKS_DIR / "results",
         environment_type="artifact",
     )
     runner.test_run_notebooks()
@@ -355,7 +343,7 @@ def test_artifact_notebooks() -> None:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
     runner = NotebookTestRunner(
-        notebook_directory="tests/model_notebooks/artifact",
+        notebook_directory=MODEL_NOTEBOOKS_DIR / "artifact",
         environment_type="artifact",
     )
     runner.test_run_notebooks()
