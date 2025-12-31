@@ -26,3 +26,9 @@ FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
 )
 
 FERRITIN_TESTING_COVERAGE_DATA_DIR = CLUSTER_DATA_DIR / "ferritin_testing_coverage"
+
+
+# Update for new model results directory after model changes and runs
+# This should match the directory after /mnt/team/simulation_sicence/pub/models/vivarium_gates_mncnh/results/
+MODEL_RESULTS_DIR = "model26.0"
+MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
