@@ -148,8 +148,8 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         is_stillbirth = (
             pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
         )
-        stillbirth_exposures = exposure.loc[is_stillbirth]
-        stillbirth_exposures = stillbirth_exposures.drop(columns=non_stillbirth_categories)
+        stillbirth_exposures = exposure.loc[is_stillbirth].copy()
+        stillbirth_exposures.loc[:, non_stillbirth_categories] = 0.0
         stillbirth_exposures = stillbirth_exposures.div(
             stillbirth_exposures.sum(axis=1), axis=0
         )
