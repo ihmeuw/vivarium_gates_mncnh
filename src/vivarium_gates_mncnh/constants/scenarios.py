@@ -108,6 +108,11 @@ class __InterventionScenarios(NamedTuple):
         ultrasound_coverage="full",
         standard_ultrasound_coverage="half",
     )
+    ANEMIA_SCREENING_VV: InterventionScenario = InterventionScenario(
+        "anemia_screening_vv",
+        hemoglobin_screening_coverage="full",
+        ferritin_screening_coverage="full",
+    )
 
     def __getitem__(self, item) -> InterventionScenario:
         for scenario in self:
