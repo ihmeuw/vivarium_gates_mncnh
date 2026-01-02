@@ -61,6 +61,8 @@ if __name__ == "__main__":
     test_requirements = [
         "vivarium_dependencies[pytest]",
         "vivarium_testing_utils",
+        "papermill",
+        "jupyterlab",
     ]
     lint_requirements = [
         "vivarium_dependencies[lint]",

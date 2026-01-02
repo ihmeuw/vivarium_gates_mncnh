@@ -20,6 +20,7 @@ class __Population(NamedTuple):
     ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
     ALL_CAUSES_MORTALITY_RISK: str = "cause.all_causes.all_cause_mortality_risk"
     BIRTH_RATE: str = "population.birth_rate"
+    ALL_CAUSE_ADJUSTED_BIRTH_COUNTS: str = "cause.all_causes.adjusted_birth_counts"
 
     @property
     def name(self):
@@ -241,6 +242,7 @@ class __NeonatalPretermBirth(NamedTuple):
     PAF: str = "cause.neonatal_preterm_birth.population_attributable_fraction"
     PREVALENCE: str = "cause.neonatal_preterm_birth.prevalence"
     MORTALITY_RISK: str = "cause.neonatal_preterm_birth.mortality_risk"
+    ADJUSTED_BIRTH_COUNTS: str = "cause.neonatal_preterm_birth.adjusted_birth_counts"
 
     @property
     def name(self):
@@ -256,10 +258,10 @@ PRETERM_BIRTH = __NeonatalPretermBirth()
 
 class __NeonatalSepsis(NamedTuple):
     # Keys that will be loaded into the artifact. must have a colon type declaration
-    # CSMR: str = (
-    #     "cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_rate"
-    # )
     MORTALITY_RISK: str = "cause.neonatal_sepsis_and_other_neonatal_infections.mortality_risk"
+    ADJUSTED_BIRTH_COUNTS: str = (
+        "cause.neonatal_sepsis_and_other_neonatal_infections.adjusted_birth_counts"
+    )
 
     @property
     def name(self):
@@ -278,6 +280,9 @@ class __NeonatalEncephalopath(NamedTuple):
     # CSMR: str = "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_rate"
     MORTALITY_RISK: str = (
         "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.mortality_risk"
+    )
+    ADJUSTED_BIRTH_COUNTS: str = (
+        "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.adjusted_birth_counts"
     )
 
     @property
