@@ -20,6 +20,11 @@ class Hemoglobin(Risk):
         risk_cols = super().columns_created
         return risk_cols + [COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE]
 
+    @property
+    def time_step_priority(self) -> int:
+        # update state table hemoglobin after oral iron
+        return 9
+
     def __init__(self) -> None:
         super().__init__("risk_factor.hemoglobin")
 
@@ -40,14 +45,18 @@ class Hemoglobin(Risk):
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        # leave handling of exposure column to this class rather than the parent class
+        self.create_exposure_column = False
         super().on_initialize_simulants(pop_data)
+        hemoglobin = pd.DataFrame({COLUMNS.HEMOGLOBIN_EXPOSURE: np.nan}, index=pop_data.index)
         first_trimester_hemoglobin = pd.DataFrame(
             {
                 COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE: np.nan,
             },
             index=pop_data.index,
         )
-        self.population_view.update(first_trimester_hemoglobin)
+        pop = pd.concat([hemoglobin, first_trimester_hemoglobin], axis=1)
+        self.population_view.update(pop)
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["ANC1"] = self.build_lookup_table(
@@ -62,6 +71,21 @@ class Hemoglobin(Risk):
         return gbd_exposure - (
             self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
         )
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        # overwrite parent class method so we don't update state table
+        pass
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+            return
+        pop = self.population_view.get(event.index)
+        pop[COLUMNS.HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
+        self.population_view.update(pop)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
