@@ -26,7 +26,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
             weight_keys={
                 "adjusted_births": f"cause.{self.entity}.adjusted_birth_counts",
             },
-            formula=lambda adjusted_births: adjusted_births,
+            formula=lambda adjusted_births: map_child_index_levels(adjusted_births),
             description="Beginning of age group population, births adjusted for early neonatal deaths",
         )
 
