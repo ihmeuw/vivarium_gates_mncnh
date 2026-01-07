@@ -3,8 +3,8 @@ Module to test Jupyter notebooks in the model_notebooks directory. This module p
 framework to run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
-import cmd
 import json
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List
@@ -120,13 +120,13 @@ class NotebookTestRunner:
             )
 
             # Use conda run to execute ipykernel install in the target environment
-            cmd = (
-                f" conda run -n {self.conda_env_name} python -m ipykernel install --user --name {self.kernel.name} "
-                "--display-name Python (vivarium_gates_mncnh_{self.environment_type})"
+            display_name = f"Python (vivarium_gates_mncnh_{self.environment_type})"
+            cmd_str = (
+                f"conda run -n {self.conda_env_name} python -m ipykernel install "
+                f"--user --name {self.kernel_name} --display-name '{display_name}'"
             )
-            result = subprocess.run(
-                cmd.split(" "), capture_output=True, text=True, check=True
-            )
+            cmd = shlex.split(cmd_str)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
             logger.success(f"Successfully registered kernel '{self.kernel_name}'")
             logger.debug(f"Output: {result.stdout}")
