@@ -506,6 +506,15 @@ LOW_HEMOGLOBIN_THRESHOLD = 100
 
 ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
 
+
+MATERNAL_HEMORRHAGE_MODERATE_SEVERITY_PROBABILITY = get_truncnorm(
+    0.85,
+    sd=0.04,
+    lower_clip=0.0,
+    upper_clip=1.0,
+)
+
+
 RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
     "maternal_hypertensive_disorders",  # 369
     "gestational_diabetes",  # 1118
