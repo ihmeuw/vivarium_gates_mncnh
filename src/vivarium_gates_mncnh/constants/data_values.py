@@ -506,7 +506,7 @@ LOW_HEMOGLOBIN_THRESHOLD = 100
 
 ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
 
-
+# https://vivarium-research.readthedocs.io/en/latest/models/risk_effects/maternal_hemorrhage/index.html#research-background
 MATERNAL_HEMORRHAGE_MODERATE_SEVERITY_PROBABILITY = get_truncnorm(
     0.85,
     sd=0.04,
