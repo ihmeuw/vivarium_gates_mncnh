@@ -83,6 +83,7 @@ def get_data(
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_HEMORRHAGE.MODERATE_SEVERITY_PROBABILITY: load_maternal_hemorrhage_severity_probability,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.RAW_INCIDENCE_RATE: load_abortion_miscarriage_ectopic_incidence,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.CSMR: load_abortion_miscarriage_ectopic_csmr,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.YLD_RATE: load_abortion_miscarriage_ectopic_yld_rate,
@@ -402,6 +403,17 @@ def load_maternal_disorder_yld_rate(
     yld_rate = reshape_to_vivarium_format(yld_rate, location)
 
     return yld_rate
+
+
+def load_maternal_hemorrhage_severity_probability(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
+) -> pd.DataFrame:
+    hemorrhage_severity_dist = data_values.MATERNAL_HEMORRHAGE_MODERATE_SEVERITY_PROBABILITY
+    draws = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, hemorrhage_severity_dist
+    )
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+    return data
 
 
 def load_birth_rate(

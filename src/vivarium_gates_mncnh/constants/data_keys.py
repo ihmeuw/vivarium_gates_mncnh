@@ -130,6 +130,9 @@ class __MaternalHemorrhage(NamedTuple):
     RAW_INCIDENCE_RATE: str = "cause.maternal_hemorrhage.incidence_rate"
     CSMR: str = "cause.maternal_hemorrhage.cause_specific_mortality_rate"
     YLD_RATE: str = "cause.maternal_hemorrhage.yld_rate"
+    MODERATE_SEVERITY_PROBABILITY: str = (
+        "cause.maternal_hemorrhage.moderate_severity_probability"
+    )
 
     @property
     def name(self):
