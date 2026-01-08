@@ -104,6 +104,14 @@ class __HemoglobinTestResults(NamedTuple):
 HEMOGLOBIN_TEST_RESULTS = __HemoglobinTestResults()
 
 
+class __MaternalHemorrhageSeverity(NamedTuple):
+    MODERATE: str = "moderate"
+    SEVERE: str = "severe"
+
+
+MATERNAL_HEMORRHAGE_SEVERITY = __MaternalHemorrhageSeverity()
+
+
 class __ANCRates(NamedTuple):
     RECEIVED_ULTRASOUND = {
         # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/ai_ultrasound_module/module_document.html#id7
@@ -160,6 +168,7 @@ class __Columns(NamedTuple):
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    MATERNAL_HEMORRHAGE_SEVERITY = "maternal_hemorrhage_severity"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -513,6 +522,8 @@ MATERNAL_HEMORRHAGE_MODERATE_SEVERITY_PROBABILITY = get_truncnorm(
     lower_clip=0.0,
     upper_clip=1.0,
 )
+MODERATE_HEMORRHAGE_HEMOGLOBIN_SCALING_FACTOR = 0.9
+SEVERE_HEMORRHAGE_HEMOGLOBIN_SCALING_FACTOR = 0.83
 
 
 RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [

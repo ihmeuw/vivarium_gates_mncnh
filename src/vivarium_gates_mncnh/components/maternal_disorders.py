@@ -12,8 +12,12 @@ from vivarium_public_health.utilities import get_lookup_columns
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
+    MATERNAL_HEMORRHAGE_SEVERITY,
+    MODERATE_HEMORRHAGE_HEMOGLOBIN_SCALING_FACTOR,
+    PIPELINES,
     POSTPARTUM_DEPRESSION_CASE_TYPES,
     PREGNANCY_OUTCOMES,
+    SEVERE_HEMORRHAGE_HEMOGLOBIN_SCALING_FACTOR,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
@@ -55,14 +59,14 @@ class MaternalDisorder(Component):
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        anc_data = pd.DataFrame(
+        maternal_disorder_data = pd.DataFrame(
             {
                 self.maternal_disorder: False,
             },
             index=pop_data.index,
         )
 
-        self.population_view.update(anc_data)
+        self.population_view.update(maternal_disorder_data)
 
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != self.maternal_disorder:
@@ -101,6 +105,100 @@ class MaternalDisorder(Component):
         incidence_risk = self.lookup_tables["incidence_risk"](index)
         joint_paf = self.joint_paf(index)
         return incidence_risk * (1 - joint_paf)
+
+
+class MaternalHemorrhage(MaternalDisorder):
+    @property
+    def columns_created(self):
+        return [self.maternal_disorder, self.severity_column]
+
+    def __init__(self) -> None:
+        super().__init__("maternal_hemorrhage")
+        self.severity_column = f"{self.maternal_disorder}_severity"
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.moderate_severity_probability = builder.data.load(
+            data_keys.MATERNAL_HEMORRHAGE.MODERATE_SEVERITY_PROBABILITY
+        )["value"].squeeze()
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        maternal_hemorrhage_data = pd.DataFrame(
+            {
+                self.maternal_disorder: False,
+                self.severity_column: "none",
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(maternal_hemorrhage_data)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != self.maternal_disorder:
+            return
+
+        pop = self.population_view.get(event.index)
+        full_term = pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            )
+        ]
+        incidence_risk = self.incidence_risk(full_term.index)
+        got_hemorrhage_index = self.randomness.filter_for_probability(
+            full_term.index,
+            incidence_risk,
+            f"got_{self.maternal_disorder}_choice",
+        )
+        hemorrhage_severity = self.randomness.choice(
+            index=got_hemorrhage_index,
+            choices=[
+                MATERNAL_HEMORRHAGE_SEVERITY.MODERATE,
+                MATERNAL_HEMORRHAGE_SEVERITY.SEVERE,
+            ],
+            p=[self.moderate_severity_probability, 1 - self.moderate_severity_probability],
+            additional_key="hemorrhage_severity_choice",
+        )
+        
+        pop.loc[got_hemorrhage_index, self.maternal_disorder] = True
+        pop.loc[got_hemorrhage_index, self.severity_column] = hemorrhage_severity
+        self.population_view.update(pop)
+
+
+class HemorrhageEffectsOnHemoglobin(Component):
+    @property
+    def columns_required(self) -> list[str]:
+        return [COLUMNS.MATERNAL_HEMORRHAGE_SEVERITY]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            PIPELINES.HEMOGLOBIN_EXPOSURE,
+            self.apply_hemorrhage_to_hemoglobin,
+            requires_columns=self.columns_created,
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def apply_hemorrhage_to_hemoglobin(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        pop = self.population_view.get(index)
+
+        has_moderate_hemorrhage = (
+            pop[COLUMNS.MATERNAL_HEMORRHAGE_SEVERITY] == MATERNAL_HEMORRHAGE_SEVERITY.MODERATE
+        )
+        has_severe_hemorrhage = (
+            pop[COLUMNS.MATERNAL_HEMORRHAGE_SEVERITY] == MATERNAL_HEMORRHAGE_SEVERITY.SEVERE
+        )
+
+        exposure.loc[has_moderate_hemorrhage] *= MODERATE_HEMORRHAGE_HEMOGLOBIN_SCALING_FACTOR
+        exposure.loc[has_severe_hemorrhage] *= SEVERE_HEMORRHAGE_HEMOGLOBIN_SCALING_FACTOR
+
+        return exposure
 
 
 class PostpartumDepression(MaternalDisorder):

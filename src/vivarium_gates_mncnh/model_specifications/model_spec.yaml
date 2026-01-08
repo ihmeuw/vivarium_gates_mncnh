@@ -15,8 +15,8 @@ components:
             - ANCAttendance()
             - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
-            - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - MaternalHemorrhage()
             - ResidualMaternalDisorders()
             - AbortionMiscarriageEctopicPregnancy()
             - MaternalDisordersBurden()
@@ -44,6 +44,7 @@ components:
             - OralIronEffectsOnGestationalAge()
             - IVIronExposure()
             - IVIronEffectOnHemoglobin()
+            - HemorrhageEffectsOnHemoglobin()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -76,7 +77,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model25.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/postpartum_hemoglobin/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True

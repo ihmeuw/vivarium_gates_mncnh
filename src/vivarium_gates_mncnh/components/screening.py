@@ -84,7 +84,7 @@ class AnemiaScreening(Component):
 
         # determine anemia status during pregnancy
         hemoglobin = self.hemoglobin(later_anc_pop.index)
-        later_anc_pop.loc[:, COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] = (
+        pop.loc[later_anc_pop.index, COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] = (
             pd.cut(
                 hemoglobin,
                 bins=[-np.inf] + ANEMIA_THRESHOLDS,
@@ -94,7 +94,10 @@ class AnemiaScreening(Component):
             .astype("object")
             .fillna("not_anemic")
         )
-        self.population_view.update(later_anc_pop)
+        pop[COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY] = pop[
+            COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY
+        ].fillna("not_tested")
+        self.population_view.update(pop)
 
         # determine who gets hemoglobin screening
         if INTERVENTION_SCENARIOS[self.scenario].hemoglobin_screening_coverage == "baseline":
