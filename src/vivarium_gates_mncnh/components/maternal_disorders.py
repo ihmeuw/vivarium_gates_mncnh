@@ -157,7 +157,7 @@ class MaternalHemorrhage(MaternalDisorder):
             p=[self.moderate_severity_probability, 1 - self.moderate_severity_probability],
             additional_key="hemorrhage_severity_choice",
         )
-        
+
         pop.loc[got_hemorrhage_index, self.maternal_disorder] = True
         pop.loc[got_hemorrhage_index, self.severity_column] = hemorrhage_severity
         self.population_view.update(pop)
