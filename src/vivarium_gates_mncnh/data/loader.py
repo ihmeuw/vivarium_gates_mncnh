@@ -61,6 +61,7 @@ def get_data(
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
         data_keys.POPULATION.BIRTH_RATE: load_birth_rate,
+        data_keys.POPULATION.ALL_CAUSE_ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.PREGNANCY.ASFR: load_asfr,
         data_keys.PREGNANCY.SBR: load_sbr,
         data_keys.PREGNANCY.RAW_INCIDENCE_RATE_MISCARRIAGE: load_raw_incidence_data,
@@ -93,8 +94,11 @@ def get_data(
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
         data_keys.PRETERM_BIRTH.PREVALENCE: load_preterm_prevalence,
         data_keys.PRETERM_BIRTH.MORTALITY_RISK: load_mortality_risk,
+        data_keys.PRETERM_BIRTH.ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.NEONATAL_SEPSIS.MORTALITY_RISK: load_mortality_risk,
+        data_keys.NEONATAL_SEPSIS.ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.NEONATAL_ENCEPHALOPATHY.MORTALITY_RISK: load_mortality_risk,
+        data_keys.NEONATAL_ENCEPHALOPATHY.ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION: load_facility_proportion,
         data_keys.FACILITY_CHOICE.P_HOME: load_probability_home_delivery,
         data_keys.FACILITY_CHOICE.P_BEmONC: load_overall_probability_birth_facility_type,
@@ -261,11 +265,20 @@ def load_sbr(
 ) -> pd.DataFrame:
     year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
 
-    sbr = load_standard_data(key, location)
-    lower_value = sbr.loc[(year_start, year_end, "lower_value"), "value"]
-    mean_value = sbr.loc[(year_start, year_end, "mean_value"), "value"]
-    upper_value = sbr.loc[(year_start, year_end, "upper_value"), "value"]
-    sbr = sbr.reorder_levels(["parameter", "year_start", "year_end"]).loc["mean_value"]
+    data = pd.read_csv(paths.STILLBIRTH_RATIO_24_WKS_CSV)
+    location_id = utility_data.get_location_id(location)
+    data = data.loc[data["location_id"] == location_id]
+    data = data.loc[data["year_id"] == metadata.ARTIFACT_YEAR_START].rename(
+        {"year_id": "year_start"}, axis=1
+    )
+    data["year_end"] = metadata.ARTIFACT_YEAR_END
+
+    data = data.drop(["age_group_id", "sex_id", "location_id"], axis=1)
+    data = data.set_index(["year_start", "year_end"])
+
+    lower_value = data.loc[(year_start, year_end), "lower_value"]
+    mean_value = data.loc[(year_start, year_end), "mean_value"]
+    upper_value = data.loc[(year_start, year_end), "upper_value"]
 
     sbr_dist = get_truncnorm(
         mean=mean_value,
@@ -1071,35 +1084,71 @@ def load_mortality_risk(
     )
     births.index = births.index.droplevel("location")
 
-    # Pull early and late neonatal death counts
-    def get_deaths(age_group_id, gbd_id):
-        deaths = extra_gbd.get_mortality_death_counts(
-            location=location, age_group_id=age_group_id, gbd_id=gbd_id
-        )
-        deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[
-            draw_columns
-        ]
-        deaths = reshape_to_vivarium_format(deaths, location)
-        return deaths
-
-    # Early neonatal deaths (all-cause and cause-specific)
-    # and cause-specific late neonatal deaths
-    enn_acmr_deaths = get_deaths(age_group_id=2, gbd_id=294)
-    enn_deaths = get_deaths(age_group_id=2, gbd_id=gbd_id)
-    lnn_deaths = get_deaths(age_group_id=3, gbd_id=gbd_id)
+    # Early neonatal and late neonatal cause specific deaths
+    enn_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
+    lnn_deaths = get_deaths(
+        age_group_id=3, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
 
     # Build mortality risk dataframe
+    deaths = pd.concat([enn_deaths, lnn_deaths])
+    beginning_of_age_group_pop = get_data(
+        f"{key.split('.')[0]}.{key.split('.')[1]}.adjusted_birth_counts",
+        location,
+        years,
+    )
+
+    mortality_risk = deaths / beginning_of_age_group_pop
+    return mortality_risk
+
+
+def load_adjusted_birth_counts(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load birth counts adjusted for by deaths for the late neonatal age group. This is the
+    population at the beginning of each neonatal age group."""
+    births = extra_gbd.get_birth_counts(location)
+    births = vi_utils.scrub_gbd_conventions(births, location)
+    births = vi_utils.split_interval(
+        births, interval_column="year", split_column_prefix="year"
+    )
+    births.index = births.index.droplevel("location")
+
+    # Get death counts
+    if key == data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK:
+        gbd_id = 294  # All causes neonatal mortality
+    else:
+        entity = utilities.get_entity(key)
+        gbd_id = entity.gbd_id
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+    enn_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
+    lnn_deaths = get_deaths(
+        age_group_id=3, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+    )
+    acmr_deaths = get_deaths(
+        age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=294
+    )
+
     enn = enn_deaths.merge(births, left_index=True, right_index=True)
-    enn_mortality_risk = enn.filter(like="draw").div(enn.population, axis=0)
-    # Get denominator for late neonatal mortality risk
-    population_array = np.array(enn["population"]).reshape(-1, 1)
-    denominator = population_array - enn_acmr_deaths[draw_columns]
-    denominator = denominator.droplevel(["age_start", "age_end"])
-    lnn_mortality_risk = lnn_deaths / denominator
-    mortality_risk = pd.concat([enn_mortality_risk, lnn_mortality_risk]).reorder_levels(
+    enn_pop = enn.copy()
+    # Set all draw columns to the population value (vectorized operation)
+    for col in draw_columns:
+        enn_pop[col] = enn_pop["population"]
+    # Drop the population column
+    enn_pop = enn_pop.drop(columns=["population"]).reorder_levels(
         ["sex", "age_start", "age_end", "year_start", "year_end"]
     )
-    return mortality_risk
+    # Get denominator for late neonatal mortality risk
+    population_array = np.array(enn["population"]).reshape(-1, 1)
+    lnn_pop = population_array - acmr_deaths[draw_columns]
+    # Update age_start and age_end for late neonatal
+    lnn_pop.index = lnn_deaths.index
+    beginning_of_age_group_pop = pd.concat([enn_pop, lnn_pop])
+    return beginning_of_age_group_pop
 
 
 def load_azithromycin_facility_probability(
@@ -1540,7 +1589,10 @@ def load_hemoglobin_paf(
     # we are pulling PAF data for deaths to define incidence risk
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
-    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+    ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
     # Expand draw columns from 0-99 to 0-499 by repeating 5 times
@@ -1628,3 +1680,12 @@ def reshape_to_vivarium_format(df, location):
     df = vi_utils.sort_hierarchical_data(df)
     df.index = df.index.droplevel("location")
     return df
+
+
+def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: int):
+    deaths = extra_gbd.get_mortality_death_counts(
+        location=location, age_group_id=age_group_id, gbd_id=gbd_id
+    )
+    deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[draw_cols]
+    deaths = reshape_to_vivarium_format(deaths, location)
+    return deaths

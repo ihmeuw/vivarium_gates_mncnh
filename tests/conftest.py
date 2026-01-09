@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Generator
 
@@ -93,3 +94,11 @@ def fuzzy_checker(output_directory) -> Generator[FuzzyChecker, Any, Any]:
     yield checker
 
     checker.save_diagnostic_output(output_directory)
+
+
+def is_on_slurm() -> bool:
+    """Returns True if the current environment is a SLURM cluster."""
+    return shutil.which("sbatch") is not None
+
+
+IS_ON_SLURM = is_on_slurm()
