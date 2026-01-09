@@ -24,4 +24,5 @@ branches:
         - "anemia_screening_and_iv_iron_scaleup"
         - "azithromycin_vv"
         - "misoprostol_vv"
-        #- "ultrasound_vv"
+        - "ultrasound_vv"
+        - "anemia_screening_vv"

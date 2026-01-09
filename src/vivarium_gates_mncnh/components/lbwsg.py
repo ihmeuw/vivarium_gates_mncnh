@@ -39,6 +39,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     PIPELINES,
+    PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
 
@@ -57,6 +58,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
     def columns_required(self) -> list[str]:
         return [
             COLUMNS.SEX_OF_CHILD,
+            COLUMNS.PREGNANCY_OUTCOME,
         ]
 
     #################
@@ -86,16 +88,15 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
                 "must be provided."
             )
 
+        # get categorical exposure
         if categorical_exposure is None:
-            # everything above here is unchanged from LBWSGDistribution
-            categorical_exposures = []
-            for sex in ["Male", "Female"]:
-                categorical_exposures.append(
-                    self.sex_specific_ppf(categorical_propensity, sex)
-                )
+            categorical_exposures = [
+                self.categorical_sex_specific_ppf(categorical_propensity, sex)
+                for sex in ["Male", "Female"]
+            ]
             categorical_exposure = pd.concat(categorical_exposures).sort_index()
 
-        # everything below here is unchanged from LBWSGDistribution
+        # get continuous exposure (copied from LBWSGDistribution)
         exposure_intervals = categorical_exposure.apply(
             lambda category: self.category_intervals[axis][category]
         )
@@ -103,29 +104,60 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         exposure_right = exposure_intervals.apply(lambda interval: interval.right)
         continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
         continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
+        # TODO: uncomment once we allow null gestational age exposure
+        # set exposures to null for preterm pregnancies
+        # continuous_exposure[
+        #     self.population_view.get(propensity.index)[COLUMNS.PREGNANCY_OUTCOME]
+        #     == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+        # ] = np.nan
         return continuous_exposure
 
-    def sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
-        """Takes a full set of propensities and returns category exposures
-        for the provided sex."""
+    def categorical_sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
+        """Takes a possibly full set of propensities and returns category exposures for the provided sex."""
         pop = self.population_view.get(quantiles.index)
-        sex_subset_index = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex].index
-        quantiles = quantiles.loc[sex_subset_index]
-        exposure = self.exposure_parameters(quantiles.index)
-        sex_specific_ordering = self.ordered_categories[sex]
-        sorted_exposures = exposure[sex_specific_ordering]
-        # everything below here is unchanged from PolytomousDistribution's ppf
-        if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
-            raise MissingDataError("All exposure data returned as 0.")
-        exposure_sum = sorted_exposures.cumsum(axis="columns")
+        pop = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex]
+        exposures = self.get_simulant_specific_probabilities(pop.index)
+        # reorder categories according to sex-specific order
+        exposures = exposures[self.ordered_categories[sex]]
+
+        if not np.allclose(1, np.sum(exposures, axis=1)):
+            raise MissingDataError("Exposure data does not sum to 1.")
+
+        quantiles = quantiles.loc[exposures.index]
+        exposure_sum = exposures.cumsum(axis="columns")
         category_index = pd.concat(
             [exposure_sum[c] < quantiles for c in exposure_sum.columns], axis=1
         ).sum(axis=1)
+        sex_specific_ordering = self.ordered_categories[sex]
         return pd.Series(
             np.array(sex_specific_ordering)[category_index],
             name=self.risk + ".exposure",
             index=quantiles.index,
         )
+
+    def get_simulant_specific_probabilities(self, index: pd.Index) -> pd.DataFrame:
+        """Return the appropriate exposure probabilities given whether a simulant has a
+        live birth or stillbirth (abortion/miscarriage/ectopic pregnancies are assigned
+        live birth exposures). Stillbirth exposures are the same as live birth exposures
+        but with the two LBWSG categories with a max gestational age below 24 weeks
+        (cat2 and cat8) dropped."""
+        pop = self.population_view.get(index)
+        exposure = self.exposure_parameters(index)
+        non_stillbirth_categories = self.get_non_stillbirth_categories()
+
+        is_stillbirth = (
+            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        )
+        stillbirth_exposures = exposure.loc[is_stillbirth].copy()
+        stillbirth_exposures.loc[:, non_stillbirth_categories] = 0.0
+        stillbirth_exposures = stillbirth_exposures.div(
+            stillbirth_exposures.sum(axis=1), axis=0
+        )
+
+        is_not_stillbirth = ~is_stillbirth  # include abortion/miscarriage/ectopic pregnancy
+        non_stillbirth_exposures = exposure.loc[is_not_stillbirth]
+
+        return pd.concat([non_stillbirth_exposures, stillbirth_exposures]).sort_index()
 
     ##################
     # Helper methods #
@@ -150,11 +182,22 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
                 f"Could not parse LBWSG description '{description}'. Expected 4 numeric values."
             )
         # update gestational age to never be below 20
+        # in practice, all this does is convert cat2 and cat8 to be bounded between 20 and 24 weeks
+        # https://vivarium-research.readthedocs.io/en/latest/models/risk_exposures/low_birthweight_short_gestation/gbd_2021/index.html#converting-gbd-s-categorical-exposure-distribution-to-a-continuous-exposure-distribution
         lbwsg_values[0] = max(lbwsg_values[0], 20.0)
         return (
             pd.Interval(*lbwsg_values[:2], closed="left"),  # Gestational Age
             pd.Interval(*lbwsg_values[2:], closed="left"),  # Birth Weight
         )
+
+    def get_non_stillbirth_categories(self) -> list[str]:
+        """Get a list of LBWSG categories which we cannot assign to stillbirths
+        (those that have a max gestational age of 24)."""
+        return [
+            cat
+            for (cat, interval) in self.category_intervals["gestational_age"].items()
+            if interval.right == 24.0
+        ]
 
 
 class LBWSGRisk(LBWSGRisk_):
