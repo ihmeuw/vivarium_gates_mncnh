@@ -62,7 +62,7 @@ if __name__ == "__main__":
         "vivarium_dependencies[pytest]",
         "papermill",
         "jupyterlab",
-        "vivarium_testing_utils[validation] @ git+https://github.com/ihmeuw/vivarium_testing_utils.git@epic/mncnh-vv"
+        "vivarium_testing_utils[validation] @ git+https://github.com/ihmeuw/vivarium_testing_utils.git@epic/mncnh-vv",
     ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
