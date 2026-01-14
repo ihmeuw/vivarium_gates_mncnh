@@ -112,9 +112,9 @@ class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
             "denominator_data": self.denominator.raw_dataset_name,
         }
 
-    def __init__(self) -> None:
+    def __init__(self, cause: str) -> None:
         self.entity_type = "cause"
-        self.entity = "neonatal_preterm_birth"
+        self.entity = cause
         self.measure = "mortality_risk"
         self.numerator_with_rds = CauseDeaths("neonatal_preterm_birth_with_rds")
         self.numerator_without_rds = CauseDeaths("neonatal_preterm_birth_without_rds")
