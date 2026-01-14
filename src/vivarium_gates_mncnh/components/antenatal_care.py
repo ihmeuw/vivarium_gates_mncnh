@@ -170,6 +170,7 @@ class ANCAttendance(Component):
             has_short_pregnancy = pregnancy_duration_in_weeks < 8
             has_medium_pregnancy = pregnancy_duration_in_weeks.between(8, 12)
 
+            # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
             low = pd.Series(8.0, index=event.index)
             high = pd.Series(12.0, index=event.index)
             low.loc[has_short_pregnancy] = 6.0
@@ -205,6 +206,7 @@ class ANCAttendance(Component):
             draw = self.randomness.get_draw(
                 event.index, additional_key="anc_later_visit_timing"
             )
+            # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
             low = pd.Series(12, index=event.index)
             high = pd.Series(pregnancy_duration_in_weeks - 2, index=event.index)
             time_of_later_visit = pd.Series(
