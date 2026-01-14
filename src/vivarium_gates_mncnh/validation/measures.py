@@ -1,6 +1,5 @@
 import pandas as pd
 from vivarium_testing_utils.automated_validation.data_transformation import (
-    calculations,
     utils,
 )
 from vivarium_testing_utils.automated_validation.data_transformation.data_schema import (
@@ -138,5 +137,7 @@ class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
         )
         numerator_data = numerator_with_rds + numerator_without_rds
         denominator_data = self.denominator.format_dataset(denominator_data)
+        # Separate ENN deaths and LNN to have proper denominator (births in ENN and LNN)
+        denominator_data = self._adjust_births_by_age_group(numerator_data, denominator_data)
         numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
         return {"numerator_data": numerator_data, "denominator_data": denominator_data}
