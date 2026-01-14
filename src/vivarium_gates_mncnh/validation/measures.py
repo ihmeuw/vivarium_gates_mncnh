@@ -140,19 +140,3 @@ class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
         denominator_data = self.denominator.format_dataset(denominator_data)
         numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
         return {"numerator_data": numerator_data, "denominator_data": denominator_data}
-
-    @utils.check_io(
-        numerator_with_rds=SingleNumericColumn,
-        numerator_without_rds=SingleNumericColumn,
-        denominator_data=SingleNumericColumn,
-        out=SingleNumericColumn,
-    )
-    def get_measure_data_from_ratio(
-        self,
-        numerator_with_rds: pd.DataFrame,
-        numerator_without_rds: pd.DataFrame,
-        denominator_data: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """Compute final measure data from separate numerator and denominator data."""
-        numerator_data = numerator_with_rds + numerator_without_rds
-        return calculations.ratio(numerator_data, denominator_data)
