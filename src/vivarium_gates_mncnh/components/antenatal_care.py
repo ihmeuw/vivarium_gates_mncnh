@@ -24,6 +24,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     ANC_RATES,
     COLUMNS,
+    PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     ULTRASOUND_TYPES,
@@ -35,7 +36,11 @@ from vivarium_gates_mncnh.utilities import get_location
 class ANCAttendance(Component):
     @property
     def columns_created(self):
-        return [COLUMNS.ANC_ATTENDANCE]
+        return [
+            COLUMNS.ANC_ATTENDANCE,
+            COLUMNS.TIME_OF_FIRST_ANC_VISIT,
+            COLUMNS.TIME_OF_LATER_ANC_VISIT,
+        ]
 
     @property
     def columns_required(self):
@@ -45,11 +50,18 @@ class ANCAttendance(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.propensity = builder.value.get_value(f"antenatal_care.correlated_propensity")
+        self.pregnancy_duration = builder.value.get_value(PIPELINES.PREGNANCY_DURATION)
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
                 COLUMNS.ANC_ATTENDANCE: pd.NA,
+                COLUMNS.TIME_OF_FIRST_ANC_VISIT: pd.Series(
+                    pd.NaT, index=pop_data.index, dtype="timedelta64[ns]"
+                ),
+                COLUMNS.TIME_OF_LATER_ANC_VISIT: pd.Series(
+                    pd.NaT, index=pop_data.index, dtype="timedelta64[ns]"
+                ),
             },
             index=pop_data.index,
         )
@@ -78,9 +90,6 @@ class ANCAttendance(Component):
         return pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
-            return
-
         def get_both_visits_probability(index: pd.Index) -> pd.Series:
             is_full_term = self.is_full_term(index)
             result = pd.Series(0.0, index=index)
@@ -119,31 +128,89 @@ class ANCAttendance(Component):
             result[~is_full_term] = 1 - ancfirst[~is_full_term]
             return result
 
-        # this ordering is important when using propensities
-        # to preserve correlations in facility choice model
-        probabilities = pd.concat(
-            [
-                get_no_visit_probability(event.index),
-                get_later_visit_only_probability(event.index),
-                get_early_visit_only_probability(event.index),
-                get_both_visits_probability(event.index),
-            ],
-            axis=1,
-        )
-        probabilities.columns = [
-            ANC_ATTENDANCE_TYPES.NONE,
-            ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
-            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
-            ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
-        ]
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            # this ordering is important when using propensities
+            # to preserve correlations in facility choice model
+            probabilities = pd.concat(
+                [
+                    get_no_visit_probability(event.index),
+                    get_later_visit_only_probability(event.index),
+                    get_early_visit_only_probability(event.index),
+                    get_both_visits_probability(event.index),
+                ],
+                axis=1,
+            )
+            probabilities.columns = [
+                ANC_ATTENDANCE_TYPES.NONE,
+                ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
 
-        # use correlated propensity to decide ANC attendance
-        propensities = self.propensity(event.index)
-        anc_choices = probabilities.columns
-        anc_attendance = _choice(propensities, anc_choices, probabilities.values)
-        anc_attendance.name = COLUMNS.ANC_ATTENDANCE
+            # use correlated propensity to decide ANC attendance
+            propensities = self.propensity(event.index)
+            anc_choices = probabilities.columns
+            anc_attendance = _choice(propensities, anc_choices, probabilities.values)
+            anc_attendance.name = COLUMNS.ANC_ATTENDANCE
 
-        self.population_view.update(anc_attendance)
+            self.population_view.update(anc_attendance)
+
+            # determine timing of first ANC visits for those who attend
+            pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
+                days=7
+            )
+            attends_first_trimester_anc = anc_attendance.isin(
+                [
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+                ]
+            )
+
+            has_short_pregnancy = pregnancy_duration_in_weeks < 8
+            has_medium_pregnancy = pregnancy_duration_in_weeks.between(8, 12)
+
+            # define lower and upper bounds for visit timing
+            low = pd.Series(8.0, index=event.index)
+            high = pd.Series(12.0, index=event.index)
+            low.loc[has_short_pregnancy] = 6.0
+            high.loc[has_short_pregnancy] = pregnancy_duration_in_weeks.loc[
+                has_short_pregnancy
+            ]
+            high.loc[has_medium_pregnancy] = pregnancy_duration_in_weeks.loc[
+                has_medium_pregnancy
+            ]
+
+            draw = self.randomness.get_draw(
+                event.index, additional_key="anc_first_visit_timing"
+            )
+            time_of_first_visit = pd.Series(
+                (low + (high - low) * draw), name=COLUMNS.TIME_OF_FIRST_ANC_VISIT
+            ) * pd.Timedelta(days=7)
+            time_of_first_visit.loc[~attends_first_trimester_anc] = pd.NaT
+            self.population_view.update(time_of_first_visit)
+
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.ULTRASOUND:
+            pop = self.population_view.get(event.index)
+            pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
+                days=7
+            )
+            attends_later_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
+                [
+                    ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+                ]
+            )
+
+            draw = self.randomness.get_draw(
+                event.index, additional_key="anc_later_visit_timing"
+            )
+            low = pd.Series(12, index=event.index)
+            high = pd.Series(pregnancy_duration_in_weeks - 2, index=event.index)
+            time_of_later_visit = pd.Series(
+                (low + (high - low) * draw), name=COLUMNS.TIME_OF_LATER_ANC_VISIT
+            ) * pd.Timedelta(days=7)
+            time_of_later_visit.loc[~attends_later_anc] = pd.NaT
+            self.population_view.update(time_of_later_visit)
 
 
 class Ultrasound(Component):
