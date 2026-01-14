@@ -62,6 +62,7 @@ components:
             - BirthObserver()
             - MaternalDisordersBurdenObserver()
             - NeonatalBurdenObserver()
+            - AnemiaYLDsObserver()
             - NeonatalCauseRelativeRiskObserver()
             - InterventionObserver('cpap')
             - InterventionObserver('antibiotics')
