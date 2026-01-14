@@ -190,6 +190,7 @@ class ANCAttendance(Component):
             time_of_first_visit.loc[~attends_first_trimester_anc] = pd.NaT
             self.population_view.update(time_of_first_visit)
 
+        # determine timing of later visits 
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.ULTRASOUND:
             pop = self.population_view.get(event.index)
             pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
