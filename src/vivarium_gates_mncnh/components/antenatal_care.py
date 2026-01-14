@@ -166,10 +166,10 @@ class ANCAttendance(Component):
                 ]
             )
 
+            # define lower and upper bounds for visit timing
             has_short_pregnancy = pregnancy_duration_in_weeks < 8
             has_medium_pregnancy = pregnancy_duration_in_weeks.between(8, 12)
 
-            # define lower and upper bounds for visit timing
             low = pd.Series(8.0, index=event.index)
             high = pd.Series(12.0, index=event.index)
             low.loc[has_short_pregnancy] = 6.0
@@ -179,7 +179,7 @@ class ANCAttendance(Component):
             high.loc[has_medium_pregnancy] = pregnancy_duration_in_weeks.loc[
                 has_medium_pregnancy
             ]
-
+            # calculate visit timing
             draw = self.randomness.get_draw(
                 event.index, additional_key="anc_first_visit_timing"
             )
@@ -201,6 +201,7 @@ class ANCAttendance(Component):
                 ]
             )
 
+            # calculate visit timing
             draw = self.randomness.get_draw(
                 event.index, additional_key="anc_later_visit_timing"
             )
