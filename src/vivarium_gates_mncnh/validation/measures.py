@@ -1,5 +1,8 @@
 import pandas as pd
-from vivarium_testing_utils.automated_validation.data_transformation import utils
+from vivarium_testing_utils.automated_validation.data_transformation import (
+    calculations,
+    utils,
+)
 from vivarium_testing_utils.automated_validation.data_transformation.data_schema import (
     SimOutputData,
     SingleNumericColumn,
@@ -92,3 +95,64 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
         lnn_mask = births.index.get_level_values("age_group") == "late_neonatal"
         births.loc[lnn_mask] -= enn_deaths
         return births
+
+
+class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
+    """Computes neonatal mortality risk due to preterm birth complications. This measure
+    is unique in that it is split into two separate simulation outputs: one for deaths
+    with respiratory distress syndrome (RDS) and one for deaths without RDS. This class
+    combines those two outputs to compute the overall neonatal preterm birth mortality risk."""
+
+    @property
+    def sim_output_datasets(self) -> dict[str, str]:
+        """Return a dictionary of required datasets for this measure."""
+        return {
+            "numerator_with_rds": self.numerator_with_rds.raw_dataset_name,
+            "numerator_without_rds": self.numerator_without_rds.raw_dataset_name,
+            "denominator_data": self.denominator.raw_dataset_name,
+        }
+
+    def __init__(self) -> None:
+        self.entity_type = "cause"
+        self.entity = "neonatal_preterm_birth"
+        self.measure = "mortality_risk"
+        self.numerator_with_rds = CauseDeaths("neonatal_preterm_birth_with_rds")
+        self.numerator_without_rds = CauseDeaths("neonatal_preterm_birth_without_rds")
+        self.denominator = LiveBirths([])
+
+    @utils.check_io(
+        numerator_with_rds=SimOutputData,
+        numerator_without_rds=SimOutputData,
+        denominator_data=SimOutputData,
+    )
+    def get_ratio_datasets_from_sim(
+        self,
+        numerator_with_rds: pd.DataFrame,
+        numerator_without_rds: pd.DataFrame,
+        denominator_data: pd.DataFrame,
+    ) -> dict[str, pd.DataFrame]:
+        """Process raw simulation data and return numerator and denominator DataFrames separately."""
+        numerator_with_rds = self.numerator_with_rds.format_dataset(numerator_with_rds)
+        numerator_without_rds = self.numerator_without_rds.format_dataset(
+            numerator_without_rds
+        )
+        numerator_data = numerator_with_rds + numerator_without_rds
+        denominator_data = self.denominator.format_dataset(denominator_data)
+        numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
+        return {"numerator_data": numerator_data, "denominator_data": denominator_data}
+
+    @utils.check_io(
+        numerator_with_rds=SingleNumericColumn,
+        numerator_without_rds=SingleNumericColumn,
+        denominator_data=SingleNumericColumn,
+        out=SingleNumericColumn,
+    )
+    def get_measure_data_from_ratio(
+        self,
+        numerator_with_rds: pd.DataFrame,
+        numerator_without_rds: pd.DataFrame,
+        denominator_data: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Compute final measure data from separate numerator and denominator data."""
+        numerator_data = numerator_with_rds + numerator_without_rds
+        return calculations.ratio(numerator_data, denominator_data)
