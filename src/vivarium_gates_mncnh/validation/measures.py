@@ -1,7 +1,5 @@
 import pandas as pd
-from vivarium_testing_utils.automated_validation.data_transformation import (
-    utils,
-)
+from vivarium_testing_utils.automated_validation.data_transformation import utils
 from vivarium_testing_utils.automated_validation.data_transformation.data_schema import (
     SimOutputData,
     SingleNumericColumn,
@@ -141,3 +139,47 @@ class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
         denominator_data = self._adjust_births_by_age_group(numerator_data, denominator_data)
         numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
         return {"numerator_data": numerator_data, "denominator_data": denominator_data}
+
+
+class NeonatalOtherCausesMortalityRisk(NeonatalCauseSpecificMortalityRisk):
+    """Computes the mortality risk of other causes not specifically modeled in the simulation.
+    This handles the calculation of taking all cause mortality risk from the artifact and
+    subtracting out the modeled causes to get the "other" cause mortality risk output by the
+    simulation."""
+
+    @property
+    def sim_input_datasets(self) -> dict[str, str]:
+        """Return a dictionary of required datasets for this measure."""
+        return {
+            "all_causes": "cause.all_causes.all_cause_mortality_risk",
+            "preterm_birth": "cause.neonatal_preterm_birth.mortality_risk",
+            "sepsis": "cause.neonatal_sepsis_and_other_neonatal_infections.mortality_risk",
+            "encephalopathy": "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.mortality_risk",
+        }
+
+    def __init__(self, cause) -> None:
+        self.entity_type = "cause"
+        self.entity = cause
+        self.measure = "mortality_risk"
+        self.numerator = CauseDeaths("other_causes")
+        self.denominator = LiveBirths([])
+
+    @utils.check_io(
+        all_causes=SingleNumericColumn,
+        preterm_birth=SingleNumericColumn,
+        sepsis=SingleNumericColumn,
+        encephalopathy=SingleNumericColumn,
+        out=SingleNumericColumn,
+    )
+    def get_measure_data_from_sim_inputs(
+        self,
+        all_causes: pd.DataFrame,
+        preterm_birth: pd.DataFrame,
+        sepsis: pd.DataFrame,
+        encephalopathy: pd.DataFrame,
+    ) -> pd.DataFrame:
+        all_causes = map_child_index_levels(all_causes)
+        preterm_birth = map_child_index_levels(preterm_birth)
+        sepsis = map_child_index_levels(sepsis)
+        encephalopathy = map_child_index_levels(encephalopathy)
+        return all_causes - (preterm_birth + sepsis + encephalopathy)
