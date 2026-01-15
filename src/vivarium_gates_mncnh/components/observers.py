@@ -7,6 +7,7 @@ import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium_public_health.results import COLUMNS, PublicHealthObserver
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
@@ -17,6 +18,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
 )
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
+    ANEMIA_THRESHOLDS,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
@@ -521,6 +523,243 @@ class NeonatalBurdenObserver(BurdenObserver):
     def to_observe(self, event: Event) -> bool:
         # Need to make single observeration of deaths after all time steps where neonates die.
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
+
+
+class AnemiaYLDsObserver(PublicHealthObserver):
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": [],
+                    "include": ["age_group"],
+                },
+            },
+        }
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.pregnancy_duration = builder.value.get_value(PIPELINES.PREGNANCY_DURATION)
+        self.hemoglobin = builder.value.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)
+        self.anemia_data = {}
+
+    def register_observations(self, builder: Builder) -> None:
+        self.register_adding_observation(
+            builder=builder,
+            name="anemia_ylds",
+            pop_filter='tracked == True and alive == "alive"',
+            requires_columns=[
+                COLUMNS.TIME_OF_FIRST_ANC_VISIT,
+                COLUMNS.TIME_OF_LATER_ANC_VISIT,
+                COLUMNS.ANC_ATTENDANCE,
+                "alive",
+            ],
+            requires_values=[PIPELINES.HEMOGLOBIN_EXPOSURE, PIPELINES.PREGNANCY_DURATION],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+            aggregator=self.calculate_anemia_ylds,
+        )
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() in [
+            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+            SIMULATION_EVENT_NAMES.ULTRASOUND,
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+        ]
+
+    def on_time_step_prepare(self, event: SimulantData) -> None:
+        events = [
+            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING,
+            SIMULATION_EVENT_NAMES.ULTRASOUND,
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+        ]
+        if self._sim_step_name() in events:
+            anemia_status = self.get_anemia_status_from_hemoglobin(
+                self.hemoglobin(event.index)
+            )
+            self.anemia_data[self._sim_step_name()] = anemia_status
+
+    @staticmethod
+    def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
+        anemia_status = (
+            pd.cut(
+                hemoglobin,
+                bins=[-np.inf] + ANEMIA_THRESHOLDS,
+                labels=["severe", "moderate", "mild"],
+                right=False,
+            )
+            .astype("object")
+            .fillna("not_anemic")
+        )
+        return anemia_status
+
+    def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs for anemia based on the current simulation event."""
+        event_name = self._sim_step_name()
+
+        if event_name == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
+            return self._calculate_first_visit_ylds(data)
+        elif event_name == SIMULATION_EVENT_NAMES.ULTRASOUND:
+            return self._calculate_later_visit_ylds(data)
+        elif event_name == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+            return self._calculate_postpartum_ylds(data)
+
+        return 0.0
+
+    def _calculate_first_visit_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs for first trimester ANC attendees."""
+        attends_first_trimester = self._get_first_trimester_attendees(data)
+        # anemia status going into first trimester ANC visit
+        anemia_status = self.anemia_data[SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC].loc[
+            data.index
+        ]
+        dw = self.get_disability_weight_from_anemia_status(anemia_status)
+        duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
+        ylds = dw * duration_years
+        return ylds.loc[attends_first_trimester].sum()
+
+    def _calculate_later_visit_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs after the later ANC visit, covering inter-visit and post-visit periods."""
+        first_visit_ylds = self._calculate_inter_visit_ylds(data)
+        later_visit_ylds = self._calculate_post_visit_ylds(data)
+        return first_visit_ylds + later_visit_ylds
+
+    def _calculate_inter_visit_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs between first and later ANC visits."""
+        attendance_masks = self._get_attendance_masks(data)
+        # anemia status going into later ANC visit
+        anemia_status = self.anemia_data[
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING
+        ].loc[data.index]
+        dw = self.get_disability_weight_from_anemia_status(anemia_status)
+
+        # Both visits: duration between visits
+        both_visits_duration = self._calculate_duration_between_visits(
+            data, attendance_masks["attends_both_visits"]
+        )
+        both_visits_ylds = self._calculate_ylds_for_duration(dw, both_visits_duration)
+
+        # Later visit only: duration from start to later visit
+        later_only_duration = data.loc[
+            attendance_masks["attends_later_visit_only"], COLUMNS.TIME_OF_LATER_ANC_VISIT
+        ]
+        later_only_ylds = self._calculate_ylds_for_duration(dw, later_only_duration)
+
+        return both_visits_ylds + later_only_ylds
+
+    def _calculate_post_visit_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs after ANC visits until delivery."""
+        attendance_masks = self._get_attendance_masks(data)
+        # anemia status after later ANC visit
+        anemia_status = self.anemia_data[SIMULATION_EVENT_NAMES.ULTRASOUND].loc[data.index]
+        dw = self.get_disability_weight_from_anemia_status(anemia_status)
+
+        # Never attends: full pregnancy duration
+        no_visits_duration = self._get_pregnancy_duration(
+            data, attendance_masks["never_attends"]
+        )
+        no_visits_ylds = self._calculate_ylds_for_duration(dw, no_visits_duration)
+
+        # Post first visit only: remaining pregnancy duration
+        post_first_duration = self._calculate_remaining_pregnancy_duration(
+            data,
+            attendance_masks["attends_first_visit_only"],
+            COLUMNS.TIME_OF_FIRST_ANC_VISIT,
+        )
+        post_first_ylds = self._calculate_ylds_for_duration(dw, post_first_duration)
+
+        # Post later visit: remaining pregnancy duration
+        post_later_duration = self._calculate_remaining_pregnancy_duration(
+            data, attendance_masks["attends_later_visit"], COLUMNS.TIME_OF_LATER_ANC_VISIT
+        )
+        post_later_ylds = self._calculate_ylds_for_duration(dw, post_later_duration)
+
+        return no_visits_ylds + post_later_ylds + post_first_ylds
+
+    def _calculate_postpartum_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs for postpartum period (6 weeks)."""
+        # postpartum anemia status
+        anemia_status = self.anemia_data[SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY].loc[
+            data.index
+        ]
+        dw = self.get_disability_weight_from_anemia_status(anemia_status)
+        postpartum_duration_years = 6 * 7 / 365.25  # 6 weeks in years
+        return (dw * postpartum_duration_years).sum()
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _get_first_trimester_attendees(self, data: pd.DataFrame) -> pd.Series:
+        """Get mask for simulants who attend first trimester ANC."""
+        return data[COLUMNS.ANC_ATTENDANCE].isin(
+            [
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
+
+    def _get_attendance_masks(self, data: pd.DataFrame) -> dict[str, pd.Series]:
+        """Get attendance pattern masks for different ANC visit combinations."""
+        return {
+            "never_attends": data[COLUMNS.ANC_ATTENDANCE] == ANC_ATTENDANCE_TYPES.NONE,
+            "attends_both_visits": data[COLUMNS.ANC_ATTENDANCE]
+            == ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            "attends_first_visit_only": data[COLUMNS.ANC_ATTENDANCE]
+            == ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+            "attends_later_visit_only": data[COLUMNS.ANC_ATTENDANCE]
+            == ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+            "attends_later_visit": data[COLUMNS.ANC_ATTENDANCE].isin(
+                [
+                    ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+                ]
+            ),
+        }
+
+    def _calculate_duration_between_visits(
+        self, data: pd.DataFrame, mask: pd.Series
+    ) -> pd.Series:
+        """Calculate duration between first and later ANC visits."""
+        return (
+            data.loc[mask, COLUMNS.TIME_OF_LATER_ANC_VISIT]
+            - data.loc[mask, COLUMNS.TIME_OF_FIRST_ANC_VISIT]
+        )
+
+    def _get_pregnancy_duration(
+        self, data: pd.DataFrame, mask: pd.Series
+    ) -> pd.Series:
+        """Get pregnancy duration for simulants."""
+        return self.pregnancy_duration(data.loc[mask].index)
+
+    def _calculate_remaining_pregnancy_duration(
+        self, data: pd.DataFrame, mask: pd.Series, visit_time_column: str
+    ) -> pd.Series:
+        """Calculate remaining pregnancy duration after a visit."""
+        return (
+            self.pregnancy_duration(data.loc[mask].index) - data.loc[mask, visit_time_column]
+        )
+
+    def _calculate_ylds_for_duration(
+        self, disability_weights: pd.Series, duration: pd.Series
+    ) -> float:
+        """Calculate YLDs given disability weights and duration."""
+        if duration.empty:
+            return 0.0
+        duration_years = duration / pd.Timedelta(days=365.25)
+        return (disability_weights.loc[duration.index] * duration_years).sum()
+
+    def get_disability_weight_from_anemia_status(self, anemia_status: pd.Series) -> pd.Series:
+        # https://vivarium-research.readthedocs.io/en/latest/models/other_models/hemoglobin_anemia_and_iron_deficiency/anemia_impairment/index.html#id6
+        anemia_status_to_dw = {
+            "severe": 0.149,
+            "moderate": 0.052,
+            "mild": 0.004,
+            "not_anemic": 0.0,
+        }
+        return anemia_status.map(anemia_status_to_dw)
 
 
 class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
