@@ -156,65 +156,73 @@ class ANCAttendance(Component):
             self.population_view.update(anc_attendance)
 
             # determine timing of first ANC visits for those who attend
-            pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
-                days=7
-            )
-            attends_first_trimester_anc = anc_attendance.isin(
-                [
-                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
-                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
-                ]
-            )
-
-            # define lower and upper bounds for visit timing
-            has_short_pregnancy = pregnancy_duration_in_weeks < 8
-            has_medium_pregnancy = pregnancy_duration_in_weeks.between(8, 12)
-
-            # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
-            low = pd.Series(8.0, index=event.index)
-            high = pd.Series(12.0, index=event.index)
-            low.loc[has_short_pregnancy] = 6.0
-            high.loc[has_short_pregnancy] = pregnancy_duration_in_weeks.loc[
-                has_short_pregnancy
-            ]
-            high.loc[has_medium_pregnancy] = pregnancy_duration_in_weeks.loc[
-                has_medium_pregnancy
-            ]
-            # calculate visit timing
-            draw = self.randomness.get_draw(
-                event.index, additional_key="anc_first_visit_timing"
-            )
-            time_of_first_visit = pd.Series(
-                (low + (high - low) * draw), name=COLUMNS.TIME_OF_FIRST_ANC_VISIT
-            ) * pd.Timedelta(days=7)
-            time_of_first_visit.loc[~attends_first_trimester_anc] = pd.NaT
+            time_of_first_visit = self._calculate_first_visit_timing(event, anc_attendance)
             self.population_view.update(time_of_first_visit)
 
-        # determine timing of later visits 
+        # determine timing of later visits
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.ULTRASOUND:
             pop = self.population_view.get(event.index)
-            pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
-                days=7
-            )
-            attends_later_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
-                [
-                    ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
-                    ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
-                ]
-            )
-
-            # calculate visit timing
-            draw = self.randomness.get_draw(
-                event.index, additional_key="anc_later_visit_timing"
-            )
-            # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
-            low = pd.Series(12, index=event.index)
-            high = pd.Series(pregnancy_duration_in_weeks - 2, index=event.index)
-            time_of_later_visit = pd.Series(
-                (low + (high - low) * draw), name=COLUMNS.TIME_OF_LATER_ANC_VISIT
-            ) * pd.Timedelta(days=7)
-            time_of_later_visit.loc[~attends_later_anc] = pd.NaT
+            time_of_later_visit = self._calculate_later_visit_timing(event, pop)
             self.population_view.update(time_of_later_visit)
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _calculate_first_visit_timing(
+        self, event: Event, anc_attendance: pd.Series
+    ) -> pd.Series:
+        """Calculate timing of first trimester ANC visits."""
+        pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
+            days=7
+        )
+        attends_first_trimester_anc = anc_attendance.isin(
+            [
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
+
+        # define lower and upper bounds for visit timing
+        has_short_pregnancy = pregnancy_duration_in_weeks < 8
+        has_medium_pregnancy = pregnancy_duration_in_weeks.between(8, 12)
+
+        # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
+        low = pd.Series(8.0, index=event.index)
+        high = pd.Series(12.0, index=event.index)
+        low.loc[has_short_pregnancy] = 6.0
+        high.loc[has_short_pregnancy] = pregnancy_duration_in_weeks.loc[has_short_pregnancy]
+        high.loc[has_medium_pregnancy] = pregnancy_duration_in_weeks.loc[has_medium_pregnancy]
+        # calculate visit timing
+        draw = self.randomness.get_draw(event.index, additional_key="anc_first_visit_timing")
+        time_of_first_visit = pd.Series(
+            (low + (high - low) * draw), name=COLUMNS.TIME_OF_FIRST_ANC_VISIT
+        ) * pd.Timedelta(days=7)
+        time_of_first_visit.loc[~attends_first_trimester_anc] = pd.NaT
+        return time_of_first_visit
+
+    def _calculate_later_visit_timing(self, event: Event, pop: pd.DataFrame) -> pd.Series:
+        """Calculate timing of later pregnancy ANC visits."""
+        pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
+            days=7
+        )
+        attends_later_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
+            [
+                ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
+                ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_AND_LATER_PREGNANCY,
+            ]
+        )
+
+        # calculate visit timing
+        draw = self.randomness.get_draw(event.index, additional_key="anc_later_visit_timing")
+        # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
+        low = pd.Series(12, index=event.index)
+        high = pd.Series(pregnancy_duration_in_weeks - 2, index=event.index)
+        time_of_later_visit = pd.Series(
+            (low + (high - low) * draw), name=COLUMNS.TIME_OF_LATER_ANC_VISIT
+        ) * pd.Timedelta(days=7)
+        time_of_later_visit.loc[~attends_later_anc] = pd.NaT
+        return time_of_later_visit
 
 
 class Ultrasound(Component):
