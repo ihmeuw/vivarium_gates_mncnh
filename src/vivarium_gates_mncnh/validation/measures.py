@@ -157,13 +157,6 @@ class NeonatalOtherCausesMortalityRisk(NeonatalCauseSpecificMortalityRisk):
             "encephalopathy": "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.mortality_risk",
         }
 
-    def __init__(self, cause) -> None:
-        self.entity_type = "cause"
-        self.entity = cause
-        self.measure = "mortality_risk"
-        self.numerator = CauseDeaths("other_causes")
-        self.denominator = LiveBirths([])
-
     @utils.check_io(
         all_causes=SingleNumericColumn,
         preterm_birth=SingleNumericColumn,
