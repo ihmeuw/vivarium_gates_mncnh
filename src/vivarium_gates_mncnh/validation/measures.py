@@ -148,6 +148,17 @@ class NeonatalOtherCausesMortalityRisk(NeonatalCauseSpecificMortalityRisk):
     simulation."""
 
     @property
+    def rate_aggregation_weights(self) -> RateAggregationWeights:
+        """Returns rate aggregated weights."""
+        return RateAggregationWeights(
+            weight_keys={
+                "adjusted_births": f"cause.all_causes.adjusted_birth_counts",
+            },
+            formula=lambda adjusted_births: map_child_index_levels(adjusted_births),
+            description="Beginning of age group population, births adjusted for early neonatal deaths",
+        )
+
+    @property
     def sim_input_datasets(self) -> dict[str, str]:
         """Return a dictionary of required datasets for this measure."""
         return {
