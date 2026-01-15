@@ -23,5 +23,7 @@ Details on how code was verified. Consider: plots, images, (small) csv files.
 *** REMINDER ***
 CI WILL NOT RUN ANY TESTS.
 MANUALLY RUN TESTS WITH EACH PR.
+MAKE SURE CONSTANTS/PATHS.PY IS USING THE CORRECT MODEL RESULTS DIRECTORY.
 -->
+- [ ] model results directory is up to date
 - [ ] all tests pass (`pytest --runslow`)
