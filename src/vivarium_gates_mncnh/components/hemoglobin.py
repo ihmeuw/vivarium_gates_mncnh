@@ -37,9 +37,12 @@ class Hemoglobin(Risk):
             .reset_index()
             .value[0]
         )
-        self.ifa_effect_size = builder.data.load(
-            data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-        ).value[0]
+        self.ifa_effect_size = (
+            builder.data.load(data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE)
+            .query("affected_target=='hemoglobin.exposure'")
+            .reset_index()
+            .value[0]
+        )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         # leave handling of exposure column to this class rather than the parent class
@@ -78,11 +81,7 @@ class Hemoglobin(Risk):
         pass
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() not in [
-            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
-        ]:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
             return
         pop = self.population_view.get(event.index)
         pop[COLUMNS.HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
