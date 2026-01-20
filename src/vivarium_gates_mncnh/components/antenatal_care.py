@@ -51,6 +51,7 @@ class ANCAttendance(Component):
         self.randomness = builder.randomness.get_stream(self.name)
         self.propensity = builder.value.get_value(f"antenatal_care.correlated_propensity")
         self.pregnancy_duration = builder.value.get_value(PIPELINES.PREGNANCY_DURATION)
+        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
@@ -160,7 +161,7 @@ class ANCAttendance(Component):
             self.population_view.update(time_of_first_visit)
 
         # determine timing of later visits
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.ULTRASOUND:
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING:
             pop = self.population_view.get(event.index)
             time_of_later_visit = self._calculate_later_visit_timing(event, pop)
             self.population_view.update(time_of_later_visit)
@@ -203,9 +204,8 @@ class ANCAttendance(Component):
 
     def _calculate_later_visit_timing(self, event: Event, pop: pd.DataFrame) -> pd.Series:
         """Calculate timing of later pregnancy ANC visits."""
-        pregnancy_duration_in_weeks = self.pregnancy_duration(event.index) / pd.Timedelta(
-            days=7
-        )
+        # use first visit modified gestational age exposure for pregnancy duration
+        pregnancy_duration_in_weeks = self.gestational_age(event.index)
         attends_later_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
             [
                 ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
