@@ -26,7 +26,7 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
             weight_keys={
                 "adjusted_births": f"cause.{self.entity}.adjusted_birth_counts",
             },
-            formula=lambda adjusted_births: adjusted_births,
+            formula=lambda adjusted_births: map_child_index_levels(adjusted_births),
             description="Beginning of age group population, births adjusted for early neonatal deaths",
         )
 
@@ -92,3 +92,102 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
         lnn_mask = births.index.get_level_values("age_group") == "late_neonatal"
         births.loc[lnn_mask] -= enn_deaths
         return births
+
+
+class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
+    """Computes neonatal mortality risk due to preterm birth complications.
+
+    This measure is unique in that it is split into two separate simulation outputs: one for deaths
+    with respiratory distress syndrome (RDS) and one for deaths without RDS. This class
+    combines those two outputs to compute the overall neonatal preterm birth mortality risk.
+    """
+
+    @property
+    def sim_output_datasets(self) -> dict[str, str]:
+        """Return a dictionary of required datasets for this measure."""
+        return {
+            "numerator_with_rds": self.numerator_with_rds.raw_dataset_name,
+            "numerator_without_rds": self.numerator_without_rds.raw_dataset_name,
+            "denominator_data": self.denominator.raw_dataset_name,
+        }
+
+    def __init__(self, cause: str) -> None:
+        self.entity_type = "cause"
+        self.entity = cause
+        self.measure = "mortality_risk"
+        self.numerator_with_rds = CauseDeaths("neonatal_preterm_birth_with_rds")
+        self.numerator_without_rds = CauseDeaths("neonatal_preterm_birth_without_rds")
+        self.denominator = LiveBirths([])
+
+    @utils.check_io(
+        numerator_with_rds=SimOutputData,
+        numerator_without_rds=SimOutputData,
+        denominator_data=SimOutputData,
+    )
+    def get_ratio_datasets_from_sim(
+        self,
+        numerator_with_rds: pd.DataFrame,
+        numerator_without_rds: pd.DataFrame,
+        denominator_data: pd.DataFrame,
+    ) -> dict[str, pd.DataFrame]:
+        """Process raw simulation data and return numerator and denominator DataFrames separately."""
+        numerator_with_rds = self.numerator_with_rds.format_dataset(numerator_with_rds)
+        numerator_without_rds = self.numerator_without_rds.format_dataset(
+            numerator_without_rds
+        )
+        numerator_data = numerator_with_rds + numerator_without_rds
+        denominator_data = self.denominator.format_dataset(denominator_data)
+        # Separate ENN deaths and LNN to have proper denominator (births in ENN and LNN)
+        denominator_data = self._adjust_births_by_age_group(numerator_data, denominator_data)
+        numerator_data, denominator_data = _align_indexes(numerator_data, denominator_data)
+        return {"numerator_data": numerator_data, "denominator_data": denominator_data}
+
+
+class NeonatalOtherCausesMortalityRisk(NeonatalCauseSpecificMortalityRisk):
+    """Computes the mortality risk of other causes not specifically modeled in the simulation.
+
+    This handles the calculation of taking all cause mortality risk from the artifact and
+    subtracting out the modeled causes to get the "other" cause mortality risk output by the
+    simulation.
+    """
+
+    @property
+    def rate_aggregation_weights(self) -> RateAggregationWeights:
+        """Returns rate aggregated weights."""
+        return RateAggregationWeights(
+            weight_keys={
+                "adjusted_births": f"cause.all_causes.adjusted_birth_counts",
+            },
+            formula=lambda adjusted_births: map_child_index_levels(adjusted_births),
+            description="Beginning of age group population, births adjusted for early neonatal deaths",
+        )
+
+    @property
+    def sim_input_datasets(self) -> dict[str, str]:
+        """Return a dictionary of required datasets for this measure."""
+        return {
+            "all_causes": "cause.all_causes.all_cause_mortality_risk",
+            "preterm_birth": "cause.neonatal_preterm_birth.mortality_risk",
+            "sepsis": "cause.neonatal_sepsis_and_other_neonatal_infections.mortality_risk",
+            "encephalopathy": "cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.mortality_risk",
+        }
+
+    @utils.check_io(
+        all_causes=SingleNumericColumn,
+        preterm_birth=SingleNumericColumn,
+        sepsis=SingleNumericColumn,
+        encephalopathy=SingleNumericColumn,
+        out=SingleNumericColumn,
+    )
+    def get_measure_data_from_sim_inputs(
+        self,
+        all_causes: pd.DataFrame,
+        preterm_birth: pd.DataFrame,
+        sepsis: pd.DataFrame,
+        encephalopathy: pd.DataFrame,
+    ) -> pd.DataFrame:
+        all_causes = map_child_index_levels(all_causes)
+        preterm_birth = map_child_index_levels(preterm_birth)
+        sepsis = map_child_index_levels(sepsis)
+        encephalopathy = map_child_index_levels(encephalopathy)
+        return all_causes - (preterm_birth + sepsis + encephalopathy)

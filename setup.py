@@ -84,7 +84,7 @@ if __name__ == "__main__":
         include_package_data=True,
         install_requires=install_requirements,
         extras_require={
-            "test": test_requirements,
+            "test": test_requirements + lint_requirements,
             "cluster": cluster_requirements,
             "data": data_requirements + cluster_requirements,
             "interactive": interactive_requirements,
