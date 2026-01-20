@@ -95,10 +95,12 @@ class NeonatalCauseSpecificMortalityRisk(RatioMeasure):
 
 
 class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
-    """Computes neonatal mortality risk due to preterm birth complications. This measure
-    is unique in that it is split into two separate simulation outputs: one for deaths
+    """Computes neonatal mortality risk due to preterm birth complications.
+
+    This measure is unique in that it is split into two separate simulation outputs: one for deaths
     with respiratory distress syndrome (RDS) and one for deaths without RDS. This class
-    combines those two outputs to compute the overall neonatal preterm birth mortality risk."""
+    combines those two outputs to compute the overall neonatal preterm birth mortality risk.
+    """
 
     @property
     def sim_output_datasets(self) -> dict[str, str]:
@@ -143,9 +145,11 @@ class NeonatalPretermBirthMortalityRisk(NeonatalCauseSpecificMortalityRisk):
 
 class NeonatalOtherCausesMortalityRisk(NeonatalCauseSpecificMortalityRisk):
     """Computes the mortality risk of other causes not specifically modeled in the simulation.
+
     This handles the calculation of taking all cause mortality risk from the artifact and
     subtracting out the modeled causes to get the "other" cause mortality risk output by the
-    simulation."""
+    simulation.
+    """
 
     @property
     def rate_aggregation_weights(self) -> RateAggregationWeights:
