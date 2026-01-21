@@ -75,14 +75,14 @@ help:
 	@echo "  type [optional]"
 	@echo "      Type of shared environment to use. Either 'simulation' (default) or 'artifact'"
 	@echo "  venv_path [optional]"
-	@echo "      Path where the venv will be created (defaults to '.venv')"
+	@echo "      Path where the venv will be created (defaults to '.venv/<PACKAGE_NAME>_<TYPE>')"
 	@echo "  shared_env_dir [optional]"
 	@echo "      Base directory for shared environments (defaults to Jenkins shared env location)"
 	@echo "  clear [optional]"
 	@echo "      Whether to clear an existing venv at venv_path. Either 'yes' or 'no' (default)"
 	@echo
 	@echo "After creating the environment:"
-	@echo "  1. Activate it: 'source .venv/bin/activate' (or your custom venv_path)"
+	@echo "  1. Activate it: 'source .venv/<PACKAGE_NAME>_<TYPE>/bin/activate' (or your custom venv_path)"
 	@echo "  2. Run 'make help' again to see all available targets"
 	@echo
 endif
@@ -176,7 +176,7 @@ build-venv: # Create a lightweight venv overlay on top of a shared conda environ
 	@$(eval type ?= simulation)
 	@$(call validate_arg,$(type),simulation artifact,type)
 #	venv_path
-	@$(eval venv_path ?= .venv)
+	@$(eval venv_path ?= .venv/$(PACKAGE_NAME)_$(type))
 #	shared_env_dir
 	@$(eval shared_env_dir ?= $(SHARED_ENV_DIR))
 #	clear
