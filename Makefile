@@ -36,11 +36,11 @@ help:
 	@echo "package. To access them, you need to create a development environment first."
 	@echo
 	@echo "================================================================================"
-	@echo "build-conda-env: Create a full conda environment from scratch"
+	@echo "build-env: Create a full conda environment from scratch"
 	@echo "================================================================================"
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-conda-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
+	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
@@ -61,7 +61,7 @@ help:
 	@echo "  2. Run 'make help' again to see all newly available targets"
 	@echo
 	@echo "================================================================================"
-	@echo "build-venv: Create a lightweight venv on top of a shared conda environment"
+	@echo "build-shared-env: Create a lightweight venv on top of a shared conda environment"
 	@echo "================================================================================"
 	@echo
 	@echo "This is the RECOMMENDED approach for development on the cluster. It creates a virtual"
@@ -69,7 +69,7 @@ help:
 	@echo "while allowing you to install the local package in editable mode."
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-venv [type=<environment type>] [venv_dir=<directory>] [venv_name=<name>] [shared_env_dir=<path>] [clear=<yes|no>]"
+	@echo "  make build-shared-env [type=<environment type>] [venv_dir=<directory>] [venv_name=<name>] [shared_env_dir=<path>] [clear=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
@@ -89,10 +89,10 @@ help:
 	@echo
 endif
 
-build-conda-env: # Create a new environment with installed packages
+build-env: # Create a new environment with installed packages
 #	Validate arguments - exit if unsupported arguments are passed
 	@allowed="type name path lfs py include_timestamp"; \
-	for arg in $(filter-out build-conda-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
+	for arg in $(filter-out build-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
 		case $$arg in \
 			*=*) \
 				arg_name=$${arg%%=*}; \
@@ -143,7 +143,7 @@ build-conda-env: # Create a new environment with installed packages
 	fi
 
 	@echo
-	@echo "Finished building conda environment"
+	@echo "Finished building environment"
 	@$(if $(path),echo "  path: $(path)",echo "  name: $(name)")
 	@echo "  type: $(type)"
 	@echo "  git-lfs installed: $(lfs)"
@@ -157,10 +157,10 @@ build-conda-env: # Create a new environment with installed packages
 # Default shared environment directory (set by Jenkins nightly builds)
 SHARED_ENV_DIR ?= /mnt/team/simulation_science/priv/engineering/jenkins/shared_envs
 
-build-venv: # Create a lightweight venv overlay on top of a shared conda environment
+build-shared-env: # Create a lightweight venv overlay on top of a shared conda environment
 #	Validate arguments - exit if unsupported arguments are passed
 	@allowed="type venv_dir venv_name shared_env_dir clear"; \
-	for arg in $(filter-out build-venv,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
+	for arg in $(filter-out build-shared-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
 		case $$arg in \
 			*=*) \
 				arg_name=$${arg%%=*}; \
