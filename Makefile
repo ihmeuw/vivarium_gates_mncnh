@@ -38,13 +38,15 @@ help:
 	@echo "make build-env"
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-env [type=<environment type>] [name=<environment name>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
+	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
 	@echo "      Type of conda environment. Either 'simulation' (default) or 'artifact'"
 	@echo "  name [optional]"
 	@echo "      Name of the conda environment to create (defaults to <PACKAGE_NAME>_<TYPE>)"
+	@echo "  path [optional]"
+	@echo "      Absolute path where the environment should be created (overrides name for location)"
 	@echo "  include_timestamp [optional]"
 	@echo "      Whether to append a timestamp to the environment name. Either 'yes' or 'no' (default)"
 	@echo "  lfs [optional]"
@@ -60,7 +62,7 @@ endif
 
 build-env: # Create a new environment with installed packages
 #	Validate arguments - exit if unsupported arguments are passed
-	@allowed="type name lfs py include_timestamp"; \
+	@allowed="type name path lfs py include_timestamp"; \
 	for arg in $(filter-out build-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
 		case $$arg in \
 			*=*) \
@@ -84,33 +86,39 @@ build-env: # Create a new environment with installed packages
 	@$(eval include_timestamp ?= no)
 	@$(call validate_arg,$(include_timestamp),yes no,include_timestamp)
 	@$(if $(filter yes,$(include_timestamp)),$(eval override name := $(name)_$(shell date +%Y%m%d_%H%M%S)),)
+#	path (optional - if set, use -p for conda create instead of -n)
+	@$(eval path ?=)
 #	lfs
 	@$(eval lfs ?= no)
 	@$(call validate_arg,$(lfs),yes no,lfs)
 #	python version
 	@$(eval py ?= $(shell python -c "import json; versions = json.load(open('python_versions.json')); print(max(versions, key=lambda x: tuple(map(int, x.split('.')))))"))
+#	Determine conda create flag: -p for path, -n for name
+	@$(eval CONDA_CREATE_FLAG := $(if $(path),-p $(path),-n $(name)))
+#	Determine conda run flag: -p for path, -n for name
+	@$(eval CONDA_RUN_FLAG := $(if $(path),-p $(path),-n $(name)))
 	
-	conda create -n $(name) python=$(py) --yes
+	conda create $(CONDA_CREATE_FLAG) python=$(py) --yes
 # 	Bootstrap vivarium_build_utils into the new environment
-	conda run -n $(name) pip install vivarium_build_utils
+	conda run $(CONDA_RUN_FLAG) pip install vivarium_build_utils
 #	Install packages based on type
 	@if [ "$(type)" = "simulation" ]; then \
-		conda run -n $(name) make install ENV_REQS=dev; \
-		conda install -n $(name) redis -c anaconda -y; \
+		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=dev; \
+		conda install $(CONDA_RUN_FLAG) redis -c anaconda -y; \
 	elif [ "$(type)" = "artifact" ]; then \
-		conda run -n $(name) make install ENV_REQS=data; \
+		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=data; \
 	fi
 	@if [ "$(lfs)" = "yes" ]; then \
-		conda run -n $(name) conda install -c conda-forge git-lfs --yes; \
-		conda run -n $(name) git lfs install; \
+		conda run $(CONDA_RUN_FLAG) conda install -c conda-forge git-lfs --yes; \
+		conda run $(CONDA_RUN_FLAG) git lfs install; \
 	fi
 
 	@echo
 	@echo "Finished building environment"
-	@echo "  name: $(name)"
+	@$(if $(path),echo "  path: $(path)",echo "  name: $(name)")
 	@echo "  type: $(type)"
 	@echo "  git-lfs installed: $(lfs)"
 	@echo "  python version: $(py)"
 	@echo
-	@echo "Don't forget to activate it with: 'conda activate $(name)'"
+	@$(if $(path),echo "Don't forget to activate it with: 'conda activate $(path)'",echo "Don't forget to activate it with: 'conda activate $(name)'")
 	@echo
