@@ -69,20 +69,22 @@ help:
 	@echo "while allowing you to install the local package in editable mode."
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-venv [type=<environment type>] [venv_path=<path>] [shared_env_dir=<path>] [clear=<yes|no>]"
+	@echo "  make build-venv [type=<environment type>] [venv_dir=<directory>] [venv_name=<name>] [shared_env_dir=<path>] [clear=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
 	@echo "      Type of shared environment to use. Either 'simulation' (default) or 'artifact'"
-	@echo "  venv_path [optional]"
-	@echo "      Path where the venv will be created (defaults to '.venv/<PACKAGE_NAME>_<TYPE>')"
+	@echo "  venv_dir [optional]"
+	@echo "      Directory where venvs are stored (defaults to '.venv')"
+	@echo "  venv_name [optional]"
+	@echo "      Name of the venv to create (defaults to '<PACKAGE_NAME>_<TYPE>')"
 	@echo "  shared_env_dir [optional]"
 	@echo "      Base directory for shared environments (defaults to Jenkins shared env location)"
 	@echo "  clear [optional]"
-	@echo "      Whether to clear an existing venv at venv_path. Either 'yes' or 'no' (default)"
+	@echo "      Whether to clear an existing venv at venv_dir/venv_name. Either 'yes' or 'no' (default)"
 	@echo
 	@echo "After creating the environment:"
-	@echo "  1. Activate it: 'source .venv/<PACKAGE_NAME>_<TYPE>/bin/activate' (or your custom venv_path)"
+	@echo "  1. Activate it: 'source <venv_dir>/<environment_name>/bin/activate'"
 	@echo "  2. Run 'make help' again to see all available targets"
 	@echo
 endif
@@ -157,7 +159,7 @@ SHARED_ENV_DIR ?= /mnt/team/simulation_science/priv/engineering/jenkins/shared_e
 
 build-venv: # Create a lightweight venv overlay on top of a shared conda environment
 #	Validate arguments - exit if unsupported arguments are passed
-	@allowed="type venv_path shared_env_dir clear"; \
+	@allowed="type venv_dir venv_name shared_env_dir clear"; \
 	for arg in $(filter-out build-venv,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
 		case $$arg in \
 			*=*) \
@@ -175,8 +177,12 @@ build-venv: # Create a lightweight venv overlay on top of a shared conda environ
 #	type
 	@$(eval type ?= simulation)
 	@$(call validate_arg,$(type),simulation artifact,type)
-#	venv_path
-	@$(eval venv_path ?= .venv/$(PACKAGE_NAME)_$(type))
+#	venv_dir
+	@$(eval venv_dir ?= .venv)
+#	venv_name
+	@$(eval venv_name ?= $(PACKAGE_NAME)_$(type))
+#	Construct full venv path
+	@$(eval venv_path := $(venv_dir)/$(venv_name))
 #	shared_env_dir
 	@$(eval shared_env_dir ?= $(SHARED_ENV_DIR))
 #	clear
@@ -200,7 +206,7 @@ build-venv: # Create a lightweight venv overlay on top of a shared conda environ
 			rm -rf "$(venv_path)"; \
 		else \
 			echo "Warning: venv already exists at $(venv_path)" >&2; \
-			echo "Use 'clear=yes' to remove and recreate it, or specify a different path with 'venv_path=<path>'" >&2; \
+			echo "Use 'clear=yes' to remove and recreate it, or specify a different location with 'venv_dir=<dir>' and 'venv_name=<name>'" >&2; \
 			exit 1; \
 		fi \
 	fi
@@ -216,7 +222,9 @@ build-venv: # Create a lightweight venv overlay on top of a shared conda environ
 
 	@echo
 	@echo "Finished creating venv"
-	@echo "  venv path: $(venv_path)"
+	@echo "  venv directory: $(venv_dir)"
+	@echo "  venv name: $(venv_name)"
+	@echo "  full path: $(venv_path)"
 	@echo "  base environment: $(SHARED_ENV_PATH)"
 	@echo "  type: $(type)"
 	@echo
