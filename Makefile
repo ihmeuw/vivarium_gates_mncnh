@@ -35,12 +35,10 @@ help:
 	@echo "Most of our Makefile targets are provided by the vivarium_build_utils"
 	@echo "package. To access them, you need to create a development environment first."
 	@echo
-	@echo "================================================================================"
-	@echo "build-conda-env: Create a full conda environment from scratch"
-	@echo "================================================================================"
+	@echo "make build-env"
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-conda-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
+	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
@@ -60,37 +58,12 @@ help:
 	@echo "  1. Activate it: 'conda activate <environment_name>'"
 	@echo "  2. Run 'make help' again to see all newly available targets"
 	@echo
-	@echo "================================================================================"
-	@echo "build-venv: Create a lightweight venv on top of a shared conda environment"
-	@echo "================================================================================"
-	@echo
-	@echo "This is the RECOMMENDED approach for development on the cluster. It creates a virtual"
-	@echo "environment that inherits packages from a Jenkins-built shared conda environment,"
-	@echo "while allowing you to install the local package in editable mode."
-	@echo
-	@echo "USAGE:"
-	@echo "  make build-venv [type=<environment type>] [venv_path=<path>] [shared_env_dir=<path>] [clear=<yes|no>]"
-	@echo
-	@echo "ARGUMENTS:"
-	@echo "  type [optional]"
-	@echo "      Type of shared environment to use. Either 'simulation' (default) or 'artifact'"
-	@echo "  venv_path [optional]"
-	@echo "      Path where the venv will be created (defaults to '.venv')"
-	@echo "  shared_env_dir [optional]"
-	@echo "      Base directory for shared environments (defaults to Jenkins shared env location)"
-	@echo "  clear [optional]"
-	@echo "      Whether to clear an existing venv at venv_path. Either 'yes' or 'no' (default)"
-	@echo
-	@echo "After creating the environment:"
-	@echo "  1. Activate it: 'source .venv/bin/activate' (or your custom venv_path)"
-	@echo "  2. Run 'make help' again to see all available targets"
-	@echo
 endif
 
-build-conda-env: # Create a new environment with installed packages
+build-env: # Create a new environment with installed packages
 #	Validate arguments - exit if unsupported arguments are passed
 	@allowed="type name path lfs py include_timestamp"; \
-	for arg in $(filter-out build-conda-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
+	for arg in $(filter-out build-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
 		case $$arg in \
 			*=*) \
 				arg_name=$${arg%%=*}; \
@@ -141,86 +114,11 @@ build-conda-env: # Create a new environment with installed packages
 	fi
 
 	@echo
-	@echo "Finished building conda environment"
+	@echo "Finished building environment"
 	@$(if $(path),echo "  path: $(path)",echo "  name: $(name)")
 	@echo "  type: $(type)"
 	@echo "  git-lfs installed: $(lfs)"
 	@echo "  python version: $(py)"
 	@echo
-	@echo "After creating the environment:"
-	@$(if $(path),echo "  1. Activate it: 'conda activate $(path)'",echo "  1. Activate it: 'conda activate $(name)'")
-	@echo "  2. Run 'make help' again to see all newly available targets"
-	@echo
-
-# Default shared environment directory (set by Jenkins nightly builds)
-SHARED_ENV_DIR ?= /mnt/team/simulation_science/priv/engineering/jenkins/shared_envs
-
-build-venv: # Create a lightweight venv overlay on top of a shared conda environment
-#	Validate arguments - exit if unsupported arguments are passed
-	@allowed="type venv_path shared_env_dir clear"; \
-	for arg in $(filter-out build-venv,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
-		case $$arg in \
-			*=*) \
-				arg_name=$${arg%%=*}; \
-				if ! echo " $$allowed " | grep -q " $$arg_name "; then \
-					allowed_list=$$(echo $$allowed | sed 's/ /, /g'); \
-					echo "Error: Invalid argument '$$arg_name'. Allowed arguments are: $$allowed_list" >&2; \
-					exit 1; \
-				fi \
-				;; \
-		esac; \
-	done
-
-#	Handle arguments and set defaults
-#	type
-	@$(eval type ?= simulation)
-	@$(call validate_arg,$(type),simulation artifact,type)
-#	venv_path
-	@$(eval venv_path ?= .venv)
-#	shared_env_dir
-	@$(eval shared_env_dir ?= $(SHARED_ENV_DIR))
-#	clear
-	@$(eval clear ?= no)
-	@$(call validate_arg,$(clear),yes no,clear)
-#	Construct shared environment path
-	@$(eval SHARED_ENV_NAME := $(PACKAGE_NAME)_$(type)_current)
-	@$(eval SHARED_ENV_PATH := $(shared_env_dir)/$(SHARED_ENV_NAME))
-
-#	Verify shared environment exists
-	@if [ ! -d "$(SHARED_ENV_PATH)" ]; then \
-		echo "Error: Shared environment not found at $(SHARED_ENV_PATH)" >&2; \
-		echo "Make sure the Jenkins nightly build has run successfully." >&2; \
-		exit 1; \
-	fi
-
-#	Handle existing venv
-	@if [ -d "$(venv_path)" ]; then \
-		if [ "$(clear)" = "yes" ]; then \
-			echo "Clearing existing venv at $(venv_path)"; \
-			rm -rf "$(venv_path)"; \
-		else \
-			echo "Warning: venv already exists at $(venv_path)" >&2; \
-			echo "Use 'clear=yes' to remove and recreate it, or specify a different path with 'venv_path=<path>'" >&2; \
-			exit 1; \
-		fi \
-	fi
-
-#	Create venv overlay with system-site-packages
-	@echo "Creating venv overlay at $(venv_path)"
-	@echo "  Base environment: $(SHARED_ENV_PATH)"
-	$(SHARED_ENV_PATH)/bin/python -m venv --system-site-packages $(venv_path)
-
-#	Install local package in editable mode (no-deps since shared env has dependencies)
-	@echo "Installing local package in editable mode (--no-deps)"
-	$(venv_path)/bin/pip install -e . --no-deps
-
-	@echo
-	@echo "Finished creating venv"
-	@echo "  venv path: $(venv_path)"
-	@echo "  base environment: $(SHARED_ENV_PATH)"
-	@echo "  type: $(type)"
-	@echo
-	@echo "After creating the environment:"
-	@echo "  1. Activate it: 'source $(venv_path)/bin/activate'"
-	@echo "  2. Run 'make help' again to see all newly available targets"
+	@$(if $(path),echo "Don't forget to activate it with: 'conda activate $(path)'",echo "Don't forget to activate it with: 'conda activate $(name)'")
 	@echo
