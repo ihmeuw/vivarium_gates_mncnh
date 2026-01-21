@@ -999,15 +999,20 @@ def load_iv_iron_hemoglobin_effect_size(
 
 
 def _add_hemoglobin_exposure_start_and_end(df: pd.DataFrame) -> pd.DataFrame:
-    df["hemoglobin_exposure_start"] = df["exposure"]
-    df["hemoglobin_exposure_end"] = df["exposure"][1:].tolist() + [np.inf]
+    df["first_trimester_hemoglobin_exposure_start"] = df["exposure"]
+    df["first_trimester_hemoglobin_exposure_end"] = df["exposure"][1:].tolist() + [np.inf]
     return df
 
 
 def load_iv_iron_lbwsg_effect_size(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    index_cols = ["sex", "outcome", "hemoglobin_exposure_start", "hemoglobin_exposure_end"]
+    index_cols = [
+        "sex",
+        "outcome",
+        "first_trimester_hemoglobin_exposure_start",
+        "first_trimester_hemoglobin_exposure_end",
+    ]
     data_dir = paths.HEMOGLOBIN_EFFECTS_DATA_DIR / "iv_iron_lbwsg_shifts"
     filepaths = glob.glob(str(data_dir / "*.csv"))
 
@@ -1038,9 +1043,12 @@ def load_iv_iron_stillbirth_rr(
     data = data.drop("exposure", axis=1)
 
     draw_cols = [col for col in data.columns if col.startswith("draw")]
-    data = data.set_index(["hemoglobin_exposure_start", "hemoglobin_exposure_end"])[
-        draw_cols
-    ].sort_index()
+    data = data.set_index(
+        [
+            "first_trimester_hemoglobin_exposure_start",
+            "first_trimester_hemoglobin_exposure_end",
+        ]
+    )[draw_cols].sort_index()
 
     return data
 

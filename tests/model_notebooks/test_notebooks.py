@@ -43,6 +43,7 @@ class NotebookTestRunner:
     def __init__(
         self,
         notebook_directory: str,
+        parameters: Dict[str, any] = {},
         environment_type: str = "simulation",
     ):
         """
@@ -50,7 +51,6 @@ class NotebookTestRunner:
 
         Args:
             notebook_directory: Path to directory containing notebooks to test
-            model_dir: Path to model results directory (injected as parameter into notebooks)
             timeout: Maximum execution time per notebook in seconds (default: 300 = 5 minutes)
             cleanup_notebooks: Whether to delete executed notebooks after testing (default: True)
 
@@ -58,7 +58,7 @@ class NotebookTestRunner:
             FileNotFoundError: If notebook_directory does not exist
         """
         self.notebook_directory = Path(notebook_directory)
-        self.model_dir = Path(MODEL_RESULTS_DIR)
+        self.parameters = parameters
         self.timeout = -1  # No timeout by default
         self.environment_type = environment_type
         self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
@@ -198,10 +198,11 @@ class NotebookTestRunner:
             # The kernel is automatically registered in __init__ if not already present
             pm.execute_notebook(
                 input_path=str(notebook_path),
-                output_path=str(notebook_path),
-                parameters={"model_dir": str(self.model_dir)},
+                output_path=notebook_path.parent / "executed" / notebook_path.name,
+                parameters=self.parameters,
                 kernel_name=self.kernel_name,
                 execution_timeout=self.timeout,
+                autosave_cell_every=10,
             )
 
             logger.success(f"✓ {notebook_path.name} completed successfully")
@@ -238,7 +239,7 @@ class NotebookTestRunner:
         """
         logger.info("Starting notebook test run")
         logger.info(f"Notebook directory: {self.notebook_directory}")
-        logger.info(f"Model directory: {self.model_dir}")
+        logger.info(f"Parameters: {self.parameters}")
         logger.info(f"Kernel name: {self.kernel_name}")
         # Discover notebooks
         self.notebooks_found = self._discover_notebook_paths()
@@ -292,7 +293,7 @@ class NotebookTestRunner:
             "failed_notebooks": len(self.failed_notebooks),
             "failed_notebook_names": [nb.name for nb in self.failed_notebooks],
             "notebook_directory": str(self.notebook_directory),
-            "model_directory": str(self.model_dir),
+            **self.parameters,
         }
 
 
@@ -321,6 +322,9 @@ def test_results_notebooks() -> None:
     runner = NotebookTestRunner(
         notebook_directory=MODEL_NOTEBOOKS_DIR / "results",
         environment_type="artifact",
+        parameters={
+            "model_dir": str(MODEL_RESULTS_DIR),
+        },
     )
     runner.test_run_notebooks()
 
