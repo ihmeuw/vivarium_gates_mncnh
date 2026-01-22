@@ -155,6 +155,8 @@ class __Columns(NamedTuple):
     BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
     ANC_ATTENDANCE = "anc_attendance"
+    TIME_OF_FIRST_ANC_VISIT = "time_of_first_anc_visit"
+    TIME_OF_LATER_ANC_VISIT = "time_of_later_anc_visit"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
