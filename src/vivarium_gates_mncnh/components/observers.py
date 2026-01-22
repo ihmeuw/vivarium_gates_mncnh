@@ -607,20 +607,20 @@ class AnemiaYLDsObserver(PublicHealthObserver):
 
     # duration calculations
 
-    def _get_first_anc_interval(self, data):
+    def _get_first_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from start of sim to first visit
         duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
         duration_years = duration_years.fillna(self.STAND_IN_ANC1_YEARS)
         return duration_years
 
-    def _get_later_anc_interval(self, data):
+    def _get_later_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from first visit to later visit
         later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
         later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
         duration_years = later_visit_years - self._get_first_anc_interval(data)
         return duration_years
 
-    def _get_later_anc_to_delivery_interval(self, data):
+    def _get_later_anc_to_delivery_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from later visit to delivery
         later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
         later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
