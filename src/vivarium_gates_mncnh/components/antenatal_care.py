@@ -46,6 +46,10 @@ class ANCAttendance(Component):
     def columns_required(self):
         return [COLUMNS.PREGNANCY_OUTCOME]
 
+    @property
+    def time_step_prepare_priority(self) -> int:
+        return 1
+
     def setup(self, builder: Builder):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
@@ -90,7 +94,7 @@ class ANCAttendance(Component):
         pregnancy_outcome = self.population_view.get(index)[COLUMNS.PREGNANCY_OUTCOME]
         return pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
 
-    def on_time_step(self, event: Event) -> None:
+    def on_time_step_prepare(self, event: Event) -> None:
         def get_both_visits_probability(index: pd.Index) -> pd.Series:
             is_full_term = self.is_full_term(index)
             result = pd.Series(0.0, index=index)

@@ -221,6 +221,10 @@ class LBWSGRisk(LBWSGRisk_):
             COLUMNS.SEX_OF_CHILD,
         ]
 
+    @property
+    def time_step_prepare_priority(self) -> int:
+        return 1
+
     #####################
     # Lifecycle methods #
     #####################

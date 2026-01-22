@@ -7,6 +7,7 @@ import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium_public_health.results import COLUMNS, PublicHealthObserver
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
@@ -17,6 +18,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
 )
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
+    ANEMIA_THRESHOLDS,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
@@ -521,6 +523,135 @@ class NeonatalBurdenObserver(BurdenObserver):
     def to_observe(self, event: Event) -> bool:
         # Need to make single observeration of deaths after all time steps where neonates die.
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
+
+
+class AnemiaYLDsObserver(PublicHealthObserver):
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        return {
+            "stratification": {
+                self.get_configuration_name(): {
+                    "exclude": [],
+                    "include": ["age_group"],
+                },
+            },
+        }
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.hemoglobin = builder.value.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)
+        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
+        self.STAND_IN_ANC1_YEARS = 6 / 52
+        self.STAND_IN_ANC_LATER_YEARS = 12 / 52
+
+    def register_observations(self, builder: Builder) -> None:
+        self.register_adding_observation(
+            builder=builder,
+            name="anemia_ylds",
+            when="time_step__prepare",
+            pop_filter='tracked == True and alive == "alive"',
+            requires_columns=[
+                COLUMNS.TIME_OF_FIRST_ANC_VISIT,
+                COLUMNS.TIME_OF_LATER_ANC_VISIT,
+                COLUMNS.ANC_ATTENDANCE,
+                "alive",
+            ],
+            requires_values=[
+                PIPELINES.HEMOGLOBIN_EXPOSURE,
+                PIPELINES.GESTATIONAL_AGE_EXPOSURE,
+            ],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+            aggregator=self.calculate_anemia_ylds,
+        )
+
+    def to_observe(self, event: Event) -> bool:
+        return self._sim_step_name() in [
+            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
+            SIMULATION_EVENT_NAMES.ULTRASOUND,
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+        ]
+
+    def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
+        """Calculate YLDs for anemia based on the current simulation event.
+
+        For simulants who do not attend a visit, we use a stand-in value for
+        the timing of their visit to simplify calculations. The stand-in values
+        are 6 weeks for the first trimester visit and 12 weeks for the later pregnancy visit.
+
+        Gestational age is used as a proxy for pregnancy duration during the
+        later pregnancy intervention event because pregnancy duration has not been
+        defined for live births and stillbirths by that point. This gestational
+        age exposure will be modified by any iron interventions received at a
+        first trimester ANC visit.
+        """
+        duration_calculators = {
+            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION: self._get_later_anc_interval,
+            SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: 6
+            * 7
+            * (1 / 365.25),  # 6 weeks in years
+        }
+        anemia_status = self.get_anemia_status_from_hemoglobin(self.hemoglobin(data.index))
+        dw = self.get_disability_weight_from_anemia_status(anemia_status)
+        duration_years = duration_calculators[self._sim_step_name()](data)
+        ylds = dw * duration_years
+        return ylds.sum()
+
+    ##################
+    # Helper methods #
+    ##################
+
+    # duration calculations
+
+    def _get_first_anc_interval(self, data: pd.DataFrame) -> pd.Series:
+        # time from start of sim to first visit
+        duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
+        duration_years = duration_years.fillna(self.STAND_IN_ANC1_YEARS)
+        return duration_years
+
+    def _get_later_anc_interval(self, data: pd.DataFrame) -> pd.Series:
+        # time from first visit to later visit
+        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
+        later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
+        duration_years = later_visit_years - self._get_first_anc_interval(data)
+        return duration_years
+
+    def _get_later_anc_to_delivery_interval(self, data: pd.DataFrame) -> pd.Series:
+        # time from later visit to delivery
+        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
+        later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
+        gestational_age_years = self.gestational_age(data.index) / 52
+        return gestational_age_years - later_visit_years
+
+    # helper methods for disability weights
+
+    @staticmethod
+    def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
+        anemia_status = (
+            pd.cut(
+                hemoglobin,
+                bins=[-np.inf] + ANEMIA_THRESHOLDS,
+                labels=["severe", "moderate", "mild"],
+                right=False,
+            )
+            .astype("object")
+            .fillna("not_anemic")
+        )
+        return anemia_status
+
+    def get_disability_weight_from_anemia_status(self, anemia_status: pd.Series) -> pd.Series:
+        # https://vivarium-research.readthedocs.io/en/latest/models/other_models/hemoglobin_anemia_and_iron_deficiency/anemia_impairment/index.html#id6
+        anemia_status_to_dw = {
+            "severe": 0.149,
+            "moderate": 0.052,
+            "mild": 0.004,
+            "not_anemic": 0.0,
+        }
+        return anemia_status.map(anemia_status_to_dw)
 
 
 class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
