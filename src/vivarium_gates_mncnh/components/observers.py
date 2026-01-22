@@ -587,21 +587,6 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         age exposure will be modified by any iron interventions received at a
         first trimester ANC visit.
         """
-        event_name = self._sim_step_name()
-
-        calculation_events = [
-            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
-            SIMULATION_EVENT_NAMES.ULTRASOUND,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
-        ]
-
-        if event_name in calculation_events:
-            return self._calculate_ylds_at_event(event_name, data)
-
-        return 0.0
-
-    def _calculate_ylds_at_event(self, event_name: str, data: pd.DataFrame) -> float:
         duration_calculators = {
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION: self._get_later_anc_interval,
@@ -612,7 +597,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         }
         anemia_status = self.get_anemia_status_from_hemoglobin(self.hemoglobin(data.index))
         dw = self.get_disability_weight_from_anemia_status(anemia_status)
-        duration_years = duration_calculators[event_name](data)
+        duration_years = duration_calculators[self._sim_step_name()](data)
         ylds = dw * duration_years
         return ylds.sum()
 
