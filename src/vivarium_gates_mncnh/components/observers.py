@@ -577,6 +577,10 @@ class AnemiaYLDsObserver(PublicHealthObserver):
     def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
         """Calculate YLDs for anemia based on the current simulation event.
 
+        For simulants who do not attend a visit, we use a stand-in value for
+        the timing of their visit to simplify calculations. The stand-in values
+        are 6 weeks for the first trimester visit and 12 weeks for the later pregnancy visit.
+
         Gestational age is used as a proxy for pregnancy duration during the
         later pregnancy intervention event because pregnancy duration has not been
         defined for live births and stillbirths by that point. This gestational
@@ -619,17 +623,20 @@ class AnemiaYLDsObserver(PublicHealthObserver):
     # duration calculations
 
     def _get_first_anc_interval(self, data):
+        # time from start of sim to first visit
         duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
         duration_years = duration_years.fillna(self.STAND_IN_ANC1_YEARS)
         return duration_years
 
     def _get_later_anc_interval(self, data):
+        # time from first visit to later visit
         later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
         later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
         duration_years = later_visit_years - self._get_first_anc_interval(data)
         return duration_years
 
     def _get_later_anc_to_delivery_interval(self, data):
+        # time from later visit to delivery
         later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
         later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
         gestational_age_years = self.gestational_age(data.index) / 52
