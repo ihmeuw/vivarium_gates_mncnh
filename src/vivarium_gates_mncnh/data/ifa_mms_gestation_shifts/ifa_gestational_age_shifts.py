@@ -236,9 +236,12 @@ def run_all_locations(draws_to_run):
     return results, anc_exp
 
 def load_mms_data(exp_anc, ifa_shifts):
-    baseline_ifa = pd.concat([load_anc_art(load_artifact(location), location) for location in list(LOCATION_DATA.keys())]).reset_index()
-    anc_ifa_shifts = ifa_shifts.iloc[:, :3].rename(columns={'shift_anc': 'value'}) # get shift_anc
-    anc_ifa_shifts['draw'] = 'draw_' + anc_ifa_shifts['draw'].astype(str)
+    anc_art = pd.concat([load_anc_art(load_artifact(location), location) for location in list(LOCATION_DATA.keys())])
+    ifa = load_ifa(list(LOCATION_DATA.values()))
+    baseline_ifa = load_baseline_ifa(anc_art, ifa)
+    
+    ifa_shifts = ifa_shifts.iloc[:, :4] # get shift_anc
+    ifa_shifts['draw'] = 'draw_' + ifa_shifts['draw'].astype(str)
     
     exp_prepped = exp_anc.set_index([c for c in exp_anc.columns if 'draw' not in c]).stack().reset_index()
     exp_prepped = exp_prepped.drop(["level_12"], axis=1).rename(columns={0:'draw'})
@@ -254,9 +257,11 @@ def load_mms_data(exp_anc, ifa_shifts):
     uncovered_exp['exposure_ptb'] = uncovered_exp.frac_ptb * uncovered_exp.exposure
     uncovered_ptb = uncovered_exp.groupby(['location_id','draw']).sum()[['exposure_ptb']]
     '''
-
-    covered_shift = (-anc_ifa_shifts.set_index(['location_id','draw']) * baseline_ifa.set_index(['location_id','draw'])
-                    + anc_ifa_shifts.set_index(['location_id','draw']))
+    shift_true = ifa_shifts.rename(columns={"shift_anc": "value"}).drop("shift_no_anc", axis=1).set_index(["location_id", "draw"])
+    shift_false = ifa_shifts.rename(columns={"shift_no_anc": "value"}).drop("shift_anc", axis=1).set_index(["location_id", "draw"])
+    weighted_avg_shift = (shift_true * anc_art + shift_false * (1 - anc_art)).dropna()
+    covered_shift = (-weighted_avg_shift * baseline_ifa.set_index(['location_id','draw'])
+                    + shift_true)
     covered_shift = covered_shift.reset_index().rename(columns={'value':'covered_shift'}).dropna()
     covered_exp = exp_prepped.merge(covered_shift, on=['location_id','draw'])
     covered_exp['ga_start'] = covered_exp.ga_start + covered_exp.covered_shift
@@ -289,7 +294,7 @@ def load_mms_data(exp_anc, ifa_shifts):
 
     #display(covered_exp)
     ifa_exp = covered_exp.copy().drop(columns='covered_shift')
-    ifa_exp = ifa_exp.groupby([c for c in ifa_exp if c!='sex_id' and 'exposure' not in c]).mean().reset_index()
+    #ifa_exp = ifa_exp.groupby([c for c in ifa_exp if c!='sex_id' and 'exposure' not in c]).mean().reset_index()
     ifa_exp['frac_vptb'] = np.where(ifa_exp.ga_start >= 32, 0,
                                             np.where(ifa_exp.ga_end < 32, 1,
                                                     (32 - ifa_exp.ga_start)/(ifa_exp.ga_end - ifa_exp.ga_start)
@@ -297,5 +302,5 @@ def load_mms_data(exp_anc, ifa_shifts):
     ifa_exp['exposure_vptb'] = ifa_exp.frac_vptb * ifa_exp.exposure
     data_mms_pt = ifa_exp.drop("rr", axis=1).merge(mms_pt_rr_draws, on='draw').drop(columns=['frac_vptb'])
     data_mms_vpt = ifa_exp.drop("rr", axis=1).merge(mms_vpt_rr_draws, on='draw').drop(columns=['frac_ptb'])
-    return data_mms_pt, data_mms_vpt
+    return data_mms_pt, data_mms_vpt, mms_pt_rr_draws, mms_vpt_rr_draws
     
