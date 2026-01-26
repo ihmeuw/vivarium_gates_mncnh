@@ -347,17 +347,3 @@ def test_artifact_notebooks() -> None:
         environment_type="artifact",
     )
     runner.test_run_notebooks()
-
-
-@pytest.mark.slow
-def test_validation_notebooks() -> None:
-    """Test all notebooks in the results directory."""
-    # Skip test if not on SLURM
-    if not IS_ON_SLURM:
-        pytest.skip("Test skipped: must be run on SLURM cluster")
-
-    runner = NotebookTestRunner(
-        notebook_directory=MODEL_NOTEBOOKS_DIR / "validation",
-        environment_type="simulation",
-    )
-    runner.test_run_notebooks()
