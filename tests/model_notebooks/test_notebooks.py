@@ -358,6 +358,6 @@ def test_validation_notebooks() -> None:
 
     runner = NotebookTestRunner(
         notebook_directory=MODEL_NOTEBOOKS_DIR / "validation",
-        environment_type="artifact",
+        environment_type="simulation",
     )
     runner.test_run_notebooks()
