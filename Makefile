@@ -39,6 +39,12 @@ help:
 	@echo "build-env: Create a full conda environment from scratch"
 	@echo "================================================================================"
 	@echo
+	@echo "This target creates a new conda environment and installs all required"
+	@echo "packages for development or artifact generation, depending on the 'type' argument."
+	@echo "It is recommended to use this target only if you cannot use the 'build-shared-env' target,"
+	@echo "either because you are not on the cluster or because you need to customize the environment,"
+	@echo "particularly if you need non-python packages installed via conda."
+	@echo
 	@echo "USAGE:"
 	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
 	@echo
