@@ -22,6 +22,25 @@ PACKAGE_NAME = $(notdir $(CURDIR))
 # Helper function for validating enum arguments
 validate_arg = $(if $(filter-out $(2),$(1)),$(error Error: '$(3)' must be one of: $(2), got '$(1)'))
 
+# Macro for validating make target arguments
+# Usage: $(call validate_make_args,target_name,allowed_args)
+# Example: $(call validate_make_args,build-env,type name path)
+define validate_make_args
+	@allowed="$(2)"; \
+	for arg in $(filter-out $(1),$(MAKECMDGOALS)) $(MAKEFLAGS); do \
+		case $$arg in \
+			*=*) \
+				arg_name=$${arg%%=*}; \
+				if ! echo " $$allowed " | grep -q " $$arg_name "; then \
+					allowed_list=$$(echo $$allowed | sed 's/ /, /g'); \
+					echo "Error: Invalid argument '$$arg_name'. Allowed arguments are: $$allowed_list" >&2; \
+					exit 1; \
+				fi \
+				;; \
+		esac; \
+	done
+endef
+
 ifneq ($(MAKE_INCLUDES),) # not empty
 # Include makefiles from vivarium_build_utils
 include $(MAKE_INCLUDES)/base.mk
@@ -97,19 +116,7 @@ endif
 
 build-env: # Create a new environment with installed packages
 #	Validate arguments - exit if unsupported arguments are passed
-	@allowed="type name path lfs py include_timestamp"; \
-	for arg in $(filter-out build-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
-		case $$arg in \
-			*=*) \
-				arg_name=$${arg%%=*}; \
-				if ! echo " $$allowed " | grep -q " $$arg_name "; then \
-					allowed_list=$$(echo $$allowed | sed 's/ /, /g'); \
-					echo "Error: Invalid argument '$$arg_name'. Allowed arguments are: $$allowed_list" >&2; \
-					exit 1; \
-				fi \
-				;; \
-		esac; \
-	done
+	$(call validate_make_args,build-env,type name path lfs py include_timestamp)
 	
 #   Handle arguments and set defaults
 #   type
@@ -165,19 +172,7 @@ SHARED_ENV_DIR ?= /mnt/team/simulation_science/priv/engineering/jenkins/shared_e
 
 build-shared-env: # Create a lightweight venv overlay on top of a shared conda environment
 #	Validate arguments - exit if unsupported arguments are passed
-	@allowed="type venv_dir venv_name shared_env_dir clear"; \
-	for arg in $(filter-out build-shared-env,$(MAKECMDGOALS)) $(MAKEFLAGS); do \
-		case $$arg in \
-			*=*) \
-				arg_name=$${arg%%=*}; \
-				if ! echo " $$allowed " | grep -q " $$arg_name "; then \
-					allowed_list=$$(echo $$allowed | sed 's/ /, /g'); \
-					echo "Error: Invalid argument '$$arg_name'. Allowed arguments are: $$allowed_list" >&2; \
-					exit 1; \
-				fi \
-				;; \
-		esac; \
-	done
+	$(call validate_make_args,build-shared-env,type venv_dir venv_name shared_env_dir clear)
 
 #	Handle arguments and set defaults
 #	type
