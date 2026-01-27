@@ -10,12 +10,11 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 from vivarium import InteractiveContext
 from vivarium.framework.configuration import build_model_specification
 
-from IPython.display import display
 
 LOCATION_DATA = {'ethiopia':179,
             'nigeria':214,
             'pakistan':165}
-ART_DIR = "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model22.0.2/"
+ART_DIR = "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model29.0"
 
 def load_artifact(location):
     return Artifact(Path(ART_DIR) / (location + ".hdf"))
@@ -45,6 +44,10 @@ def load_baseline_ifa(anc, ifa):
     return baseline[baseline["value"].notna()].reset_index()  # anc only has 250 draws
 
 # generate lognormal distribution of IFA OR
+# IRA OR: 0.9 (0.86, 0.95) relative to no IFA
+# MMS RR: 0.91 (0.84, 0.99) relative to IFA... UPDATED FROM: 0.95 (0.90, 1.01) relative to IFA
+# MMS VERY PRETERM: RR = 0.81 (0.71, 0.93) relative to IFA
+# from https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/oral_iron_antenatal/oral_iron_antenatal.html#id27
 def lognorm_from_median_lower_upper(median, lower, upper, quantile_ranks=(0.025,0.975)):
   """Returns a frozen lognormal distribution with the specified median, such that
   the values (lower, upper) are approximately equal to the quantiles with ranks
@@ -71,7 +74,6 @@ def lognorm_from_median_lower_upper(median, lower, upper, quantile_ranks=(0.025,
   # (s=sigma is the shape parameter; the scale parameter is exp(mu), which equals the median)
   return stats.lognorm(s=sigma, scale=median)
 
-# This doesn't exist in the artifact and so can be kept in the nb
 def load_ifa_rr_draws(dist):
     ifa_rr_draws = pd.DataFrame()
     n_draws = 250
@@ -218,9 +220,6 @@ def run_location_draws(location, draws, args_all_locations):
 def run_all_locations(draws_to_run):
     ifa = load_ifa(list(LOCATION_DATA.values()))
     art_exposure = load_art_exposure()
-    # IRA OR: 0.9 (0.86, 0.95) relative to no IFA
-    # MMS RR: 0.91 (0.84, 0.99) relative to IFA... UPDATED FROM: 0.95 (0.90, 1.01) relative to IFA
-    # MMS VERY PRETERM: RR = 0.81 (0.71, 0.93) relative to IFA
     dist = lognorm_from_median_lower_upper(0.9, 0.86, 0.96, quantile_ranks=(0.025,0.975))
     ifa_rr_draws = load_ifa_rr_draws(dist)
     args_all_locations = (ifa, art_exposure, ifa_rr_draws)
@@ -245,18 +244,7 @@ def load_mms_data(exp_anc, ifa_shifts):
     
     exp_prepped = exp_anc.set_index([c for c in exp_anc.columns if 'draw' not in c]).stack().reset_index()
     exp_prepped = exp_prepped.drop(["level_12"], axis=1).rename(columns={0:'draw'})
-    '''
-    uncovered_shift = (-anc_ifa_shifts.set_index(['location_id','draw']) * baseline_ifa.set_index(['location_id','draw'])).dropna()
-    uncovered_shift = uncovered_shift.reset_index().rename(columns={'value':'uncovered_shift'})
-    uncovered_exp = exp_prepped.merge(uncovered_shift, on=['location_id','draw'])
-    uncovered_exp['ga_start'] = uncovered_exp.ga_start + uncovered_exp.uncovered_shift
-    uncovered_exp['ga_end'] = uncovered_exp.ga_end + uncovered_exp.uncovered_shift
-    uncovered_exp['frac_ptb'] = np.where(uncovered_exp.ga_start >= 37, 0,
-                                        np.where(uncovered_exp.ga_end < 37, 1, 
-                                                (37 - uncovered_exp.ga_start) / (uncovered_exp.ga_end - uncovered_exp.ga_start)))
-    uncovered_exp['exposure_ptb'] = uncovered_exp.frac_ptb * uncovered_exp.exposure
-    uncovered_ptb = uncovered_exp.groupby(['location_id','draw']).sum()[['exposure_ptb']]
-    '''
+
     shift_true = ifa_shifts.rename(columns={"shift_anc": "value"}).drop("shift_no_anc", axis=1).set_index(["location_id", "draw"])
     shift_false = ifa_shifts.rename(columns={"shift_no_anc": "value"}).drop("shift_anc", axis=1).set_index(["location_id", "draw"])
     weighted_avg_shift = (shift_true * anc_art + shift_false * (1 - anc_art)).dropna()
@@ -284,17 +272,13 @@ def load_mms_data(exp_anc, ifa_shifts):
     mms_pt_rr_draws = pd.DataFrame()
     mms_pt_rr_draws['draw'] = [f'draw_{x}' for x in list(range(0,1000))]
     mms_pt_rr_draws['rr'] = mms_pt_dist.rvs(size=1000, random_state=789)
-    # mms_pt_rr_draws.describe(percentiles=[0.025,0.975])
 
     mms_vpt_dist = lognorm_from_median_lower_upper(0.81, 0.71, 0.93, quantile_ranks=(0.025,0.975))
     mms_vpt_rr_draws = pd.DataFrame()
     mms_vpt_rr_draws['draw'] = [f'draw_{x}' for x in list(range(0,1000))]
     mms_vpt_rr_draws['rr'] = mms_vpt_dist.rvs(size=1000, random_state=101112)
-    # mms_vpt_rr_draws.describe(percentiles=[0.025,0.975])
 
-    #display(covered_exp)
     ifa_exp = covered_exp.copy().drop(columns='covered_shift')
-    #ifa_exp = ifa_exp.groupby([c for c in ifa_exp if c!='sex_id' and 'exposure' not in c]).mean().reset_index()
     ifa_exp['frac_vptb'] = np.where(ifa_exp.ga_start >= 32, 0,
                                             np.where(ifa_exp.ga_end < 32, 1,
                                                     (32 - ifa_exp.ga_start)/(ifa_exp.ga_end - ifa_exp.ga_start)
@@ -302,5 +286,80 @@ def load_mms_data(exp_anc, ifa_shifts):
     ifa_exp['exposure_vptb'] = ifa_exp.frac_vptb * ifa_exp.exposure
     data_mms_pt = ifa_exp.drop("rr", axis=1).merge(mms_pt_rr_draws, on='draw').drop(columns=['frac_vptb'])
     data_mms_vpt = ifa_exp.drop("rr", axis=1).merge(mms_vpt_rr_draws, on='draw').drop(columns=['frac_ptb'])
-    return data_mms_pt, data_mms_vpt, mms_pt_rr_draws, mms_vpt_rr_draws
+    return data_mms_pt, data_mms_vpt, mms_pt_rr_draws, mms_vpt_rr_draws, covered_exp
     
+def mms_shift(draw, location_id, data_mms_pt, data_mms_vpt, ptb = True):
+    if ptb:
+        threshold = 'ptb'
+        threshold_val = 37
+        data = data_mms_pt.copy()
+    else:
+        threshold = 'vptb'
+        threshold_val = 32
+        data = data_mms_vpt.copy()
+    exp_uncovered = data.loc[(data.draw==f'draw_{draw}')&(data.location_id==location_id)]
+    uncovered_low = exp_uncovered[f'exposure_{threshold}'].sum()
+    def shift_optimization(shift):
+        exp_covered = exp_uncovered.set_index([c for c in exp_uncovered.columns if 'ga_' not in c]) + shift
+        exp_covered = exp_covered.reset_index()
+        exp_covered[f'frac_{threshold}'] = np.where(exp_covered.ga_start >= threshold_val, 0,
+                                            np.where(exp_covered.ga_end < threshold_val, 1,
+                                                    (threshold_val - exp_covered.ga_start)/(exp_covered.ga_end - exp_covered.ga_start)
+                                                    ))
+        covered_low = (exp_covered.exposure * exp_covered[f'frac_{threshold}']).sum()
+        rr = covered_low / uncovered_low
+        return np.abs(rr - exp_covered.rr[0])
+    return scipy.optimize.minimize_scalar(shift_optimization, bounds=(-2, 2), method='bounded')['x']
+
+def mms_double_shift(draw, location_id, data_mms_vpt, mms_pt_rr_draws, mms_vpt_rr_draws):
+    
+    ptb_rr = mms_pt_rr_draws.loc[mms_pt_rr_draws.draw==f'draw_{draw}'].rr.values[0]
+    vptb_rr = mms_vpt_rr_draws.loc[mms_vpt_rr_draws.draw==f'draw_{draw}'].rr.values[0]
+    
+    exp_uncovered = data_mms_vpt.loc[(data_mms_vpt.draw==f'draw_{draw}')&(data_mms_vpt.location_id==location_id)]
+    uncovered_vptb = exp_uncovered.exposure_vptb.sum()
+    uncovered_ptb = exp_uncovered.exposure_ptb.sum()
+    def vptb_shift_optimization(shift):
+        exp_covered = exp_uncovered.set_index([c for c in exp_uncovered.columns if 'ga_' not in c]) + shift
+        exp_covered = exp_covered.reset_index()
+        exp_covered['frac_vptb'] = np.where(exp_covered.ga_start >= 32, 0,
+                                            np.where(exp_covered.ga_end < 32, 1,
+                                                    (32 - exp_covered.ga_start)/(exp_covered.ga_end - exp_covered.ga_start)))
+        covered_vptb = (exp_covered.exposure * exp_covered['frac_vptb']).sum()
+        rr = covered_vptb / uncovered_vptb
+        return np.abs(rr - vptb_rr)
+    vptb_shift = scipy.optimize.minimize_scalar(vptb_shift_optimization, bounds=(-2, 2), method='bounded')['x']
+    mms1 = exp_uncovered.set_index([c for c in exp_uncovered.columns if 'ga_' not in c]) + vptb_shift
+    mms1 = mms1.reset_index()
+    mms1['frac_vptb'] = np.where(mms1.ga_start >= 32, 0,
+                                            np.where(mms1.ga_end < 32, 1,
+                                                    (32 - mms1.ga_start)/(mms1.ga_end - mms1.ga_start)))
+    mms1['frac_ptb'] = np.where(mms1.ga_start >= 37, 0,
+                                            np.where(mms1.ga_end < 37, 1,
+                                                    (37 - mms1.ga_start)/(mms1.ga_end - mms1.ga_start)))
+    
+    def second_shift_optimization(shift):
+        mms2 = mms1.copy()
+        mms2['ga_start'] = np.where(mms2.ga_start < (32 - shift), mms2.ga_start, mms2.ga_start + shift)
+        mms2['ga_end'] = np.where(mms2.ga_start < (32 - shift), mms2.ga_end, mms2.ga_end + shift)
+        mms2 = mms2.reset_index()
+        mms2['frac_ptb'] = np.where(mms2.ga_start >= 37, 0,
+                                            np.where(mms2.ga_end < 37, 1,
+                                                    (37 - mms2.ga_start)/(mms2.ga_end - mms2.ga_start)))
+        mms2['frac_vptb'] = np.where(mms2.ga_start >= 32, 0,
+                                            np.where(mms2.ga_end < 32, 1,
+                                                    (32 - mms2.ga_start)/(mms2.ga_end - mms2.ga_start)))
+        mms2_ptb = (mms2.exposure * mms2['frac_ptb']).sum()
+        rr = mms2_ptb / uncovered_ptb
+        return np.abs(rr - ptb_rr)
+    second_shift = scipy.optimize.minimize_scalar(second_shift_optimization, bounds=(-5, 5), method='bounded')['x']
+    
+    return vptb_shift, second_shift
+
+def mms_run_all_locations(draws_to_run, data_mms_pt, data_mms_vpt, mms_pt_rr_draws, mms_vpt_rr_draws):
+    results = []
+    for location_id in list(LOCATION_DATA.values()):
+        for draw in draws_to_run:
+            vptb_shift, second_shift = mms_double_shift(draw, location_id, data_mms_vpt, mms_pt_rr_draws, mms_vpt_rr_draws)
+            results.append({"location_id": location_id, "draw": "draw_" + str(draw), "shift1": vptb_shift, "shift2": second_shift})
+    return pd.DataFrame(results)
