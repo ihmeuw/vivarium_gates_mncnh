@@ -12,6 +12,7 @@ for an example.
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
 
+import glob
 import pickle
 from pathlib import Path
 from typing import List, Optional, Union
@@ -158,6 +159,8 @@ def get_data(
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
+        data_keys.IV_IRON.LBWSG_EFFECT_SIZE: load_iv_iron_lbwsg_effect_size,
+        data_keys.IV_IRON.STILLBIRTH_RR: load_iv_iron_stillbirth_rr,
         data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
         data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
     }
@@ -992,6 +995,61 @@ def load_iv_iron_hemoglobin_effect_size(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, effect_size_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+    return data
+
+
+def _add_hemoglobin_exposure_start_and_end(df: pd.DataFrame) -> pd.DataFrame:
+    df["first_trimester_hemoglobin_exposure_start"] = df["exposure"]
+    df["first_trimester_hemoglobin_exposure_end"] = df["exposure"][1:].tolist() + [np.inf]
+    return df
+
+
+def load_iv_iron_lbwsg_effect_size(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    index_cols = [
+        "sex",
+        "outcome",
+        "first_trimester_hemoglobin_exposure_start",
+        "first_trimester_hemoglobin_exposure_end",
+    ]
+    data_dir = paths.HEMOGLOBIN_EFFECTS_DATA_DIR / "iv_iron_lbwsg_shifts"
+    filepaths = glob.glob(str(data_dir / "*.csv"))
+
+    data = pd.concat([pd.read_csv(filepath) for filepath in filepaths])
+    data = data.loc[data["location"] == location.lower()].drop("location", axis=1)
+
+    data = data.sort_values(["draw", "outcome", "sex", "exposure"])
+    data = data.groupby(["draw", "outcome", "sex"]).apply(
+        _add_hemoglobin_exposure_start_and_end
+    )
+    data = data.drop("exposure", axis=1)
+
+    data = data.pivot_table(index=index_cols, columns="draw", values="value").reset_index()
+
+    draw_cols = [col for col in data.columns if col.startswith("draw_")]
+    data = data.set_index(index_cols)[draw_cols].sort_index()
+    return data
+
+
+def load_iv_iron_stillbirth_rr(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    filepath = paths.HEMOGLOBIN_EFFECTS_DATA_DIR / "iv_iron_stillbirth_rrs.csv"
+    data = pd.read_csv(filepath).drop("Unnamed: 0", axis=1)
+    data = data.loc[data["location"] == location.lower()].drop("location", axis=1)
+
+    data = _add_hemoglobin_exposure_start_and_end(data)
+    data = data.drop("exposure", axis=1)
+
+    draw_cols = [col for col in data.columns if col.startswith("draw")]
+    data = data.set_index(
+        [
+            "first_trimester_hemoglobin_exposure_start",
+            "first_trimester_hemoglobin_exposure_end",
+        ]
+    )[draw_cols].sort_index()
+
     return data
 
 

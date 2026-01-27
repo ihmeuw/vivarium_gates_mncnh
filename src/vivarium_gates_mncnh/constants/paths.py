@@ -17,6 +17,7 @@ LBWSG_RR_CAPS_DIR = Path(__file__).parent.parent / "data" / "lbwsg_rr_caps" / "c
 ANC_DATA_DIR = CLUSTER_DATA_DIR / "antenatal_care"
 
 ORAL_IRON_DATA_DIR = Path(__file__).parent.parent / "data" / "ifa_mms_gestation_shifts"
+HEMOGLOBIN_EFFECTS_DATA_DIR = Path(__file__).parent.parent / "data" / "hemoglobin_effects"
 
 FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
     Path(__file__).parent.parent
@@ -31,5 +32,5 @@ STILLBIRTH_RATIO_24_WKS_CSV = "/snfs1/Project/simulation_science/mnch_grant/MNCN
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_sicence/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model26.0"
+MODEL_RESULTS_DIR = "model27.1"
 MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
