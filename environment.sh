@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e # exit on error
-
 # Define variables
 username=$(whoami)
 env_type="simulation"
@@ -71,10 +69,8 @@ env_name+="_$env_type"
 branch_name=$(git rev-parse --abbrev-ref HEAD)
 
 # Pull repo to get latest changes from remote if remote exists
-set +e # Do not exit on error for git ls-remote
 git ls-remote --exit-code --heads origin $branch_name >/dev/null 2>&1
 exit_code=$?
-set -e # Re-enable exit on error
 if [[ $exit_code == '0' ]]; then
   git fetch --all
   echo
@@ -101,7 +97,7 @@ else
   force_flag=""
   create_env="no"
   lfs_flag=""
-  
+
   if [[ $install_git_lfs == 'yes' ]]; then
     lfs_flag="lfs=yes"
   fi
@@ -139,5 +135,3 @@ else
     [[ "$CONDA_DEFAULT_ENV" != "$env_name" ]] && conda activate $env_name || true
   fi
 fi
-# Exit without error so we can source this script
-set +e
