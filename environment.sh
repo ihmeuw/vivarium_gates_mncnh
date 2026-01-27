@@ -8,23 +8,6 @@ use_shared="no"
 install_git_lfs="no"
 days_until_stale=7 # Number of days until environment is considered stale
 
-# Initialize conda if not already initialized
-conda_path=$($SHELL -ic 'conda info --base')
-if [ ! -d "$conda_path" ]; then
-  echo
-  echo "ERROR: Conda path $conda_path does not exist"
-  exit 1
-fi
-if [ -f "$conda_path/etc/profile.d/conda.sh" ]; then
-  echo
-  echo "Initializing conda from $conda_path"
-  source "$conda_path/etc/profile.d/conda.sh"
-else
-  echo
-  echo "ERROR: Unable to find conda in expected locations"
-  exit 1
-fi
-
 # Reset OPTIND so help can be invoked multiple times per shell session.
 OPTIND=1
 Help()
@@ -46,8 +29,7 @@ Help()
 while getopts ":hsflt:" option; do
    case $option in
       h) # display help
-         Help
-         exit 0;;
+         Help;;
       t) # Type of conda environment to build
          env_type=$OPTARG;;
       s) # Use shared environment
@@ -78,7 +60,7 @@ if [[ $exit_code == '0' ]]; then
   git pull origin $branch_name
 fi
 
-if [[ $use_shared == 'yes' ]]; then
+if [[ $use_shared == "yes" ]]; then
   # Shared environment (venv overlay)
   venv_path=".venv/$env_name"
   
@@ -89,9 +71,25 @@ if [[ $use_shared == 'yes' ]]; then
   source .venv/$env_name/bin/activate
 
 else
+  # Initialize conda if not already initialized
+  conda_path=$($SHELL -ic 'conda info --base')
+  if [ ! -d "$conda_path" ]; then
+    echo
+    echo "ERROR: Conda path $conda_path does not exist"
+    exit 1
+  fi
+  if [ -f "$conda_path/etc/profile.d/conda.sh" ]; then
+    echo
+    echo "Initializing conda from $conda_path"
+    source "$conda_path/etc/profile.d/conda.sh"
+  else
+    echo
+    echo "ERROR: Unable to find conda in expected locations"
+    exit 1
+  fi
   # Conda environment
   lfs_flag=""
-  if [[ $install_git_lfs == 'yes' ]]; then
+  if [[ $install_git_lfs == "yes" ]]; then
     lfs_flag="lfs=yes"
   fi
 
@@ -100,21 +98,21 @@ else
   
   if [[ $env_info != '' ]]; then
     # Environment exists
-    if [[ $make_new != 'yes' ]]; then
+    if [[ $make_new != "yes" ]]; then
       # Not forcing rebuild, check if stale
       conda activate $env_name
       expiration_time=$(date -d "$days_until_stale days ago" +%s)
       creation_time="$(head -n1 $CONDA_PREFIX/conda-meta/history)"
       creation_time=$(echo $creation_time | sed -e 's/^==>\ //g' -e 's/\ <==//g')
       creation_time="$(date -d "$creation_time" +%s)"
-      if [[ $creation_time >= $expiration_time ]]; then
+      if [[ $creation_time -ge $expiration_time ]]; then
         # Not stale, skip building
         need_to_build="no"
       fi
     fi
   fi
   
-  if [[ $need_to_build == 'yes' ]]; then
+  if [[ $need_to_build == "yes" ]]; then
     make build-env type=$env_type name=$env_name force=yes $lfs_flag
   fi
   
