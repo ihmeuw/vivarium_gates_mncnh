@@ -28,6 +28,8 @@ from vivarium_gates_mncnh.constants.data_values import (
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
+    TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER,
+    TIME_OF_LATER_ANC_VISIT_PLACEHOLDER,
     ULTRASOUND_TYPES,
 )
 from vivarium_gates_mncnh.constants.metadata import (
@@ -541,8 +543,6 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         self._sim_step_name = builder.time.simulation_event_name()
         self.hemoglobin = builder.value.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)
         self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
-        self.STAND_IN_ANC1_YEARS = 6 / 52
-        self.STAND_IN_ANC_LATER_YEARS = 12 / 52
 
     def register_observations(self, builder: Builder) -> None:
         self.register_adding_observation(
@@ -610,20 +610,20 @@ class AnemiaYLDsObserver(PublicHealthObserver):
     def _get_first_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from start of sim to first visit
         duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
-        duration_years = duration_years.fillna(self.STAND_IN_ANC1_YEARS)
+        duration_years = duration_years.fillna(TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER)
         return duration_years
 
     def _get_later_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from first visit to later visit
         later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
-        later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
+        later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
         duration_years = later_visit_years - self._get_first_anc_interval(data)
         return duration_years
 
     def _get_later_anc_to_delivery_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from later visit to delivery
         later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
-        later_visit_years = later_visit_years.fillna(self.STAND_IN_ANC_LATER_YEARS)
+        later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
         gestational_age_years = self.gestational_age(data.index) / 52
         return gestational_age_years - later_visit_years
 
