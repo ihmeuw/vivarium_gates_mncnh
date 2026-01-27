@@ -95,31 +95,28 @@ else
     lfs_flag="lfs=yes"
   fi
 
+  need_to_build="yes"
   env_info=$(conda info --envs | grep $env_name | head -n 1)
   
   if [[ $env_info != '' ]]; then
     # Environment exists
-    if [[ $make_new == 'yes' ]]; then
-      # User requested force rebuild
-      make build-env type=$env_type name=$env_name force=yes $lfs_flag
-      conda activate $env_name
-    else
-      # Check staleness
+    if [[ $make_new != 'yes' ]]; then
+      # Not forcing rebuild, check if stale
       conda activate $env_name
       expiration_time=$(date -d "$days_until_stale days ago" +%s)
       creation_time="$(head -n1 $CONDA_PREFIX/conda-meta/history)"
       creation_time=$(echo $creation_time | sed -e 's/^==>\ //g' -e 's/\ <==//g')
       creation_time="$(date -d "$creation_time" +%s)"
-      if [[ $creation_time < $expiration_time ]]; then
-        # Environment is stale, rebuild
-        make build-env type=$env_type name=$env_name force=yes $lfs_flag
-        conda activate $env_name
+      if [[ $creation_time >= $expiration_time ]]; then
+        # Not stale, skip building
+        need_to_build="no"
       fi
-      # Otherwise already activated above, nothing more to do
     fi
-  else
-    # Environment doesn't exist, create it
-    make build-env type=$env_type name=$env_name $lfs_flag
-    conda activate $env_name
   fi
+  
+  if [[ $need_to_build == 'yes' ]]; then
+    make build-env type=$env_type name=$env_name force=yes $lfs_flag
+  fi
+  
+  conda activate $env_name
 fi
