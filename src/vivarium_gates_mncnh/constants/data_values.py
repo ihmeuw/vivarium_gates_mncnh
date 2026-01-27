@@ -27,6 +27,13 @@ EARLY_NEONATAL_AGE_START = 0.0  # 0 days
 LATE_NEONATAL_AGE_START = 0.01917808  # 7 days
 LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
 
+# Placeholder visit times for those who didn't attend ANC
+# The particular values don't matter in terms of the final results,
+# and are defined as the earliest possible time that the earliest
+# simulant could have visited
+TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER = 6 / 52
+TIME_OF_LATER_ANC_VISIT_PLACEHOLDER = 12 / 52
+
 
 class __PregnancyOutcome(NamedTuple):
     PARTIAL_TERM_OUTCOME = "partial_term"
