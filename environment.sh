@@ -54,22 +54,22 @@ branch_name=$(git rev-parse --abbrev-ref HEAD)
 # Pull repo to get latest changes from remote if remote exists
 git ls-remote --exit-code --heads origin $branch_name >/dev/null 2>&1
 exit_code=$?
-if [[ $exit_code == '0' ]]; then
+if [[ "$exit_code" == "0" ]]; then
   git fetch --all
   echo
   echo "Git branch '$branch_name' exists in the remote repository; pulling latest changes"
   git pull origin $branch_name
 fi
 
-if [[ $use_shared == "yes" ]]; then
+if [[ "$use_shared" == "yes" ]]; then
   # Shared environment (venv overlay)
   venv_path=".venv/$env_name"
   
-  if [[ ! -d $venv_path ]] || [[ $make_new == 'yes' ]]; then
+  if [[ ! -d "$venv_path" ]] || [[ "$make_new" == "yes" ]]; then
     # Venv doesn't exist or user requested force rebuild
     make build-shared-env type=$env_type force=yes
   fi
-  source .venv/$env_name/bin/activate
+  source ".venv/$env_name/bin/activate"
 
 else
   # Initialize conda if not already initialized
@@ -90,30 +90,30 @@ else
   fi
   # Conda environment
   lfs_flag=""
-  if [[ $install_git_lfs == "yes" ]]; then
+  if [[ "$install_git_lfs" == "yes" ]]; then
     lfs_flag="lfs=yes"
   fi
 
   need_to_build="yes"
   env_info=$(conda info --envs | grep $env_name | head -n 1)
   
-  if [[ $env_info != '' ]]; then
+  if [[ "$env_info" != "" ]]; then
     # Environment exists
-    if [[ $make_new != "yes" ]]; then
+    if [[ "$make_new" != "yes" ]]; then
       # Not forcing rebuild, check if stale
       conda activate $env_name
       expiration_time=$(date -d "$days_until_stale days ago" +%s)
       creation_time="$(head -n1 $CONDA_PREFIX/conda-meta/history)"
       creation_time=$(echo $creation_time | sed -e 's/^==>\ //g' -e 's/\ <==//g')
       creation_time="$(date -d "$creation_time" +%s)"
-      if [[ $creation_time -ge $expiration_time ]]; then
+      if [[ "$creation_time" -ge "$expiration_time" ]]; then
         # Not stale, skip building
         need_to_build="no"
       fi
     fi
   fi
   
-  if [[ $need_to_build == "yes" ]]; then
+  if [[ "$need_to_build" == "yes" ]]; then
     make build-env type=$env_type name=$env_name force=yes $lfs_flag
   fi
   
