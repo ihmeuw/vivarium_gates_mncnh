@@ -42,10 +42,9 @@ while getopts ":hsflt:" option; do
      \?) # Invalid option
          echo
          echo "ERROR: Invalid option"
-         exit 1;;
+         return;;
    esac
 done
-
 # Parse environment name
 env_name=$(basename "`pwd`")
 env_name+="_$env_type"
@@ -68,7 +67,7 @@ if [[ "$use_shared" == "yes" ]]; then
   if [[ ! -d "$venv_path" ]] || [[ "$make_new" == "yes" ]]; then
     # Venv doesn't exist or user requested force rebuild
     echo "Creating venv for shared environment in $venv_path"
-    make build-shared-env type=$env_type force=yes
+    make build-shared-env type=$env_type force=yes || return
   fi
   echo "Activating shared environment venv $env_name"
   source ".venv/$env_name/bin/activate"
@@ -79,7 +78,7 @@ else
   if [ ! -d "$conda_path" ]; then
     echo
     echo "ERROR: Conda path $conda_path does not exist"
-    exit 1
+    return
   fi
   if [ -f "$conda_path/etc/profile.d/conda.sh" ]; then
     echo
@@ -88,7 +87,7 @@ else
   else
     echo
     echo "ERROR: Unable to find conda in expected locations"
-    exit 1
+    return
   fi
   # Conda environment
   lfs_flag=""
@@ -117,7 +116,7 @@ else
   
   if [[ "$need_to_build" == "yes" ]]; then
     echo "Creating conda environment '$env_name'"
-    make build-env type=$env_type name=$env_name force=yes $lfs_flag
+    make build-env type=$env_type name=$env_name force=yes $lfs_flag || return
   fi
   echo "Activating conda environment '$env_name'"
   conda activate $env_name
