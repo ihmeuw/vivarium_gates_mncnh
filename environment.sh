@@ -29,7 +29,8 @@ Help()
 while getopts ":hsflt:" option; do
    case $option in
       h) # display help
-         Help;;
+         Help
+         return;;
       t) # Type of conda environment to build
          env_type=$OPTARG;;
       s) # Use shared environment
