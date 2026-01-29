@@ -267,8 +267,9 @@ def load_sbr(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
-
-    data = pd.read_csv(paths.STILLBIRTH_RATIO_24_WKS_CSV)
+    data = pd.read_csv(
+        paths.STILLBIRTH_RATIO_DATA_DIR / "stillbirth_livebirth_ratio_24wks.csv"
+    )
     location_id = utility_data.get_location_id(location)
     data = data.loc[data["location_id"] == location_id]
     data = data.loc[data["year_id"] == metadata.ARTIFACT_YEAR_START].rename(
@@ -575,7 +576,7 @@ def load_paf_data(
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    output_dir = paths.PAF_DIR / location.lower()
+    output_dir = paths.CALCULATED_PAFS_DIR / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
@@ -1323,7 +1324,8 @@ def load_hemoglobin_screening_coverage(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     filepath = (
-        paths.J_DIR / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
+        paths.HEMOGLOBIN_SCREENING_DATA_DIR
+        / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
     )
     return load_coverage_from_file(filepath, location)
 
