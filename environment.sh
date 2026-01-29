@@ -9,7 +9,7 @@ install_git_lfs="no"
 days_until_stale=7 # Number of days until environment is considered stale
 
 # Reset OPTIND so help can be invoked multiple times per shell session.
-OPTIND=1
+OPTIND=0
 Help()
 { 
    # Display Help
@@ -59,6 +59,12 @@ if [[ "$exit_code" == "0" ]]; then
   echo "Git branch '$branch_name' exists in the remote repository; pulling latest changes"
   git pull origin $branch_name
 fi
+
+# Capture error and exit script when sourced
+# But also clear the trap when exiting to avoid affecting the parent shell
+trap 'trap - ERR && return' ERR
+set -E
+set set -o pipefail
 
 if [[ "$use_shared" == "yes" ]]; then
   # Shared environment (venv overlay)
