@@ -397,14 +397,33 @@ def load_anc_proportion(
 def load_maternal_disorder_yld_rate(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
+    if location == "Pakistan" and key == data_keys.OBSTRUCTED_LABOR.YLD_RATE:
+        yld_rate = pd.read_csv(
+            paths.CLUSTER_DATA_DIR / "pakistan_obstructed_labor_yld_rate.csv"
+        )
+        yld_rate = yld_rate.drop(["Unnamed: 0", "location_id"], axis=1)
+        yld_rate["sex_id"] = vi_globals.SEXES["Female"]
+        yld_rate["year_id"] = metadata.ARTIFACT_YEAR_START
+        yld_rate = reshape_to_vivarium_format(yld_rate, location)
+        # fill in rows that missing from ylds_rate with 0
+        demography = (
+            get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'").index
+        )
+        demography = demography.droplevel("location")
+        missing_index = demography.difference(yld_rate.index)
+        missing_rows = pd.DataFrame(0, index=missing_index, columns=yld_rate.columns)
+        yld_rate = pd.concat([yld_rate, missing_rows]).sort_index()
 
-    groupby_cols = ["age_group_id", "sex_id", "year_id"]
-    draw_cols = vi_globals.DRAW_COLUMNS
-    yld_rate = extra_gbd.get_maternal_disorder_yld_rate(key, location)
-    yld_rate = yld_rate[groupby_cols + draw_cols]
-    yld_rate = reshape_to_vivarium_format(yld_rate, location)
+        return yld_rate
+    else:
+        groupby_cols = ["age_group_id", "sex_id", "year_id"]
+        draw_cols = vi_globals.DRAW_COLUMNS
+        yld_rate = extra_gbd.get_maternal_disorder_yld_rate(key, location)
+        yld_rate = yld_rate[groupby_cols + draw_cols]
 
-    return yld_rate
+        yld_rate = reshape_to_vivarium_format(yld_rate, location)
+
+        return yld_rate
 
 
 def load_birth_rate(
