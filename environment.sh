@@ -121,6 +121,11 @@ else
   fi
   
   if [[ "$need_to_build" == "yes" ]]; then
+    # Deactivate current environment if it's the one we're about to rebuild
+    if [[ "$CONDA_DEFAULT_ENV" == "$env_name" ]]; then
+      echo "Deactivating currently active environment..."
+      conda deactivate
+    fi
     echo "Creating conda environment '$env_name'"
     make build-env type=$env_type name=$env_name force=yes $lfs_flag
   fi
