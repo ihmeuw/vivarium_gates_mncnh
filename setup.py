@@ -60,9 +60,9 @@ if __name__ == "__main__":
     cluster_requirements = ["vivarium_cluster_tools>=2.0.0"]
     test_requirements = [
         "vivarium_dependencies[pytest]",
-        "vivarium_testing_utils",
         "papermill",
         "jupyterlab",
+        "vivarium_testing_utils[validation]",
     ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         include_package_data=True,
         install_requires=install_requirements,
         extras_require={
-            "test": test_requirements,
+            "test": test_requirements + lint_requirements,
             "cluster": cluster_requirements,
             "data": data_requirements + cluster_requirements,
             "interactive": interactive_requirements,
