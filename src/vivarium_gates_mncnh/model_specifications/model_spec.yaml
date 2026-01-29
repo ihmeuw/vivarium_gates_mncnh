@@ -44,6 +44,8 @@ components:
             - OralIronEffectsOnGestationalAge()
             - IVIronExposure()
             - IVIronEffectOnHemoglobin()
+            - IVIronEffectOnLBWSG()
+            - IVIronEffectOnStillbirth()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')
