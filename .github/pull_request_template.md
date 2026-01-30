@@ -26,4 +26,4 @@ MANUALLY RUN TESTS WITH EACH PR.
 MAKE SURE CONSTANTS/PATHS.PY IS USING THE CORRECT MODEL RESULTS DIRECTORY.
 -->
 - [ ] model results directory is up to date
-- [ ] all tests pass (`pytest --runslow`)
+- [ ] all tests pass (`pytest --runslow` with both *vivarium_gates_mncnh_artifact* and *vivarium_gates_mncnh_simulation*)

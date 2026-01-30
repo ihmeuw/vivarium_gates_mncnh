@@ -189,11 +189,14 @@ if [[ $create_env == 'yes' ]]; then
   pip install uv
   artifactory_url="https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple"
   uv pip install -r $install_file --extra-index-url $artifactory_url --index-strategy unsafe-best-match
-  # Editable install of repo
-  uv pip install -e .[dev] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
   # Install redis for simulation environments
   if [ $env_type == 'simulation' ]; then
+    # Editable install of repo
+    uv pip install -e .[dev] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
     conda install redis -c anaconda -y
+  else
+    # Editable install of repo with data packages
+    uv pip install -e .[dev,data] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
   fi
   # Install git lfs if requested
   if [ $install_git_lfs == 'yes' ]; then
