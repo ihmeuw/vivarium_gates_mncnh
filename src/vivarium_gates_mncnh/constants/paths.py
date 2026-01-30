@@ -32,5 +32,5 @@ STILLBIRTH_RATIO_24_WKS_CSV = "/snfs1/Project/simulation_science/mnch_grant/MNCN
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_sicence/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model27.1"
+MODEL_RESULTS_DIR = "model28.0"
 MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
