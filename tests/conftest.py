@@ -40,6 +40,33 @@ def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
 
 
+# Detect environment type by checking for vivarium_inputs package
+try:
+    import vivarium_inputs
+
+    IS_SIMULATION_ENV = False
+except ImportError:
+    IS_SIMULATION_ENV = True
+
+# Use collect_ignore to prevent pytest from collecting certain directories
+# This is evaluated at module level before collection starts
+collect_ignore = []
+if IS_SIMULATION_ENV:
+    # In simulation env, don't collect tests from automated_v_and_v and model_notebooks
+    collect_ignore.extend(
+        [
+            "automated_v_and_v",
+            "model_notebooks",
+        ]
+    )
+else:
+    # In artifact env, only collect tests from automated_v_and_v and model_notebooks
+    # Ignore all test_*.py files in the tests root directory
+    test_dir = Path(__file__).parent
+    for test_file in test_dir.glob("test_*.py"):
+        collect_ignore.append(test_file.name)
+
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: mark test as slow to run")
 
@@ -53,13 +80,11 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             item.add_marker(skip_jenkins)
 
-    if config.getoption("--runslow"):
-        # --runslow given in cli: do not skip slow tests
-        return
-
-    for item in items:
-        if "slow" in item.keywords:
-            item.add_marker(skip_slow)
+    # Skip slow tests unless --runslow is passed
+    if not config.getoption("--runslow"):
+        for item in items:
+            if "slow" in item.keywords:
+                item.add_marker(skip_slow)
 
 
 @pytest.fixture(scope="session")
