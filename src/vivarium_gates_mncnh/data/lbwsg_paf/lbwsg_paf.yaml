@@ -1,0 +1,46 @@
+components:
+    vivarium_gates_mncnh:
+        components:
+            - PAFResultsStratifier()
+            - EvenlyDistributedPopulation()
+            - LBWSGMortality()
+            - LBWSGPAFCalculationExposure()
+            - LBWSGPAFRiskEffect('cause.all_causes.all_cause_mortality_risk')
+            - LBWSGPAFObserver('cause.all_causes.all_cause_mortality_risk')
+            - PretermPrevalenceObserver()
+
+
+configuration:
+    input_data:
+        input_draw_number: 60
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model29.0/ethiopia.hdf"
+    interpolation:
+        order: 0
+        extrapolate: True
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time', 'child_age']
+        random_seed: 0
+    time:
+        start:
+            year: 2022
+            month: 1
+            day: 1
+        end:
+            year: 2022
+            month: 1
+            day: 10
+        step_size: 8 # Days
+    population:
+        population_size: 194_996
+        untracking_age: 0.03835616 # 14 days
+
+    intervention:
+        scenario: 'baseline'
+
+    stratification:
+        default:
+            - 'child_age_group'
+            - 'child_sex'
+        preterm_prevalence:
+            exclude: ['child_age_group']
