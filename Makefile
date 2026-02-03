@@ -65,7 +65,7 @@ help:
 	@echo "particularly if you need non-python packages installed via conda."
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>]"
+	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>] [force=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
@@ -80,6 +80,8 @@ help:
 	@echo "      Whether to install git-lfs in the environment. Either 'yes' or 'no' (default)"
 	@echo "  py [optional]"
 	@echo "      Python version (defaults to latest supported)"
+	@echo "  force [optional]"
+	@echo "      Whether to remove and recreate an existing environment. Either 'yes' or 'no' (default)"
 	@echo
 	@echo "After creating the environment:"
 	@echo "  1. Activate it: 'conda activate <environment_name>'"
@@ -94,7 +96,7 @@ help:
 	@echo "while allowing you to install the local package in editable mode."
 	@echo
 	@echo "USAGE:"
-	@echo "  make build-shared-env [type=<environment type>] [venv_dir=<directory>] [venv_name=<name>] [shared_env_dir=<path>] [clear=<yes|no>]"
+	@echo "  make build-shared-env [type=<environment type>] [venv_dir=<directory>] [venv_name=<name>] [shared_env_dir=<path>] [force=<yes|no>]"
 	@echo
 	@echo "ARGUMENTS:"
 	@echo "  type [optional]"
@@ -105,8 +107,8 @@ help:
 	@echo "      Name of the venv to create (defaults to '<PACKAGE_NAME>_<TYPE>')"
 	@echo "  shared_env_dir [optional]"
 	@echo "      Base directory for shared environments (defaults to Jenkins shared env location)"
-	@echo "  clear [optional]"
-	@echo "      Whether to clear an existing venv at venv_dir/venv_name. Either 'yes' or 'no' (default)"
+	@echo "  force [optional]"
+	@echo "      Whether to remove and recreate an existing venv. Either 'yes' or 'no' (default)"
 	@echo
 	@echo "After creating the environment:"
 	@echo "  1. Activate it: 'source <venv_dir>/<environment_name>/bin/activate'"
@@ -116,7 +118,7 @@ endif
 
 build-env: # Create a new environment with installed packages
 #	Validate arguments - exit if unsupported arguments are passed
-	$(call validate_make_args,build-env,type name path lfs py include_timestamp)
+	$(call validate_make_args,build-env,type name path lfs py include_timestamp force)
 	
 #   Handle arguments and set defaults
 #   type
@@ -133,13 +135,28 @@ build-env: # Create a new environment with installed packages
 #	lfs
 	@$(eval lfs ?= no)
 	@$(call validate_arg,$(lfs),yes no,lfs)
+#	force
+	@$(eval force ?= no)
+	@$(call validate_arg,$(force),yes no,force)
 #	python version
 	@$(eval py ?= $(shell python -c "import json; versions = json.load(open('python_versions.json')); print(max(versions, key=lambda x: tuple(map(int, x.split('.')))))"))
 #	Determine conda create flag: -p for path, -n for name
 	@$(eval CONDA_CREATE_FLAG := $(if $(path),-p $(path),-n $(name)))
 #	Determine conda run flag: -p for path, -n for name
 	@$(eval CONDA_RUN_FLAG := $(if $(path),-p $(path),-n $(name)))
-	
+
+#	Check if environment already exists and handle based on force flag
+	@if conda env list | grep -qE "$(if $(path),^$(path),^$(name))\s"; then \
+		if [ "$(force)" = "yes" ]; then \
+			echo "Removing existing environment..."; \
+			conda remove $(CONDA_CREATE_FLAG) --all --yes; \
+		else \
+			echo "Error: Environment already exists at $(if $(path),$(path),$(name))" >&2; \
+			echo "Use 'force=yes' to remove and recreate it, or specify a different location with 'name=<name>' or 'path=<path>'" >&2; \
+			exit 1; \
+		fi \
+	fi
+
 	conda create $(CONDA_CREATE_FLAG) python=$(py) --yes
 # 	Bootstrap vivarium_build_utils into the new environment
 	conda run $(CONDA_RUN_FLAG) pip install vivarium_build_utils
@@ -161,6 +178,7 @@ build-env: # Create a new environment with installed packages
 	@echo "  type: $(type)"
 	@echo "  git-lfs installed: $(lfs)"
 	@echo "  python version: $(py)"
+	@echo "  forced rebuild: $(force)"
 	@echo
 	@echo "After creating the environment:"
 	@$(if $(path),echo "  1. Activate it: 'conda activate $(path)'",echo "  1. Activate it: 'conda activate $(name)'")
@@ -172,7 +190,7 @@ SHARED_ENV_DIR ?= /mnt/team/simulation_science/priv/engineering/jenkins/shared_e
 
 build-shared-env: # Create a lightweight venv overlay on top of a shared conda environment
 #	Validate arguments - exit if unsupported arguments are passed
-	$(call validate_make_args,build-shared-env,type venv_dir venv_name shared_env_dir clear)
+	$(call validate_make_args,build-shared-env,type venv_dir venv_name shared_env_dir force)
 
 #	Handle arguments and set defaults
 #	type
@@ -186,9 +204,9 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@$(eval venv_path := $(venv_dir)/$(venv_name))
 #	shared_env_dir
 	@$(eval shared_env_dir ?= $(SHARED_ENV_DIR))
-#	clear
-	@$(eval clear ?= no)
-	@$(call validate_arg,$(clear),yes no,clear)
+#	force
+	@$(eval force ?= no)
+	@$(call validate_arg,$(force),yes no,force)
 #	Construct shared environment path
 	@$(eval SHARED_ENV_NAME := $(PACKAGE_NAME)_$(type)_current)
 	@$(eval SHARED_ENV_PATH := $(shared_env_dir)/$(SHARED_ENV_NAME))
@@ -202,12 +220,12 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 
 #	Handle existing venv
 	@if [ -d "$(venv_path)" ]; then \
-		if [ "$(clear)" = "yes" ]; then \
+		if [ "$(force)" = "yes" ]; then \
 			echo "Clearing existing venv at $(venv_path)"; \
 			rm -rf "$(venv_path)"; \
 		else \
 			echo "Warning: venv already exists at $(venv_path)" >&2; \
-			echo "Use 'clear=yes' to remove and recreate it, or specify a different location with 'venv_dir=<dir>' and 'venv_name=<name>'" >&2; \
+			echo "Use 'force=yes' to remove and recreate it, or specify a different location with 'venv_dir=<dir>' and 'venv_name=<name>'" >&2; \
 			exit 1; \
 		fi \
 	fi
