@@ -29,7 +29,7 @@ configuration:
     end:
       year: 2022
       month: 1
-      day: 10
+      day: 2
     step_size: 8
   population:
     population_size: 194996

@@ -413,14 +413,7 @@ def main():
         #     auto_confirm=True,
         # )
 
-        # Step 2: Create temporary model spec with end day = 2
-        source_model_spec_path = script_dir / "lbwsg_paf.yaml"
-        temp_specs_dir = script_dir / "temp_model_specs"
-        model_spec_day2 = create_temp_model_spec(
-            str(source_model_spec_path), temp_specs_dir, 2
-        )
-
-        # Step 3: Run first psimulate
+        # Step 2: Run first psimulate with early neonatal spec (only one time step)
         psimulate_output = run_command(
             [
                 "psimulate",
@@ -432,7 +425,7 @@ def main():
                 f"{artifact_path}/{location}.hdf",
                 "-o",
                 working_dir_str,
-                model_spec_day2,
+                str(script_dir / "lbwsg_paf_enn.yaml"),
                 str(script_dir / "lbwsg_paf_branches.yaml"),
             ],
             "first psimulate run (early neonatal PAFs)",
@@ -440,11 +433,11 @@ def main():
             capture_full_output=True,
         )
 
-        # Step 4: Check if psimulate finished properly
+        # Step 3: Check if psimulate finished properly
         if not check_psimulate_finished(psimulate_output):
             raise RuntimeError("First psimulate run: Not all jobs finished successfully")
 
-        # Step 5: Copy first set of results
+        # Step 4: Copy first set of results
         results_dir = extract_results_dir(psimulate_output)
         copy_results(
             f"{results_dir}/calculated_lbwsg_paf*",
@@ -452,7 +445,7 @@ def main():
             "early neonatal PAF output files",
         )
 
-        # Step 6: Generate artifact with early neonatal PAFs
+        # Step 5: Generate artifact with early neonatal PAFs
         run_command(
             [
                 "make_artifacts",
@@ -471,7 +464,7 @@ def main():
             auto_confirm=True,
         )
 
-        # Step 7: Run second psimulate
+        # Step 6: Run second psimulate with standard model spec (two time steps)
         psimulate_output = run_command(
             [
                 "psimulate",
@@ -483,7 +476,7 @@ def main():
                 f"{artifact_path}/{location}.hdf",
                 "-o",
                 working_dir_str,
-                str(source_model_spec_path),
+                str(script_dir / "lbwsg_paf.yaml"),
                 str(script_dir / "lbwsg_paf_branches.yaml"),
             ],
             "second psimulate run (late neonatal PAFs and preterm prevalence)",
@@ -491,12 +484,12 @@ def main():
             capture_full_output=True,
         )
 
-        # Step 8: Check if psimulate finished properly
+        # Step 7: Check if psimulate finished properly
         if not check_psimulate_finished(psimulate_output):
             # Error if not finished
             raise RuntimeError("Second psimulate run: Not all jobs finished successfully")
 
-        # Step 9: Copy second set of results
+        # Step 8: Copy second set of results
         results_dir = extract_results_dir(psimulate_output)
         copy_results(
             f"{results_dir}/calculated_lbwsg_paf*",
@@ -510,7 +503,7 @@ def main():
             "preterm prevalence output files",
         )
 
-        # Step 10: Final artifact generation
+        # Step 9: Final artifact generation
         run_command(
             [
                 "make_artifacts",
@@ -532,14 +525,6 @@ def main():
         print("\n" + "=" * 80)
         print("PAF Simulation Workflow Completed Successfully!")
         print("=" * 80 + "\n")
-
-        # Cleanup: Delete temporary model specs
-        print(f"\nCleaning up temporary model specs: {temp_specs_dir}")
-        if temp_specs_dir.exists():
-            shutil.rmtree(temp_specs_dir)
-            print(f"Temporary model specs deleted successfully\n")
-        else:
-            print(f"Temporary model specs directory does not exist, skipping cleanup\n")
 
     except Exception as e:
         print(f"\n{'='*80}", file=sys.stderr)
