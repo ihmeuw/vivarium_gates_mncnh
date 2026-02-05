@@ -16,6 +16,8 @@ from vivarium.framework.configuration import build_model_specification
 LOCATION_DATA = {"ethiopia": 179, "nigeria": 214, "pakistan": 165}
 ART_DIR = "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model29.0"
 
+from IPython.display import display
+
 
 def load_artifact(location):
     return Artifact(Path(ART_DIR) / (location + ".hdf"))
@@ -415,7 +417,7 @@ def load_mms_data(exp_anc, ifa_shifts):
     )
     mms_vpt_rr_draws = pd.DataFrame()
     mms_vpt_rr_draws["draw"] = [f"draw_{x}" for x in list(range(0, 1000))]
-    mms_vpt_rr_draws["rr"] = mms_vpt_dist.rvs(size=1000, random_state=101112)
+    mms_vpt_rr_draws["rr"] = mms_vpt_dist.rvs(size=1000, random_state=789)
 
     ifa_exp = covered_exp.copy().drop(columns="covered_shift")
     ifa_exp["frac_vptb"] = np.where(
