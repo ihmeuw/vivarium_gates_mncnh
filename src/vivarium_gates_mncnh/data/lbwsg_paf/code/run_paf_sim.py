@@ -62,8 +62,8 @@ def generate_artifact():
     working_dir.mkdir(parents=True, exist_ok=True)
     working_dir_str = str(working_dir)
 
-    # Get the script directory to find data/lbwsg_paf
-    script_dir = Path(__file__).parent
+    # Get data/lbwsg_paf
+    script_dir = Path(__file__).parent.parent
 
     print("\n" + "=" * 80)
     print("PAF Simulation Workflow")
@@ -78,12 +78,12 @@ def generate_artifact():
         check_conda_environments()
 
         # Step 1: Initial artifact generation
-        # run_command(
-        #     ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
-        #     f"initial artifact generation for {location.capitalize()}",
-        #     conda_env="vivarium_gates_mncnh_artifact",
-        #     auto_confirm=True,
-        # )
+        run_command(
+            ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
+            f"initial artifact generation for {location.capitalize()}",
+            conda_env="vivarium_gates_mncnh_artifact",
+            auto_confirm=True,
+        )
 
         # Step 2: Run first psimulate with early neonatal spec (only one time step)
         psimulate_output = run_command(
