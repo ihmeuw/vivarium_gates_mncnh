@@ -70,6 +70,7 @@ if __name__ == "__main__":
     ]
     interactive_requirements = [
         "vivarium_dependencies[interactive]",
+        "nbdime",
     ]
 
     setup(
