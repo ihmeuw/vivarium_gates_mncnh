@@ -1,22 +1,36 @@
 #!/usr/bin/env python
 """
-Script to run PAF simulations to generate artifact data.
+Run PAF simulations and generate artifacts.
+
+Usage
+-----
+Run from this directory with a target artifact directory name and optional location:
+
+    python run_paf_sim.py -a test_automation -l Pakistan
+
+This would write the artifact to:
+
+    /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_automation/pakistan.csv
+
+If ``-l`` is omitted, the location defaults to Ethiopia.
 """
 import argparse
 import shutil
 import sys
+from datetime import datetime
 from pathlib import Path
 
+from vivarium_gates_mncnh.constants.paths import CLUSTER_DATA_DIR
 from vivarium_gates_mncnh.data.lbwsg_paf.code.utilities import (
     check_conda_environments,
     check_psimulate_finished,
-    copy_results,
     extract_results_dir,
+    move_results,
     run_command,
 )
 
 
-def main():
+def generate_artifact():
     parser = argparse.ArgumentParser(description="Run PAF simulation workflow")
     parser.add_argument(
         "-l",
@@ -26,32 +40,25 @@ def main():
         help="Location for the simulation (default: 'Ethiopia')",
     )
     parser.add_argument(
-        "-o",
-        "--intermediate_dir",
-        type=str,
-        default="~/",
-        help="Directory for intermediate files and results (default: '~/')",
-    )
-    parser.add_argument(
         "-a",
         "--artifact_name",
         type=str,
         required=True,
         dest="artifact_name",
-        help="Name of the artifact file. Will write to /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/{artifact_name}",
+        help="Name of the artifact directory. Will write to /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/{artifact_name}",
     )
 
     args = parser.parse_args()
 
     location = args.location.lower()
     artifact_name = args.artifact_name
-    intermediate_dir = args.intermediate_dir
 
     # Define artifact path
     artifact_path = f"/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/{artifact_name}"
 
-    # Create working directory inside intermediate_dir
-    working_dir = Path(intermediate_dir).expanduser() / "paf_sim_results"
+    # Create timestamped working directory on shared filesystem
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    working_dir = Path(CLUSTER_DATA_DIR) / "paf_sim_results" / timestamp
     working_dir.mkdir(parents=True, exist_ok=True)
     working_dir_str = str(working_dir)
 
@@ -63,7 +70,6 @@ def main():
     print("=" * 80)
     print(f"Location: {location}")
     print(f"Artifact: {artifact_path}")
-    print(f"Intermediate directory: {intermediate_dir}")
     print(f"Working directory: {working_dir_str}")
     print("=" * 80)
 
@@ -72,12 +78,12 @@ def main():
         check_conda_environments()
 
         # Step 1: Initial artifact generation
-        run_command(
-            ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
-            f"initial artifact generation for {location.capitalize()}",
-            conda_env="vivarium_gates_mncnh_artifact",
-            auto_confirm=True,
-        )
+        # run_command(
+        #     ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
+        #     f"initial artifact generation for {location.capitalize()}",
+        #     conda_env="vivarium_gates_mncnh_artifact",
+        #     auto_confirm=True,
+        # )
 
         # Step 2: Run first psimulate with early neonatal spec (only one time step)
         psimulate_output = run_command(
@@ -105,7 +111,7 @@ def main():
 
         # Step 4: Copy first set of results
         results_dir = extract_results_dir(psimulate_output)
-        copy_results(
+        move_results(
             f"{results_dir}/calculated_lbwsg_paf*",
             f"{script_dir}/outputs/paf_outputs/{location}",
             "early neonatal PAF output files",
@@ -157,13 +163,13 @@ def main():
 
         # Step 8: Copy second set of results
         results_dir = extract_results_dir(psimulate_output)
-        copy_results(
+        move_results(
             f"{results_dir}/calculated_lbwsg_paf*",
             f"{script_dir}/outputs/paf_outputs/{location}",
             "late neonatal PAF output files",
         )
 
-        copy_results(
+        move_results(
             f"{results_dir}/calculated_late_neonatal_preterm*",
             f"{script_dir}/outputs/preterm_prevalence_outputs/{location}",
             "preterm prevalence output files",
@@ -197,7 +203,10 @@ def main():
         print(f"ERROR: {str(e)}", file=sys.stderr)
         print(f"{'='*80}\n", file=sys.stderr)
         sys.exit(1)
+    finally:
+        if working_dir.exists():
+            shutil.rmtree(working_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
-    main()
+    generate_artifact()

@@ -245,12 +245,12 @@ def extract_results_dir(psimulate_output: str) -> Optional[str]:
         return None
 
 
-def copy_results(source_pattern: str, dest_dir: str, description: str) -> None:
+def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
     """
-    Copy result files to the destination directory.
+    Move result files to the destination directory.
 
     Expects directories matching the pattern, each containing a single file 0000.parquet.
-    Copies each parquet file and renames it to {directory_name}.parquet.
+    Moves each parquet file and renames it to {directory_name}.parquet.
 
     Parameters
     ----------
@@ -259,9 +259,9 @@ def copy_results(source_pattern: str, dest_dir: str, description: str) -> None:
     dest_dir : str
         Destination directory
     description : str
-        Description of the files being copied
+        Description of the files being moved
     """
-    print(f"\nCopying {description}")
+    print(f"\nMoving {description}")
     print(f"From: {source_pattern}")
     print(f"To: {dest_dir}")
 
@@ -273,11 +273,11 @@ def copy_results(source_pattern: str, dest_dir: str, description: str) -> None:
 
     if not matching_paths:
         raise RuntimeError(
-            f"Failed to copy {description}. No directories matched pattern: {source_pattern}"
+            f"Failed to move {description}. No directories matched pattern: {source_pattern}"
         )
 
-    # Copy files from matching directories
-    copied_count = 0
+    # Move files from matching directories
+    moved_count = 0
     for source_path in matching_paths:
         source_path_obj = Path(source_path)
 
@@ -287,12 +287,12 @@ def copy_results(source_pattern: str, dest_dir: str, description: str) -> None:
             if not parquet_file.exists():
                 raise RuntimeError(f"Expected file 0000.parquet not found in {source_path}")
 
-            # Copy and rename to {directory_name}.parquet
+            # Move and rename to {directory_name}.parquet
             dest_filename = f"{source_path_obj.name}.parquet"
             dest_file = Path(dest_dir) / dest_filename
-            shutil.copy2(parquet_file, dest_file)
-            copied_count += 1
+            shutil.move(str(parquet_file), dest_file)
+            moved_count += 1
         except Exception as e:
-            raise RuntimeError(f"Failed to copy from {source_path} to {dest_dir}. Error: {e}")
+            raise RuntimeError(f"Failed to move from {source_path} to {dest_dir}. Error: {e}")
 
-    print(f"Copied {copied_count} file(s) successfully\n")
+    print(f"Moved {moved_count} file(s) successfully\n")
