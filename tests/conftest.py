@@ -91,12 +91,19 @@ def pytest_xdist_auto_num_workers(config):
     """
     Automatically determine the number of workers for pytest-xdist.
 
-    - On SLURM: Use all available CPUs (detected via os.cpu_count())
+    - On SLURM: Use CPUs allocated to the job (via SLURM environment variables)
     - Not on SLURM: Return 1 (no parallelization by default)
     - Users can override by explicitly passing -n flag to pytest
     """
     if IS_ON_SLURM:
-        # On SLURM clusters, use all available CPUs
+        # On SLURM clusters, use the number of CPUs allocated to the job
+        # Check SLURM environment variables in order of preference
+        slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get(
+            "SLURM_CPUS_ON_NODE"
+        )
+        if slurm_cpus:
+            return int(slurm_cpus)
+        # Fallback to total CPUs if SLURM vars not found (shouldn't happen)
         return os.cpu_count()
     else:
         # Not on SLURM: disable auto parallelization
