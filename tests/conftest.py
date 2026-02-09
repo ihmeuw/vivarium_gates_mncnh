@@ -88,7 +88,7 @@ def pytest_collection_modifyitems(config, items):
 
 
 def pytest_xdist_auto_num_workers(config):
-    """ Automatically determine the number of workers for pytest-xdist.
+    """Automatically determine the number of workers for pytest-xdist.
 
     - On SLURM: Use CPUs allocated to the job (via SLURM environment variables)
     - Not on SLURM: Return 1 (no parallelization by default)
