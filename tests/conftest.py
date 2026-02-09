@@ -106,7 +106,7 @@ def pytest_xdist_auto_num_workers(config):
         return os.cpu_count()
     else:
         # Not on SLURM: disable auto parallelization
-        # Users can still manually specify -n<NUM> or -nauto
+        # Users can still manually specify -n<NUM>
         return 1
 
 
