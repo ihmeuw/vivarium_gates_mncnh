@@ -87,6 +87,23 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_slow)
 
 
+def pytest_xdist_auto_num_workers(config):
+    """
+    Automatically determine the number of workers for pytest-xdist.
+
+    - On SLURM: Use all available CPUs (detected via os.cpu_count())
+    - Not on SLURM: Return 1 (no parallelization by default)
+    - Users can override by explicitly passing -n flag to pytest
+    """
+    if IS_ON_SLURM:
+        # On SLURM clusters, use all available CPUs
+        return os.cpu_count()
+    else:
+        # Not on SLURM: disable auto parallelization
+        # Users can still manually specify -n<NUM> or -nauto
+        return 1
+
+
 @pytest.fixture(scope="session")
 def model_spec_path() -> Path:
     repo_path = paths.BASE_DIR

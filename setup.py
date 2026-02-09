@@ -63,6 +63,7 @@ if __name__ == "__main__":
         "papermill",
         "jupyterlab",
         "vivarium_testing_utils",
+        "pytest-xdist",
     ]
     validation_requirements = ["vivarium_testing_utils[validation]"]
     lint_requirements = [
