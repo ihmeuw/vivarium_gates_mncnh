@@ -87,6 +87,28 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_slow)
 
 
+def pytest_xdist_auto_num_workers(config):
+    """Automatically determine the number of workers for pytest-xdist.
+
+    - On SLURM: Use CPUs allocated to the job (via SLURM environment variables)
+    - Not on SLURM: Return 1 (no parallelization by default)
+    - Users can override by explicitly passing -n flag to pytest
+    """
+    cpus = 1
+    if IS_ON_SLURM:
+        # On SLURM clusters, use the number of CPUs allocated to the job
+        # Check SLURM environment variables in order of preference
+        slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get(
+            "SLURM_CPUS_ON_NODE"
+        )
+        if slurm_cpus:
+            cpus = int(slurm_cpus)
+        # Fallback to total CPUs if SLURM vars not found (shouldn't happen)
+        cpus = os.cpu_count()
+
+    return cpus
+
+
 @pytest.fixture(scope="session")
 def model_spec_path() -> Path:
     repo_path = paths.BASE_DIR
