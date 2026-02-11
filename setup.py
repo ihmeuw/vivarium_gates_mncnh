@@ -62,13 +62,16 @@ if __name__ == "__main__":
         "vivarium_dependencies[pytest]",
         "papermill",
         "jupyterlab",
-        "vivarium_testing_utils[validation]",
+        "vivarium_testing_utils",
+        "pytest-xdist",
     ]
+    validation_requirements = ["vivarium_testing_utils[validation]"]
     lint_requirements = [
         "vivarium_dependencies[lint]",
     ]
     interactive_requirements = [
         "vivarium_dependencies[interactive]",
+        "nbdime",
     ]
 
     setup(
@@ -84,9 +87,13 @@ if __name__ == "__main__":
         include_package_data=True,
         install_requires=install_requirements,
         extras_require={
-            "test": test_requirements + lint_requirements,
+            "test": test_requirements,
             "cluster": cluster_requirements,
-            "data": data_requirements + cluster_requirements,
+            "data": data_requirements
+            + cluster_requirements
+            + lint_requirements
+            + test_requirements
+            + validation_requirements,
             "interactive": interactive_requirements,
             "dev": test_requirements
             + cluster_requirements
