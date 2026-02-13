@@ -137,11 +137,13 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
         data_keys.IFA_SUPPLEMENTATION.COVERAGE: load_ifa_coverage,
         data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
-        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_excess_shift,
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC: load_excess_gestational_age_shift,
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC: load_excess_gestational_age_shift,
         data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
         data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.MMN_SUPPLEMENTATION.STILLBIRTH_RR: load_oral_iron_effect_size,
-        data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_mms_excess_shift,
+        data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: load_excess_shift,
         data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: load_excess_gestational_age_shift,
         data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: load_excess_gestational_age_shift,
         data_keys.MMN_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: load_risk_specific_shift,
@@ -1335,7 +1337,7 @@ def load_no_misoprostol_paf(
 def load_ifa_coverage(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    filepath = paths.ORAL_IRON_DATA_DIR / "anc_iron_prop_st.csv"
+    filepath = "/snfs1/Project/simulation_science/mnch_grant/MNCNH portfolio/anc_iron_prop_st-gpr_results_aggregates_scaled2025-05-30.csv"
     return load_coverage_from_file(filepath, location)
 
 
@@ -1384,15 +1386,6 @@ def load_oral_iron_effect_size(
     return pd.concat(effect_size_data)
 
 
-def load_ifa_excess_shift(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
-    birth_weight_shift = load_mms_excess_shift(key, location)
-    gestational_age_shift = load_excess_gestational_age_shift(key, location)
-    all_ages_data = pd.concat([birth_weight_shift, gestational_age_shift])
-    return all_ages_data.query("age_end <= 5.0")
-
-
 def load_risk_specific_shift(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -1411,9 +1404,11 @@ def load_risk_specific_shift(
             0.0, columns=single_cat_shift.columns, index=single_cat_shift.index
         )
     else:
-        exposure = get_data(key_group.COVERAGE, location)
-        excess_shift = get_data(key_group.EXCESS_SHIFT, location)
-        anc_proportion = get_data(data_keys.ANC.ANC1, location)
+        shift_anc = get_data(key_group.EXCESS_GA_SHIFT_ANC, location)
+        shift_non_anc = get_data(key_group.EXCESS_GA_SHIFT_NON_ANC, location)
+        exposure = get_data(key_group.COVERAGE, location)[shift_anc.columns]
+        anc_proportion = get_data(data_keys.ANC.ANC1, location)[shift_anc.columns]
+        excess_shift = shift_anc * anc_proportion + shift_non_anc * (1 - anc_proportion)
 
         risk_specific_shift = (
             (exposure * excess_shift * anc_proportion)
@@ -1422,11 +1417,12 @@ def load_risk_specific_shift(
             )
             .sum()
         )
+        
 
     return risk_specific_shift
 
 
-def load_mms_excess_shift(
+def load_excess_shift(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     try:
@@ -1465,7 +1461,7 @@ def reshape_shift_data(shift: pd.Series, index: pd.Index, target: str) -> pd.Dat
     """
     exposed = pd.DataFrame([shift], index=index)
     exposed["parameter"] = "cat2"
-    unexposed = pd.DataFrame([pd.Series(0.0, index=metadata.ARTIFACT_COLUMNS)], index=index)
+    unexposed = pd.DataFrame([pd.Series(0.0, index=shift.index)], index=index)
     unexposed["parameter"] = "cat1"
 
     excess_shift = pd.concat([exposed, unexposed])
@@ -1485,7 +1481,8 @@ def load_excess_gestational_age_shift(
     Returns the sum of the shift data in the directories defined in data_dirs."""
     try:
         data_file = {
-            data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: "ifa_ga_shifts.csv",
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC: "ifa_ga_shifts.csv",
+            data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC: "ifa_ga_shifts.csv",
             data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: "updated_mms_shifts.csv",
             data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: "updated_mms_shifts.csv",
         }[key]
@@ -1497,8 +1494,11 @@ def load_excess_gestational_age_shift(
     shift_data = pd.read_csv(paths.ORAL_IRON_DATA_DIR / data_file).pipe(
         lambda df: df[df.location_id == location_id]
     )
+    if key == data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC or key == data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC:
+        shift_data['draw'] = ["draw_" + str(x) for x in shift_data['draw']]
     shift_columns = {
-        data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: ["value"],
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC: ["shift_anc"],
+        data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC: ["shift_no_anc"],
         data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1: ["shift1"],
         data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2: ["shift1", "shift2"],
     }[key]
@@ -1507,7 +1507,6 @@ def load_excess_gestational_age_shift(
     excess_shift = reshape_shift_data(
         shifts, index, data_values.PIPELINES.GESTATIONAL_AGE_EXPOSURE
     )
-    excess_shift = excess_shift[metadata.ARTIFACT_COLUMNS]
     return excess_shift.query("age_end <= 5.0").droplevel("location")
 
 
