@@ -1417,7 +1417,6 @@ def load_risk_specific_shift(
             )
             .sum()
         )
-        
 
     return risk_specific_shift
 
@@ -1494,8 +1493,11 @@ def load_excess_gestational_age_shift(
     shift_data = pd.read_csv(paths.ORAL_IRON_DATA_DIR / data_file).pipe(
         lambda df: df[df.location_id == location_id]
     )
-    if key == data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC or key == data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC:
-        shift_data['draw'] = ["draw_" + str(x) for x in shift_data['draw']]
+    if (
+        key == data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC
+        or key == data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC
+    ):
+        shift_data["draw"] = ["draw_" + str(x) for x in shift_data["draw"]]
     shift_columns = {
         data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_ANC: ["shift_anc"],
         data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC: ["shift_no_anc"],
