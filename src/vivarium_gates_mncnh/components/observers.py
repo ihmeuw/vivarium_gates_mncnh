@@ -67,6 +67,7 @@ class ResultsStratifier(ResultsStratifier_):
                     PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
                     PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
                     PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+                    PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME,
                 ]
             ),
             requires_columns=[COLUMNS.PREGNANCY_OUTCOME],
