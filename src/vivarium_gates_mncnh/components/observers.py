@@ -534,7 +534,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": [],
-                    "include": ["age_group"],
+                    "include": ["age_group", "pregnancy_outcome"],
                 },
             },
         }
