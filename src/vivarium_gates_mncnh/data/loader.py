@@ -1430,12 +1430,14 @@ def load_risk_specific_shift(
         risk_specific_ga_shift = (
             (exposure * excess_shift * anc_proportion)
             .groupby(
-                metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure", "parameter"]
+                metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
             )
-            .sum()
+            .sum()  # cat1 == 0
         )
         
-        birth_weight_shift = load_excess_shift(key, location)[excess_shift.columns]
+        birth_weight_shift = load_excess_shift(key, location)[excess_shift.columns].groupby(
+            metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+        ).sum()  # cat1 == 0
         risk_specific_shift = pd.concat([birth_weight_shift, risk_specific_ga_shift])
 
     return risk_specific_shift
