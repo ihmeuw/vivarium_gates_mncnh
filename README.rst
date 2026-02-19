@@ -23,13 +23,6 @@ The first step is to clone the repo::
   ...git will copy the repository from github and place it in your current directory...
   :~$ cd vivarium_gates_mncnh
 
-Cloning the repository should take a fair bit of time as git must fetch
-the data artifact associated with the demo (several GB of data) from the
-large file system storage (``git-lfs``). **If your clone works quickly,
-you are likely only retrieving the checksum file that github holds onto,
-and your simulations will fail.** If you are only retrieving checksum
-files you can explicitly pull the data by executing ``git-lfs pull``.
-
 Users can create environments by running
 ``bash environment.sh`` and ``bash environment.sh -t artifact`` which will automatically create and active conda environments
 for running the simulation and artifact generation respectively.
@@ -200,3 +193,40 @@ Results of the simulation will be written to ``sim_results/``.
 For example, you can check the total deaths due to maternal disorders by
 summing the ``value`` column in the Parquet file at
 ``sim_results/pakistan/<timestamp>/results/maternal_disorders_burden_observer_disorder_deaths.parquet``.
+
+V&V process
+-----------
+
+When we make changes to the model, we do so in a git branch, so that changes are not merged into the main branch until they have been verified and validated (V&V).
+
+However, this process is a bit more involved than typical software testing, and may involve multiple people:
+the model-runner person and the V&V person.
+Often the model-runner is an engineer, though with task shifting it is becoming more common for researchers to take on this role as well.
+The general process is as follows:
+
+1. The model-runner creates a new git branch (the name of which should include the model number), and makes the changes to the model.
+2. If necessary, the model-runner creates a new artifact in a model-number-named directory, and updates the path in the model spec.
+3. The model-runner runs the pytest suite *without updating the MODEL_RESULTS_DIR constant*.
+   If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
+   If that identifies the root cause, and solution to, the issue, they fix it and repeat this step.
+   Otherwise, the V&V person investigates, by making a new branch off the model-runner's branch,
+   running the tests, and updating the tests if needed or summarizing the issue.
+4. The model-runner runs the simulation with `psimulate` saving results to a model-number-named directory.
+   They update the MODEL_RESULTS_DIR constant in the code to reflect this new directory,
+   and create a git tag for the new model version.
+5. The model-runner runs the pytest suite *again*, to ensure that the tests pass with the new results.
+   If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
+   If that identifies the root cause, and solution to, the issue, they fix it and return to step 4 (if the issue doesn't involve the artifact)
+   or step 2 (if the issue does involve the artifact).
+   Otherwise, the V&V person investigates, by making a new branch off the model-runner's branch,
+   running the tests, and updating the tests if needed or summarizing the issue.
+6. If all existing tests have now passed, and additional tests are needed for new functionality,
+   the V&V person now makes a branch off the model-runner's branch, and adds the new tests.
+   If the new tests do not pass, the V&V person investigates why.
+7. If all tests have now passed, the model-runner's branch can be merged to the main branch.
+   If the V&V person also has a branch, this can be merged to the model-runner's branch first,
+   or can be merged directly to main *after* the model-runner's branch is merged to main;
+   this decision should be made based on the potential merge conflicts and who would be better placed to resolve them.
+   If all tests have *not* passed and a follow-up run is needed to fix issues or investigate further,
+   the whole process repeats, branching off the *last* branch made during this process
+   (so, the V&V person's branch, if there is one).
