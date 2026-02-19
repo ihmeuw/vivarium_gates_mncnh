@@ -1389,12 +1389,18 @@ def load_oral_iron_effect_size(
 def load_ifa_excess_shift(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    gestational_age_shift = load_ifa_weighted_avg_shift(key, location).groupby(
-        metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure", "parameter"]
-    ).sum()
+    gestational_age_shift = (
+        load_ifa_weighted_avg_shift(key, location)
+        .groupby(
+            metadata.ARTIFACT_INDEX_COLUMNS
+            + ["affected_entity", "affected_measure", "parameter"]
+        )
+        .sum()
+    )
     birth_weight_shift = load_excess_shift(key, location)[gestational_age_shift.columns]
     all_ages_data = pd.concat([birth_weight_shift, gestational_age_shift])
     return all_ages_data.query("age_end <= 5.0")
+
 
 def load_ifa_weighted_avg_shift(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
@@ -1403,6 +1409,7 @@ def load_ifa_weighted_avg_shift(
     shift_non_anc = get_data(data_keys.IFA_SUPPLEMENTATION.EXCESS_GA_SHIFT_NON_ANC, location)
     anc_proportion = get_data(data_keys.ANC.ANC1, location)[shift_anc.columns]
     return shift_anc * anc_proportion + shift_non_anc * (1 - anc_proportion)
+
 
 def load_risk_specific_shift(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
@@ -1422,9 +1429,11 @@ def load_risk_specific_shift(
             0.0, columns=single_cat_shift.columns, index=single_cat_shift.index
         )
     else:
-        
+
         excess_shift = load_ifa_weighted_avg_shift(key, location)
-        exposure = get_data(data_keys.IFA_SUPPLEMENTATION.COVERAGE, location)[excess_shift.columns]
+        exposure = get_data(data_keys.IFA_SUPPLEMENTATION.COVERAGE, location)[
+            excess_shift.columns
+        ]
         anc_proportion = get_data(data_keys.ANC.ANC1, location)[excess_shift.columns]
 
         risk_specific_ga_shift = (
@@ -1434,10 +1443,14 @@ def load_risk_specific_shift(
             )
             .sum()  # cat1 == 0
         )
-        
-        birth_weight_shift = load_excess_shift(key, location)[excess_shift.columns].groupby(
-            metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
-        ).sum()  # cat1 == 0
+
+        birth_weight_shift = (
+            load_excess_shift(key, location)[excess_shift.columns]
+            .groupby(
+                metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
+            )
+            .sum()
+        )  # cat1 == 0
         risk_specific_shift = pd.concat([birth_weight_shift, risk_specific_ga_shift])
 
     return risk_specific_shift
@@ -1453,7 +1466,9 @@ def load_excess_shift(
             ]["birth_weight.birth_exposure"],
             data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-            ]["birth_weight.birth_exposure"],
+            ][
+                "birth_weight.birth_exposure"
+            ],
             data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
