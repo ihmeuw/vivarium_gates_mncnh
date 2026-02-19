@@ -206,7 +206,7 @@ The general process is as follows:
 
 1. The model-runner creates a new git branch (the name of which should include the model number), and makes the changes to the model.
 2. If necessary, the model-runner creates a new artifact in a model-number-named directory, and updates the path in the model spec.
-3. The model-runner runs the pytest suite *without updating the MODEL_RESULTS_DIR constant*.
+3. The model-runner runs the pytest suite, in *both* artifact and sim environments, *without updating the MODEL_RESULTS_DIR constant*.
    If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
    If that identifies the root cause, and solution to, the issue, they fix it and repeat this step.
    Otherwise, the V&V person investigates, by making a new branch off the model-runner's branch,
@@ -214,7 +214,7 @@ The general process is as follows:
 4. The model-runner runs the simulation with `psimulate` saving results to a model-number-named directory.
    They update the MODEL_RESULTS_DIR constant in the code to reflect this new directory,
    and create a git tag for the new model version.
-5. The model-runner runs the pytest suite *again*, to ensure that the tests pass with the new results.
+5. The model-runner runs the pytest suite *again* (in either environment), to ensure that the tests pass with the new results.
    If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
    If that identifies the root cause, and solution to, the issue, they fix it and return to step 4 (if the issue doesn't involve the artifact)
    or step 2 (if the issue does involve the artifact).
