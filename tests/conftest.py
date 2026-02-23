@@ -36,10 +36,6 @@ SIMULATION_STEPS = [
 ]
 
 
-def pytest_addoption(parser):
-    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
-
-
 # Detect environment type by checking for vivarium_inputs package
 try:
     import vivarium_inputs
@@ -67,24 +63,13 @@ else:
         collect_ignore.append(test_file.name)
 
 
-def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: mark test as slow to run")
-
-
 def pytest_collection_modifyitems(config, items):
-    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
     skip_jenkins = pytest.mark.skip(reason="skipping tests in jenkins")
     is_on_jenkins = os.environ.get("JENKINS_URL")
 
     if is_on_jenkins:
         for item in items:
             item.add_marker(skip_jenkins)
-
-    # Skip slow tests unless --runslow is passed
-    if not config.getoption("--runslow"):
-        for item in items:
-            if "slow" in item.keywords:
-                item.add_marker(skip_slow)
 
 
 def pytest_xdist_auto_num_workers(config):
