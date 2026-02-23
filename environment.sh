@@ -195,8 +195,8 @@ if [[ $create_env == 'yes' ]]; then
     uv pip install -e .[dev] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
     conda install redis -c anaconda -y
   else
-    # Editable install of repo with data packages
-    uv pip install -e .[data] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
+    # Editable install of repo with data and interactive packages
+    uv pip install -e .[data,interactive] --extra-index-url $artifactory_url --index-strategy unsafe-best-match
   fi
   # Install git lfs if requested
   if [ $install_git_lfs == 'yes' ]; then

@@ -252,3 +252,10 @@ The general process is as follows:
 
 Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. sensitivity analyses or experiments. In that case,
 we would simply close the PRs without merging once the process is complete.
+
+When performing merges in this repository, due to the presence of notebooks, there may be conflicts more often than you expect.
+Both the simulation and artifact environments have `nbdime` installed, which makes these conflicts easier to resolve.
+However, you should *not* attempt to resolve notebooks in an `executed/` directory; if there are merge conflicts only
+in these notebooks, you should simply take whichever side is newer (chronologically).
+If there are merge conflicts in other notebooks, you should resolve *just those*,
+and then re-run the pytests to update all the `executed/` notebooks before committing your merge.
