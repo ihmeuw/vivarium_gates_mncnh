@@ -255,7 +255,4 @@ we would simply close the PRs without merging once the process is complete.
 
 When performing merges in this repository, due to the presence of notebooks, there may be conflicts more often than you expect.
 Both the simulation and artifact environments have `nbdime` installed, which makes these conflicts easier to resolve.
-However, you should *not* attempt to resolve notebooks in an `executed/` directory; if there are merge conflicts only
-in these notebooks, you should simply take whichever side is newer (chronologically).
-If there are merge conflicts in other notebooks, you should resolve *just those*,
-and then re-run the pytests to update all the `executed/` notebooks before committing your merge.
+Simply open the conflicting notebooks in a notebook editor (e.g. JupyterLab or VS Code) and resolve the conflicts within that interface.
