@@ -197,36 +197,58 @@ summing the ``value`` column in the Parquet file at
 V&V process
 -----------
 
-When we make changes to the model, we do so in a git branch, so that changes are not merged into the main branch until they have been verified and validated (V&V).
+We do not merge changes to the **main** branch until they have passed verification and validation (V&V).
+Other branches, such as epic branches, can be merged to without V&V; only code review is required.
+The reasoning for this is that V&V is quite a bit more involved than typical software testing, and may involve multiple people.
+We make separate pull requests for each *person's* contribution, so that code can be reviewed by others.
 
-However, this process is a bit more involved than typical software testing, and may involve multiple people:
-the model-runner person and the V&V person.
-Often the model-runner is an engineer, though with task shifting it is becoming more common for researchers to take on this role as well.
+In general, for each V&V process, there are three roles to play: the model-runner, the V&V person, and the bug-fixer.
+The model-runner makes the changes to the model,
+the V&V person does the final sign-off that the model is working as expected,
+and the bug-fixer fixes any issues discovered during this process.
+We **require** the model-runner and V&V person to be two separate people.
+The bug-fixer can be anyone, and will be chosen on the fly depending on the nature of the bug discovered.
+Historically, the model-runner and bug-fixer have been engineers,
+though with task shifting it is becoming more common for folks on the research side to take on these roles.
+The V&V person is always on the research side.
+
+It is encouraged to keep non-main branches up to date with main, and to merge the latest changes from main
+before doing the V&V process on a branch.
+However, in the case that parallel development results in V&V on a branch being done without changes that are merged to main before that branch is,
+V&V should be repeated once the branch is updated with the latest changes from main.
+
+Because V&V involves saving artifacts and outputs to the shared drive, we number all model runs
+and make the shared drive directories correspond to these numbers.
+In order to track how these numbers map to git revisions, we use tagging, as discussed below.
+
 The general process is as follows:
 
-1. The model-runner creates a new git branch (the name of which should include the model number), and makes the changes to the model.
-2. If necessary, the model-runner creates a new artifact in a model-number-named directory, and updates the path in the model spec.
+1. The model runner chooses a model number. This number must be of the form X.Y.Z and should be unique, and strictly *after*
+   any other model number which is a git ancestor of it.
+2. If necessary (if changes have been made that would affect the artifact), the model-runner creates a new artifact in a model-number-named directory, and updates the path in the model spec.
 3. The model-runner runs the pytest suite, in *both* artifact and sim environments, *without updating the MODEL_RESULTS_DIR constant*.
    If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
-   If that identifies the root cause, and solution to, the issue, they fix it and repeat this step.
-   Otherwise, the V&V person investigates, by making a new branch off the model-runner's branch,
-   running the tests, and updating the tests if needed or summarizing the issue.
+   If that investigation does not identify the root cause, the V&V person investigates, by making a new branch off the model-runner's branch,
+   running/debugging the tests, and updating the tests if needed or summarizing the issue.
+   If a bug is found, the person best-positioned to fix it is identified, they fix it in a new branch, and the process starts over, with
+   that person as the model-runner (and the same V&V person).
 4. The model-runner runs the simulation with `psimulate` saving results to a model-number-named directory.
    They update the MODEL_RESULTS_DIR constant in the code to reflect this new directory,
    and create a git tag for the new model version.
-5. The model-runner runs the pytest suite *again* (in either environment), to ensure that the tests pass with the new results.
+5. The model-runner runs the pytest suite *again* in the artifact environment, to ensure that the results tests pass with the new results.
    If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
-   If that identifies the root cause, and solution to, the issue, they fix it and return to step 4 (if the issue doesn't involve the artifact)
-   or step 2 (if the issue does involve the artifact).
-   Otherwise, the V&V person investigates, by making a new branch off the model-runner's branch,
-   running the tests, and updating the tests if needed or summarizing the issue.
+   If that investigation does not identify the root cause, the V&V person investigates, by making a new branch off the model-runner's branch,
+   running/debugging the tests, and updating the tests if needed or summarizing the issue.
+   If a bug is found, the person best-positioned to fix it is identified, they fix it in a new branch, and the process starts over, with
+   that person as the model-runner (and the same V&V person).
 6. If all existing tests have now passed, and additional tests are needed for new functionality,
    the V&V person now makes a branch off the model-runner's branch, and adds the new tests.
    If the new tests do not pass, the V&V person investigates why.
-7. If all tests have now passed, the model-runner's branch can be merged to the main branch.
-   If the V&V person also has a branch, this can be merged to the model-runner's branch first,
-   or can be merged directly to main *after* the model-runner's branch is merged to main;
-   this decision should be made based on the potential merge conflicts and who would be better placed to resolve them.
-   If all tests have *not* passed and a follow-up run is needed to fix issues or investigate further,
-   the whole process repeats, branching off the *last* branch made during this process
-   (so, the V&V person's branch, if there is one).
+   If a bug is found, the person best-positioned to fix it is identified, they fix it in a new branch, and the process starts over, with
+   that person as the model-runner (and the same V&V person).
+7. If all tests have now passed, the process is complete: V&V is successful!
+   At this point all branches involved may be merged to main (if they've been code-reviewed), in whatever
+   order is most convenient according to potential merge conflicts and who would be better placed to resolve them.
+
+Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. sensitivity analyses or experiments. In that case,
+we would simply close the PRs without merging once the process is complete.
