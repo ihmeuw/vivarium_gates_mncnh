@@ -282,9 +282,7 @@ class LBWSGRisk(LBWSGRisk_):
             exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
                 axis, continuous_propensity, categorical_propensity
             )
-        # if axis == GESTATIONAL_AGE and 1 in is_partial_term.index:
-        #     if abs(exposure.loc[1] - 18.207) < 0.1:
-        #         breakpoint()
+
         return exposure
 
     def get_continuous_propensity(self, pop_data: SimulantData, axis: str) -> pd.Series:
