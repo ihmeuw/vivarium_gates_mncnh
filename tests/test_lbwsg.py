@@ -5,6 +5,8 @@ import pytest
 from vivarium import Artifact, InteractiveContext
 from vivarium_testing_utils import FuzzyChecker
 
+from vivarium_gates_mncnh.components.lbwsg import parse_short_gestation_description
+from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.constants.data_keys import LBWSG, POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
@@ -46,7 +48,9 @@ def test_birth_exposure_coverage(
     artifact: Artifact,
     fuzzy_checker: FuzzyChecker,
 ) -> None:
-    """Tests that the birth exposure coverage is correct"""
+    """Tests that the birth exposure coverage is correct for full term pregnancies. Gestational
+    age for partial term pregnancies is randomly sampled from a uniform distribution and thus
+    won't necessarily match the GBD categories."""
     draw = (
         f"draw_{birth_state.model_specification.configuration.input_data.input_draw_number}"
     )
@@ -55,13 +59,24 @@ def test_birth_exposure_coverage(
     sim_exposure = get_simulation_exposure_categories(
         population, birth_state, intervention_effects=False
     )
-    # all simulants should be in a LBWSG category from GBD
+
+    categories = artifact.load(data_keys.LBWSG.CATEGORIES)
+    full_term_cats = [
+        cat
+        for cat in categories
+        if parse_short_gestation_description(categories[cat]).right
+        > metadata.PRETERM_AGE_CUTOFF
+    ]
+    sim_exposure = sim_exposure.loc[sim_exposure["category"].isin(full_term_cats)]
+    birth_exposure = birth_exposure.loc[birth_exposure["parameter"].isin(full_term_cats)]
+    # all full term simulants should be in a LBWSG category from GBD
     assert (sim_exposure["category"] != "").all()
 
     # Check each combination of sex and category
     for sex in ["Female", "Male"]:
         sex_subset = sim_exposure.loc[sim_exposure[COLUMNS.SEX_OF_CHILD] == sex]
         sex_exposure = birth_exposure.loc[birth_exposure[COLUMNS.SEX_OF_CHILD] == sex]
+        sex_exposure[draw] = sex_exposure[draw] / sex_exposure[draw].sum()
         for category in sex_exposure.parameter:
             expected_exposure = sex_exposure.loc[sex_exposure["parameter"] == category][
                 draw

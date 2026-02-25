@@ -211,9 +211,7 @@ class LBWSGRisk(LBWSGRisk_):
 
     @property
     def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.SEX_OF_CHILD,
-        ]
+        return [COLUMNS.SEX_OF_CHILD, COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
 
     @property
     def initialization_requirements(self) -> list[str | Resource]:
@@ -261,13 +259,33 @@ class LBWSGRisk(LBWSGRisk_):
         self.population_view.update(pd.DataFrame(exposures))
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        categorical_propensity = self.categorical_propensity(index)
-        continuous_propensity = self.population_view.get(index)[
-            self.continuous_propensity_column_name[axis]
-        ]
-        return self.exposure_distribution.single_axis_ppf(
-            axis, continuous_propensity, categorical_propensity
-        )
+        pop = self.population_view.get(index)
+
+        # For gestational age, use partial_term_pregnancy_duration where available
+        if axis == GESTATIONAL_AGE:
+            partial_term_durations = pop[COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
+            is_partial_term = partial_term_durations.notna()
+            ppf_index = index[~is_partial_term]
+        else:
+            ppf_index = index
+
+        exposure = pd.Series(np.nan, index=index, name=f"{axis}.exposure")
+
+        if axis == GESTATIONAL_AGE and is_partial_term.any():
+            exposure.loc[is_partial_term] = partial_term_durations.loc[is_partial_term]
+
+        if not ppf_index.empty:
+            categorical_propensity = self.categorical_propensity(ppf_index)
+            continuous_propensity = pop.loc[
+                ppf_index, self.continuous_propensity_column_name[axis]
+            ]
+            exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
+                axis, continuous_propensity, categorical_propensity
+            )
+        # if axis == GESTATIONAL_AGE and 1 in is_partial_term.index:
+        #     if abs(exposure.loc[1] - 18.207) < 0.1:
+        #         breakpoint()
+        return exposure
 
     def get_continuous_propensity(self, pop_data: SimulantData, axis: str) -> pd.Series:
         return pd.Series(
