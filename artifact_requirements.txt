@@ -19,3 +19,4 @@ isort
 jupyterlab
 matplotlib
 papermill
+vivarium_testing_utils

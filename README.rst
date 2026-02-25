@@ -31,7 +31,7 @@ and your simulations will fail.** If you are only retrieving checksum
 files you can explicitly pull the data by executing ``git-lfs pull``.
 
 Users can create environments by running
-``source environment.sh`` and ``source environment.sh -t artifact`` which will automatically create and active conda environments
+``bash environment.sh`` and ``bash environment.sh -t artifact`` which will automatically create and active conda environments
 for running the simulation and artifact generation respectively.
 The environment.sh script has extra options for users. To see these options, pass the 
 ``-h`` flag.
