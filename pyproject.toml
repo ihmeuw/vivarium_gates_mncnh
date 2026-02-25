@@ -3,6 +3,7 @@ requires = ["packaging", "setuptools"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-nauto"
 
 [tool.black]
 line_length = 94
