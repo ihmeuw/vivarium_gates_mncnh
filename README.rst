@@ -202,6 +202,18 @@ Other branches, such as epic branches, can be merged to without V&V; only code r
 The reasoning for this is that V&V is quite a bit more involved than typical software testing, and may involve multiple people.
 We make separate pull requests for each *person's* contribution, so that code can be reviewed by others.
 
+The V&V process is performed through our ``pytest`` suite.
+The test suite contains some tests that run the simulation (using the ``InteractiveContext``),
+and other tests that perform checks on the results of an already-run simulation (run with ``psimulate``).
+Currently, some of these tests are in Python files, and some are in notebooks.
+In the notebooks, there are also some checks which are not ``assert`` statements,
+but require manual review of the notebook outputs to confirm that they are correct.
+When notebook tests are run, the notebook outputs are saved to the ``executed`` subdirectories,
+and must be committed.
+
+For environment-management reasons, the Python tests run in the simulation environment, and the notebook tests run in the artifact environment.
+This means that "running the tests" involves running the test suite in both environments.
+
 In general, for each V&V process, there are three roles to play: the model-runner, the V&V person, and the bug-fixer.
 The model-runner makes the changes to the model,
 the V&V person does the final sign-off that the model is working as expected,
