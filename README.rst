@@ -282,9 +282,10 @@ The directory where the artifact has been stored (named using words) should be
 renamed to match the model number, before starting runs.
 
 When running ``psimulate``, the output directory should be set to a directory named with the model number.
-The  MODEL_RESULTS_DIR constant in ``src/vivarium_gates_mncnh/constants/paths.py``
+The MODEL_RESULTS_DIR constant in ``src/vivarium_gates_mncnh/constants/paths.py``
 should be updated to reflect the new directory where results are being written,
 so that the tests will be checking the correct results.
+Also, the model run should be tracked on the `MNCNH run tracker <https://uwnetid.sharepoint.com/:x:/s/ihme_simulation_science_team/ERyWpil0FLNDl4wfiEOns1EBnTbGctKsKzSKY_iKDTOmxw>`__.
 
 **Post on Slack, do a quick investigation**
 
