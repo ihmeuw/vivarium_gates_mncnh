@@ -260,6 +260,14 @@ Additional details on individual tasks follow.
 * Build the artifact to a directory named descriptively using words rather than a model number (which has not yet been assigned).
 * Be sure to update the model specification to point to the new artifact location.
 
+**Artifact changes backwards compatible?**
+
+This question asks whether or not we expect that existing tests should pass with the new artifact,
+without any changes to the simulation itself.
+In general, the answer should be "yes" when artifact updates do not change the *structure* or *meaning* of existing keys.
+Or in other words, when the only component changes you anticipate needing are adding *new* functionality,
+rather than changing existing functionality.
+
 **Git tag, run psimulate, update the model results dir constant**
 
 Because V&V involves saving outputs to the shared drive, we number all model runs
