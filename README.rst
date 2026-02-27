@@ -105,6 +105,9 @@ You'll find six directories inside the main
   This directory hold Python files used to run scripts used to prepare input
   data or process outputs.
 
+When performing merges in this repository, due to the presence of notebooks, there may be conflicts more often than you expect.
+Both the simulation and artifact environments have `nbdime` installed, which makes these conflicts easier to resolve.
+Simply open the conflicting notebooks in a notebook editor (e.g. JupyterLab or VS Code) and resolve the conflicts within that interface.
 
 Running Simulations
 -------------------
@@ -200,7 +203,10 @@ V&V process
 We do not merge changes to the **main** branch until they have passed verification and validation (V&V).
 Other branches, such as epic branches, can be merged to without V&V; only code review is required.
 The reasoning for this is that V&V is quite a bit more involved than typical software testing, and may involve multiple people.
-We make separate pull requests for each *person's* contribution, so that code can be reviewed by others.
+We make separate branches and pull requests for each *person's* contribution, so that their code can be reviewed by others.
+
+Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. sensitivity analyses or experiments. In that case,
+we would simply close the PRs without merging once the process is complete.
 
 The V&V process is performed through our ``pytest`` suite.
 The test suite contains some tests that run the simulation (using the ``InteractiveContext``),
@@ -209,18 +215,18 @@ Currently, some of these tests are in Python files, and some are in notebooks.
 In the notebooks, there are also some checks which are not ``assert`` statements,
 but require manual review of the notebook outputs to confirm that they are correct.
 When notebook tests are run, the notebook outputs are saved to the ``executed`` subdirectories,
-and must be committed.
+and must be committed to the repo.
 
 For environment-management reasons, the Python tests run in the simulation environment, and the notebook tests run in the artifact environment.
 This means that "running the tests" involves running the test suite in both environments.
 
-In general, for each V&V process, there are three roles to play: the model-runner, the V&V person, and the bug-fixer.
-The model-runner makes the changes to the model,
-the V&V person does the final sign-off that the model is working as expected,
-and the bug-fixer fixes any issues discovered during this process.
-We **require** the model-runner and V&V person to be two separate people.
-The bug-fixer can be anyone, and will be chosen on the fly depending on the nature of the bug discovered.
-Historically, the model-runner and bug-fixer have been engineers,
+In general, for each V&V process, there are three roles to play: the artifact-builder, the model-runner, and the V&V person.
+The artifact-builder makes the changes to the artifact,
+the model-runner makes any necessary changes to the components and runs the model,
+and the V&V person does the final sign-off that the model is working as expected.
+We **require** the model-runner and V&V person to be two separate people,
+and the artifact-builder and V&V person to be two separate people, but the artifact-builder and model-runner can be the same person.
+Historically, the artifact-builder and model-runner have been engineers,
 though with task shifting it is becoming more common for folks on the research side to take on these roles.
 The V&V person is always on the research side.
 
@@ -229,42 +235,52 @@ before doing the V&V process on a branch.
 However, in the case that parallel development results in V&V on a branch being done without changes that are merged to main before that branch is,
 V&V should be repeated once the branch is updated with the latest changes from main.
 
-Because V&V involves saving artifacts and outputs to the shared drive, we number all model runs
+Anytime the V&V process hands from one person (not role) to another,
+a new branch and pull request is made, based off the last.
+This way each PR contains only the changes made by one person, and the others can review.
+
+If a bug is found, the process re-starts in a new branch.
+The person best-positioned to fix the bug is identified according to the nature of the bug,
+and they become the artifact-builder and model-runner for the next iteration.
+The V&V person does not change.
+
+If no issues are found, the V&V person gives their sign-off that the branch is ready to be merged to main.
+At this point *all* branches involved may be merged to main (if they've been code-reviewed), in whatever
+order is most convenient according to potential merge conflicts and who would be better placed to resolve them.
+
+The process works as follows:
+
+.. image:: vv_process.drawio.png
+   :alt: Diagram of the V&V process
+
+Additional details on individual tasks follow.
+
+**Update data processing code and build artifact**
+
+* Build the artifact to a directory named descriptively using words rather than a model number
+(which has not yet been assigned).
+* Be sure to update the model specification to point to the new artifact location.
+
+**Git tag, run psimulate, update the model results dir constant**
+
+Because V&V involves saving outputs to the shared drive, we number all model runs
 and make the shared drive directories correspond to these numbers.
-In order to track how these numbers map to git revisions, we use tagging, as discussed below.
 
-The general process is as follows:
+We do not assign the model number until just before running the simulation.
+The model number must be of the form X.Y.Z and should be unique, and strictly *after*
+any other model number which is a git ancestor of it.
+In order to track how these numbers map to git revisions, we tag
+the git revision just before running the simulation with the model number.
+The directory where the artifact has been stored (named using words) should be
+renamed to match the model number, before starting runs.
 
-1. The model runner chooses a model number. This number must be of the form X.Y.Z and should be unique, and strictly *after*
-   any other model number which is a git ancestor of it.
-2. If necessary (if changes have been made that would affect the artifact), the model-runner creates a new artifact in a model-number-named directory, and updates the path in the model spec.
-3. The model-runner runs the pytest suite, in *both* artifact and sim environments, *without updating the MODEL_RESULTS_DIR constant*.
-   If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
-   If that investigation does not identify the root cause, the V&V person investigates, by making a new branch off the model-runner's branch,
-   running/debugging the tests, and updating the tests if needed or summarizing the issue.
-   If a bug is found, the person best-positioned to fix it is identified, they fix it in a new branch, and the process starts over, with
-   that person as the model-runner (and the same V&V person).
-4. The model-runner runs the simulation with `psimulate` saving results to a model-number-named directory.
-   They update the MODEL_RESULTS_DIR constant in the code to reflect this new directory,
-   and create a git tag for the new model version.
-5. The model-runner runs the pytest suite *again* in the artifact environment, to ensure that the results tests pass with the new results.
-   If the tests fail, they post on Slack and do a cursory (time-boxed: 15 minutes) investigation into why.
-   If that investigation does not identify the root cause, the V&V person investigates, by making a new branch off the model-runner's branch,
-   running/debugging the tests, and updating the tests if needed or summarizing the issue.
-   If a bug is found, the person best-positioned to fix it is identified, they fix it in a new branch, and the process starts over, with
-   that person as the model-runner (and the same V&V person).
-6. If all existing tests have now passed, and additional tests are needed for new functionality,
-   the V&V person now makes a branch off the model-runner's branch, and adds the new tests.
-   If the new tests do not pass, the V&V person investigates why.
-   If a bug is found, the person best-positioned to fix it is identified, they fix it in a new branch, and the process starts over, with
-   that person as the model-runner (and the same V&V person).
-7. If all tests have now passed, the process is complete: V&V is successful!
-   At this point all branches involved may be merged to main (if they've been code-reviewed), in whatever
-   order is most convenient according to potential merge conflicts and who would be better placed to resolve them.
+When running ``psimulate``, the output directory should be set to a directory named with the model number.
+The  MODEL_RESULTS_DIR constant in ``src/vivarium_gates_mncnh/constants/paths.py``
+should be updated to reflect the new directory where results are being written,
+so that the tests will be checking the correct results.
 
-Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. sensitivity analyses or experiments. In that case,
-we would simply close the PRs without merging once the process is complete.
+**Post on Slack, do a quick investigation**
 
-When performing merges in this repository, due to the presence of notebooks, there may be conflicts more often than you expect.
-Both the simulation and artifact environments have `nbdime` installed, which makes these conflicts easier to resolve.
-Simply open the conflicting notebooks in a notebook editor (e.g. JupyterLab or VS Code) and resolve the conflicts within that interface.
+The person who encounters the test failure should post on Slack right away, then do a quick investigation into why the tests are failing,
+time-boxed to 15 minutes.
+If this does not identify a bug, the issue will be escalated to the V&V person.
