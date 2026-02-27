@@ -257,8 +257,7 @@ Additional details on individual tasks follow.
 
 **Update data processing code and build artifact**
 
-* Build the artifact to a directory named descriptively using words rather than a model number
-(which has not yet been assigned).
+* Build the artifact to a directory named descriptively using words rather than a model number (which has not yet been assigned).
 * Be sure to update the model specification to point to the new artifact location.
 
 **Git tag, run psimulate, update the model results dir constant**
