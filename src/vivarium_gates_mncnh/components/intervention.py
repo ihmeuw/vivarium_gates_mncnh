@@ -656,7 +656,7 @@ class AdditiveRiskEffect(RiskEffect):
 class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     @property
     def columns_required(self):
-        return [COLUMNS.ORAL_IRON_INTERVENTION]
+        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.PREGNANCY_OUTCOME]
 
     def __init__(self):
         super().__init__(
@@ -779,17 +779,27 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     ###############
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        ifa_shifted_gestational_age = target + self.ifa_effect(index)
+        pregnancy_outcome = (
+            self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index).squeeze()
+        )
+        is_full_term = pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+
+        full_term_index = index[is_full_term]
+        result = target.copy()
+
+        ifa_shifted_gestational_age = target[full_term_index] + self.ifa_effect(
+            full_term_index
+        )
         # mms shift is (mms_shift_1 + mms_shift_2) for subpop_2 and mms_shift_1 for subpop_1
         mms_shift_2 = (
-            self.lookup_tables["mms_subpop2_excess_shift"](index)["mms"]
-            - self.lookup_tables["mms_subpop1_excess_shift"](index)["mms"]
+            self.lookup_tables["mms_subpop2_excess_shift"](full_term_index)["mms"]
+            - self.lookup_tables["mms_subpop1_excess_shift"](full_term_index)["mms"]
         )
         is_subpop_1 = ifa_shifted_gestational_age < (32 - mms_shift_2)
         is_subpop_2 = ifa_shifted_gestational_age >= (32 - mms_shift_2)
 
-        subpop_1_index = index[is_subpop_1]
-        subpop_2_index = index[is_subpop_2]
+        subpop_1_index = full_term_index[is_subpop_1]
+        subpop_2_index = full_term_index[is_subpop_2]
 
         excess_shift = pd.concat(
             [
@@ -797,9 +807,10 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
                 self.lookup_tables["mms_subpop2_excess_shift"](subpop_2_index),
             ]
         )
-        mms_effect = self.calculate_raw_effect(excess_shift, index)
+        mms_effect = self.calculate_raw_effect(excess_shift, full_term_index)
 
-        return ifa_shifted_gestational_age + mms_effect
+        result[full_term_index] = ifa_shifted_gestational_age + mms_effect
+        return result
 
 
 class IVIronExposure(Component):
