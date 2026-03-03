@@ -65,7 +65,9 @@ if __name__ == "__main__":
         "vivarium_testing_utils",
         "pytest-xdist",
     ]
-    validation_requirements = ["vivarium_testing_utils[validation]"]
+    validation_requirements = [
+        "vivarium_testing_utils[validation] @ git+https://github.com/ihmeuw/vivarium_testing_utils.git@albrja/mic-6281/summary#egg=vivarium_testing_utils[validation]"
+    ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
     ]
