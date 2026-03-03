@@ -33,10 +33,6 @@ class Pregnancy(Component):
         ]
 
     @property
-    def columns_required(self):
-        return [COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-
-    @property
     def sub_components(self):
         return super().sub_components + [self.new_children]
 
@@ -74,7 +70,6 @@ class Pregnancy(Component):
             required_resources=[
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
-                COLUMNS.GESTATIONAL_AGE_EXPOSURE,
             ],
         )
 

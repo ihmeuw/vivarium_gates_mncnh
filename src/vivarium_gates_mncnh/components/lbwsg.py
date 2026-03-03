@@ -260,19 +260,17 @@ class LBWSGRisk(LBWSGRisk_):
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
         pop = self.population_view.get(index)
+        exposure = pd.Series(np.nan, index=index, name=f"{axis}.exposure")
 
         # For gestational age, use partial_term_pregnancy_duration where available
         if axis == GESTATIONAL_AGE:
             partial_term_durations = pop[COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
             is_partial_term = partial_term_durations.notna()
+            if is_partial_term.any():
+                exposure.loc[is_partial_term] = partial_term_durations.loc[is_partial_term]
             ppf_index = index[~is_partial_term]
         else:
             ppf_index = index
-
-        exposure = pd.Series(np.nan, index=index, name=f"{axis}.exposure")
-
-        if axis == GESTATIONAL_AGE and is_partial_term.any():
-            exposure.loc[is_partial_term] = partial_term_durations.loc[is_partial_term]
 
         if not ppf_index.empty:
             categorical_propensity = self.categorical_propensity(ppf_index)
