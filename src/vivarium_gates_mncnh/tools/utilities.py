@@ -2,7 +2,9 @@
 Utility functions for PAF simulation workflow.
 """
 import glob
+import os
 import re
+import signal
 import shutil
 import subprocess
 import time
@@ -101,7 +103,8 @@ def run_command(
     full_output = []
 
     if capture_full_output:
-        # Use Popen to capture output in real-time
+        # Use Popen to capture output in real-time.
+        # Start in a new process group so we can kill the entire tree on interrupt.
         process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE if auto_confirm else None,
@@ -110,36 +113,43 @@ def run_command(
             text=True,
             bufsize=1,
             universal_newlines=True,
+            start_new_session=True,
         )
 
-        # If auto_confirm, send a single 'y' response
-        if auto_confirm:
-            # Send in a separate thread to avoid blocking
-            import threading
+        try:
+            # If auto_confirm, send a single 'y' response
+            if auto_confirm:
+                # Send in a separate thread to avoid blocking
+                import threading
 
-            def send_confirm():
-                try:
-                    time.sleep(0.1)  # Brief delay to ensure prompt is ready
-                    process.stdin.write("y\n")
-                    process.stdin.flush()
-                    process.stdin.close()
-                except:
-                    pass
+                def send_confirm():
+                    try:
+                        time.sleep(0.1)  # Brief delay to ensure prompt is ready
+                        process.stdin.write("y\n")
+                        process.stdin.flush()
+                        process.stdin.close()
+                    except:
+                        pass
 
-            confirm_thread = threading.Thread(target=send_confirm, daemon=True)
-            confirm_thread.start()
+                confirm_thread = threading.Thread(target=send_confirm, daemon=True)
+                confirm_thread.start()
 
-        # Read output line by line
-        for line in process.stdout:
-            # Print the line to maintain visibility
-            print(line, end="")
+            # Read output line by line
+            for line in process.stdout:
+                # Print the line to maintain visibility
+                print(line, end="")
 
-            # Capture output if requested
-            if capture_full_output:
-                full_output.append(line)
+                # Capture output if requested
+                if capture_full_output:
+                    full_output.append(line)
 
-        # Wait for process to complete
-        return_code = process.wait()
+            # Wait for process to complete
+            return_code = process.wait()
+        except KeyboardInterrupt:
+            print(f"\nInterrupted. Terminating {description}...")
+            os.killpg(process.pid, signal.SIGTERM)
+            process.wait()
+            raise
 
         if return_code != 0:
             raise RuntimeError(f"Failed {description}. Exit code: {return_code}")
@@ -147,18 +157,28 @@ def run_command(
         return "".join(full_output)
     else:
         # Print output to screen
-        if auto_confirm:
-            # Use shell command with yes to pipe 'y'
-            result = subprocess.run(full_cmd, shell=True)
+        try:
+            if auto_confirm:
+                # Use shell command with yes to pipe 'y'
+                result = subprocess.run(
+                    full_cmd, shell=True, start_new_session=True,
+                )
 
-            if result.returncode != 0:
-                raise RuntimeError(f"Failed {description}. Exit code: {result.returncode}")
-        else:
-            # Normal execution with conda run
-            result = subprocess.run(cmd)
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Failed {description}. Exit code: {result.returncode}"
+                    )
+            else:
+                # Normal execution with conda run
+                result = subprocess.run(cmd, start_new_session=True)
 
-            if result.returncode != 0:
-                raise RuntimeError(f"Failed {description}. Exit code: {result.returncode}")
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Failed {description}. Exit code: {result.returncode}"
+                    )
+        except KeyboardInterrupt:
+            print(f"\nInterrupted. Terminating {description}...")
+            raise
 
 
 def check_psimulate_finished(psimulate_output: str) -> bool:
