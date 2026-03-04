@@ -4,6 +4,7 @@ requires = ["packaging", "setuptools"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-nauto"
+markers = ["results: tests in model_notebooks/results"]
 
 [tool.black]
 line_length = 94
