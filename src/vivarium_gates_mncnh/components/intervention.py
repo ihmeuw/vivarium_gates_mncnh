@@ -782,7 +782,7 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
         pregnancy_outcome = (
             self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index).squeeze()
         )
-        is_full_term = pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+        is_full_term = pregnancy_outcome != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
 
         full_term_index = index[is_full_term]
         result = target.copy()

@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 
 from vivarium_gates_mncnh.constants.paths import CLUSTER_DATA_DIR
-from vivarium_gates_mncnh.data.lbwsg_paf.code.utilities import (
+from vivarium_gates_mncnh.tools.utilities import (
     check_conda_environments,
     check_psimulate_finished,
     extract_results_dir,
