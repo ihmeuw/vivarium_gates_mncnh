@@ -25,9 +25,7 @@ from vivarium_gates_mncnh.tools.utilities import (
     run_command,
 )
 
-RESULTS_ROOT = Path(
-    "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results"
-)
+RESULTS_ROOT = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results")
 MODEL_SPEC_DIR = Path(__file__).resolve().parent.parent / "model_specifications"
 MODEL_SPEC_PATH = MODEL_SPEC_DIR / "model_spec.yaml"
 PATHS_MODULE = Path(__file__).resolve().parent.parent / "constants" / "paths.py"
@@ -62,8 +60,12 @@ def _check_clean_tree() -> None:
     excluding the validation/ and tools/ subdirectories."""
     result = subprocess.run(
         [
-            "git", "status", "--porcelain", "--untracked-files=no",
-            "--", "src/vivarium_gates_mncnh",
+            "git",
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+            "--",
+            "src/vivarium_gates_mncnh",
             ":!src/vivarium_gates_mncnh/validation",
             ":!src/vivarium_gates_mncnh/tools",
         ],
@@ -121,9 +123,7 @@ def _create_and_push_tag(model_number: str) -> None:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(f"  {'Updated' if force else 'Created'} tag '{tag}'")
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}"
-        )
+        raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
 
     try:
         cmd = ["git", "push", "origin", tag]
@@ -150,17 +150,15 @@ def _update_model_results_dir(model_number: str) -> None:
 
     pattern = re.compile(r'^(MODEL_RESULTS_DIR\s*=\s*)"[^"]*"', re.MULTILINE)
     if not pattern.search(content):
-        raise RuntimeError(
-            f"Could not find MODEL_RESULTS_DIR assignment in {PATHS_MODULE}"
-        )
+        raise RuntimeError(f"Could not find MODEL_RESULTS_DIR assignment in {PATHS_MODULE}")
 
     new_content = pattern.sub(rf'\1"{new_value}"', content)
     if new_content == content:
-        print(f"MODEL_RESULTS_DIR already set to \"{new_value}\". No update needed.")
+        print(f'MODEL_RESULTS_DIR already set to "{new_value}". No update needed.')
         return
 
     PATHS_MODULE.write_text(new_content)
-    print(f"Updated MODEL_RESULTS_DIR to \"{new_value}\" in {PATHS_MODULE.name}")
+    print(f'Updated MODEL_RESULTS_DIR to "{new_value}" in {PATHS_MODULE.name}')
 
 
 def run_sim(
@@ -229,9 +227,9 @@ def run_sim(
         print(f"{'='*80}")
 
         artifact_path = default_artifact_path.parent / f"{location.lower()}.hdf"
-        assert artifact_path.exists(), (
-            f"Expected artifact path {artifact_path} does not exist."
-        )
+        assert (
+            artifact_path.exists()
+        ), f"Expected artifact path {artifact_path} does not exist."
 
         psimulate_output = run_command(
             [
@@ -268,7 +266,7 @@ def run_sim(
                 f"WARNING: Simulation for {location} completed but could not "
                 "determine results directory."
             )
-    
+
     print("\n" + "=" * 80)
     print("All simulations completed.")
     print(f"Results are located in: {output_path}")
@@ -276,14 +274,15 @@ def run_sim(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run the main simulation for all locations."
-    )
+    parser = argparse.ArgumentParser(description="Run the main simulation for all locations.")
     parser.add_argument(
         "--queue", type=str, required=True, help="The queue to submit the simulation jobs to."
     )
     parser.add_argument(
-        "--project", type=str, required=True, help="The project to submit the simulation jobs to."
+        "--project",
+        type=str,
+        required=True,
+        help="The project to submit the simulation jobs to.",
     )
     parser.add_argument(
         "--model_number",

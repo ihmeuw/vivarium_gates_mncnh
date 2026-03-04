@@ -4,8 +4,8 @@ Utility functions for PAF simulation workflow.
 import glob
 import os
 import re
-import signal
 import shutil
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -161,7 +161,9 @@ def run_command(
             if auto_confirm:
                 # Use shell command with yes to pipe 'y'
                 result = subprocess.run(
-                    full_cmd, shell=True, start_new_session=True,
+                    full_cmd,
+                    shell=True,
+                    start_new_session=True,
                 )
 
                 if result.returncode != 0:
