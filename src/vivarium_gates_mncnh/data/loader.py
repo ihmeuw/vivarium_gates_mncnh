@@ -12,6 +12,7 @@ for an example.
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
 
+import glob
 import pickle
 from pathlib import Path
 from typing import List, Optional, Union
@@ -158,6 +159,8 @@ def get_data(
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
+        data_keys.IV_IRON.LBWSG_EFFECT_SIZE: load_iv_iron_lbwsg_effect_size,
+        data_keys.IV_IRON.STILLBIRTH_RR: load_iv_iron_stillbirth_rr,
         data_keys.PROPENSITY_CORRELATIONS.PROPENSITY_CORRELATIONS: load_propensity_correlations,
         data_keys.FERRITIN.PROBABILITY_LOW_FERRITIN: load_probability_low_ferritin,
     }
@@ -264,8 +267,9 @@ def load_sbr(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     year_start, year_end = metadata.ARTIFACT_YEAR_START, metadata.ARTIFACT_YEAR_END
-
-    data = pd.read_csv(paths.STILLBIRTH_RATIO_24_WKS_CSV)
+    data = pd.read_csv(
+        paths.STILLBIRTH_RATIO_DATA_DIR / "stillbirth_livebirth_ratio_24wks.csv"
+    )
     location_id = utility_data.get_location_id(location)
     data = data.loc[data["location_id"] == location_id]
     data = data.loc[data["year_id"] == metadata.ARTIFACT_YEAR_START].rename(
@@ -394,14 +398,33 @@ def load_anc_proportion(
 def load_maternal_disorder_yld_rate(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
+    if location == "Pakistan" and key == data_keys.OBSTRUCTED_LABOR.YLD_RATE:
+        yld_rate = pd.read_csv(
+            paths.CLUSTER_DATA_DIR / "pakistan_obstructed_labor_yld_rate.csv"
+        )
+        yld_rate = yld_rate.drop(["Unnamed: 0", "location_id"], axis=1)
+        yld_rate["sex_id"] = vi_globals.SEXES["Female"]
+        yld_rate["year_id"] = metadata.ARTIFACT_YEAR_START
+        yld_rate = reshape_to_vivarium_format(yld_rate, location)
+        # fill in rows that missing from ylds_rate with 0
+        demography = (
+            get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'").index
+        )
+        demography = demography.droplevel("location")
+        missing_index = demography.difference(yld_rate.index)
+        missing_rows = pd.DataFrame(0, index=missing_index, columns=yld_rate.columns)
+        yld_rate = pd.concat([yld_rate, missing_rows]).sort_index()
 
-    groupby_cols = ["age_group_id", "sex_id", "year_id"]
-    draw_cols = vi_globals.DRAW_COLUMNS
-    yld_rate = extra_gbd.get_maternal_disorder_yld_rate(key, location)
-    yld_rate = yld_rate[groupby_cols + draw_cols]
-    yld_rate = reshape_to_vivarium_format(yld_rate, location)
+        return yld_rate
+    else:
+        groupby_cols = ["age_group_id", "sex_id", "year_id"]
+        draw_cols = vi_globals.DRAW_COLUMNS
+        yld_rate = extra_gbd.get_maternal_disorder_yld_rate(key, location)
+        yld_rate = yld_rate[groupby_cols + draw_cols]
 
-    return yld_rate
+        yld_rate = reshape_to_vivarium_format(yld_rate, location)
+
+        return yld_rate
 
 
 def load_birth_rate(
@@ -572,7 +595,7 @@ def load_paf_data(
     else:
         filename = "calculated_lbwsg_paf_on_cause.all_causes.all_cause_mortality_risk_preterm.parquet"
 
-    output_dir = paths.PAF_DIR / location.lower()
+    output_dir = paths.CALCULATED_PAFS_DIR / location.lower()
 
     df = pd.read_parquet(output_dir / filename)
     if "input_draw" in df.columns:
@@ -995,6 +1018,61 @@ def load_iv_iron_hemoglobin_effect_size(
     return data
 
 
+def _add_hemoglobin_exposure_start_and_end(df: pd.DataFrame) -> pd.DataFrame:
+    df["first_trimester_hemoglobin_exposure_start"] = df["exposure"]
+    df["first_trimester_hemoglobin_exposure_end"] = df["exposure"][1:].tolist() + [np.inf]
+    return df
+
+
+def load_iv_iron_lbwsg_effect_size(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    index_cols = [
+        "sex",
+        "outcome",
+        "first_trimester_hemoglobin_exposure_start",
+        "first_trimester_hemoglobin_exposure_end",
+    ]
+    data_dir = paths.HEMOGLOBIN_EFFECTS_DATA_DIR / "iv_iron_lbwsg_shifts"
+    filepaths = glob.glob(str(data_dir / "*.csv"))
+
+    data = pd.concat([pd.read_csv(filepath) for filepath in filepaths])
+    data = data.loc[data["location"] == location.lower()].drop("location", axis=1)
+
+    data = data.sort_values(["draw", "outcome", "sex", "exposure"])
+    data = data.groupby(["draw", "outcome", "sex"]).apply(
+        _add_hemoglobin_exposure_start_and_end
+    )
+    data = data.drop("exposure", axis=1)
+
+    data = data.pivot_table(index=index_cols, columns="draw", values="value").reset_index()
+
+    draw_cols = [col for col in data.columns if col.startswith("draw_")]
+    data = data.set_index(index_cols)[draw_cols].sort_index()
+    return data
+
+
+def load_iv_iron_stillbirth_rr(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    filepath = paths.HEMOGLOBIN_EFFECTS_DATA_DIR / "iv_iron_stillbirth_rrs.csv"
+    data = pd.read_csv(filepath).drop("Unnamed: 0", axis=1)
+    data = data.loc[data["location"] == location.lower()].drop("location", axis=1)
+
+    data = _add_hemoglobin_exposure_start_and_end(data)
+    data = data.drop("exposure", axis=1)
+
+    draw_cols = [col for col in data.columns if col.startswith("draw")]
+    data = data.set_index(
+        [
+            "first_trimester_hemoglobin_exposure_start",
+            "first_trimester_hemoglobin_exposure_end",
+        ]
+    )[draw_cols].sort_index()
+
+    return data
+
+
 def load_no_antibiotics_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
@@ -1265,7 +1343,8 @@ def load_hemoglobin_screening_coverage(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     filepath = (
-        paths.J_DIR / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
+        paths.HEMOGLOBIN_SCREENING_DATA_DIR
+        / "anc_bloodsample_prop_st-gpr_results_aggregates_scaled2025-05-29.csv"
     )
     return load_coverage_from_file(filepath, location)
 

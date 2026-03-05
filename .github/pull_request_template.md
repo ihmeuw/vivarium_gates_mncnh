@@ -23,5 +23,7 @@ Details on how code was verified. Consider: plots, images, (small) csv files.
 *** REMINDER ***
 CI WILL NOT RUN ANY TESTS.
 MANUALLY RUN TESTS WITH EACH PR.
+MAKE SURE CONSTANTS/PATHS.PY IS USING THE CORRECT MODEL RESULTS DIRECTORY.
 -->
-- [ ] all tests pass (`pytest --runslow`)
+- [ ] model results directory is up to date
+- [ ] all tests pass (`pytest --runslow` with both *vivarium_gates_mncnh_artifact* and *vivarium_gates_mncnh_simulation*)

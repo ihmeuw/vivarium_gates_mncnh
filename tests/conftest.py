@@ -3,8 +3,11 @@ import shutil
 from pathlib import Path
 from typing import Any, Generator
 
+import pandas as pd
 import pytest
+import yaml
 from layered_config_tree import LayeredConfigTree
+from pytest import TempPathFactory
 from vivarium import Artifact
 from vivarium_testing_utils import FuzzyChecker
 
@@ -33,16 +36,34 @@ SIMULATION_STEPS = [
 ]
 
 
-def pytest_addoption(parser):
-    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
+# Detect environment type by checking for vivarium_inputs package
+try:
+    import vivarium_inputs
 
+    IS_SIMULATION_ENV = False
+except ImportError:
+    IS_SIMULATION_ENV = True
 
-def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: mark test as slow to run")
+# Use collect_ignore to prevent pytest from collecting certain directories
+# This is evaluated at module level before collection starts
+collect_ignore = []
+if IS_SIMULATION_ENV:
+    # In simulation env, don't collect tests from automated_v_and_v and model_notebooks
+    collect_ignore.extend(
+        [
+            "automated_v_and_v",
+            "model_notebooks",
+        ]
+    )
+else:
+    # In artifact env, only collect tests from automated_v_and_v and model_notebooks
+    # Ignore all test_*.py files in the tests root directory
+    test_dir = Path(__file__).parent
+    for test_file in test_dir.glob("test_*.py"):
+        collect_ignore.append(test_file.name)
 
 
 def pytest_collection_modifyitems(config, items):
-    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
     skip_jenkins = pytest.mark.skip(reason="skipping tests in jenkins")
     is_on_jenkins = os.environ.get("JENKINS_URL")
 
@@ -50,13 +71,27 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             item.add_marker(skip_jenkins)
 
-    if config.getoption("--runslow"):
-        # --runslow given in cli: do not skip slow tests
-        return
 
-    for item in items:
-        if "slow" in item.keywords:
-            item.add_marker(skip_slow)
+def pytest_xdist_auto_num_workers(config):
+    """Automatically determine the number of workers for pytest-xdist.
+
+    - On SLURM: Use CPUs allocated to the job (via SLURM environment variables)
+    - Not on SLURM: Return 1 (no parallelization by default)
+    - Users can override by explicitly passing -n flag to pytest
+    """
+    cpus = 1
+    if IS_ON_SLURM:
+        # On SLURM clusters, use the number of CPUs allocated to the job
+        # Check SLURM environment variables in order of preference
+        slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get(
+            "SLURM_CPUS_ON_NODE"
+        )
+        if slurm_cpus:
+            cpus = int(slurm_cpus)
+        # Fallback to total CPUs if SLURM vars not found (shouldn't happen)
+        cpus = os.cpu_count()
+
+    return cpus
 
 
 @pytest.fixture(scope="session")
