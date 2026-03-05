@@ -780,7 +780,7 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         pregnancy_outcome = (
-            self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index).squeeze()
+            self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index)[COLUMNS.PREGNANCY_OUTCOME]
         )
         is_full_term = pregnancy_outcome != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
 
