@@ -33,10 +33,6 @@ class Pregnancy(Component):
         ]
 
     @property
-    def columns_required(self):
-        return [COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-
-    @property
     def sub_components(self):
         return super().sub_components + [self.new_children]
 
@@ -59,6 +55,7 @@ class Pregnancy(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
+        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
         self.birth_outcome_probabilities = builder.value.register_value_producer(
             PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             source=self.lookup_tables["birth_outcome_probabilities"],
@@ -73,7 +70,6 @@ class Pregnancy(Component):
             required_resources=[
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
-                COLUMNS.GESTATIONAL_AGE_EXPOSURE,
             ],
         )
 
@@ -201,14 +197,4 @@ class Pregnancy(Component):
         return durations
 
     def get_pregnancy_durations(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
-        partial_term_idx = pop.index[
-            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
-        ]
-        partial_ga = pop.loc[partial_term_idx, COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
-        non_partial_idx = index.difference(partial_term_idx)
-        non_partial_ga = pop.loc[non_partial_idx, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-
-        gestational_ages = pd.concat([partial_ga, non_partial_ga]).sort_index()
-        durations = pd.to_timedelta(7 * gestational_ages, unit="days")
-        return durations
+        return pd.to_timedelta(self.gestational_age(index) * 7, unit="days")

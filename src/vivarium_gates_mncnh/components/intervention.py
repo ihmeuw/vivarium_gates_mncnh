@@ -433,6 +433,137 @@ class OralIronEffectOnStillbirth(Component):
         return birth_outcome_probabilities
 
 
+class IVIronEffectOnLBWSG(Component):
+    """IV iron effects on birth weight and gestational age."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.IV_IRON_INTERVENTION,
+        ]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            PIPELINES.GESTATIONAL_AGE_EXPOSURE,
+            self.apply_iv_iron_to_gestational_age,
+            requires_columns=self.columns_created,
+        )
+        builder.value.register_value_modifier(
+            PIPELINES.BIRTH_WEIGHT_EXPOSURE,
+            self.apply_iv_iron_to_birth_weight,
+            requires_columns=self.columns_created,
+        )
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        data = builder.data.load(data_keys.IV_IRON.LBWSG_EFFECT_SIZE)
+
+        birth_weight_data = data.loc[data["outcome"] == "birth_weight"].drop(
+            "outcome", axis=1
+        )
+        gestational_age_data = data.loc[data["outcome"] == "gestational_age"].drop(
+            "outcome", axis=1
+        )
+
+        self.lookup_tables["birth_weight_risk_effect"] = self.build_lookup_table(
+            builder=builder,
+            data_source=birth_weight_data,
+            value_columns=["value"],
+        )
+        self.lookup_tables["gestational_age_risk_effect"] = self.build_lookup_table(
+            builder=builder,
+            data_source=gestational_age_data,
+            value_columns=["value"],
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def apply_iv_iron_to_birth_weight(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        pop = self.population_view.get(index)
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        iv_iron_effect = self.lookup_tables["birth_weight_risk_effect"](
+            pop[has_iv_iron].index
+        )
+        exposure.loc[has_iv_iron] += iv_iron_effect
+
+        return exposure
+
+    def apply_iv_iron_to_gestational_age(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        pop = self.population_view.get(index)
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        iv_iron_effect = self.lookup_tables["gestational_age_risk_effect"](
+            pop[has_iv_iron].index
+        )
+        exposure.loc[has_iv_iron] += iv_iron_effect
+
+        return exposure
+
+
+class IVIronEffectOnStillbirth(Component):
+    """IV iron effects on stillbirth."""
+
+    @property
+    def columns_required(self) -> list[str]:
+        return [
+            COLUMNS.IV_IRON_INTERVENTION,
+        ]
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            self.adjust_stillbirth_probability,
+            requires_columns=self.columns_created,
+        )
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        stillbirth_rrs = builder.data.load(data_keys.IV_IRON.STILLBIRTH_RR)
+        self.lookup_tables["stillbirth_relative_risk"] = self.build_lookup_table(
+            builder=builder,
+            data_source=stillbirth_rrs,
+            value_columns=["value"],
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def adjust_stillbirth_probability(
+        self, index: pd.Index, birth_outcome_probabilities: pd.DataFrame
+    ) -> pd.DataFrame:
+        pop = self.population_view.get(index)
+        has_iv_iron = pop[COLUMNS.IV_IRON_INTERVENTION] == models.IV_IRON_INTERVENTION.COVERED
+        rrs = self.lookup_tables["stillbirth_relative_risk"](pop.loc[has_iv_iron].index)
+
+        # Add spare probability onto live births first
+        birth_outcome_probabilities.loc[
+            has_iv_iron, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+        ] += birth_outcome_probabilities.loc[
+            has_iv_iron, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        ] * (
+            1 - rrs
+        )
+        # Then re-scale stillbirth probability
+        birth_outcome_probabilities.loc[
+            has_iv_iron, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME
+        ] *= rrs
+        # This preserves normalization by construction
+
+        return birth_outcome_probabilities
+
+
 class AdditiveRiskEffect(RiskEffect):
     def __init__(self, risk: str, target: str):
         super().__init__(risk, target)
@@ -525,7 +656,7 @@ class AdditiveRiskEffect(RiskEffect):
 class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     @property
     def columns_required(self):
-        return [COLUMNS.ORAL_IRON_INTERVENTION]
+        return [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.PREGNANCY_OUTCOME]
 
     def __init__(self):
         super().__init__(
@@ -648,17 +779,27 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     ###############
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        ifa_shifted_gestational_age = target + self.ifa_effect(index)
+        pregnancy_outcome = (
+            self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(index).squeeze()
+        )
+        is_full_term = pregnancy_outcome != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+
+        full_term_index = index[is_full_term]
+        result = target.copy()
+
+        ifa_shifted_gestational_age = target[full_term_index] + self.ifa_effect(
+            full_term_index
+        )
         # mms shift is (mms_shift_1 + mms_shift_2) for subpop_2 and mms_shift_1 for subpop_1
         mms_shift_2 = (
-            self.lookup_tables["mms_subpop2_excess_shift"](index)["mms"]
-            - self.lookup_tables["mms_subpop1_excess_shift"](index)["mms"]
+            self.lookup_tables["mms_subpop2_excess_shift"](full_term_index)["mms"]
+            - self.lookup_tables["mms_subpop1_excess_shift"](full_term_index)["mms"]
         )
         is_subpop_1 = ifa_shifted_gestational_age < (32 - mms_shift_2)
         is_subpop_2 = ifa_shifted_gestational_age >= (32 - mms_shift_2)
 
-        subpop_1_index = index[is_subpop_1]
-        subpop_2_index = index[is_subpop_2]
+        subpop_1_index = full_term_index[is_subpop_1]
+        subpop_2_index = full_term_index[is_subpop_2]
 
         excess_shift = pd.concat(
             [
@@ -666,9 +807,10 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
                 self.lookup_tables["mms_subpop2_excess_shift"](subpop_2_index),
             ]
         )
-        mms_effect = self.calculate_raw_effect(excess_shift, index)
+        mms_effect = self.calculate_raw_effect(excess_shift, full_term_index)
 
-        return ifa_shifted_gestational_age + mms_effect
+        result[full_term_index] = ifa_shifted_gestational_age + mms_effect
+        return result
 
 
 class IVIronExposure(Component):

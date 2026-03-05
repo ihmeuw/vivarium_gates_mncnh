@@ -17,13 +17,31 @@ from tests.conftest import IS_ON_SLURM
 from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR, MODEL_RESULTS_DIR
 
 
+def discover_notebook_paths(notebook_directory) -> List[Path]:
+    """
+    Discover all Jupyter notebook files in the notebook directory.
+
+    Searches only the top level of the directory (non-recursive) and filters
+    out checkpoint files.
+
+    Returns:
+        List of Path objects for discovered notebooks
+    """
+    notebooks = [
+        nb for nb in notebook_directory.glob("*.ipynb") if ".ipynb_checkpoints" not in str(nb)
+    ]
+
+    logger.info(f"Found {len(notebooks)} notebook(s) in {notebook_directory}")
+
+    return sorted(notebooks)
+
+
 class NotebookTestRunner:
     """
-    A class to execute and test Jupyter notebooks using papermill.
+    A class to execute and test Jupyter notebook using papermill.
 
-    This runner discovers notebooks in a specified directory, executes them with
-    papermill while injecting a results_dir parameter, and tracks success/failure
-    of each notebook execution.
+    This runner executes the notebook with
+    papermill while injecting specified parameters, and reports success/failure.
 
     All exceptions (including SystemExit and KeyboardInterrupt) are caught and
     converted to test failures to prevent pytest exit code 2, which would kill
@@ -31,18 +49,14 @@ class NotebookTestRunner:
     to continue running.
 
     Attributes:
-        notebook_directory: Directory containing notebooks to test
-        results_dir: Directory path to inject into notebooks as a parameter
-        timeout: Maximum execution time per notebook in seconds
-        cleanup_notebooks: Whether to delete executed notebooks after testing
-        notebooks_found: List of discovered notebook paths
-        successful_notebooks: List of successfully executed notebook paths
-        failed_notebooks: Dictionary mapping failed notebook paths to their exceptions
+        notebook_path: Path of notebook to run
+        parameters: Dictionary of parameters to inject into notebook
+        environment_type: The environment to run the notebook in, one of "simulation" or "artifact"
     """
 
     def __init__(
         self,
-        notebook_directory: str,
+        notebook_path: str,
         parameters: Dict[str, any] = {},
         environment_type: str = "simulation",
     ):
@@ -50,32 +64,26 @@ class NotebookTestRunner:
         Initialize the notebook test runner.
 
         Args:
-            notebook_directory: Path to directory containing notebooks to test
-            timeout: Maximum execution time per notebook in seconds (default: 300 = 5 minutes)
-            cleanup_notebooks: Whether to delete executed notebooks after testing (default: True)
+            notebook_path: Path of notebook to run
+            parameters: Dictionary of parameters to inject into notebook
+            environment_type: The environment to run the notebook in, one of "simulation" or "artifact"
 
         Raises:
-            FileNotFoundError: If notebook_directory does not exist
+            FileNotFoundError: If notebook_path does not exist
         """
-        self.notebook_directory = Path(notebook_directory)
+        self.notebook_path = Path(notebook_path)
         self.parameters = parameters
         self.timeout = -1  # No timeout by default
         self.environment_type = environment_type
         self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
         self.kernel_name = f"conda-env-{self.conda_env_name}-py"
 
-        self.notebooks_found: List[Path] = []
-        self.successful_notebooks: List[Path] = []
-        self.failed_notebooks: Dict[Path, Exception] = {}
-
         # Validate notebook directory exists
-        if not self.notebook_directory.exists():
-            raise FileNotFoundError(
-                f"Notebook directory does not exist: {self.notebook_directory}"
-            )
+        if not self.notebook_path.exists():
+            raise FileNotFoundError(f"Notebook does not exist: {self.notebook_path}")
 
-        if not self.notebook_directory.is_dir():
-            raise NotADirectoryError(f"Path is not a directory: {self.notebook_directory}")
+        if self.notebook_path.is_dir():
+            raise IsADirectoryError(f"Path is a directory: {self.notebook_path}")
 
         # Ensure the required Jupyter kernel is registered
         self._ensure_kernel_registered()
@@ -156,26 +164,6 @@ class NotebookTestRunner:
                     f"has ipykernel installed."
                 )
 
-    def _discover_notebook_paths(self) -> List[Path]:
-        """
-        Discover all Jupyter notebook files in the notebook directory.
-
-        Searches only the top level of the directory (non-recursive) and filters
-        out checkpoint files.
-
-        Returns:
-            List of Path objects for discovered notebooks
-        """
-        notebooks = [
-            nb
-            for nb in self.notebook_directory.glob("*.ipynb")
-            if ".ipynb_checkpoints" not in str(nb)
-        ]
-
-        logger.info(f"Found {len(notebooks)} notebook(s) in {self.notebook_directory}")
-
-        return sorted(notebooks)
-
     def _execute_notebook(self, notebook_path: Path) -> bool:
         """
         Execute a single notebook using papermill.
@@ -215,139 +203,92 @@ class NotebookTestRunner:
             # This ensures test failures (exit code 1) instead of interruptions (exit code 2).
             error_msg = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
             logger.error(f"✗ {notebook_path.name} failed with error: {error_msg}")
-            self.failed_notebooks[notebook_path] = e
 
             return False
 
-    def test_run_notebooks(self) -> None:
+    def test_run_notebook(self) -> None:
         """
-        Execute all discovered notebooks and track results.
+        Execute notebook and track results.
 
         This method orchestrates the testing process:
-        1. Discovers notebooks in the directory
-        2. Executes each notebook with papermill
-        3. Catches all exceptions (including SystemExit/KeyboardInterrupt) to prevent
+        1. Executes notebook with papermill
+        2. Catches all exceptions (including SystemExit/KeyboardInterrupt) to prevent
            pytest exit code 2 which would kill SLURM sessions
-        4. Tracks successes and failures
-        5. Logs summary of results
-        6. Raises AssertionError (exit code 1) if any notebooks failed
+        3. Tracks successes and failures
+        4. Logs summary of results
+        5. Raises AssertionError (exit code 1) if notebook failed
 
         This ensures notebooks can fail without terminating the SLURM session.
 
         Raises:
-            AssertionError: If any notebooks failed to execute successfully
+            AssertionError: If notebook failed to execute successfully
         """
-        logger.info("Starting notebook test run")
-        logger.info(f"Notebook directory: {self.notebook_directory}")
-        logger.info(f"Parameters: {self.parameters}")
-        logger.info(f"Kernel name: {self.kernel_name}")
-        # Discover notebooks
-        self.notebooks_found = self._discover_notebook_paths()
-
-        # Handle empty directory case
-        if not self.notebooks_found:
-            logger.info("No notebooks found")
-            return
-
         # Execute each notebook
-        for notebook_path in self.notebooks_found:
-            if self._execute_notebook(notebook_path):
-                self.successful_notebooks.append(notebook_path)
-
-        # Log summary
-        total_count = len(self.notebooks_found)
-        success_count = len(self.successful_notebooks)
-        fail_count = len(self.failed_notebooks)
-
-        logger.info("=" * 60)
-        logger.info("Test run complete")
-        logger.info(f"{success_count}/{total_count} notebook(s) passed")
-
-        if self.failed_notebooks:
-            failed_names = [nb.name for nb in self.failed_notebooks]
-            logger.error(f"{fail_count} notebook(s) failed: {', '.join(failed_names)}")
-
-            # Raise assertion error to fail the test
-            raise AssertionError(
-                f"{fail_count} notebook(s) failed to execute: {', '.join(failed_names)}"
-            )
+        if self._execute_notebook(self.notebook_path):
+            logger.success("Notebook passed!")
         else:
-            logger.success("All notebooks passed!")
-
-    def get_summary(self) -> Dict[str, Any]:
-        """
-        Get a summary of the test run.
-
-        Returns:
-            Dictionary containing test run metadata:
-                - total_notebooks: Total number of notebooks found
-                - successful_notebooks: Number of successful executions
-                - failed_notebooks: Number of failed executions
-                - failed_notebook_names: List of failed notebook names
-                - notebook_directory: Path to notebook directory
-                - results_directory: Path to results directory
-        """
-        return {
-            "total_notebooks": len(self.notebooks_found),
-            "successful_notebooks": len(self.successful_notebooks),
-            "failed_notebooks": len(self.failed_notebooks),
-            "failed_notebook_names": [nb.name for nb in self.failed_notebooks],
-            "notebook_directory": str(self.notebook_directory),
-            **self.parameters,
-        }
+            raise AssertionError(f"Notebook failed to execute: {self.notebook_path}")
 
 
 # Pytest test functions
 @pytest.mark.slow
-def test_interactive_context_notebooks() -> None:
+@pytest.mark.parametrize(
+    "notebook_path",
+    discover_notebook_paths(MODEL_NOTEBOOKS_DIR / "interactive"),
+    ids=lambda x: x.stem,
+)
+def test_interactive_context_notebooks(notebook_path) -> None:
     """Test all notebooks in the interactive directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
     runner = NotebookTestRunner(
-        notebook_directory=MODEL_NOTEBOOKS_DIR / "interactive",
+        notebook_path=notebook_path,
         environment_type="simulation",
     )
-    runner.test_run_notebooks()
+    runner.test_run_notebook()
 
 
 @pytest.mark.slow
-def test_results_notebooks() -> None:
+@pytest.mark.parametrize(
+    "notebook_path",
+    discover_notebook_paths(MODEL_NOTEBOOKS_DIR / "results"),
+    ids=lambda x: x.stem,
+)
+def test_results_notebook(notebook_path) -> None:
     """Test all notebooks in the results directory."""
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
     runner = NotebookTestRunner(
-        notebook_directory=MODEL_NOTEBOOKS_DIR / "results",
+        notebook_path=notebook_path,
         environment_type="artifact",
         parameters={
             "model_dir": str(MODEL_RESULTS_DIR),
         },
     )
-    runner.test_run_notebooks()
+    runner.test_run_notebook()
 
 
 @pytest.mark.slow
+@pytest.mark.parametrize(
+    "notebook_path",
+    discover_notebook_paths(MODEL_NOTEBOOKS_DIR / "artifact"),
+    ids=lambda x: x.stem,
+)
 @pytest.mark.skip(reason="No notebooks currently in artifact directory")
-def test_artifact_notebooks() -> None:
+def test_artifact_notebooks(notebook_path) -> None:
     """
     Test notebooks in the artifact directory.
-    
-    This test requires --results-dir to be specified.
-    It will skip if the argument is not provided.
-    
-    Usage:
-        pytest tests/model_notebooks/test_notebooks.py::test_artifact_notebooks \
-            --results-dir=path/to/results
     """
     # Skip test if not on SLURM
     if not IS_ON_SLURM:
         pytest.skip("Test skipped: must be run on SLURM cluster")
 
     runner = NotebookTestRunner(
-        notebook_directory=MODEL_NOTEBOOKS_DIR / "artifact",
+        notebook_path=notebook_path,
         environment_type="artifact",
     )
-    runner.test_run_notebooks()
+    runner.test_run_notebook()
