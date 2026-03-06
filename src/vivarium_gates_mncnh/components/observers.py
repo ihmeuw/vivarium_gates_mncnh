@@ -40,7 +40,7 @@ from vivarium_gates_mncnh.utilities import get_child_age_bins
 
 
 def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
-    """Categorize hemoglobin values into anemia severity levels."""
+    """Use anemia thresholds to determine anemia status."""
     anemia_status = (
         pd.cut(
             hemoglobin,
