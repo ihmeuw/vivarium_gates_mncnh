@@ -206,7 +206,7 @@ The reasoning for this is that V&V is quite a bit more involved than typical sof
 We make separate branches and pull requests for each *person's* contribution, so that their code can be reviewed by others.
 
 Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. sensitivity analyses or experiments. In that case,
-we would simply close the PRs without merging once the process is complete.
+we would still follow this process to ensure we did the experiment correctly, then simply close the PRs without merging once the process is complete.
 
 The V&V process is performed through our ``pytest`` suite.
 The test suite contains some tests that run the simulation (using the ``InteractiveContext``),
@@ -227,7 +227,8 @@ and the V&V person does the final sign-off that the model is working as expected
 We **require** the model-runner and V&V person to be two separate people,
 and the artifact-builder and V&V person to be two separate people, but the artifact-builder and model-runner can be the same person.
 Historically, the artifact-builder and model-runner have been engineers,
-though with task shifting it is becoming more common for folks on the research side to take on these roles.
+though with task shifting it is becoming more common for folks on the research side to take on these roles
+(in the case of the model-runner, typically when no component changes are needed).
 The V&V person is always on the research side.
 
 It is encouraged to keep non-main branches up to date with main, and to merge the latest changes from main
@@ -279,7 +280,7 @@ any other model number which is a git ancestor of it.
 In order to track how these numbers map to git revisions, we tag
 the git revision just before running the simulation with the model number.
 The directory where the artifact has been stored (named using words) should be
-renamed to match the model number, before starting runs.
+renamed to match the model number, and the update to the artifact path committed to the model spec file, before starting runs.
 
 When running ``psimulate``, the output directory should be set to a directory named with the model number.
 The MODEL_RESULTS_DIR constant in ``src/vivarium_gates_mncnh/constants/paths.py``
