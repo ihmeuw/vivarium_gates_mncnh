@@ -21,6 +21,8 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANEMIA_THRESHOLDS,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
+    DAYS_PER_WEEK,
+    DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
     INTERVENTIONS,
     LOW_HEMOGLOBIN_THRESHOLD,
@@ -658,8 +660,8 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: 6
-            * 7
-            * (1 / 365.25),  # 6 weeks in years
+            * DAYS_PER_WEEK
+            / DAYS_PER_YEAR,  # 6 weeks in years
         }
         return duration_calculators[self._sim_step_name()](data)
 
@@ -667,22 +669,30 @@ class AnemiaYLDsObserver(PublicHealthObserver):
 
     def _get_first_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from start of sim to first visit
-        duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
+        duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(
+            days=DAYS_PER_YEAR
+        )
         duration_years = duration_years.fillna(TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER)
         return duration_years
 
     def _get_later_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from first visit to later visit
-        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
+        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(
+            days=DAYS_PER_YEAR
+        )
         later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
         duration_years = later_visit_years - self._get_first_anc_interval(data)
         return duration_years
 
     def _get_later_anc_to_delivery_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from later visit to delivery
-        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
+        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(
+            days=DAYS_PER_YEAR
+        )
         later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
-        gestational_age_years = self.gestational_age(data.index) / 52
+        gestational_age_years = (
+            self.gestational_age(data.index) * DAYS_PER_WEEK / DAYS_PER_YEAR
+        )
         return gestational_age_years - later_visit_years
 
     # helper methods for disability weights

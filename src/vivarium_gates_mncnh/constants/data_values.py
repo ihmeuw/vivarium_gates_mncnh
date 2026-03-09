@@ -19,6 +19,10 @@ from vivarium_gates_mncnh.utilities import (
 # Constant scalar values #
 ##########################
 
+# Time conversion constants
+DAYS_PER_YEAR = 365.25
+DAYS_PER_WEEK = 7
+
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
