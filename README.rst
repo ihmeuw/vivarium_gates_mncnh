@@ -231,8 +231,8 @@ Historically, the artifact-builder, component-updater, and model-runner have bee
 and the V&V person has been a researcher.
 With task shifting, we are now primarily having folks on the research side take on the role of artifact-builder,
 and sometimes also model-runner.
-The model-runner is generally the artifact-builder if no component changes are needed,
-and the component-updater if component changes are needed, but we haven't yet completely formalized this.
+The model-runner is generally the same person as the artifact-builder if no component changes are needed,
+or the same person as the component-updater if component changes are needed, but we haven't yet completely formalized this.
 
 It is encouraged to keep non-main branches up to date with main, and to merge the latest changes from main
 before doing the V&V process on a branch.
