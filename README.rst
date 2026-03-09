@@ -236,8 +236,8 @@ before doing the V&V process on a branch.
 However, in the case that parallel development results in V&V on a branch being done without changes that are merged to main before that branch is,
 V&V should be repeated once the branch is updated with the latest changes from main.
 
-Anytime the V&V process hands from one person (not role) to another,
-a new branch and pull request is made, based off the last.
+Anytime the V&V process hands from one person (not role) to another, and code changes must be made,
+the person receiving the handoff should create a new branch off of the last branch, and make a pull request for that branch.
 This way each PR contains only the changes made by one person, and the others can review.
 
 If a bug is found, the process re-starts in a new branch.
