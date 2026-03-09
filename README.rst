@@ -220,16 +220,19 @@ and must be committed to the repo.
 For environment-management reasons, the Python tests run in the simulation environment, and the notebook tests run in the artifact environment.
 This means that "running the tests" involves running the test suite in both environments.
 
-In general, for each V&V process, there are three roles to play: the artifact-builder, the model-runner, and the V&V person.
+In general, for each V&V process, there are four roles to play: the artifact-builder, the component-updater, the model-runner, and the V&V person.
 The artifact-builder makes the changes to the artifact,
-the model-runner makes any necessary changes to the components and runs the model,
+the component-updater makes any necessary changes to the components,
+the model-runner runs the model,
 and the V&V person does the final sign-off that the model is working as expected.
 We **require** the model-runner and V&V person to be two separate people,
-and the artifact-builder and V&V person to be two separate people, but the artifact-builder and model-runner can be the same person.
-Historically, the artifact-builder and model-runner have been engineers,
-though with task shifting it is becoming more common for folks on the research side to take on these roles
-(in the case of the model-runner, typically when no component changes are needed).
-The V&V person is always on the research side.
+and the artifact-builder and V&V person to be two separate people, but besides that one person can wear multiple "hats."
+Historically, the artifact-builder, component-updater, and model-runner have been engineers,
+and the V&V person has been a researcher.
+With task shifting, we are now primarily having folks on the research side take on the role of artifact-builder,
+and sometimes also model-runner.
+The model-runner is generally the artifact-builder if no component changes are needed,
+and the component-updater if component changes are needed, but we haven't yet completely formalized this.
 
 It is encouraged to keep non-main branches up to date with main, and to merge the latest changes from main
 before doing the V&V process on a branch.
