@@ -245,7 +245,7 @@ This way each PR contains only the changes made by one person, and the others ca
 
 If a bug is found, the process re-starts in a new branch.
 The person best-positioned to fix the bug is identified according to the nature of the bug,
-and they become the artifact-builder and model-runner for the next iteration.
+and they become the artifact-builder and/or component-updater (depending on where the bug is) for the next iteration.
 The V&V person does not change.
 
 If no issues are found, the V&V person gives their sign-off that the branch is ready to be merged to main.
