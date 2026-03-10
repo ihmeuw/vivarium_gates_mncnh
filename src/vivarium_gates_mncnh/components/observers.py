@@ -21,6 +21,8 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANEMIA_THRESHOLDS,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
+    DAYS_PER_WEEK,
+    DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
     INTERVENTIONS,
     LOW_HEMOGLOBIN_THRESHOLD,
@@ -37,6 +39,21 @@ from vivarium_gates_mncnh.constants.metadata import (
     PRETERM_AGE_CUTOFF,
 )
 from vivarium_gates_mncnh.utilities import get_child_age_bins
+
+
+def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
+    """Use anemia thresholds to determine anemia status."""
+    anemia_status = (
+        pd.cut(
+            hemoglobin,
+            bins=[-np.inf] + ANEMIA_THRESHOLDS,
+            labels=["severe", "moderate", "mild"],
+            right=False,
+        )
+        .astype("object")
+        .fillna("not_anemic")
+    )
+    return anemia_status
 
 
 class ResultsStratifier(ResultsStratifier_):
@@ -212,6 +229,13 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_columns=[COLUMNS.TESTED_FERRITIN],
         )
+        builder.results.register_stratification(
+            "anemia_status",
+            ["severe", "moderate", "mild", "not_anemic"],
+            mapper=self.map_anemia_status,
+            is_vectorized=True,
+            requires_values=[PIPELINES.HEMOGLOBIN_EXPOSURE],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
@@ -261,6 +285,9 @@ class ResultsStratifier(ResultsStratifier_):
         oral_iron_coverage[mms_covered_ifa_covered] = "mms"
 
         return oral_iron_coverage
+
+    def map_anemia_status(self, pop: pd.DataFrame) -> pd.Series:
+        return get_anemia_status_from_hemoglobin(pop[PIPELINES.HEMOGLOBIN_EXPOSURE])
 
 
 class PAFResultsStratifier(ResultsStratifier_):
@@ -535,7 +562,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": [],
-                    "include": ["age_group", "pregnancy_outcome"],
+                    "include": ["age_group", "anemia_status"],
                 },
             },
         }
@@ -566,6 +593,26 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             to_observe=self.to_observe,
             aggregator=self.calculate_anemia_ylds,
         )
+        self.register_adding_observation(
+            builder=builder,
+            name="anemia_person_time",
+            when="time_step__prepare",
+            pop_filter='tracked == True and alive == "alive"',
+            requires_columns=[
+                COLUMNS.TIME_OF_FIRST_ANC_VISIT,
+                COLUMNS.TIME_OF_LATER_ANC_VISIT,
+                COLUMNS.ANC_ATTENDANCE,
+                "alive",
+            ],
+            requires_values=[
+                PIPELINES.HEMOGLOBIN_EXPOSURE,
+                PIPELINES.GESTATIONAL_AGE_EXPOSURE,
+            ],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+            aggregator=self.calculate_anemia_person_time,
+        )
 
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() in [
@@ -588,61 +635,68 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         age exposure will be modified by any iron interventions received at a
         first trimester ANC visit.
         """
-        duration_calculators = {
-            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION: self._get_later_anc_interval,
-            SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: 6
-            * 7
-            * (1 / 365.25),  # 6 weeks in years
-        }
-        anemia_status = self.get_anemia_status_from_hemoglobin(self.hemoglobin(data.index))
+        anemia_status = get_anemia_status_from_hemoglobin(self.hemoglobin(data.index))
         dw = self.get_disability_weight_from_anemia_status(anemia_status)
-        duration_years = duration_calculators[self._sim_step_name()](data)
+        duration_years = self._get_duration_years(data)
         ylds = dw * duration_years
         return ylds.sum()
+
+    def calculate_anemia_person_time(self, data: pd.DataFrame) -> float:
+        """Calculate person time for anemia based on the current simulation event.
+
+        Uses the same duration calculations as calculate_anemia_ylds to produce
+        person time (in years) for each interval.
+        """
+        duration_years = self._get_duration_years(data)
+        return duration_years if isinstance(duration_years, float) else duration_years.sum()
 
     ##################
     # Helper methods #
     ##################
 
+    def _get_duration_years(self, data: pd.DataFrame) -> pd.Series | float:
+        """Get the duration in years for the current simulation event."""
+        duration_calculators = {
+            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION: self._get_later_anc_interval,
+            SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: 6
+            * DAYS_PER_WEEK
+            / DAYS_PER_YEAR,  # 6 weeks in years
+        }
+        return duration_calculators[self._sim_step_name()](data)
+
     # duration calculations
 
     def _get_first_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from start of sim to first visit
-        duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(days=365.25)
+        duration_years = data[COLUMNS.TIME_OF_FIRST_ANC_VISIT] / pd.Timedelta(
+            days=DAYS_PER_YEAR
+        )
         duration_years = duration_years.fillna(TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER)
         return duration_years
 
     def _get_later_anc_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from first visit to later visit
-        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
+        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(
+            days=DAYS_PER_YEAR
+        )
         later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
         duration_years = later_visit_years - self._get_first_anc_interval(data)
         return duration_years
 
     def _get_later_anc_to_delivery_interval(self, data: pd.DataFrame) -> pd.Series:
         # time from later visit to delivery
-        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(days=365.25)
+        later_visit_years = data[COLUMNS.TIME_OF_LATER_ANC_VISIT] / pd.Timedelta(
+            days=DAYS_PER_YEAR
+        )
         later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
-        gestational_age_years = self.gestational_age(data.index) / 52
+        gestational_age_years = (
+            self.gestational_age(data.index) * DAYS_PER_WEEK / DAYS_PER_YEAR
+        )
         return gestational_age_years - later_visit_years
 
     # helper methods for disability weights
-
-    @staticmethod
-    def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
-        anemia_status = (
-            pd.cut(
-                hemoglobin,
-                bins=[-np.inf] + ANEMIA_THRESHOLDS,
-                labels=["severe", "moderate", "mild"],
-                right=False,
-            )
-            .astype("object")
-            .fillna("not_anemic")
-        )
-        return anemia_status
 
     def get_disability_weight_from_anemia_status(self, anemia_status: pd.Series) -> pd.Series:
         # https://vivarium-research.readthedocs.io/en/latest/models/other_models/hemoglobin_anemia_and_iron_deficiency/anemia_impairment/index.html#id6
