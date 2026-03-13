@@ -166,7 +166,7 @@ class ANCAttendance(Component):
             )
 
         # determine timing of later visits
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING:
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING:
             pop = self.population_view.get(event.index)
             time_of_later_visit = self._calculate_later_visit_timing(
                 pop[COLUMNS.ANC_ATTENDANCE]
@@ -210,7 +210,6 @@ class ANCAttendance(Component):
     def _calculate_later_visit_timing(self, anc_attendance: pd.Series) -> pd.Series:
         """Calculate timing of later pregnancy ANC visits."""
         index = anc_attendance.index
-        # use first visit modified gestational age exposure for pregnancy duration
         pregnancy_duration_in_weeks = self.gestational_age(index)
         attends_later_anc = anc_attendance.isin(
             [
