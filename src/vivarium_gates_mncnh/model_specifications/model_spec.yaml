@@ -97,6 +97,7 @@ configuration:
             - 'first_trimester_anc'
             - 'later_pregnancy_screening'
             - 'later_pregnancy_intervention'
+            - 'later_pregnancy_visit_timing'
             - 'ultrasound'
             - 'delivery_facility'
             - 'azithromycin_access'
