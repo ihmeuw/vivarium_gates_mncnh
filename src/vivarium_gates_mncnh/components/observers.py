@@ -617,7 +617,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() in [
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
             SIMULATION_EVENT_NAMES.ULTRASOUND,
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
         ]
@@ -658,7 +658,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         """Get the duration in years for the current simulation event."""
         duration_calculators = {
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION: self._get_later_anc_interval,
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: 6
             * DAYS_PER_WEEK
