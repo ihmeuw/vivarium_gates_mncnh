@@ -278,8 +278,11 @@ Because V&V involves saving outputs to the shared drive, we number all model run
 and make the shared drive directories correspond to these numbers.
 
 We do not assign the model number until just before running the simulation.
-The model number must be of the form X.Y.Z and should be unique, and strictly *after*
+The model number must be of the form X.Y.Z[a] and should be unique, and strictly *after*
 any other model number which is a git ancestor of it.
+The [a] part indicates that a model may end with a letter, e.g. 21.0.1b.
+The letter is *only* used when the model is a sensitivity analysis or experiment that should *not* be merged into main,
+and it *must* be used in such cases to clearly differentiate these.
 In order to track how these numbers map to git revisions, we tag
 the git revision just before running the simulation with the model number.
 The directory where the artifact has been stored (named using words) should be
