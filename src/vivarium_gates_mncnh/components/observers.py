@@ -84,6 +84,7 @@ class ResultsStratifier(ResultsStratifier_):
                     PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
                     PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
                     PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
+                    PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME,
                 ]
             ),
             requires_columns=[COLUMNS.PREGNANCY_OUTCOME],
@@ -561,7 +562,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": [],
-                    "include": ["age_group", "anemia_status"],
+                    "include": ["age_group", "anemia_status", "pregnancy_outcome"],
                 },
             },
         }
@@ -646,8 +647,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         Uses the same duration calculations as calculate_anemia_ylds to produce
         person time (in years) for each interval.
         """
-        duration_years = self._get_duration_years(data)
-        return duration_years if isinstance(duration_years, float) else duration_years.sum()
+        return self._get_duration_years(data).sum()
 
     ##################
     # Helper methods #
@@ -659,9 +659,9 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: 6
-            * DAYS_PER_WEEK
-            / DAYS_PER_YEAR,  # 6 weeks in years
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
+                6 * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
+            ),  # 6 weeks in years
         }
         return duration_calculators[self._sim_step_name()](data)
 
