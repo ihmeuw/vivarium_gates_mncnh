@@ -101,7 +101,7 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
         location_id=location_id,
         year_id=2023,
         sex_id=gbd_constants.SEX.FEMALE,
-        release_id=16,
+        release_id=33,
     )
     return data
 
