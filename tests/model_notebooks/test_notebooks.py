@@ -27,8 +27,13 @@ def discover_notebook_paths(notebook_directory) -> List[Path]:
     Returns:
         List of Path objects for discovered notebooks
     """
+    # Filter out checkpoint files and nbdime merge conflict artifacts (e.g. *_BACKUP_*, *_BASE_*, *_LOCAL_*, *_REMOTE_*)
+    nbdime_suffixes = ("_BACKUP_", "_BASE_", "_LOCAL_", "_REMOTE_")
     notebooks = [
-        nb for nb in notebook_directory.glob("*.ipynb") if ".ipynb_checkpoints" not in str(nb)
+        nb
+        for nb in notebook_directory.glob("*.ipynb")
+        if ".ipynb_checkpoints" not in str(nb)
+        and not any(suffix in nb.stem for suffix in nbdime_suffixes)
     ]
 
     logger.info(f"Found {len(notebooks)} notebook(s) in {notebook_directory}")

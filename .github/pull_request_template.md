@@ -19,7 +19,7 @@ Include guidance to reviewers if changes are complex.
 Details on how code was verified. Consider: plots, images, (small) csv files.
 -->
 
-
+<--
 *** REMINDER ***
 CI WILL NOT RUN ANY TESTS.
 MANUALLY RUN TESTS WITH EACH PR.
@@ -27,3 +27,8 @@ MAKE SURE CONSTANTS/PATHS.PY IS USING THE CORRECT MODEL RESULTS DIRECTORY.
 -->
 - [ ] model results directory is up to date
 - [ ] all tests pass (`pytest --runslow` with both *vivarium_gates_mncnh_artifact* and *vivarium_gates_mncnh_simulation*)
+
+### Next steps
+
+- [ ] Merge this pull request
+- [ ] THIS IS A SENSITIVITY ANALYSIS/EXPERIMENT -- DO NOT MERGE!
