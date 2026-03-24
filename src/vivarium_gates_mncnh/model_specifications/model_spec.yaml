@@ -59,12 +59,12 @@ components:
             - CorrelatedPropensities() # batch 1
             # - AnemiaScreening()  # batch 2
             # Observers 
-            - ANCHemoglobinObserver()
-            - ANCOtherObserver()
+            - ANCHemoglobinObserver() # batch 1
+            - ANCOtherObserver() # batch 1
             - BirthObserver() # batch 1
             - MaternalDisordersBurdenObserver() # batch 1
             - NeonatalBurdenObserver() # batch 1
-            - AnemiaYLDsObserver()
+            # - AnemiaYLDsObserver() # batch 2
             # - NeonatalCauseRelativeRiskObserver()  # batch 3
             # - InterventionObserver('cpap')  # batch 4
             # - InterventionObserver('antibiotics')  # batch 4

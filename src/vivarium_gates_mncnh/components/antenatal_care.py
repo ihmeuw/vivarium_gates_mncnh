@@ -215,7 +215,7 @@ class ANCAttendance(Component):
         """Calculate timing of later pregnancy ANC visits."""
         index = anc_attendance.index
         pregnancy_duration_in_weeks = self.population_view.get_attributes(
-            index, PIPELINES.GESTATIONAL_AGE_EXPOSURE
+            index, COLUMNS.GESTATIONAL_AGE_EXPOSURE
         )
         attends_later_anc = anc_attendance.isin(
             [
