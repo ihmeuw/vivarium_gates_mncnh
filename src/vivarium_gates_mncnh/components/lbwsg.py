@@ -272,14 +272,15 @@ class LBWSGRisk(LBWSGRisk_):
             ppf_index = index
 
         if not ppf_index.empty:
-            categorical_propensity = self.population_view.get_attributes(
-                ppf_index, self.categorical_propensity_pipeline_name
-            )
-            continuous_propensity = self.population_view.get_attributes(
-                ppf_index, self.continuous_propensity_column_name[axis]
+            propensities = self.population_view.get_attributes(
+                ppf_index,
+                [self.categorical_propensity_pipeline_name,
+                 self.continuous_propensity_column_name[axis]],
             )
             exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
-                axis, continuous_propensity, categorical_propensity
+                axis,
+                propensities[self.continuous_propensity_column_name[axis]],
+                propensities[self.categorical_propensity_pipeline_name],
             )
 
         return exposure

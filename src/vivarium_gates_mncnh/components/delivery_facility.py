@@ -59,12 +59,11 @@ class DeliveryFacility(Component):
         not_partial_term = pregnancy_outcome != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
         active_idx = pregnancy_outcome.index[not_partial_term]
 
-        stated_ga = self.population_view.get_attributes(
-            active_idx, COLUMNS.STATED_GESTATIONAL_AGE
+        pop = self.population_view.get_attributes(
+            active_idx, [COLUMNS.STATED_GESTATIONAL_AGE, self.propensity_pipeline_name]
         )
-        propensity = self.population_view.get_attributes(
-            active_idx, self.propensity_pipeline_name
-        )
+        stated_ga = pop[COLUMNS.STATED_GESTATIONAL_AGE]
+        propensity = pop[self.propensity_pipeline_name]
         is_believed_preterm = stated_ga < 37
         # home births for lower propensities, facility for higher
         assigned_home_preterm = (

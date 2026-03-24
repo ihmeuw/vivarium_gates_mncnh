@@ -341,12 +341,12 @@ class NeonatalMortality(Component):
     def determine_cause_of_death(self, simulant_idx: pd.Index) -> pd.Series:
         """Determine the cause of death for neonates."""
         choices = pd.DataFrame(index=simulant_idx)
-        all_causes_death_rate = self.population_view.get_attributes(
-            simulant_idx, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY
+        mortality_data = self.population_view.get_attributes(
+            simulant_idx,
+            [PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY] + self.csmr_pipeline_names,
         )
-        csmr_data = self.population_view.get_attributes(
-            simulant_idx, self.csmr_pipeline_names
-        )
+        all_causes_death_rate = mortality_data[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY]
+        csmr_data = mortality_data[self.csmr_pipeline_names]
         neonatal_cause_dict = {
             NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: csmr_data[
                 PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR
