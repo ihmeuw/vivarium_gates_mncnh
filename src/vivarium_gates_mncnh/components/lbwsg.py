@@ -28,11 +28,7 @@ from vivarium_public_health.risks.implementations.low_birth_weight_and_short_ges
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
-from vivarium_public_health.utilities import (
-    TargetString,
-    get_lookup_columns,
-    to_snake_case,
-)
+from vivarium_public_health.utilities import TargetString, to_snake_case
 
 from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.constants.data_values import (
@@ -46,6 +42,7 @@ from vivarium_gates_mncnh.constants.data_values import (
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
+AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
 
 class OrderedLBWSGDistribution(LBWSGDistribution):
@@ -53,13 +50,6 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
     when determining exposure."""
 
     AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.SEX_OF_CHILD,
-            COLUMNS.PREGNANCY_OUTCOME,
-        ]
 
     #################
     # Setup methods #
@@ -114,7 +104,9 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
 
     def categorical_sex_specific_ppf(self, quantiles: pd.Series, sex: str) -> pd.Series:
         """Takes a possibly full set of propensities and returns category exposures for the provided sex."""
-        pop = self.population_view.get(quantiles.index)
+        pop = self.population_view.get_attributes(
+            quantiles.index, [COLUMNS.SEX_OF_CHILD, COLUMNS.PREGNANCY_OUTCOME]
+        )
         pop = pop.loc[pop[COLUMNS.SEX_OF_CHILD] == sex]
         exposures = self.get_simulant_specific_probabilities(pop.index)
         # reorder categories according to sex-specific order
@@ -141,8 +133,10 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         live birth exposures). Stillbirth exposures are the same as live birth exposures
         but with the two LBWSG categories with a max gestational age below 24 weeks
         (cat2 and cat8) dropped."""
-        pop = self.population_view.get(index)
-        exposure = self.exposure_parameters(index)
+        pop = self.population_view.get_attributes(
+            index, [COLUMNS.SEX_OF_CHILD, COLUMNS.PREGNANCY_OUTCOME]
+        )
+        exposure = self.get_exposure_parameters(index)
         non_stillbirth_categories = self.get_non_stillbirth_categories()
 
         is_stillbirth = (
@@ -203,21 +197,10 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
 class LBWSGRisk(LBWSGRisk_):
     exposure_distributions = {"lbwsg": OrderedLBWSGDistribution}
 
-    @property
-    def columns_created(self):
-        return super().columns_created + [
-            self.continuous_propensity_column_name[axis] for axis in self.AXES
-        ]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.SEX_OF_CHILD, COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [
-            COLUMNS.SEX_OF_CHILD,
-        ]
+    @staticmethod
+    def get_exposure_name(axis: str) -> str:
+        """Override parent to preserve this model's column naming convention."""
+        return f"{axis}_exposure"
 
     @property
     def time_step_prepare_priority(self) -> int:
@@ -230,7 +213,7 @@ class LBWSGRisk(LBWSGRisk_):
     def __init__(self):
         super().__init__()
         self.continuous_propensity_column_name = {
-            axis: f"{self.name}.{axis}.continuous_propensity" for axis in self.AXES
+            axis: f"{self.name}.{axis}.continuous_propensity" for axis in AXES
         }
 
     def setup(self, builder: Builder) -> None:
@@ -239,32 +222,48 @@ class LBWSGRisk(LBWSGRisk_):
         # We have to override the age_end due to the wide state table and this is easier than
         # adding an extra population configuration key
         self.configuration_age_end = 0.0
-        self.categorical_propensity = builder.value.get_value(
-            f"{self.name}.correlated_propensity"
+        self.categorical_propensity_pipeline_name = f"{self.name}.correlated_propensity"
+        # Register initializer for child's custom propensity columns (separate
+        # from parent's propensity columns)
+        builder.population.register_initializer(
+            initializer=self.initialize_custom_propensities,
+            columns=[self.continuous_propensity_column_name[axis] for axis in AXES],
+            required_resources=[self.randomness],
+        )
+        # SBACHMEI - remove this dummy lookup table and attribute producer when enabling
+        # LBWSGRiskEffect in batch 3 — it will register the real PAF pipeline)
+        no_paf = builder.lookup.build_table(0)
+        builder.value.register_attribute_producer(
+            PIPELINES.LBWSG_ACMR_PAF_MODIFIER,
+            source=no_paf,
         )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_custom_propensities(self, pop_data: SimulantData) -> None:
         propensity = {
             self.continuous_propensity_column_name[axis]: self.get_continuous_propensity(
                 pop_data, axis
             )
-            for axis in self.AXES
+            for axis in AXES
         }
         self.population_view.update(pd.DataFrame(propensity))
 
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
+        """Override parent to initialize exposures to NaN. Actual values are set
+        during on_time_step_prepare at the ULTRASOUND step."""
         exposures = {
-            self.get_exposure_column_name(axis): pd.Series(np.nan, index=pop_data.index)
-            for axis in self.AXES
+            self.get_exposure_name(axis): pd.Series(np.nan, index=pop_data.index)
+            for axis in AXES
         }
         self.population_view.update(pd.DataFrame(exposures))
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        pop = self.population_view.get(index)
         exposure = pd.Series(np.nan, index=index, name=f"{axis}.exposure")
 
         # For gestational age, use partial_term_pregnancy_duration where available
         if axis == GESTATIONAL_AGE:
-            partial_term_durations = pop[COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
+            partial_term_durations = self.population_view.get_attributes(
+                index, COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION
+            )
             is_partial_term = partial_term_durations.notna()
             if is_partial_term.any():
                 exposure.loc[is_partial_term] = partial_term_durations.loc[is_partial_term]
@@ -273,10 +272,12 @@ class LBWSGRisk(LBWSGRisk_):
             ppf_index = index
 
         if not ppf_index.empty:
-            categorical_propensity = self.categorical_propensity(ppf_index)
-            continuous_propensity = pop.loc[
+            categorical_propensity = self.population_view.get_attributes(
+                ppf_index, self.categorical_propensity_pipeline_name
+            )
+            continuous_propensity = self.population_view.get_attributes(
                 ppf_index, self.continuous_propensity_column_name[axis]
-            ]
+            )
             exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
                 axis, continuous_propensity, categorical_propensity
             )
@@ -294,10 +295,8 @@ class LBWSGRisk(LBWSGRisk_):
             return
 
         exposures = {
-            self.get_exposure_column_name(axis): self.birth_exposures[
-                self.birth_exposure_pipeline_name(axis)
-            ](event.index)
-            for axis in self.AXES
+            self.get_exposure_name(axis): self.get_birth_exposure(axis, event.index)
+            for axis in AXES
         }
         self.population_view.update(pd.DataFrame(exposures))
 
@@ -323,21 +322,16 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
             source=self.lookup_tables["population_attributable_fraction"],
             component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["population_attributable_fraction"]]
-            ),
+            required_resources=[self.lookup_tables["population_attributable_fraction"]],
         )
         super().setup(builder)
 
     def register_paf_modifier(self, builder):
-        required_columns = get_lookup_columns(
-            [self.lookup_tables["population_attributable_fraction"]]
-        )
         builder.value.register_value_modifier(
             self.target_paf_pipeline_name,
             modifier=self.paf,
             component=self,
-            required_resources=required_columns,
+            required_resources=[self.lookup_tables["population_attributable_fraction"]],
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
@@ -473,9 +467,7 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
             f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
             source=self.lookup_tables["population_attributable_fraction"],
             component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["population_attributable_fraction"]]
-            ),
+            required_resources=[self.lookup_tables["population_attributable_fraction"]],
         )
         super(LBWSGRiskEffect, self).setup(builder)
 
@@ -895,10 +887,10 @@ class LBWSGMortality(Component):
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
             component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["all_cause_mortality_risk"]]
-            )
-            + [self.acmr_paf],
+            required_resources=[
+                self.lookup_tables["all_cause_mortality_risk"],
+                self.acmr_paf,
+            ],
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:

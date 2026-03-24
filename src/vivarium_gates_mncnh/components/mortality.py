@@ -9,7 +9,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
-from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants.data_keys import POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
@@ -51,19 +50,6 @@ class MaternalDisordersBurden(Component):
             },
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [COLUMNS.MOTHER_CAUSE_OF_DEATH, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.MOTHER_ALIVE,
-            COLUMNS.EXIT_TIME,
-            COLUMNS.MOTHER_AGE,
-            COLUMNS.MOTHER_SEX,
-        ] + self.maternal_disorders
-
     #####################
     # Lifecycle methods #
     #####################
@@ -76,14 +62,28 @@ class MaternalDisordersBurden(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
+        self.life_expectancy_table = self.build_lookup_table(builder, "life_expectancy")
+        self.cfr_tables = {
+            cause: self.build_lookup_table(builder, f"{cause}_case_fatality_rate")
+            for cause in self.maternal_disorders
+        }
+        builder.population.register_initializer(
+            self.initialize_burden,
+            columns=[
+                COLUMNS.MOTHER_IS_ALIVE,
+                COLUMNS.MOTHER_CAUSE_OF_DEATH,
+                COLUMNS.MOTHER_YEARS_OF_LIFE_LOST,
+            ],
+        )
 
     ########################
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_burden(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
+                COLUMNS.MOTHER_IS_ALIVE: True,
                 COLUMNS.MOTHER_CAUSE_OF_DEATH: "not_dead",
                 COLUMNS.MOTHER_YEARS_OF_LIFE_LOST: 0.0,
             },
@@ -95,8 +95,9 @@ class MaternalDisordersBurden(Component):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.MORTALITY:
             return
 
-        pop = self.population_view.get(event.index)
-        has_maternal_disorders = pop[self.maternal_disorders]
+        has_maternal_disorders = self.population_view.get_attributes(
+            event.index, self.maternal_disorders
+        )
         has_maternal_disorders = has_maternal_disorders.loc[
             has_maternal_disorders.any(axis=1)
         ]
@@ -114,10 +115,21 @@ class MaternalDisordersBurden(Component):
 
         # Update metadata for simulants that died
         if not dead_idx.empty:
-            pop.loc[dead_idx, COLUMNS.MOTHER_ALIVE] = "dead"
+            mother_is_alive = self.population_view.get_attributes(
+                event.index, COLUMNS.MOTHER_IS_ALIVE
+            )
+            mother_is_alive.loc[dead_idx] = False
+            self.population_view.update(mother_is_alive)
+
+            cause_of_death = self.population_view.get_private_columns(
+                event.index, COLUMNS.MOTHER_CAUSE_OF_DEATH
+            )
+            ylls = self.population_view.get_private_columns(
+                event.index, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST
+            )
 
             # Get maternal disorders each simulant is affect by
-            cause_of_death = self.randomness.choice(
+            chosen_cause = self.randomness.choice(
                 index=dead_idx,
                 choices=self.maternal_disorders,
                 p=choice_data.loc[
@@ -126,12 +138,11 @@ class MaternalDisordersBurden(Component):
                 ],
                 additional_key="cause_of_death",
             )
-            pop.loc[dead_idx, COLUMNS.MOTHER_CAUSE_OF_DEATH] = cause_of_death
-            pop.loc[dead_idx, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST] = self.lookup_tables[
-                "life_expectancy"
-            ](dead_idx)
+            cause_of_death.loc[dead_idx] = chosen_cause
+            ylls.loc[dead_idx] = self.life_expectancy_table(dead_idx)
 
-        self.population_view.update(pop)
+            self.population_view.update(cause_of_death)
+            self.population_view.update(ylls)
 
     ##################
     # Helper methods #
@@ -158,9 +169,7 @@ class MaternalDisordersBurden(Component):
 
         # Simulants is a boolean dataframe of whether or not a simulant has each maternal disorder.
         for cause in self.maternal_disorders:
-            simulants[cause] = simulants[cause] * self.lookup_tables[
-                f"{cause}_case_fatality_rate"
-            ](simulants.index)
+            simulants[cause] = simulants[cause] * self.cfr_tables[cause](simulants.index)
         simulants["mortality_probability"] = simulants[self.maternal_disorders].sum(axis=1)
         cfr_data = self.get_proportional_case_fatality_rates(simulants)
 
@@ -195,24 +204,6 @@ class NeonatalMortality(Component):
             }
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.CHILD_AGE,
-            COLUMNS.CHILD_ALIVE,
-            COLUMNS.PREGNANCY_OUTCOME,
-        ]
-
-    @property
-    def initialization_requirements(self):
-        return [
-            COLUMNS.PREGNANCY_OUTCOME,
-        ]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -222,39 +213,50 @@ class NeonatalMortality(Component):
         self.randomness = builder.randomness.get_stream(self.name, self)
         self.causes_of_death = CAUSES_OF_NEONATAL_MORTALITY + ["other_causes"]
 
+        self.acmr_table = self.build_lookup_table(builder, "all_cause_mortality_risk")
+        self.life_expectancy_table = self.build_lookup_table(builder, "life_expectancy")
+
         # Get neonatal csmr pipelines
-        self.preterm_with_rds_csmr = builder.value.get_value(
-            PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR
-        )
-        self.preterm_without_rds_csmr = builder.value.get_value(
-            PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR
-        )
-        self.sepsis_csmr = builder.value.get_value(PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR)
-        self.encephalopathy_csmr = builder.value.get_value(
-            PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR
-        )
+        # CSMR pipeline names (now attribute pipelines)
+        self.csmr_pipeline_names = [
+            PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,
+            PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR,
+            PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
+            PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR,
+        ]
 
         # Register pipelines
-        self.acmr_paf = self.get_acmr_paf_pipeline(builder)
+        self.get_acmr_paf_pipeline(builder)
 
-        self.all_cause_mortality_rate = builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
-            component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["all_cause_mortality_risk"]]
-            )
-            + [self.acmr_paf],
+            required_resources=[PIPELINES.ACMR_PAF],
         )
         # Modify ACMR pipeline with CSMR for neonatal causes
-        self.death_in_age_group = builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
             PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
-            source=self.all_cause_mortality_rate,
-            component=self,
-            required_resources=[self.all_cause_mortality_rate],
+            source=self.get_death_in_age_group_probability,
+            required_resources=[PIPELINES.ACMR],
         )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        builder.population.register_initializer(
+            self.initialize_neonatal_mortality,
+            columns=[
+                COLUMNS.CHILD_CAUSE_OF_DEATH,
+                COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
+            ],
+            required_resources=[COLUMNS.PREGNANCY_OUTCOME],
+        )
+
+        # Register an attribute modifier for child_alive so that Children
+        # (the column owner) can read the modified value and update its
+        # own private column — mirroring the exit_time / Mortality pattern.
+        builder.value.register_attribute_modifier(
+            COLUMNS.CHILD_ALIVE, self.modify_child_alive
+        )
+
+    def initialize_neonatal_mortality(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
                 COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
@@ -262,16 +264,14 @@ class NeonatalMortality(Component):
             },
             index=pop_data.index,
         )
-        pregnancy_outcomes = self.population_view.subview([COLUMNS.PREGNANCY_OUTCOME]).get(
-            pop_data.index
+        pregnancy_outcomes = self.population_view.get_attributes(
+            pop_data.index, COLUMNS.PREGNANCY_OUTCOME
         )
         for outcome in [
             PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
             PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,
         ]:
-            outcome_idx = pregnancy_outcomes.index[
-                pregnancy_outcomes[COLUMNS.PREGNANCY_OUTCOME] == outcome
-            ]
+            outcome_idx = pregnancy_outcomes.index[pregnancy_outcomes == outcome]
             pop_update.loc[outcome_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = outcome
         self.population_view.update(pop_update)
 
@@ -282,9 +282,11 @@ class NeonatalMortality(Component):
         ]:
             return
 
-        pop = self.population_view.get(event.index)
-        alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
-        mortality_risk = self.death_in_age_group(alive_idx)
+        child_alive = self.population_view.get_attributes(event.index, COLUMNS.CHILD_ALIVE)
+        alive_idx = child_alive.index[child_alive == "alive"]
+        mortality_risk = self.population_view.get_attributes(
+            alive_idx, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY
+        )
 
         # Determine which neonates die and update metadata
         dead_idx = self.randomness.filter_for_probability(
@@ -293,15 +295,29 @@ class NeonatalMortality(Component):
             f"{self._sim_step_name()}_choice",
         )
         if not dead_idx.empty:
-            pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
-            pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = self.determine_cause_of_death(
-                dead_idx
-            )
-            pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
-                "life_expectancy"
-            ](dead_idx)
+            # Store dead indices so the attribute modifier can mark them dead
+            # when Children reads child_alive via get_attributes.
+            self._newly_dead_idx = dead_idx
 
-        self.population_view.update(pop)
+            cause_of_death = self.population_view.get_private_columns(
+                event.index, COLUMNS.CHILD_CAUSE_OF_DEATH
+            )
+            ylls = self.population_view.get_private_columns(
+                event.index, COLUMNS.CHILD_YEARS_OF_LIFE_LOST
+            )
+            cause_of_death.loc[dead_idx] = self.determine_cause_of_death(dead_idx)
+            ylls.loc[dead_idx] = self.life_expectancy_table(dead_idx)
+
+            self.population_view.update(cause_of_death)
+            self.population_view.update(ylls)
+
+    def modify_child_alive(self, index: pd.Index, child_alive: pd.Series) -> pd.Series:
+        """Attribute modifier for child_alive; marks newly dead neonates."""
+        dead_idx = getattr(self, "_newly_dead_idx", pd.Index([]))
+        overlap = dead_idx.intersection(index)
+        if not overlap.empty:
+            child_alive.loc[overlap] = "dead"
+        return child_alive
 
     ##################
     # Helper methods #
@@ -325,14 +341,23 @@ class NeonatalMortality(Component):
     def determine_cause_of_death(self, simulant_idx: pd.Index) -> pd.Series:
         """Determine the cause of death for neonates."""
         choices = pd.DataFrame(index=simulant_idx)
-        all_causes_death_rate = self.death_in_age_group(simulant_idx)
+        all_causes_death_rate = self.population_view.get_attributes(
+            simulant_idx, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY
+        )
+        csmr_data = self.population_view.get_attributes(
+            simulant_idx, self.csmr_pipeline_names
+        )
         neonatal_cause_dict = {
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: self.preterm_with_rds_csmr(simulant_idx),
-            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: self.preterm_without_rds_csmr(
-                simulant_idx
-            ),
-            NEONATAL_CAUSES.NEONATAL_SEPSIS: self.sepsis_csmr(simulant_idx),
-            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: self.encephalopathy_csmr(simulant_idx),
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITH_RDS: csmr_data[
+                PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR
+            ],
+            NEONATAL_CAUSES.PRETERM_BIRTH_WITHOUT_RDS: csmr_data[
+                PIPELINES.PRETERM_WITHOUT_RDS_FINAL_CSMR
+            ],
+            NEONATAL_CAUSES.NEONATAL_SEPSIS: csmr_data[PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR],
+            NEONATAL_CAUSES.NEONATAL_ENCEPHALOPATHY: csmr_data[
+                PIPELINES.NEONATAL_ENCEPHALOPATHY_FINAL_CSMR
+            ],
         }
 
         # Calculate proportional cause of death for each neonatal cause
@@ -360,13 +385,16 @@ class NeonatalMortality(Component):
 
     def get_acmr_pipeline(self, index: pd.Index) -> Pipeline:
         # NOTE: This will be modified by the LBWSGRiskEffect
-        acmr = self.lookup_tables["all_cause_mortality_risk"](index)
-        paf = self.acmr_paf(index)
+        acmr = self.acmr_table(index)
+        paf = self.population_view.get_attributes(index, PIPELINES.ACMR_PAF)
         return acmr * (1 - paf)
 
-    def get_acmr_paf_pipeline(self, builder: Builder) -> Pipeline:
+    def get_death_in_age_group_probability(self, index: pd.Index) -> pd.Series:
+        return self.population_view.get_attributes(index, PIPELINES.ACMR)
+
+    def get_acmr_paf_pipeline(self, builder: Builder) -> None:
         acmr_paf = builder.lookup.build_table(0)
-        return builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
             PIPELINES.ACMR_PAF,
             source=lambda index: [acmr_paf(index)],
             preferred_combiner=list_combiner,

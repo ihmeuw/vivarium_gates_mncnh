@@ -4,8 +4,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
-from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.components.children import NewChildren
 from vivarium_gates_mncnh.constants import data_keys
@@ -26,19 +24,8 @@ class Pregnancy(Component):
     ##############
 
     @property
-    def columns_created(self):
-        return [
-            COLUMNS.PREGNANCY_OUTCOME,
-            COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
-        ]
-
-    @property
     def sub_components(self):
         return super().sub_components + [self.new_children]
-
-    @property
-    def initialization_requirements(self) -> list[str, Resource]:
-        return [self.birth_outcome_probabilities]
 
     def __init__(self):
         super().__init__()
@@ -55,40 +42,38 @@ class Pregnancy(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
-        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
-        self.birth_outcome_probabilities = builder.value.register_value_producer(
-            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
-            source=self.lookup_tables["birth_outcome_probabilities"],
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["birth_outcome_probabilities"]]
-            ),
+
+        self.birth_outcome_probabilities_table = self.build_lookup_table(
+            builder,
+            "birth_outcome_probabilities",
+            data_source=self.get_birth_outcome_probabilities(builder),
+            value_columns=["live_birth", "partial_term", "stillbirth"],
         )
-        self.pregnancy_durations = builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
+            PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            source=self.birth_outcome_probabilities_table,
+        )
+        builder.value.register_attribute_producer(
             PIPELINES.PREGNANCY_DURATION,
-            self.get_pregnancy_durations,
-            self,
-            required_resources=[
+            source=self.get_pregnancy_durations,
+        )
+        builder.population.register_initializer(
+            self.initialize_pregnancy,
+            columns=[
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
             ],
-        )
-
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        super().build_all_lookup_tables(builder)
-        # I am not making birth outcome probabilities configurable because the
-        # method is so complicated - albrja
-        birth_outcome_probabilities = self.get_birth_outcome_probabilities(builder)
-        self.lookup_tables["birth_outcome_probabilities"] = self.build_lookup_table(
-            builder,
-            birth_outcome_probabilities,
-            value_columns=["live_birth", "partial_term", "stillbirth"],
+            required_resources=[
+                self.randomness,
+                PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
+            ],
         )
 
     #####################
     # Lifecycle Methods #
     #####################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_pregnancy(self, pop_data: SimulantData) -> None:
         pregnancy_outcomes = self.sample_pregnancy_outcomes(pop_data)
         partial_term_idx = pregnancy_outcomes.index[
             pregnancy_outcomes[COLUMNS.PREGNANCY_OUTCOME]
@@ -106,23 +91,26 @@ class Pregnancy(Component):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
             return
 
-        outcome_probabilities = self.birth_outcome_probabilities(event.index)[
-            [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
-        ]
-        pop = self.population_view.get(event.index)
-        is_full_term = pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+        outcome_probabilities = self.population_view.get_attribute_frame(
+            event.index, PIPELINES.BIRTH_OUTCOME_PROBABILITIES
+        )[[PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]]
+        pregnancy_outcome = self.population_view.get_private_columns(
+            event.index, COLUMNS.PREGNANCY_OUTCOME
+        )
+        is_full_term = pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
+        full_term_idx = is_full_term.index[is_full_term]
         full_term_outcomes = self.randomness.choice(
-            pop.loc[is_full_term].index,
+            full_term_idx,
             choices=[
                 PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
                 PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME,
             ],
-            p=outcome_probabilities.loc[is_full_term],
+            p=outcome_probabilities.loc[full_term_idx],
             additional_key="full_term_outcome",
         )
-        pop.loc[is_full_term, COLUMNS.PREGNANCY_OUTCOME] = full_term_outcomes
+        pregnancy_outcome.loc[full_term_idx] = full_term_outcomes
 
-        self.population_view.update(pop)
+        self.population_view.update(pregnancy_outcome)
 
     ##################
     # Helper methods #
@@ -165,9 +153,9 @@ class Pregnancy(Component):
 
     def sample_pregnancy_outcomes(self, pop_data: SimulantData) -> pd.DataFrame:
         # Order the columns so that partial_term isn't in the middle!
-        partial_term_probabilities = self.birth_outcome_probabilities(pop_data.index)[
-            PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
-        ]
+        partial_term_probabilities = self.population_view.get_attribute_frame(
+            pop_data.index, PIPELINES.BIRTH_OUTCOME_PROBABILITIES
+        )[PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME]
         pregnancy_outcomes = pd.DataFrame(
             {
                 "pregnancy_outcome": self.randomness.choice(
@@ -186,9 +174,7 @@ class Pregnancy(Component):
         return pregnancy_outcomes
 
     def get_partial_term_gestational_age(self, index: pd.Index) -> pd.Series:
-        """
-        Get the gestational age for partial term pregnancies.
-        """
+        """Get the gestational age for partial term pregnancies."""
         low, high = DURATIONS.PARTIAL_TERM_LOWER_WEEKS, DURATIONS.PARTIAL_TERM_UPPER_WEEKS
         draw = self.randomness.get_draw(
             index, additional_key="partial_term_pregnancy_duration"
@@ -197,4 +183,21 @@ class Pregnancy(Component):
         return durations
 
     def get_pregnancy_durations(self, index: pd.Index) -> pd.Series:
-        return pd.to_timedelta(self.gestational_age(index) * 7, unit="days")
+        pop = self.population_view.get_attributes(
+            index,
+            [
+                COLUMNS.PREGNANCY_OUTCOME,
+                COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
+                COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+            ],
+        )
+        partial_term_idx = pop.index[
+            pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
+        ]
+        partial_ga = pop.loc[partial_term_idx, COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
+        non_partial_idx = index.difference(partial_term_idx)
+        non_partial_ga = pop.loc[non_partial_idx, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
+
+        gestational_ages = pd.concat([partial_ga, non_partial_ga]).sort_index()
+        durations = pd.to_timedelta(7 * gestational_ages, unit="days")
+        return durations

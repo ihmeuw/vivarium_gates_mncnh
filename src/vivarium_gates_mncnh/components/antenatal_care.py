@@ -34,17 +34,6 @@ from vivarium_gates_mncnh.utilities import get_location
 
 
 class ANCAttendance(Component):
-    @property
-    def columns_created(self):
-        return [
-            COLUMNS.ANC_ATTENDANCE,
-            COLUMNS.TIME_OF_FIRST_ANC_VISIT,
-            COLUMNS.TIME_OF_LATER_ANC_VISIT,
-        ]
-
-    @property
-    def columns_required(self):
-        return [COLUMNS.PREGNANCY_OUTCOME]
 
     @property
     def time_step_prepare_priority(self) -> int:
@@ -53,11 +42,35 @@ class ANCAttendance(Component):
     def setup(self, builder: Builder):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
-        self.propensity = builder.value.get_value(f"antenatal_care.correlated_propensity")
-        self.pregnancy_duration = builder.value.get_value(PIPELINES.PREGNANCY_DURATION)
-        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
+        self.propensity_pipeline_name = "antenatal_care.correlated_propensity"
+        self.anc_first_table = self.build_lookup_table(
+            builder,
+            "ANCfirst",
+            data_source=builder.data.load(ANC.ANCfirst),
+            value_columns="value",
+        )
+        self.anc1_table = self.build_lookup_table(
+            builder,
+            "ANC1",
+            data_source=builder.data.load(ANC.ANC1),
+            value_columns="value",
+        )
+        self.anc4_table = self.build_lookup_table(
+            builder,
+            "ANC4",
+            data_source=builder.data.load(ANC.ANC4),
+            value_columns="value",
+        )
+        builder.population.register_initializer(
+            self.initialize_anc,
+            columns=[
+                COLUMNS.ANC_ATTENDANCE,
+                COLUMNS.TIME_OF_FIRST_ANC_VISIT,
+                COLUMNS.TIME_OF_LATER_ANC_VISIT,
+            ],
+        )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_anc(self, pop_data: SimulantData) -> None:
         anc_data = pd.DataFrame(
             {
                 COLUMNS.ANC_ATTENDANCE: pd.NA,
@@ -72,42 +85,27 @@ class ANCAttendance(Component):
         )
         self.population_view.update(anc_data)
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        self.lookup_tables["ANCfirst"] = self.build_lookup_table(
-            builder=builder,
-            data_source=builder.data.load(ANC.ANCfirst),
-            value_columns=["value"],
-        )
-        self.lookup_tables["ANC1"] = self.build_lookup_table(
-            builder=builder,
-            data_source=builder.data.load(ANC.ANC1),
-            value_columns=["value"],
-        )
-        self.lookup_tables["ANC4"] = self.build_lookup_table(
-            builder=builder,
-            data_source=builder.data.load(ANC.ANC4),
-            value_columns=["value"],
-        )
-
     def is_full_term(self, index: pd.Index) -> pd.Series:
         """Returns a boolean Series indicating if the pregnancy is full term."""
-        pregnancy_outcome = self.population_view.get(index)[COLUMNS.PREGNANCY_OUTCOME]
+        pregnancy_outcome = self.population_view.get_attributes(
+            index, COLUMNS.PREGNANCY_OUTCOME
+        )
         return pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME
 
     def on_time_step_prepare(self, event: Event) -> None:
         def get_both_visits_probability(index: pd.Index) -> pd.Series:
             is_full_term = self.is_full_term(index)
             result = pd.Series(0.0, index=index)
-            ancfirst = self.lookup_tables["ANCfirst"](index)
-            anc4 = self.lookup_tables["ANC4"](index)
+            ancfirst = self.anc_first_table(index)
+            anc4 = self.anc4_table(index)
             # Keep as 0 if not full term
             result[is_full_term] = np.minimum(ancfirst[is_full_term], anc4[is_full_term])
             return result
 
         def get_early_visit_only_probability(index: pd.Index) -> pd.Series:
             is_full_term = self.is_full_term(index)
-            ancfirst = self.lookup_tables["ANCfirst"](index)
-            anc4 = self.lookup_tables["ANC4"](index)
+            ancfirst = self.anc_first_table(index)
+            anc4 = self.anc4_table(index)
             result = pd.Series(ancfirst, index=index)
             # Return ANCfirst if not full term
             result[is_full_term] = ancfirst[is_full_term] - np.minimum(
@@ -118,16 +116,16 @@ class ANCAttendance(Component):
         def get_later_visit_only_probability(index: pd.Index) -> pd.Series:
             is_full_term = self.is_full_term(index)
             result = pd.Series(0.0, index=index)
-            anc1 = self.lookup_tables["ANC1"](index)
-            ancfirst = self.lookup_tables["ANCfirst"](index)
+            anc1 = self.anc1_table(index)
+            ancfirst = self.anc_first_table(index)
             # Keep as 0 if not full term
             result[is_full_term] = anc1[is_full_term] - ancfirst[is_full_term]
             return result
 
         def get_no_visit_probability(index: pd.Index) -> pd.Series:
             is_full_term = self.is_full_term(index)
-            anc1 = self.lookup_tables["ANC1"](index)
-            ancfirst = self.lookup_tables["ANCfirst"](index)
+            anc1 = self.anc1_table(index)
+            ancfirst = self.anc_first_table(index)
             result = pd.Series(0.0, index=index)
             result[is_full_term] = 1 - anc1[is_full_term]
             result[~is_full_term] = 1 - ancfirst[~is_full_term]
@@ -153,7 +151,9 @@ class ANCAttendance(Component):
             ]
 
             # use correlated propensity to decide ANC attendance
-            propensities = self.propensity(event.index)
+            propensities = self.population_view.get_attributes(
+                event.index, self.propensity_pipeline_name
+            )
             anc_choices = probabilities.columns
             anc_attendance = _choice(propensities, anc_choices, probabilities.values)
             anc_attendance.name = COLUMNS.ANC_ATTENDANCE
@@ -167,9 +167,11 @@ class ANCAttendance(Component):
 
         # determine timing of later visits
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING:
-            pop = self.population_view.get(event.index)
+            anc_attendance = self.population_view.get_attributes(
+                event.index, COLUMNS.ANC_ATTENDANCE
+            )
             time_of_later_visit = self._calculate_later_visit_timing(
-                pop[COLUMNS.ANC_ATTENDANCE]
+                anc_attendance
             )
             time_of_later_visit.name = COLUMNS.TIME_OF_LATER_ANC_VISIT
             self.population_view.update(time_of_later_visit)
@@ -181,7 +183,9 @@ class ANCAttendance(Component):
     def _calculate_first_visit_timing(self, anc_attendance: pd.Series) -> pd.Series:
         """Calculate timing of first trimester ANC visits."""
         index = anc_attendance.index
-        pregnancy_duration_in_weeks = self.pregnancy_duration(index) / pd.Timedelta(days=7)
+        pregnancy_duration_in_weeks = self.population_view.get_attributes(
+            index, PIPELINES.PREGNANCY_DURATION
+        ) / pd.Timedelta(days=7)
         attends_first_trimester_anc = anc_attendance.isin(
             [
                 ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
@@ -210,7 +214,9 @@ class ANCAttendance(Component):
     def _calculate_later_visit_timing(self, anc_attendance: pd.Series) -> pd.Series:
         """Calculate timing of later pregnancy ANC visits."""
         index = anc_attendance.index
-        pregnancy_duration_in_weeks = self.gestational_age(index)
+        pregnancy_duration_in_weeks = self.population_view.get_attributes(
+            index, PIPELINES.GESTATIONAL_AGE_EXPOSURE
+        )
         attends_later_anc = anc_attendance.isin(
             [
                 ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY,
@@ -231,41 +237,34 @@ class ANCAttendance(Component):
 
 
 class Ultrasound(Component):
-    @property
-    def columns_created(self):
-        return [
-            COLUMNS.ULTRASOUND_TYPE,
-            COLUMNS.STATED_GESTATIONAL_AGE,
-        ]
-
-    @property
-    def columns_required(self):
-        return [COLUMNS.ANC_ATTENDANCE, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-
     def setup(self, builder: Builder):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
-
-    def build_all_lookup_tables(self, builder: Builder) -> None:
         stated_ga_standard_deviation = self.format_dict_for_lookup_table(
             ANC_RATES.STATED_GESTATIONAL_AGE_STANDARD_DEVIATION,
             COLUMNS.ULTRASOUND_TYPE,
         )
-        self.lookup_tables[
-            "stated_gestational_age_standard_deviation"
-        ] = self.build_lookup_table(
-            builder=builder,
+        self.stated_ga_sd_table = self.build_lookup_table(
+            builder,
+            "stated_gestational_age_standard_deviation",
             data_source=stated_ga_standard_deviation,
-            value_columns=["value"],
+            value_columns="value",
+        )
+        builder.population.register_initializer(
+            self.initialize_ultrasound,
+            columns=[
+                COLUMNS.ULTRASOUND_TYPE,
+                COLUMNS.STATED_GESTATIONAL_AGE,
+            ],
         )
 
     def format_dict_for_lookup_table(self, data: dict, column: str) -> pd.DataFrame:
         series = pd.Series(data)
         return series.reset_index().rename(columns={"index": column, 0: "value"})
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_ultrasound(self, pop_data: SimulantData) -> None:
         initial_data = pd.DataFrame(
             {
                 COLUMNS.ULTRASOUND_TYPE: pd.NA,
@@ -300,13 +299,15 @@ class Ultrasound(Component):
                 ]
             return standard_probability
 
-        pop = self.population_view.get(event.index)
-        anc_pop = pop.loc[pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE]
+        anc_attendance = self.population_view.get_attributes(
+            event.index, COLUMNS.ANC_ATTENDANCE
+        )
+        anc_idx = anc_attendance.index[anc_attendance != ANC_ATTENDANCE_TYPES.NONE]
 
         # determine who gets ultrasound
         ultrasound_probability = get_ultrasound_probability()
         gets_ultrasound = self.randomness.choice(
-            anc_pop.index,
+            anc_idx,
             choices=[True, False],
             p=[ultrasound_probability, 1 - ultrasound_probability],
             additional_key="gets_ultrasound",
@@ -314,32 +315,38 @@ class Ultrasound(Component):
 
         # determine type of ultrasound for those who get it
         standard_ultrasound_probability = get_standard_ultrasound_probability()
-        ultrasound_pop = anc_pop.loc[gets_ultrasound]
+        ultrasound_idx = anc_idx[gets_ultrasound]
         ultrasound_type = self.randomness.choice(
-            ultrasound_pop.index,
+            ultrasound_idx,
             choices=[ULTRASOUND_TYPES.STANDARD, ULTRASOUND_TYPES.AI_ASSISTED],
             p=[standard_ultrasound_probability, 1 - standard_ultrasound_probability],
             additional_key="ultrasound_type",
         )
 
-        pop[COLUMNS.ULTRASOUND_TYPE] = ULTRASOUND_TYPES.NO_ULTRASOUND
-        pop.loc[ultrasound_pop.index, COLUMNS.ULTRASOUND_TYPE] = ultrasound_type
+        us_col = self.population_view.get_private_columns(
+            event.index, COLUMNS.ULTRASOUND_TYPE
+        )
+        us_col.loc[:] = ULTRASOUND_TYPES.NO_ULTRASOUND
+        us_col.loc[ultrasound_idx] = ultrasound_type
 
-        self.population_view.update(pop)
+        self.population_view.update(us_col)
 
-        def calculate_stated_gestational_age(pop: pd.DataFrame) -> pd.Series:
+        def calculate_stated_gestational_age(index: pd.Index) -> pd.Series:
             # Apply standard deviation based on ultrasound type
-            gestational_age = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-            measurement_errors = self.lookup_tables[
-                "stated_gestational_age_standard_deviation"
-            ](pop.index)
+            gestational_age = self.population_view.get_attributes(
+                index, COLUMNS.GESTATIONAL_AGE_EXPOSURE
+            )
+            measurement_errors = self.stated_ga_sd_table(index)
             measurement_error_draws = self.randomness.get_draw(
-                pop.index, additional_key="measurement_error"
+                index, additional_key="measurement_error"
             )
             return stats.norm.ppf(
                 measurement_error_draws, loc=gestational_age, scale=measurement_errors
             )
 
-        pop[COLUMNS.STATED_GESTATIONAL_AGE] = calculate_stated_gestational_age(pop)
+        stated_ga = self.population_view.get_private_columns(
+            event.index, COLUMNS.STATED_GESTATIONAL_AGE
+        )
+        stated_ga.loc[:] = calculate_stated_gestational_age(event.index)
 
-        self.population_view.update(pop)
+        self.population_view.update(stated_ga)

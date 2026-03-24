@@ -150,10 +150,9 @@ ANC_RATES = __ANCRates()
 
 
 class __Columns(NamedTuple):
-    TRACKED = "tracked"
     EXIT_TIME = "exit_time"
     MOTHER_SEX = "sex"
-    MOTHER_ALIVE = "alive"
+    MOTHER_IS_ALIVE = "is_alive"
     CHILD_ALIVE = "child_alive"
     MOTHER_AGE = "age"
     CHILD_AGE = "child_age"

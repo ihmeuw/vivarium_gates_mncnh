@@ -4,7 +4,6 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.values import Pipeline
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
@@ -17,10 +16,6 @@ from vivarium_gates_mncnh.constants.metadata import PRETERM_AGE_CUTOFF
 
 
 class NeonatalCause(Component):
-    @property
-    def columns_required(self) -> list[str]:
-        return [COLUMNS.GESTATIONAL_AGE_EXPOSURE]
-
     @property
     def configuration_defaults(self) -> dict:
         return {
@@ -40,49 +35,57 @@ class NeonatalCause(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
+        self.csmrisk_table = self.build_lookup_table(builder, "csmrisk")
         # This is the ACMR PAF pipeline. For preterm we will get the custom preterm PAF
         self.lbwsg_acmr_paf = self.get_paf(builder)
         required_pipeline_resources = (
-            [self.lbwsg_acmr_paf] if isinstance(self.lbwsg_acmr_paf, Pipeline) else []
+            [PIPELINES.LBWSG_ACMR_PAF_MODIFIER] if self.lbwsg_acmr_paf is None else []
         )
-        # Register csmr pipeline
-        self.intermediate_csmr = builder.value.register_value_producer(
-            f"{self.neonatal_cause}.cause_specific_mortality_risk",
+        # Register csmr pipeline as attribute pipeline
+        self.csmr_pipeline_name = f"{self.neonatal_cause}.cause_specific_mortality_risk"
+        builder.value.register_attribute_producer(
+            self.csmr_pipeline_name,
             source=self.get_normalized_csmr,
-            component=self,
             required_resources=required_pipeline_resources,
         )
-        self.final_csmr = builder.value.register_value_producer(
+        # Register as attribute pipeline so the results system can observe it
+        builder.value.register_attribute_producer(
             f"{self.neonatal_cause}.csmr",
-            source=self.intermediate_csmr,
-            component=self,
+            source=self.get_intermediate_csmr,
         )
 
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
             modifier=self.modify_death_in_age_group_probability,
-            component=self,
             required_resources=required_pipeline_resources,
         )
         # Create CSMR PAF pipeline which will do nothing but is needed for the LBWSGRiskEffect
-        builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
             f"{self.neonatal_cause}.cause_specific_mortality_risk.paf",
             source=builder.lookup.build_table(0),
-            component=self,
         )
 
     ##################
     # Helper methods #
     ##################
 
-    def get_paf(self, builder: Builder) -> Pipeline:
-        return builder.value.get_value(PIPELINES.LBWSG_ACMR_PAF_MODIFIER)
+    def get_paf(self, builder: Builder) -> LookupTable | None:
+        return None
+
+    def get_intermediate_csmr(self, index: pd.Index) -> pd.Series:
+        return self.population_view.get_attributes(index, self.csmr_pipeline_name)
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
         # CSMR = CSMR * (1-PAF) * RR
         # NOTE: There is LBWSG RR on this pipeline
-        raw_csmr = self.lookup_tables["csmrisk"](index)
-        normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
+        raw_csmr = self.csmrisk_table(index)
+        if self.lbwsg_acmr_paf is not None:
+            paf = self.lbwsg_acmr_paf(index)
+        else:
+            paf = self.population_view.get_attributes(
+                index, PIPELINES.LBWSG_ACMR_PAF_MODIFIER
+            )
+        normalizing_constant = 1 - paf
         normalized_csmr = raw_csmr * normalizing_constant
 
         return normalized_csmr
@@ -90,8 +93,11 @@ class NeonatalCause(Component):
     def modify_death_in_age_group_probability(
         self, index: pd.Index, probability_death_in_age_group: pd.Series
     ) -> pd.Series:
-        intermediate_csmr = self.intermediate_csmr(index)
-        final_csmr = self.final_csmr(index)
+        intermediate_csmr = self.population_view.get_attributes(
+            index, self.csmr_pipeline_name
+        )
+        # final_csmr is the same as intermediate_csmr (it passes through)
+        final_csmr = intermediate_csmr
         # ACMR = ACMR - CSMR + CSMR
         modified_acmr = probability_death_in_age_group - intermediate_csmr + final_csmr
 
@@ -110,20 +116,25 @@ class PretermBirth(NeonatalCause):
             }
         }
 
+    def setup(self, builder: Builder) -> None:
+        self.paf_table = self.build_lookup_table(builder, "paf")
+        self.prevalence_table = self.build_lookup_table(builder, "prevalence")
+        super().setup(builder)
+
     def get_paf(self, _: Builder) -> LookupTable:
-        return self.lookup_tables["paf"]
+        return self.paf_table
 
     def get_normalized_csmr(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
-        ga_greater_than_37 = pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] >= PRETERM_AGE_CUTOFF
+        ga = self.population_view.get_attributes(index, COLUMNS.GESTATIONAL_AGE_EXPOSURE)
+        ga_greater_than_37 = ga >= PRETERM_AGE_CUTOFF
 
         # CSMR = (1 - PAF) * RR * (CSMR / PRETERM_PREVALENCE)
         # NOTE: This isn't technically a traditional PAF but it is the
         # PAF for the preterm population. We are accounting for this by
         # dividing the CSMR by the prevalence of the preterm categories
-        raw_csmr = self.lookup_tables["csmrisk"](index)
+        raw_csmr = self.csmrisk_table(index)
         normalizing_constant = 1 - self.lbwsg_acmr_paf(index)
-        prevalence = self.lookup_tables["prevalence"](index)
+        prevalence = self.prevalence_table(index)
         normalized_csmr = normalizing_constant * (raw_csmr / prevalence)
 
         # Set CSMR to 0 for those who are not preterm

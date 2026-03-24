@@ -8,7 +8,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness.stream import get_hash
-from vivarium.framework.resource import Resource
 
 from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_keys import PROPENSITY_CORRELATIONS
@@ -35,10 +34,9 @@ class CorrelatedPropensities(Component):
         self.propensities = self.get_all_propensities()
 
         for component in self.component_names:
-            builder.value.register_value_producer(
+            builder.value.register_attribute_producer(
                 f"{component}.correlated_propensity",
                 source=partial(self.get_component_propensity, component=component),
-                component=self,
             )
 
     def get_all_propensities(self) -> pd.DataFrame:
@@ -67,20 +65,15 @@ class CorrelatedPropensities(Component):
 
 
 class AnemiaInterventionPropensity(Component):
-    @property
-    def columns_created(self):
-        return [
-            COLUMNS.ANEMIA_INTERVENTION_PROPENSITY,
-        ]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.randomness]
-
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
+        builder.population.register_initializer(
+            self.initialize_propensity,
+            columns=[COLUMNS.ANEMIA_INTERVENTION_PROPENSITY],
+            required_resources=[self.randomness],
+        )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_propensity(self, pop_data: SimulantData) -> None:
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index),
             name=COLUMNS.ANEMIA_INTERVENTION_PROPENSITY,

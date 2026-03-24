@@ -13,7 +13,6 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks import RiskEffect
-from vivarium_public_health.utilities import get_lookup_columns
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, models
 from vivarium_gates_mncnh.constants.data_values import (
@@ -75,9 +74,7 @@ class InterventionRiskEffect(Component):
             self.modify_target_pipeline,
             component=self,
             required_resources=[self.col_required]
-            + get_lookup_columns(
-                [self.lookup_tables["paf"], self.lookup_tables["relative_risk"]]
-            ),
+            + [self.lookup_tables["paf"], self.lookup_tables["relative_risk"]],
         )
 
     ##################
@@ -131,14 +128,12 @@ class CPAPAndACSRiskEffect(Component):
             self.modify_target_pipeline,
             component=self,
             required_resources=self.columns_required
-            + get_lookup_columns(
-                [
-                    self.lookup_tables["no_cpap_relative_risk"],
-                    self.lookup_tables["no_cpap_paf"],
-                    self.lookup_tables["no_acs_relative_risk"],
-                    self.lookup_tables["no_acs_paf"],
-                ]
-            ),
+            + [
+                self.lookup_tables["no_cpap_relative_risk"],
+                self.lookup_tables["no_cpap_paf"],
+                self.lookup_tables["no_acs_relative_risk"],
+                self.lookup_tables["no_acs_paf"],
+            ],
         )
 
     def modify_target_pipeline(
