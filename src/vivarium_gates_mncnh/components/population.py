@@ -1,8 +1,7 @@
-from asyncio import Event
-
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium_public_health.population import BasePopulation, ScaledPopulation
 from vivarium_public_health.utilities import to_years

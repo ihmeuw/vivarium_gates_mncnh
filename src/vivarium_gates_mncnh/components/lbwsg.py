@@ -11,9 +11,7 @@ import pandas as pd
 from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
@@ -223,19 +221,28 @@ class LBWSGRisk(LBWSGRisk_):
         # adding an extra population configuration key
         self.configuration_age_end = 0.0
         self.categorical_propensity_pipeline_name = f"{self.name}.correlated_propensity"
+        # Register per-axis birth exposure pipelines so intervention modifiers
+        # can target them (e.g. IVIronEffectOnLBWSG, AdditiveRiskEffect).
+        builder.value.register_attribute_producer(
+            PIPELINES.GESTATIONAL_AGE_EXPOSURE,
+            source=lambda index: self.population_view.get_attributes(
+                index, COLUMNS.GESTATIONAL_AGE_EXPOSURE
+            ),
+            required_resources=[COLUMNS.GESTATIONAL_AGE_EXPOSURE],
+        )
+        builder.value.register_attribute_producer(
+            PIPELINES.BIRTH_WEIGHT_EXPOSURE,
+            source=lambda index: self.population_view.get_attributes(
+                index, COLUMNS.BIRTH_WEIGHT_EXPOSURE
+            ),
+            required_resources=[COLUMNS.BIRTH_WEIGHT_EXPOSURE],
+        )
         # Register initializer for child's custom propensity columns (separate
         # from parent's propensity columns)
         builder.population.register_initializer(
             initializer=self.initialize_custom_propensities,
             columns=[self.continuous_propensity_column_name[axis] for axis in AXES],
             required_resources=[self.randomness],
-        )
-        # SBACHMEI - remove this dummy lookup table and attribute producer when enabling
-        # LBWSGRiskEffect in batch 3 — it will register the real PAF pipeline)
-        no_paf = builder.lookup.build_table(0)
-        builder.value.register_attribute_producer(
-            PIPELINES.LBWSG_ACMR_PAF_MODIFIER,
-            source=no_paf,
         )
 
     def initialize_custom_propensities(self, pop_data: SimulantData) -> None:
@@ -308,31 +315,23 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     accessible by the neonatal causes component. The ACMR PAF will be used to calculate a
     normalizing constant to modify CSMR pipelines for neonatal causes."""
 
-    @property
-    def columns_required(self) -> list[str] | None:
-        return [COLUMNS.CHILD_AGE, COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
-
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        # Paf pipeline needs to be registered before the super setup is called
-        self.paf = builder.value.register_value_producer(
-            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
-            source=self.lookup_tables["population_attributable_fraction"],
-            component=self,
-            required_resources=[self.lookup_tables["population_attributable_fraction"]],
+        self.paf_pipeline_name = (
+            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
         )
         super().setup(builder)
 
     def register_paf_modifier(self, builder):
-        builder.value.register_value_modifier(
-            self.target_paf_pipeline_name,
-            modifier=self.paf,
-            component=self,
-            required_resources=[self.lookup_tables["population_attributable_fraction"]],
+        # Register the custom PAF pipeline so neonatal causes can access it
+        builder.value.register_attribute_producer(
+            self.paf_pipeline_name,
+            source=self.paf_table,
+            required_resources=[self.paf_table],
+        )
+        builder.value.register_attribute_modifier(
+            self.target_paf_name,
+            modifier=self.paf_table,
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
@@ -355,11 +354,10 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             for age_start in exposed_age_group_starts
         }
 
-    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
-            self.relative_risk_pipeline_name,
+    def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.relative_risk_name,
             source=self._relative_risk_source,
-            component=self,
             required_resources=[COLUMNS.CHILD_AGE] + self.rr_column_names,
         )
 
@@ -392,15 +390,17 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         return interpolators
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
-        relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
+        pop = self.population_view.get_attributes(
+            index, [COLUMNS.CHILD_AGE] + self.rr_column_names
+        )
+        relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_name)
 
         for age_group, interval in self.age_intervals.items():
             age_group_mask = (interval.left <= pop[COLUMNS.CHILD_AGE]) & (
                 pop[COLUMNS.CHILD_AGE] < interval.right
             )
             relative_risk[age_group_mask] = pop.loc[
-                age_group_mask, self.relative_risk_column_name(age_group)
+                age_group_mask, self.get_relative_risk_column_name(age_group)
             ]
         return relative_risk
 
@@ -408,10 +408,10 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_relative_risk(self, pop_data: SimulantData) -> None:
         relative_risk_data = pd.DataFrame(
             {
-                self.relative_risk_column_name(age_group): np.nan
+                self.get_relative_risk_column_name(age_group): np.nan
                 for age_group in self.age_intervals
             },
             index=pop_data.index,
@@ -422,11 +422,12 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.ULTRASOUND:
             return
 
-        pop = self.population_view.subview(
-            [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
-        ).get(event.index)
-        birth_weight = pop[LBWSGRisk_.get_exposure_column_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk_.get_exposure_column_name(GESTATIONAL_AGE)]
+        lbwsg_exposure_columns = [LBWSGRisk.get_exposure_name(axis) for axis in AXES]
+        pop = self.population_view.get_attributes(
+            event.index, [COLUMNS.SEX_OF_CHILD] + lbwsg_exposure_columns
+        )
+        birth_weight = pop[LBWSGRisk.get_exposure_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk.get_exposure_name(GESTATIONAL_AGE)]
 
         is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
@@ -434,7 +435,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         )
 
         def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
-            column_name = self.relative_risk_column_name(age_group)
+            column_name = self.get_relative_risk_column_name(age_group)
             log_relative_risk = pd.Series(0.0, index=event.index, name=column_name)
 
             male_interpolator = self.interpolator["Male", age_group]
@@ -464,20 +465,18 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 class LBWSGPAFRiskEffect(LBWSGRiskEffect):
     def setup(self, builder: Builder) -> None:
         # subclass setup so we don't define sim step name attribute
-        self.paf = builder.value.register_value_producer(
-            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf",
-            source=self.lookup_tables["population_attributable_fraction"],
-            component=self,
-            required_resources=[self.lookup_tables["population_attributable_fraction"]],
+        self.paf_pipeline_name = (
+            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
         )
         super(LBWSGRiskEffect, self).setup(builder)
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        pop = self.population_view.subview(
-            [COLUMNS.SEX_OF_CHILD] + self.lbwsg_exposure_column_names
-        ).get(pop_data.index)
-        birth_weight = pop[LBWSGRisk_.get_exposure_column_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk_.get_exposure_column_name(GESTATIONAL_AGE)]
+    def initialize_relative_risk(self, pop_data: SimulantData) -> None:
+        lbwsg_exposure_columns = [LBWSGRisk.get_exposure_name(axis) for axis in AXES]
+        pop = self.population_view.get_attributes(
+            pop_data.index, [COLUMNS.SEX_OF_CHILD] + lbwsg_exposure_columns
+        )
+        birth_weight = pop[LBWSGRisk.get_exposure_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk.get_exposure_name(GESTATIONAL_AGE)]
 
         is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
@@ -485,7 +484,7 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
         )
 
         def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
-            column_name = self.relative_risk_column_name(age_group)
+            column_name = self.get_relative_risk_column_name(age_group)
             log_relative_risk = pd.Series(0.0, index=pop_data.index, name=column_name)
 
             male_interpolator = self.interpolator["Male", age_group]
@@ -513,46 +512,39 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
 
 
 class LBWSGPAFCalculationExposure(LBWSGRisk):
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["child_age", "sex_of_child"]
-
-    @property
-    def columns_created(self) -> list[str]:
-        return [self.get_exposure_column_name(axis) for axis in self.AXES] + [
-            "lbwsg_category",
-            "age_bin",
-        ]
-
     def setup(self, builder: Builder) -> None:
         # call grandparent setup avoid defining sim step name attribute
         super(LBWSGRisk, self).setup(builder)
         self.configuration_age_end = 0.0
-        self.categorical_propensity = builder.value.get_value(
-            f"{self.name}.correlated_propensity"
-        )
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
         self.age_bins = builder.data.load(data_keys.POPULATION.AGE_BINS)
+        created_columns = [self.get_exposure_name(axis) for axis in self.AXES] + [
+            "lbwsg_category",
+            "age_bin",
+        ]
+        builder.population.register_initializer(
+            initializer=self.initialize_paf_exposure,
+            columns=created_columns,
+            required_resources=["child_age", "sex_of_child"],
+        )
 
-    def get_birth_exposure_pipelines(self, builder: Builder) -> dict[str, Pipeline]:
-        def get_pipeline(axis_: str):
-            return builder.value.register_value_producer(
-                self.birth_exposure_pipeline_name(axis_),
-                source=lambda index: self.get_birth_exposure(axis_, index),
-                requires_columns=["child_age", "sex_of_child"],
+    def get_birth_exposure_pipelines(self, builder: Builder) -> None:
+        for axis in self.AXES:
+            builder.value.register_attribute_producer(
+                self.birth_exposure_pipeline_name(axis),
+                source=lambda index, a=axis: self.get_birth_exposure(a, index),
+                required_resources=["child_age", "sex_of_child"],
                 preferred_post_processor=get_exposure_post_processor(builder, self.risk),
             )
-
-        return {
-            self.birth_exposure_pipeline_name(axis): get_pipeline(axis) for axis in self.AXES
-        }
 
     ########################
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        pop = self.population_view.subview(["child_age", "sex_of_child"]).get(pop_data.index)
+    def initialize_paf_exposure(self, pop_data: SimulantData) -> None:
+        pop = self.population_view.get_attributes(
+            pop_data.index, ["child_age", "sex_of_child"]
+        )
         pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
         pop = pop.sort_values(["sex_of_child", "child_age"])
 
@@ -573,16 +565,18 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         self.population_view.update(pop[["age_bin", "lbwsg_category"]])
 
         birth_exposures = {
-            self.get_exposure_column_name(axis): self.birth_exposures[
-                self.birth_exposure_pipeline_name(axis)
-            ](pop_data.index)
+            self.get_exposure_name(axis): self.population_view.get_attributes(
+                pop_data.index, self.birth_exposure_pipeline_name(axis)
+            )
             for axis in self.AXES
         }
         self.population_view.update(pd.DataFrame(birth_exposures))
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the age bins to match the simulants' ages."""
-        pop = self.population_view.subview(["child_age", "sex_of_child"]).get(event.index)
+        pop = self.population_view.get_attributes(
+            event.index, ["child_age", "sex_of_child"]
+        )
         pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
         self.population_view.update(pop["age_bin"])
 
@@ -591,8 +585,8 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
     ##################################
 
     def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        pop = self.population_view.subview(["age_bin", "sex_of_child", "lbwsg_category"]).get(
-            index
+        pop = self.population_view.get_attributes(
+            index, ["age_bin", "sex_of_child", "lbwsg_category"]
         )
         lbwsg_categories = self.lbwsg_categories.keys()
         num_simulants_in_category = int(len(pop) / (len(lbwsg_categories) * 2))
@@ -655,16 +649,6 @@ class LBWSGPAFObserver(Component):
         }
     }
 
-    @property
-    def columns_required(self) -> list[str] | None:
-        return [
-            "lbwsg_category",
-            "gestational_age_exposure",
-            "age_bin",
-            "child_alive",
-            "sex_of_child",
-        ]
-
     def __init__(self, target: str):
         super().__init__()
         self.target = TargetString(target)
@@ -693,7 +677,7 @@ class LBWSGPAFObserver(Component):
             pop_filter="gestational_age_exposure < 37",
             aggregator=self.calculate_paf,
             results_updater=self.results_updater,
-            requires_columns=["gestational_age_exposure"],
+            requires_attributes=["gestational_age_exposure"],
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step",
@@ -719,7 +703,7 @@ class LBWSGPAFObserver(Component):
     def calculate_paf(self, x: pd.DataFrame) -> float:
         relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
         relative_risk.name = "relative_risk"
-        lbwsg_category = self.population_view.get(x.index)["lbwsg_category"]
+        lbwsg_category = self.population_view.get_attributes(x.index, "lbwsg_category")
         unique_sexes = x["sex_of_child"].unique()
         if len(unique_sexes) != 1:
             raise ValueError(
@@ -766,10 +750,6 @@ class PretermPrevalenceObserver(Component):
             }
         }
     }
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["gestational_age_exposure", "lbwsg_category", "child_alive", "sex_of_child"]
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -862,17 +842,6 @@ class LBWSGMortality(Component):
             }
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.CHILD_AGE,
-            COLUMNS.CHILD_ALIVE,
-        ]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -881,20 +850,31 @@ class LBWSGMortality(Component):
         self.randomness = builder.randomness.get_stream(self.name, self)
         self.causes_of_death = ["other_causes"]
 
-        # Register pipelines
-        self.acmr_paf = self.get_acmr_paf_pipeline(builder)
+        self.all_cause_mortality_risk = self.build_lookup_table(
+            builder, "all_cause_mortality_risk"
+        )
+        self.life_expectancy = self.build_lookup_table(builder, "life_expectancy")
 
-        self.all_cause_mortality_risk = builder.value.register_value_producer(
-            PIPELINES.ACMR,
-            source=self.get_acmr_pipeline,
-            component=self,
-            required_resources=[
-                self.lookup_tables["all_cause_mortality_risk"],
-                self.acmr_paf,
-            ],
+        builder.population.register_initializer(
+            initializer=self.initialize_mortality,
+            columns=[COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST],
+            required_resources=[COLUMNS.CHILD_AGE, COLUMNS.CHILD_ALIVE],
         )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        # Register pipelines
+        self.get_acmr_paf_pipeline(builder)
+
+        builder.value.register_attribute_producer(
+            PIPELINES.ACMR,
+            source=self.get_acmr_pipeline,
+            required_resources=[PIPELINES.ACMR_PAF],
+        )
+
+        builder.value.register_attribute_modifier(
+            COLUMNS.CHILD_ALIVE, self.modify_child_alive
+        )
+
+    def initialize_mortality(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
                 COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
@@ -905,9 +885,9 @@ class LBWSGMortality(Component):
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get(event.index)
-        alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
-        mortality_risk = self.all_cause_mortality_risk(alive_idx)
+        child_alive = self.population_view.get_attributes(event.index, COLUMNS.CHILD_ALIVE)
+        alive_idx = child_alive.index[child_alive == "alive"]
+        mortality_risk = self.population_view.get_attributes(alive_idx, PIPELINES.ACMR)
 
         # Determine which neonates die and update metadata
         dead_idx = self.randomness.filter_for_probability(
@@ -916,13 +896,26 @@ class LBWSGMortality(Component):
             "lbwsg_mortality",
         )
         if not dead_idx.empty:
-            pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
-            pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = "other_causes"
-            pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.lookup_tables[
-                "life_expectancy"
-            ](dead_idx)
+            self._newly_dead_idx = dead_idx
 
-        self.population_view.update(pop)
+            cause_of_death = self.population_view.get_private_columns(
+                event.index, COLUMNS.CHILD_CAUSE_OF_DEATH
+            )
+            ylls = self.population_view.get_private_columns(
+                event.index, COLUMNS.CHILD_YEARS_OF_LIFE_LOST
+            )
+            cause_of_death.loc[dead_idx] = "other_causes"
+            ylls.loc[dead_idx] = self.life_expectancy(dead_idx)
+            self.population_view.update(cause_of_death)
+            self.population_view.update(ylls)
+
+    def modify_child_alive(self, index: pd.Index, child_alive: pd.Series) -> pd.Series:
+        """Attribute modifier for child_alive; marks newly dead neonates."""
+        dead_idx = getattr(self, "_newly_dead_idx", pd.Index([]))
+        overlap = dead_idx.intersection(index)
+        if not overlap.empty:
+            child_alive.loc[overlap] = "dead"
+        return child_alive
 
     ##################
     # Helper methods #
@@ -943,15 +936,15 @@ class LBWSGMortality(Component):
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
 
-    def get_acmr_pipeline(self, index: pd.Index) -> Pipeline:
+    def get_acmr_pipeline(self, index: pd.Index) -> pd.Series:
         # NOTE: This will be modified by the LBWSGRiskEffect
-        acmr = self.lookup_tables["all_cause_mortality_risk"](index)
-        paf = self.acmr_paf(index)
+        acmr = self.all_cause_mortality_risk(index)
+        paf = self.population_view.get_attributes(index, PIPELINES.ACMR_PAF)
         return acmr * (1 - paf)
 
-    def get_acmr_paf_pipeline(self, builder: Builder) -> Pipeline:
+    def get_acmr_paf_pipeline(self, builder: Builder) -> None:
         acmr_paf = builder.lookup.build_table(0)
-        return builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
             PIPELINES.ACMR_PAF,
             source=lambda index: [acmr_paf(index)],
             preferred_combiner=list_combiner,
@@ -979,9 +972,9 @@ def parse_short_gestation_description(description: str) -> pd.Interval:
 def calculate_mortality_weights(component: Component, sex: str) -> pd.Series:
     """Calculate percentage of simulants alive within a LBWSG category for a given sex."""
     full_index = pd.Index(range(component.pop_size))
-    pop_data = component.population_view.get(full_index)[
-        ["lbwsg_category", "child_alive", "sex_of_child"]
-    ]
+    pop_data = component.population_view.get_attributes(
+        full_index, ["lbwsg_category", "child_alive", "sex_of_child"]
+    )
     pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
     weights = (
         pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]

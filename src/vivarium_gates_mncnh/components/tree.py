@@ -43,11 +43,6 @@ class DecisionTreeState(TransientState):
         self.update_column = update_col
         self.update_value = update_value
 
-    @property
-    def columns_required(self) -> list[str]:
-        return [self.update_column]
-
     def transition_side_effect(self, index: pd.Index, _event_time: ClockTime) -> None:
-        pop = self.population_view.get(index)
-        pop[self.update_column] = self.update_value
-        self.population_view.update(pop)
+        update = pd.Series(self.update_value, index=index, name=self.update_column)
+        self.population_view.update(update)

@@ -16,11 +16,6 @@ from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT
 
 class Hemoglobin(Risk):
     @property
-    def columns_created(self):
-        risk_cols = super().columns_created
-        return risk_cols + [COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE]
-
-    @property
     def time_step_priority(self) -> int:
         # update state table hemoglobin after oral iron
         return 9
@@ -43,33 +38,35 @@ class Hemoglobin(Risk):
             .reset_index()
             .value[0]
         )
+        self.anc1_table = self.build_lookup_table(
+            builder=builder,
+            name="ANC1",
+            data_source=builder.data.load(data_keys.ANC.ANC1),
+            value_columns="value",
+        )
+        builder.population.register_initializer(
+            self.initialize_hemoglobin_columns,
+            columns=[
+                COLUMNS.HEMOGLOBIN_EXPOSURE,
+                COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE,
+            ],
+        )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        # leave handling of exposure column to this class rather than the parent class
-        self.create_exposure_column = False
-        super().on_initialize_simulants(pop_data)
-        hemoglobin = pd.DataFrame({COLUMNS.HEMOGLOBIN_EXPOSURE: np.nan}, index=pop_data.index)
-        first_trimester_hemoglobin = pd.DataFrame(
+    def initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:
+        pop = pd.DataFrame(
             {
+                COLUMNS.HEMOGLOBIN_EXPOSURE: np.nan,
                 COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE: np.nan,
             },
             index=pop_data.index,
         )
-        pop = pd.concat([hemoglobin, first_trimester_hemoglobin], axis=1)
         self.population_view.update(pop)
-
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        self.lookup_tables["ANC1"] = self.build_lookup_table(
-            builder=builder,
-            data_source=builder.data.load(data_keys.ANC.ANC1),
-            value_columns=["value"],
-        )
 
     def get_current_exposure(self, index: pd.Index) -> pd.Series:
         propensity = self.propensity(index)
         gbd_exposure = pd.Series(self.exposure_distribution.ppf(propensity), index=index)
         return gbd_exposure - (
-            self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
+            self.ifa_effect_size * self.ifa_coverage * self.anc1_table(index)
         )
 
     ########################
@@ -83,16 +80,20 @@ class Hemoglobin(Risk):
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
             return
-        pop = self.population_view.get(event.index)
-        pop[COLUMNS.HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
-        self.population_view.update(pop)
+        hemoglobin_exposure = self.population_view.get_attributes(
+            event.index, self.exposure_name
+        )
+        hemoglobin_exposure.name = COLUMNS.HEMOGLOBIN_EXPOSURE
+        self.population_view.update(hemoglobin_exposure)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
             return
-        pop = self.population_view.get(event.index)
-        pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
-        self.population_view.update(pop)
+        first_trimester_exposure = self.population_view.get_attributes(
+            event.index, self.exposure_name
+        )
+        first_trimester_exposure.name = COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE
+        self.population_view.update(first_trimester_exposure)
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):
@@ -100,7 +101,7 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     These are 1) define the RR for the minimum exposure to be the maximum rather than minimum value
     (higher hemoglobin is protective at this level of exposure) and 2) allow RRs to be below 1."""
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
+    def build_rr_lookup_table(self, builder: Builder) -> "LookupTable":
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
@@ -135,15 +136,16 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
         rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, rr_data, rr_value_cols
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
         )
 
+    def build_paf_lookup_table(self, builder: Builder) -> "LookupTable":
         paf_data = self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
+        return self.build_lookup_table(
+            builder, "population_attributable_fraction", data_source=paf_data
         )
 
     def load_relative_risk(

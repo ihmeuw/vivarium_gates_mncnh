@@ -55,14 +55,6 @@ class InterventionAccess(Component):
             }
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [self.intervention_column]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return INTERVENTION_TYPE_COLUMN_MAP[self.intervention_type]
-
     def __init__(self, intervention: str) -> None:
         super().__init__()
         self.intervention = intervention
@@ -74,9 +66,23 @@ class InterventionAccess(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
+        self.bemonc_access_probability = self.build_lookup_table(
+            builder, "bemonc_access_probability"
+        )
+        self.cemonc_access_probability = self.build_lookup_table(
+            builder, "cemonc_access_probability"
+        )
+        self.home_access_probability = self.build_lookup_table(
+            builder, "home_access_probability"
+        )
         self.coverage_values = self.get_coverage_values()
+        builder.population.register_initializer(
+            self.initialize_intervention_access,
+            columns=[self.intervention_column],
+            required_resources=INTERVENTION_TYPE_COLUMN_MAP[self.intervention_type],
+        )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_intervention_access(self, pop_data: SimulantData) -> None:
         simulants = pd.DataFrame(
             {
                 self.intervention_column: False,
@@ -89,14 +95,17 @@ class InterventionAccess(Component):
         if self._sim_step_name() != self.time_step:
             return
 
-        pop = self.population_view.get(event.index)
-        pop = self.filter_pop_for_intervention(pop)
+        required_cols = INTERVENTION_TYPE_COLUMN_MAP[self.intervention_type]
+        attrs = self.population_view.get_attributes(event.index, required_cols)
+        eligible_idx = self._get_eligible_index(attrs)
 
         for (
             facility_type,
             coverage_value,
         ) in self.coverage_values.items():
-            facility_idx = pop.index[pop[COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type]
+            facility_idx = attrs.loc[eligible_idx].index[
+                attrs.loc[eligible_idx, COLUMNS.DELIVERY_FACILITY_TYPE] == facility_type
+            ]
             coverage_value = (
                 coverage_value
                 if isinstance(coverage_value, float)
@@ -107,15 +116,16 @@ class InterventionAccess(Component):
                 coverage_value,
                 f"{self.intervention}_access_{facility_type}",
             )
-            pop.loc[get_intervention_idx, self.intervention_column] = True
-
-        self.population_view.update(pop)
+            intervention_col = pd.Series(
+                True, index=get_intervention_idx, name=self.intervention_column
+            )
+            self.population_view.update(intervention_col)
 
     def get_coverage_values(self) -> dict[str, float]:
         delivery_facility_access_probabilities = {
-            DELIVERY_FACILITY_TYPES.BEmONC: self.lookup_tables["bemonc_access_probability"],
-            DELIVERY_FACILITY_TYPES.CEmONC: self.lookup_tables["cemonc_access_probability"],
-            DELIVERY_FACILITY_TYPES.HOME: self.lookup_tables["home_access_probability"],
+            DELIVERY_FACILITY_TYPES.BEmONC: self.bemonc_access_probability,
+            DELIVERY_FACILITY_TYPES.CEmONC: self.cemonc_access_probability,
+            DELIVERY_FACILITY_TYPES.HOME: self.home_access_probability,
         }
         bemonc_scenario = getattr(
             self.scenario, f"bemonc_{self.intervention}_access", "baseline"
@@ -152,40 +162,32 @@ class InterventionAccess(Component):
         )
         return data
 
-    def filter_pop_for_intervention(self, pop: pd.DataFrame) -> pd.DataFrame:
+    def _get_eligible_index(self, attrs: pd.DataFrame) -> pd.Index:
+        """Return the index of simulants eligible for this intervention."""
+        eligible = attrs
         # Only live births are considered for neonatal interventions
         if self.intervention_type == "neonatal":
-            pop = pop.loc[
-                pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
+            eligible = eligible.loc[
+                eligible[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
             ]
         # If intervention is probiotics, filter for preterm births
         if self.intervention == INTERVENTIONS.PROBIOTICS:
-            pop = pop.loc[pop[COLUMNS.GESTATIONAL_AGE_EXPOSURE] < PRETERM_AGE_CUTOFF]
+            eligible = eligible.loc[
+                eligible[COLUMNS.GESTATIONAL_AGE_EXPOSURE] < PRETERM_AGE_CUTOFF
+            ]
         # Misoprostol is only available to mothers who attended ANC and gave birth at home
         if self.intervention == INTERVENTIONS.MISOPROSTOL:
-            pop = pop.loc[
-                (pop[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE)  # attended ANC
-                & (pop[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
+            eligible = eligible.loc[
+                (eligible[COLUMNS.ANC_ATTENDANCE] != ANC_ATTENDANCE_TYPES.NONE)
+                & (eligible[COLUMNS.DELIVERY_FACILITY_TYPE] == DELIVERY_FACILITY_TYPES.HOME)
             ]
-        return pop
+        return eligible.index
 
 
 class ACSAccess(Component):
     """Component for determining if a simulant has access to antenatal corticosteroids (ACS).
     We do this by making ACS available to everyone who has access to CPAP and a predicted
     gestational age between 26 and 33 weeks."""
-
-    @property
-    def columns_created(self) -> list[str]:
-        return [COLUMNS.ACS_AVAILABLE]
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [
-            COLUMNS.CPAP_AVAILABLE,
-            COLUMNS.STATED_GESTATIONAL_AGE,
-            COLUMNS.PREGNANCY_OUTCOME,
-        ]
 
     def __init__(self) -> None:
         super().__init__()
@@ -194,8 +196,17 @@ class ACSAccess(Component):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
+        builder.population.register_initializer(
+            self.initialize_acs_access,
+            columns=[COLUMNS.ACS_AVAILABLE],
+            required_resources=[
+                COLUMNS.CPAP_AVAILABLE,
+                COLUMNS.STATED_GESTATIONAL_AGE,
+                COLUMNS.PREGNANCY_OUTCOME,
+            ],
+        )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_acs_access(self, pop_data: SimulantData) -> None:
         simulants = pd.DataFrame(
             {
                 COLUMNS.ACS_AVAILABLE: False,
@@ -210,12 +221,21 @@ class ACSAccess(Component):
         if self.scenario.acs_access == "none":
             return
 
-        pop = self.population_view.get(event.index)
-        pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
-        is_early_or_moderate_preterm = pop.loc[
-            pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        attrs = self.population_view.get_attributes(
+            event.index,
+            [
+                COLUMNS.PREGNANCY_OUTCOME,
+                COLUMNS.STATED_GESTATIONAL_AGE,
+                COLUMNS.CPAP_AVAILABLE,
+            ],
+        )
+        live_births = attrs.loc[
+            attrs[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         ]
-        has_cpap = pop.loc[pop[COLUMNS.CPAP_AVAILABLE] == True]
+        is_early_or_moderate_preterm = live_births.loc[
+            live_births[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        ]
+        has_cpap = live_births.loc[live_births[COLUMNS.CPAP_AVAILABLE] == True]
         has_acs = is_early_or_moderate_preterm.index.intersection(has_cpap.index)
-        pop.loc[has_acs, COLUMNS.ACS_AVAILABLE] = True
-        self.population_view.update(pop)
+        acs_update = pd.Series(True, index=has_acs, name=COLUMNS.ACS_AVAILABLE)
+        self.population_view.update(acs_update)

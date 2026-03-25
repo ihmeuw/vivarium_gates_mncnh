@@ -7,7 +7,6 @@ import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
 from vivarium_public_health.results import COLUMNS, PublicHealthObserver
 from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
 
@@ -134,23 +133,21 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_attributes=[COLUMNS.ULTRASOUND_TYPE],
         )
-        # SBACHMEI - DON'T FORGET TO UNCOMMENT batch 2+ stratifications
-        # when those components are added
-        # builder.results.register_stratification(
-        #     "cpap_availability",
-        #     [True, False],
-        #     requires_attributes=[COLUMNS.CPAP_AVAILABLE],
-        # )
-        # builder.results.register_stratification(
-        #     "antibiotics_availability",
-        #     [True, False],
-        #     requires_attributes=[COLUMNS.ANTIBIOTICS_AVAILABLE],
-        # )
-        # builder.results.register_stratification(
-        #     "probiotics_availability",
-        #     [True, False],
-        #     requires_attributes=[COLUMNS.PROBIOTICS_AVAILABLE],
-        # )
+        builder.results.register_stratification(
+            "cpap_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.CPAP_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "antibiotics_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.ANTIBIOTICS_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "probiotics_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.PROBIOTICS_AVAILABLE],
+        )
         builder.results.register_stratification(
             "believed_preterm",
             [True, False],
@@ -179,66 +176,65 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_attributes=[PIPELINES.HEMOGLOBIN_EXPOSURE],
         )
-        # SBACHMEI - DON'T FORGET TO UNCOMMENT batch 2+ stratifications (cont.)
-        # builder.results.register_stratification(
-        #     "acs_availability",
-        #     [True, False],
-        #     requires_attributes=[COLUMNS.ACS_AVAILABLE],
-        # )
-        # builder.results.register_stratification(
-        #     "azithromycin_availability",
-        #     [True, False],
-        #     requires_attributes=[COLUMNS.AZITHROMYCIN_AVAILABLE],
-        # )
-        # builder.results.register_stratification(
-        #     "misoprostol_availability",
-        #     [True, False],
-        #     requires_attributes=[COLUMNS.MISOPROSTOL_AVAILABLE],
-        # )
-        # builder.results.register_stratification(
-        #     "oral_iron_coverage",
-        #     ["ifa", "mms", "none"],
-        #     mapper=self.map_oral_iron_coverage,
-        #     is_vectorized=True,
-        #     requires_attributes=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
-        # )
-        # builder.results.register_stratification(
-        #     "iv_iron_coverage",
-        #     ["covered", "uncovered"],
-        #     is_vectorized=True,
-        #     requires_attributes=[COLUMNS.IV_IRON_INTERVENTION],
-        # )
-        # builder.results.register_stratification(
-        #     "hemoglobin_screening_coverage",
-        #     [True, False],
-        #     is_vectorized=True,
-        #     requires_attributes=[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE],
-        # )
-        # builder.results.register_stratification(
-        #     "ferritin_screening_coverage",
-        #     [True, False],
-        #     is_vectorized=True,
-        #     requires_attributes=[COLUMNS.FERRITIN_SCREENING_COVERAGE],
-        # )
-        # builder.results.register_stratification(
-        #     "true_hemoglobin_exposure",
-        #     ["low", "adequate"],
-        #     mapper=self.map_true_hemoglobin,
-        #     is_vectorized=True,
-        #     requires_attributes=[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE],
-        # )
-        # builder.results.register_stratification(
-        #     "tested_hemoglobin_exposure",
-        #     ["low", "adequate", "not_tested"],
-        #     is_vectorized=True,
-        #     requires_attributes=[COLUMNS.TESTED_HEMOGLOBIN],
-        # )
-        # builder.results.register_stratification(
-        #     "ferritin_status",
-        #     ["low", "adequate", "not_tested"],
-        #     is_vectorized=True,
-        #     requires_attributes=[COLUMNS.TESTED_FERRITIN],
-        # )
+        builder.results.register_stratification(
+            "acs_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.ACS_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "azithromycin_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.AZITHROMYCIN_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "misoprostol_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.MISOPROSTOL_AVAILABLE],
+        )
+        builder.results.register_stratification(
+            "oral_iron_coverage",
+            ["ifa", "mms", "none"],
+            mapper=self.map_oral_iron_coverage,
+            is_vectorized=True,
+            requires_attributes=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
+        )
+        builder.results.register_stratification(
+            "iv_iron_coverage",
+            ["covered", "uncovered"],
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.IV_IRON_INTERVENTION],
+        )
+        builder.results.register_stratification(
+            "hemoglobin_screening_coverage",
+            [True, False],
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE],
+        )
+        builder.results.register_stratification(
+            "ferritin_screening_coverage",
+            [True, False],
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.FERRITIN_SCREENING_COVERAGE],
+        )
+        builder.results.register_stratification(
+            "true_hemoglobin_exposure",
+            ["low", "adequate"],
+            mapper=self.map_true_hemoglobin,
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE],
+        )
+        builder.results.register_stratification(
+            "tested_hemoglobin_exposure",
+            ["low", "adequate", "not_tested"],
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.TESTED_HEMOGLOBIN],
+        )
+        builder.results.register_stratification(
+            "ferritin_status",
+            ["low", "adequate", "not_tested"],
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.TESTED_FERRITIN],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
@@ -580,22 +576,18 @@ class AnemiaYLDsObserver(PublicHealthObserver):
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        self.hemoglobin = builder.value.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)
-        self.gestational_age = builder.value.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
 
     def register_observations(self, builder: Builder) -> None:
         self.register_adding_observation(
             builder=builder,
             name="anemia_ylds",
             when="time_step__prepare",
-            pop_filter='tracked == True and alive == "alive"',
-            requires_columns=[
+            pop_filter=f"{COLUMNS.MOTHER_IS_ALIVE} == True",
+            requires_attributes=[
                 COLUMNS.TIME_OF_FIRST_ANC_VISIT,
                 COLUMNS.TIME_OF_LATER_ANC_VISIT,
                 COLUMNS.ANC_ATTENDANCE,
-                "alive",
-            ],
-            requires_values=[
+                COLUMNS.MOTHER_IS_ALIVE,
                 PIPELINES.HEMOGLOBIN_EXPOSURE,
                 PIPELINES.GESTATIONAL_AGE_EXPOSURE,
             ],
@@ -608,14 +600,12 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             builder=builder,
             name="anemia_person_time",
             when="time_step__prepare",
-            pop_filter='tracked == True and alive == "alive"',
-            requires_columns=[
+            pop_filter=f"{COLUMNS.MOTHER_IS_ALIVE} == True",
+            requires_attributes=[
                 COLUMNS.TIME_OF_FIRST_ANC_VISIT,
                 COLUMNS.TIME_OF_LATER_ANC_VISIT,
                 COLUMNS.ANC_ATTENDANCE,
-                "alive",
-            ],
-            requires_values=[
+                COLUMNS.MOTHER_IS_ALIVE,
                 PIPELINES.HEMOGLOBIN_EXPOSURE,
                 PIPELINES.GESTATIONAL_AGE_EXPOSURE,
             ],
@@ -646,7 +636,10 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         age exposure will be modified by any iron interventions received at a
         first trimester ANC visit.
         """
-        anemia_status = get_anemia_status_from_hemoglobin(self.hemoglobin(data.index))
+        hemoglobin = self.population_view.get_attributes(
+            data.index, PIPELINES.HEMOGLOBIN_EXPOSURE
+        )
+        anemia_status = get_anemia_status_from_hemoglobin(hemoglobin)
         dw = self.get_disability_weight_from_anemia_status(anemia_status)
         duration_years = self._get_duration_years(data)
         ylds = dw * duration_years
@@ -702,7 +695,11 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         )
         later_visit_years = later_visit_years.fillna(TIME_OF_LATER_ANC_VISIT_PLACEHOLDER)
         gestational_age_years = (
-            self.gestational_age(data.index) * DAYS_PER_WEEK / DAYS_PER_YEAR
+            self.population_view.get_attributes(
+                data.index, PIPELINES.GESTATIONAL_AGE_EXPOSURE
+            )
+            * DAYS_PER_WEEK
+            / DAYS_PER_YEAR
         )
         return gestational_age_years - later_visit_years
 
@@ -738,7 +735,7 @@ class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
                 pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
                 requires_attributes=[
                     COLUMNS.PREGNANCY_OUTCOME,
-                    f"effect_of_low_birth_weight_and_short_gestation_on_{cause}.relative_risk",
+                    f"low_birth_weight_and_short_gestation_on_{cause}.relative_risk",
                 ],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
