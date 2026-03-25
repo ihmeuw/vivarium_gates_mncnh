@@ -19,6 +19,10 @@ from vivarium_gates_mncnh.utilities import (
 # Constant scalar values #
 ##########################
 
+# Time conversion constants
+DAYS_PER_YEAR = 365.25
+DAYS_PER_WEEK = 7
+
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
@@ -26,6 +30,13 @@ LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 EARLY_NEONATAL_AGE_START = 0.0  # 0 days
 LATE_NEONATAL_AGE_START = 0.01917808  # 7 days
 LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
+
+# Placeholder visit times for those who didn't attend ANC
+# The particular values don't matter in terms of the final results,
+# and are defined as the earliest possible time that the earliest
+# simulant could have visited
+TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER = 6 / 52
+TIME_OF_LATER_ANC_VISIT_PLACEHOLDER = 12 / 52
 
 
 class __PregnancyOutcome(NamedTuple):
@@ -55,6 +66,7 @@ class _SimulationEventNames(NamedTuple):
     FIRST_TRIMESTER_ANC = "first_trimester_anc"
     LATER_PREGNANCY_SCREENING = "later_pregnancy_screening"
     LATER_PREGNANCY_INTERVENTION = "later_pregnancy_intervention"
+    LATER_PREGNANCY_VISIT_TIMING = "later_pregnancy_visit_timing"
     ULTRASOUND = "ultrasound"
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
@@ -155,6 +167,8 @@ class __Columns(NamedTuple):
     BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
     ANC_ATTENDANCE = "anc_attendance"
+    TIME_OF_FIRST_ANC_VISIT = "time_of_first_anc_visit"
+    TIME_OF_LATER_ANC_VISIT = "time_of_later_anc_visit"
     DELIVERY_FACILITY_TYPE = "delivery_facility_type"
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
