@@ -78,7 +78,7 @@ class DeliveryFacility(Component):
             [assigned_home_preterm, assigned_home_full_term]
         ).sort_index()
 
-        facility_type = self.population_view.get_private_columns(
+        facility_type = self.population_view.get_attributes(
             event.index, COLUMNS.DELIVERY_FACILITY_TYPE
         )
         facility_type.loc[assigned_home.index[assigned_home]] = DELIVERY_FACILITY_TYPES.HOME

@@ -76,7 +76,16 @@ class AnemiaScreening(Component):
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING:
             return
-        pop = self.population_view.get_private_columns(event.index)
+        pop = self.population_view.get_attributes(
+            event.index,
+            [
+                COLUMNS.ANEMIA_STATUS_DURING_PREGNANCY,
+                COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE,
+                COLUMNS.FERRITIN_SCREENING_COVERAGE,
+                COLUMNS.TESTED_HEMOGLOBIN,
+                COLUMNS.TESTED_FERRITIN,
+            ],
+        )
         anc_attendance = self.population_view.get_attributes(
             event.index, COLUMNS.ANC_ATTENDANCE
         )
@@ -117,9 +126,7 @@ class AnemiaScreening(Component):
             screen_for_hemoglobin = pd.Series(False, index=pop.index)
             screen_for_hemoglobin.loc[later_anc_idx] = True
 
-        pop.loc[
-            later_anc_idx, COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE
-        ] = screen_for_hemoglobin
+        pop.loc[later_anc_idx, COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE] = screen_for_hemoglobin
 
         # subset to screened population and determine hemoglobin test results (low or adequate)
         screened_pop = pop.loc[pop[COLUMNS.HEMOGLOBIN_SCREENING_COVERAGE]]
@@ -151,9 +158,7 @@ class AnemiaScreening(Component):
             pop[COLUMNS.TESTED_HEMOGLOBIN] == HEMOGLOBIN_TEST_RESULTS.LOW
         ].index
         if INTERVENTION_SCENARIOS[self.scenario].ferritin_screening_coverage == "full":
-            low_ferritin_probabilities = self.low_ferritin_probability(
-                tested_low_idx
-            )
+            low_ferritin_probabilities = self.low_ferritin_probability(tested_low_idx)
             propensities = self.randomness.get_draw(
                 index=tested_low_idx, additional_key="tested_ferritin"
             )

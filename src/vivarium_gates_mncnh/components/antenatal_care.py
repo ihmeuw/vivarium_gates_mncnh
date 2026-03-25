@@ -34,7 +34,6 @@ from vivarium_gates_mncnh.utilities import get_location
 
 
 class ANCAttendance(Component):
-
     @property
     def time_step_prepare_priority(self) -> int:
         return 1
@@ -170,9 +169,7 @@ class ANCAttendance(Component):
             anc_attendance = self.population_view.get_attributes(
                 event.index, COLUMNS.ANC_ATTENDANCE
             )
-            time_of_later_visit = self._calculate_later_visit_timing(
-                anc_attendance
-            )
+            time_of_later_visit = self._calculate_later_visit_timing(anc_attendance)
             time_of_later_visit.name = COLUMNS.TIME_OF_LATER_ANC_VISIT
             self.population_view.update(time_of_later_visit)
 
@@ -323,9 +320,7 @@ class Ultrasound(Component):
             additional_key="ultrasound_type",
         )
 
-        us_col = self.population_view.get_private_columns(
-            event.index, COLUMNS.ULTRASOUND_TYPE
-        )
+        us_col = self.population_view.get_attributes(event.index, COLUMNS.ULTRASOUND_TYPE)
         us_col.loc[:] = ULTRASOUND_TYPES.NO_ULTRASOUND
         us_col.loc[ultrasound_idx] = ultrasound_type
 
@@ -344,7 +339,7 @@ class Ultrasound(Component):
                 measurement_error_draws, loc=gestational_age, scale=measurement_errors
             )
 
-        stated_ga = self.population_view.get_private_columns(
+        stated_ga = self.population_view.get_attributes(
             event.index, COLUMNS.STATED_GESTATIONAL_AGE
         )
         stated_ga.loc[:] = calculate_stated_gestational_age(event.index)

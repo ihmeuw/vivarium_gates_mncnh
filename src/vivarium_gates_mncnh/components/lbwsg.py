@@ -281,8 +281,10 @@ class LBWSGRisk(LBWSGRisk_):
         if not ppf_index.empty:
             propensities = self.population_view.get_attributes(
                 ppf_index,
-                [self.categorical_propensity_pipeline_name,
-                 self.continuous_propensity_column_name[axis]],
+                [
+                    self.categorical_propensity_pipeline_name,
+                    self.continuous_propensity_column_name[axis],
+                ],
             )
             exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
                 axis,
@@ -317,9 +319,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        self.paf_pipeline_name = (
-            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
-        )
+        self.paf_pipeline_name = f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
         super().setup(builder)
 
     def register_paf_modifier(self, builder):
@@ -465,9 +465,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 class LBWSGPAFRiskEffect(LBWSGRiskEffect):
     def setup(self, builder: Builder) -> None:
         # subclass setup so we don't define sim step name attribute
-        self.paf_pipeline_name = (
-            f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
-        )
+        self.paf_pipeline_name = f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
         super(LBWSGRiskEffect, self).setup(builder)
 
     def initialize_relative_risk(self, pop_data: SimulantData) -> None:
@@ -574,9 +572,7 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the age bins to match the simulants' ages."""
-        pop = self.population_view.get_attributes(
-            event.index, ["child_age", "sex_of_child"]
-        )
+        pop = self.population_view.get_attributes(event.index, ["child_age", "sex_of_child"])
         pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
         self.population_view.update(pop["age_bin"])
 
@@ -898,10 +894,10 @@ class LBWSGMortality(Component):
         if not dead_idx.empty:
             self._newly_dead_idx = dead_idx
 
-            cause_of_death = self.population_view.get_private_columns(
+            cause_of_death = self.population_view.get_attributes(
                 event.index, COLUMNS.CHILD_CAUSE_OF_DEATH
             )
-            ylls = self.population_view.get_private_columns(
+            ylls = self.population_view.get_attributes(
                 event.index, COLUMNS.CHILD_YEARS_OF_LIFE_LOST
             )
             cause_of_death.loc[dead_idx] = "other_causes"

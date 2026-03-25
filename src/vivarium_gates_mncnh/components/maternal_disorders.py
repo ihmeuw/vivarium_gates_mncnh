@@ -78,7 +78,7 @@ class MaternalDisorder(Component):
             incidence_risk,
             f"got_{self.maternal_disorder}_choice",
         )
-        disorder_col = self.population_view.get_private_columns(
+        disorder_col = self.population_view.get_attributes(
             event.index, self.maternal_disorder
         )
         disorder_col.loc[got_disorder] = True
@@ -173,7 +173,7 @@ class PostpartumDepression(MaternalDisorder):
             f"got_{self.maternal_disorder}_choice",
         )
 
-        disorder_col = self.population_view.get_private_columns(
+        disorder_col = self.population_view.get_attributes(
             event.index, self.maternal_disorder
         )
         disorder_col.loc[got_disorder_idx] = True
@@ -214,7 +214,7 @@ class AbortionMiscarriageEctopicPregnancy(MaternalDisorder):
         partial_term_idx = pregnancy_outcome.index[
             pregnancy_outcome == PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
         ]
-        disorder_col = self.population_view.get_private_columns(
+        disorder_col = self.population_view.get_attributes(
             event.index, self.maternal_disorder
         )
         disorder_col.loc[partial_term_idx] = True
@@ -242,7 +242,7 @@ class ResidualMaternalDisorders(MaternalDisorder):
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
         ]
-        disorder_col = self.population_view.get_private_columns(
+        disorder_col = self.population_view.get_attributes(
             event.index, self.maternal_disorder
         )
         disorder_col.loc[full_term_idx] = True

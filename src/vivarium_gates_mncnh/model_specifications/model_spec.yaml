@@ -7,79 +7,79 @@ plugins:
 components:
     vivarium_gates_mncnh:
         components:
-            - Hemoglobin()  # batch 2
-            - AnemiaInterventionPropensity()  # batch 4
-            - AgelessPopulation("population.scaling_factor") # batch 1
-            - Pregnancy() # batch 1
-            - ResultsStratifier() # batch 1
-            - ANCAttendance() # batch 1
-            - Ultrasound() # batch 1
-            - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture") # batch 1
-            - MaternalDisorder("maternal_hemorrhage") # batch 1
-            - MaternalDisorder("maternal_sepsis_and_other_maternal_infections") # batch 1
-            - ResidualMaternalDisorders() # batch 1
-            - AbortionMiscarriageEctopicPregnancy() # batch 1
-            - MaternalDisordersBurden() # batch 1
-            - LBWSGRisk() # batch 1
-            - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk')  # batch 3
-            - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk')  # batch 3
-            - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_risk')  # batch 3
-            - LBWSGRiskEffect('cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_risk')  # batch 3
-            - LBWSGRiskEffect('cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk')  # batch 3
-            - PretermBirth('neonatal_preterm_birth_with_rds') # batch 1
-            - PretermBirth('neonatal_preterm_birth_without_rds') # batch 1
-            - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections') # batch 1
-            - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma') # batch 1
-            - NeonatalMortality() # batch 1
-            - CPAPAndACSRiskEffect()  # batch 4
-            - InterventionRiskEffect('antibiotics')  # batch 4
-            - InterventionRiskEffect('probiotics')  # batch 4
-            - InterventionRiskEffect('azithromycin')  # batch 4
-            - InterventionRiskEffect('misoprostol')  # batch 4
-            - OralIronInterventionExposure() # IFA and MMS  # batch 3
-            - OralIronEffectOnHemoglobin()  # batch 4
-            - OralIronEffectOnStillbirth()  # batch 4
-            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')  # batch 3
-            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')  # batch 3
-            - OralIronEffectsOnGestationalAge()  # batch 3
-            - IVIronExposure()  # batch 4
-            - IVIronEffectOnHemoglobin()  # batch 4
-            - IVIronEffectOnLBWSG()  # batch 4
-            - IVIronEffectOnStillbirth()  # batch 4
-            - DeliveryFacility() # batch 1
-            - InterventionAccess('cpap')  # batch 4
-            - InterventionAccess('antibiotics')  # batch 4
-            - InterventionAccess('probiotics')  # batch 4
-            - InterventionAccess('azithromycin')  # batch 4
-            - InterventionAccess('misoprostol')  # batch 4
-            - ACSAccess()  # batch 4
-            - PostpartumDepression() # batch 1
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')  # batch 3
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')  # batch 3
-            - CorrelatedPropensities() # batch 1
-            - AnemiaScreening()  # batch 2
+            - Hemoglobin()
+            - AnemiaInterventionPropensity()
+            - AgelessPopulation("population.scaling_factor")
+            - Pregnancy()
+            - ResultsStratifier()
+            - ANCAttendance()
+            - Ultrasound()
+            - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
+            - MaternalDisorder("maternal_hemorrhage")
+            - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - ResidualMaternalDisorders()
+            - AbortionMiscarriageEctopicPregnancy()
+            - MaternalDisordersBurden()
+            - LBWSGRisk()
+            - LBWSGRiskEffect('cause.all_causes.all_cause_mortality_risk') 
+            - LBWSGRiskEffect('cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk') 
+            - LBWSGRiskEffect('cause.neonatal_preterm_birth_with_rds.cause_specific_mortality_risk') 
+            - LBWSGRiskEffect('cause.neonatal_preterm_birth_without_rds.cause_specific_mortality_risk') 
+            - LBWSGRiskEffect('cause.neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk') 
+            - PretermBirth('neonatal_preterm_birth_with_rds')
+            - PretermBirth('neonatal_preterm_birth_without_rds')
+            - NeonatalCause('neonatal_sepsis_and_other_neonatal_infections')
+            - NeonatalCause('neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma')
+            - NeonatalMortality()
+            - CPAPAndACSRiskEffect()
+            - InterventionRiskEffect('antibiotics')
+            - InterventionRiskEffect('probiotics')
+            - InterventionRiskEffect('azithromycin')
+            - InterventionRiskEffect('misoprostol')
+            - OralIronInterventionExposure() # IFA and MMS
+            - OralIronEffectOnHemoglobin()
+            - OralIronEffectOnStillbirth()
+            - AdditiveRiskEffect('risk_factor.iron_folic_acid_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - AdditiveRiskEffect('risk_factor.multiple_micronutrient_supplementation', 'risk_factor.birth_weight.birth_exposure')
+            - OralIronEffectsOnGestationalAge()
+            - IVIronExposure()
+            - IVIronEffectOnHemoglobin()
+            - IVIronEffectOnLBWSG()
+            - IVIronEffectOnStillbirth()
+            - DeliveryFacility()
+            - InterventionAccess('cpap')
+            - InterventionAccess('antibiotics')
+            - InterventionAccess('probiotics')
+            - InterventionAccess('azithromycin')
+            - InterventionAccess('misoprostol')
+            - ACSAccess()
+            - PostpartumDepression()
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
+            - CorrelatedPropensities()
+            - AnemiaScreening()
             # Observers 
-            - ANCHemoglobinObserver() # batch 1
-            - ANCOtherObserver() # batch 1
-            - BirthObserver() # batch 1
-            - MaternalDisordersBurdenObserver() # batch 1
-            - NeonatalBurdenObserver() # batch 1
-            - AnemiaYLDsObserver() # batch 2
-            - NeonatalCauseRelativeRiskObserver()  # batch 3
-            - InterventionObserver('cpap')  # batch 4
-            - InterventionObserver('antibiotics')  # batch 4
-            - InterventionObserver('probiotics')  # batch 4
-            - InterventionObserver('azithromycin')  # batch 4
-            - InterventionObserver('misoprostol')  # batch 4
-            - PostpartumDepressionObserver() # batch 1
-            - NeonatalACMRiskObserver() # batch 1
-            - NeonatalCSMRiskObserver() # batch 1
-            - ImpossibleNeonatalCSMRiskObserver() # batch 1
+            - ANCHemoglobinObserver()
+            - ANCOtherObserver()
+            - BirthObserver()
+            - MaternalDisordersBurdenObserver()
+            - NeonatalBurdenObserver()
+            - AnemiaYLDsObserver()
+            - NeonatalCauseRelativeRiskObserver()
+            - InterventionObserver('cpap')
+            - InterventionObserver('antibiotics')
+            - InterventionObserver('probiotics')
+            - InterventionObserver('azithromycin')
+            - InterventionObserver('misoprostol')
+            - PostpartumDepressionObserver()
+            - NeonatalACMRiskObserver()
+            - NeonatalCSMRiskObserver()
+            - ImpossibleNeonatalCSMRiskObserver()
 
 configuration:
     input_data:
         input_draw_number: 60
-        # artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model30.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model30.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -261,10 +261,10 @@ configuration:
             # "azithromycin_scaleup"
             # "ai_ultrasound_scaleup"
             # "standard_ultrasound_scaleup"
-            # "full_product_scaleup"
+            "full_product_scaleup"
             # "mms_total_scaleup"
             # "anemia_screening_and_iv_iron_scaleup"
             # "azithromycin_vv"
             # "misoprostol_vv"
-            "ultrasound_vv"
+            # "ultrasound_vv"
             # "anemia_screening_vv"

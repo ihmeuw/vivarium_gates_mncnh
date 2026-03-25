@@ -94,7 +94,7 @@ class Pregnancy(Component):
         outcome_probabilities = self.population_view.get_attribute_frame(
             event.index, PIPELINES.BIRTH_OUTCOME_PROBABILITIES
         )[[PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]]
-        pregnancy_outcome = self.population_view.get_private_columns(
+        pregnancy_outcome = self.population_view.get_attributes(
             event.index, COLUMNS.PREGNANCY_OUTCOME
         )
         is_full_term = pregnancy_outcome == PREGNANCY_OUTCOMES.FULL_TERM_OUTCOME

@@ -196,7 +196,10 @@ class ResultsStratifier(ResultsStratifier_):
             ["ifa", "mms", "none"],
             mapper=self.map_oral_iron_coverage,
             is_vectorized=True,
-            requires_attributes=[PIPELINES.IFA_SUPPLEMENTATION, PIPELINES.MMN_SUPPLEMENTATION],
+            requires_attributes=[
+                PIPELINES.IFA_SUPPLEMENTATION,
+                PIPELINES.MMN_SUPPLEMENTATION,
+            ],
         )
         builder.results.register_stratification(
             "iv_iron_coverage",

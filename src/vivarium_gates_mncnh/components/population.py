@@ -68,7 +68,7 @@ class EvenlyDistributedPopulation(BasePopulation):
 
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
-        age = self.population_view.get_private_columns(
+        age = self.population_view.get_attributes(
             event.index, "child_age", query="child_alive == 'alive'"
         )
         age += to_years(event.step_size)

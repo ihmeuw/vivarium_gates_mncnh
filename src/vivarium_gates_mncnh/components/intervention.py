@@ -70,8 +70,7 @@ class InterventionRiskEffect(Component):
         builder.value.register_attribute_modifier(
             self.target_pipeline_name,
             self.modify_target_pipeline,
-            required_resources=[self.col_required]
-            + [self.paf, self.relative_risk],
+            required_resources=[self.col_required] + [self.paf, self.relative_risk],
         )
 
     ##################
@@ -123,7 +122,11 @@ class CPAPAndACSRiskEffect(Component):
         builder.value.register_attribute_modifier(
             self.target_pipeline_name,
             self.modify_target_pipeline,
-            required_resources=[COLUMNS.CPAP_AVAILABLE, COLUMNS.ACS_AVAILABLE, COLUMNS.STATED_GESTATIONAL_AGE]
+            required_resources=[
+                COLUMNS.CPAP_AVAILABLE,
+                COLUMNS.ACS_AVAILABLE,
+                COLUMNS.STATED_GESTATIONAL_AGE,
+            ]
             + [
                 self.no_cpap_relative_risk,
                 self.no_cpap_paf,
@@ -148,7 +151,10 @@ class CPAPAndACSRiskEffect(Component):
         - For all simulants not ACS-eligible:
             Apply no_CPAP_PAF.
         """
-        pop = self.population_view.get_attributes(index, [COLUMNS.CPAP_AVAILABLE, COLUMNS.ACS_AVAILABLE, COLUMNS.STATED_GESTATIONAL_AGE])
+        pop = self.population_view.get_attributes(
+            index,
+            [COLUMNS.CPAP_AVAILABLE, COLUMNS.ACS_AVAILABLE, COLUMNS.STATED_GESTATIONAL_AGE],
+        )
         in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
         has_no_cpap = pop[COLUMNS.CPAP_AVAILABLE] == False
 
@@ -158,9 +164,7 @@ class CPAPAndACSRiskEffect(Component):
 
         # define RR
         no_intervention_rr = pd.Series(1.0, index=index)
-        no_intervention_rr.loc[no_cpap_index] = self.no_cpap_relative_risk(
-            no_cpap_index
-        )
+        no_intervention_rr.loc[no_cpap_index] = self.no_cpap_relative_risk(no_cpap_index)
         no_intervention_rr.loc[no_acs_index] = self.no_acs_relative_risk(
             no_acs_index
         ) * self.no_cpap_relative_risk(no_acs_index)
@@ -262,7 +266,9 @@ class OralIronInterventionExposure(Component):
             return pop_update
 
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
-            anc_attendance = self.population_view.get_attributes(event.index, COLUMNS.ANC_ATTENDANCE)
+            anc_attendance = self.population_view.get_attributes(
+                event.index, COLUMNS.ANC_ATTENDANCE
+            )
             attends_first_trimester_anc = anc_attendance.isin(
                 [
                     ANC_ATTENDANCE_TYPES.FIRST_TRIMESTER_ONLY,
@@ -275,7 +281,9 @@ class OralIronInterventionExposure(Component):
             self.population_view.update(updated_pop)
 
         elif self._sim_step_name() == SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
-            anc_attendance = self.population_view.get_attributes(event.index, COLUMNS.ANC_ATTENDANCE)
+            anc_attendance = self.population_view.get_attributes(
+                event.index, COLUMNS.ANC_ATTENDANCE
+            )
             attends_later_pregnancy_anc = (
                 anc_attendance == ANC_ATTENDANCE_TYPES.LATER_PREGNANCY_ONLY
             )
@@ -285,10 +293,10 @@ class OralIronInterventionExposure(Component):
             self.population_view.update(updated_pop)
 
     def _get_oral_iron_exposure(self, index: pd.Index) -> pd.Series:
-        return self.population_view.get_private_columns(index, COLUMNS.ORAL_IRON_INTERVENTION)
+        return self.population_view.get_attributes(index, COLUMNS.ORAL_IRON_INTERVENTION)
 
     def _get_ifa_exposure(self, index: pd.Index) -> pd.Series:
-        oral_iron = self.population_view.get_private_columns(index, COLUMNS.ORAL_IRON_INTERVENTION)
+        oral_iron = self.population_view.get_attributes(index, COLUMNS.ORAL_IRON_INTERVENTION)
         has_ifa = oral_iron.isin(
             [models.ORAL_IRON_INTERVENTION.IFA, models.ORAL_IRON_INTERVENTION.MMS]
         )
@@ -298,7 +306,7 @@ class OralIronInterventionExposure(Component):
         return exposure
 
     def _get_mmn_exposure(self, index: pd.Index) -> pd.Series:
-        oral_iron = self.population_view.get_private_columns(index, COLUMNS.ORAL_IRON_INTERVENTION)
+        oral_iron = self.population_view.get_attributes(index, COLUMNS.ORAL_IRON_INTERVENTION)
         has_mmn = oral_iron == models.ORAL_IRON_INTERVENTION.MMS
 
         exposure = pd.Series(data_keys.MMN_SUPPLEMENTATION.CAT1, index=index)
@@ -324,7 +332,11 @@ class OralIronEffectOnHemoglobin(Component):
         builder.value.register_attribute_modifier(
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.apply_oral_iron_to_hemoglobin,
-            required_resources=[COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.ANC_ATTENDANCE, COLUMNS.IV_IRON_INTERVENTION],
+            required_resources=[
+                COLUMNS.ORAL_IRON_INTERVENTION,
+                COLUMNS.ANC_ATTENDANCE,
+                COLUMNS.IV_IRON_INTERVENTION,
+            ],
         )
 
     ##################################
@@ -334,7 +346,14 @@ class OralIronEffectOnHemoglobin(Component):
     def apply_oral_iron_to_hemoglobin(
         self, index: pd.Index, exposure: pd.Series[float]
     ) -> pd.Series[float]:
-        pop = self.population_view.get_attributes(index, [COLUMNS.ORAL_IRON_INTERVENTION, COLUMNS.ANC_ATTENDANCE, COLUMNS.IV_IRON_INTERVENTION])
+        pop = self.population_view.get_attributes(
+            index,
+            [
+                COLUMNS.ORAL_IRON_INTERVENTION,
+                COLUMNS.ANC_ATTENDANCE,
+                COLUMNS.IV_IRON_INTERVENTION,
+            ],
+        )
 
         has_first_trimester_anc = pop[COLUMNS.ANC_ATTENDANCE].isin(
             [
@@ -389,9 +408,7 @@ class OralIronEffectOnStillbirth(Component):
         self, index: pd.Index, birth_outcome_probabilities: pd.DataFrame
     ) -> pd.DataFrame:
         oral_iron = self.population_view.get_attributes(index, COLUMNS.ORAL_IRON_INTERVENTION)
-        on_treatment = (
-            oral_iron == models.ORAL_IRON_INTERVENTION.MMS
-        )
+        on_treatment = oral_iron == models.ORAL_IRON_INTERVENTION.MMS
         # Add spare probability onto live births first
         birth_outcome_probabilities.loc[
             on_treatment, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
@@ -463,9 +480,7 @@ class IVIronEffectOnLBWSG(Component):
     ) -> pd.Series[float]:
         iv_iron = self.population_view.get_attributes(index, COLUMNS.IV_IRON_INTERVENTION)
         has_iv_iron = iv_iron == models.IV_IRON_INTERVENTION.COVERED
-        iv_iron_effect = self.birth_weight_risk_effect(
-            index[has_iv_iron]
-        )
+        iv_iron_effect = self.birth_weight_risk_effect(index[has_iv_iron])
         exposure.loc[has_iv_iron] += iv_iron_effect
 
         return exposure
@@ -475,9 +490,7 @@ class IVIronEffectOnLBWSG(Component):
     ) -> pd.Series[float]:
         iv_iron = self.population_view.get_attributes(index, COLUMNS.IV_IRON_INTERVENTION)
         has_iv_iron = iv_iron == models.IV_IRON_INTERVENTION.COVERED
-        iv_iron_effect = self.gestational_age_risk_effect(
-            index[has_iv_iron]
-        )
+        iv_iron_effect = self.gestational_age_risk_effect(index[has_iv_iron])
         exposure.loc[has_iv_iron] += iv_iron_effect
 
         return exposure
@@ -564,9 +577,7 @@ class AdditiveRiskEffect(RiskEffect):
 
     def _build_lookup_tables(self, builder: Builder) -> None:
         self.excess_shift_table = self.get_excess_shift_lookup_table(builder)
-        self.risk_specific_shift_table = self.get_risk_specific_shift_lookup_table(
-            builder
-        )
+        self.risk_specific_shift_table = self.get_risk_specific_shift_lookup_table(builder)
 
     def get_effect_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
@@ -584,7 +595,9 @@ class AdditiveRiskEffect(RiskEffect):
         excess_shift_data, value_cols = self.process_categorical_data(
             builder, excess_shift_data
         )
-        return self.build_lookup_table(builder, "excess_shift", data_source=excess_shift_data, value_columns=value_cols)
+        return self.build_lookup_table(
+            builder, "excess_shift", data_source=excess_shift_data, value_columns=value_cols
+        )
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return lambda index: pd.Series(1.0, index=index)
@@ -601,7 +614,12 @@ class AdditiveRiskEffect(RiskEffect):
             affected_entity=self.target.name,
             affected_measure=self.target.measure,
         )
-        return self.build_lookup_table(builder, "risk_specific_shift", data_source=risk_specific_shift_data, value_columns="value")
+        return self.build_lookup_table(
+            builder,
+            "risk_specific_shift",
+            data_source=risk_specific_shift_data,
+            value_columns="value",
+        )
 
     def register_paf_modifier(self, builder: Builder) -> None:
         pass
@@ -616,7 +634,9 @@ class AdditiveRiskEffect(RiskEffect):
     def get_effect(self, index: pd.Index) -> pd.Series:
         index_columns = ["index", self.risk.name]
         excess_shift = self.excess_shift(index)
-        exposure = self.population_view.get_attributes(index, self.exposure_name).reset_index()
+        exposure = self.population_view.get_attributes(
+            index, self.exposure_name
+        ).reset_index()
         exposure.columns = index_columns
         exposure = exposure.set_index(index_columns)
 
@@ -655,17 +675,19 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     #######################
 
     def _build_lookup_tables(self, builder: Builder) -> None:
-        self.ifa_excess_shift_table = self.get_ifa_excess_shift_lookup_table(
-            builder
-        )
+        self.ifa_excess_shift_table = self.get_ifa_excess_shift_lookup_table(builder)
         self.ifa_risk_specific_shift_table = self.get_ifa_risk_specific_shift_lookup_table(
             builder
         )
         self.mms_subpop1_excess_shift_table = self._get_mms_excess_shift_data(
-            builder, data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1, "mms_subpop1_excess_shift"
+            builder,
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_1,
+            "mms_subpop1_excess_shift",
         )
         self.mms_subpop2_excess_shift_table = self._get_mms_excess_shift_data(
-            builder, data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2, "mms_subpop2_excess_shift"
+            builder,
+            data_keys.MMN_SUPPLEMENTATION.EXCESS_GA_SHIFT_SUBPOP_2,
+            "mms_subpop2_excess_shift",
         )
 
     def get_ifa_excess_shift_lookup_table(self, builder: Builder) -> LookupTable:
@@ -684,7 +706,12 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
         excess_shift_data["mms"] = excess_shift_data["ifa"].values
         value_cols = ["no_treatment", "ifa", "mms"]
 
-        return self.build_lookup_table(builder, "ifa_excess_shift", data_source=excess_shift_data, value_columns=value_cols)
+        return self.build_lookup_table(
+            builder,
+            "ifa_excess_shift",
+            data_source=excess_shift_data,
+            value_columns=value_cols,
+        )
 
     def get_ifa_risk_specific_shift_lookup_table(self, builder: Builder) -> LookupTable:
         risk_specific_shift_data = builder.data.load(
@@ -692,9 +719,16 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
             affected_entity=self.target.name,
             affected_measure=self.target.measure,
         )
-        return self.build_lookup_table(builder, "ifa_risk_specific_shift", data_source=risk_specific_shift_data, value_columns="value")
+        return self.build_lookup_table(
+            builder,
+            "ifa_risk_specific_shift",
+            data_source=risk_specific_shift_data,
+            value_columns="value",
+        )
 
-    def _get_mms_excess_shift_data(self, builder: Builder, key: str, name: str) -> LookupTable:
+    def _get_mms_excess_shift_data(
+        self, builder: Builder, key: str, name: str
+    ) -> LookupTable:
         excess_shift_data = builder.data.load(
             key, affected_entity=self.target.name, affected_measure=self.target.measure
         )
@@ -706,7 +740,9 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
         )
         excess_shift_data["ifa"] = excess_shift_data["no_treatment"].values
         value_cols = ["no_treatment", "ifa", "mms"]
-        return self.build_lookup_table(builder, name, data_source=excess_shift_data, value_columns=value_cols)
+        return self.build_lookup_table(
+            builder, name, data_source=excess_shift_data, value_columns=value_cols
+        )
 
     ###############
     # IFA methods #
@@ -733,7 +769,9 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
 
     def calculate_raw_effect(self, excess_shift: pd.Series, index: pd.Index) -> pd.Series:
         index_columns = ["index", self.risk.name]
-        exposure = self.population_view.get_attributes(index, self.exposure_name).reset_index()
+        exposure = self.population_view.get_attributes(
+            index, self.exposure_name
+        ).reset_index()
         exposure.columns = index_columns
         exposure = exposure.set_index(index_columns)
 
@@ -750,13 +788,17 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
     ###############
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        pregnancy_outcome = self.population_view.get_attributes(index, COLUMNS.PREGNANCY_OUTCOME)
+        pregnancy_outcome = self.population_view.get_attributes(
+            index, COLUMNS.PREGNANCY_OUTCOME
+        )
         is_full_term = pregnancy_outcome != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME
 
         full_term_index = index[is_full_term]
         result = target.copy()
 
-        ifa_shifted_gestational_age = target[full_term_index] + self.population_view.get_attributes(
+        ifa_shifted_gestational_age = target[
+            full_term_index
+        ] + self.population_view.get_attributes(
             full_term_index, self.ifa_effect_pipeline_name
         )
         # mms shift is (mms_shift_1 + mms_shift_2) for subpop_2 and mms_shift_1 for subpop_1

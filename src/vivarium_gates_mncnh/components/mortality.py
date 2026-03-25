@@ -121,10 +121,10 @@ class MaternalDisordersBurden(Component):
             mother_is_alive.loc[dead_idx] = False
             self.population_view.update(mother_is_alive)
 
-            cause_of_death = self.population_view.get_private_columns(
+            cause_of_death = self.population_view.get_attributes(
                 event.index, COLUMNS.MOTHER_CAUSE_OF_DEATH
             )
-            ylls = self.population_view.get_private_columns(
+            ylls = self.population_view.get_attributes(
                 event.index, COLUMNS.MOTHER_YEARS_OF_LIFE_LOST
             )
 
@@ -299,10 +299,10 @@ class NeonatalMortality(Component):
             # when Children reads child_alive via get_attributes.
             self._newly_dead_idx = dead_idx
 
-            cause_of_death = self.population_view.get_private_columns(
+            cause_of_death = self.population_view.get_attributes(
                 event.index, COLUMNS.CHILD_CAUSE_OF_DEATH
             )
-            ylls = self.population_view.get_private_columns(
+            ylls = self.population_view.get_attributes(
                 event.index, COLUMNS.CHILD_YEARS_OF_LIFE_LOST
             )
             cause_of_death.loc[dead_idx] = self.determine_cause_of_death(dead_idx)
