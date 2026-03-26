@@ -23,13 +23,35 @@ The first step is to clone the repo::
   ...git will copy the repository from github and place it in your current directory...
   :~$ cd vivarium_gates_mncnh
 
-Users can create environments by running
-``bash environment.sh`` and ``bash environment.sh -t artifact`` which will automatically create and active conda environments
-for running the simulation and artifact generation respectively.
-The environment.sh script has extra options for users. To see these options, pass the 
-``-h`` flag.
+There are two environment options: a **local conda environment** (for personal machines)
+or a **shared environment on the cluster** with a lightweight venv wrapper.
 
-Alternatively, users can manually create the environments as follows::
+To create or update an environment, use ``source environment.sh``. This will
+automatically create the environment if it doesn't exist, or update it if it
+is stale.
+
+**Local conda environment** (default)::
+
+  :~$ source environment.sh
+  ...creates/activates the simulation conda environment...
+  :~$ source environment.sh -t artifact
+  ...creates/activates the artifact conda environment...
+
+To deactivate a local conda environment, run ``conda deactivate``.
+
+**Shared environment on the cluster** (recommended for cluster development)::
+
+  :~$ source environment.sh -s
+  ...creates/activates a venv overlay on the shared simulation environment...
+  :~$ source environment.sh -s -t artifact
+  ...creates/activates a venv overlay on the shared artifact environment...
+
+To deactivate a shared cluster environment, run ``deactivate``.
+
+Additional options are available; pass the ``-h`` flag to see them
+(e.g. ``-f`` to force a rebuild, ``-l`` to install git lfs).
+
+Alternatively, users can manually create conda environments as follows::
 
   :~$ conda create --name=vivarium_gates_mncnh_simulation python=3.11 git git-lfs
   ...conda will download python and base dependencies...
@@ -124,13 +146,13 @@ If you don't want to re-generate the RR caps, you can skip this step and simply 
 files included in this repo.
 Generating the caps is achieved with:::
 
-  :~$ conda activate vivarium_gates_mncnh_artifact
+  :~$ source environment.sh -t artifact
   (vivarium_gates_mncnh_artifact) :~$ python src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py -l Pakistan -o src/vivarium_gates_mncnh/data/lbwsg_rr_caps/caps/
 
 The next step is to generate an artifact with base GBD data in it.
 This will only work on the IHME cluster, because it pulls draw-level data from internal GBD databases.:::
 
-  :~$ conda activate vivarium_gates_mncnh_artifact
+  :~$ source environment.sh -t artifact
   (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/
 
 This command will create an artifact file in the ``artifacts/`` directory within the repo;
@@ -142,7 +164,7 @@ for LBWSG in the early neonatal period.
 *Edit* the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml`` so that the ``end``
 is only one day after the ``start``, then run:::
 
-  :~$ conda activate vivarium_gates_mncnh_simulation
+  :~$ source environment.sh
   (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
