@@ -89,8 +89,10 @@ def pytest_xdist_auto_num_workers(config):
         )
         if slurm_cpus:
             cpus = int(slurm_cpus)
-        # Fallback to total CPUs if SLURM vars not found (shouldn't happen)
-        cpus = os.cpu_count()
+        # Fallback to total CPUs if SLURM vars not found (this can happen depending
+        # on how the allocated job was configured)
+        else:
+            cpus = len(os.sched_getaffinity(0))
 
     return cpus
 
