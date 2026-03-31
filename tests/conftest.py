@@ -107,4 +107,3 @@ def fuzzy_checker(output_directory) -> Generator[FuzzyChecker, Any, Any]:
     yield checker
 
     checker.save_diagnostic_output(output_directory)
-
