@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# This script must be sourced, not executed, because it activates an environment
+# in the current shell. Detect non-sourced invocation and fail with a clear message.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo
+  echo "ERROR: This script must be sourced, not executed."
+  echo "Usage: source environment.sh [options]"
+  echo "Run 'source environment.sh -h' for help."
+  exit 1
+fi
+
 # Define variables
 username=$(whoami)
 env_type="simulation"
