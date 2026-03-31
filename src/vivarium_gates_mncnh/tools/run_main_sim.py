@@ -276,15 +276,21 @@ def run_sim(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the main simulation for all locations.")
     parser.add_argument(
-        "--queue", type=str, required=True, help="The queue to submit the simulation jobs to."
+        "-q",
+        "--queue",
+        type=str,
+        required=True,
+        help="The queue to submit the simulation jobs to.",
     )
     parser.add_argument(
+        "-P",
         "--project",
         type=str,
         required=True,
         help="The project to submit the simulation jobs to.",
     )
     parser.add_argument(
+        "-m",
         "--model_number",
         type=str,
         required=True,
