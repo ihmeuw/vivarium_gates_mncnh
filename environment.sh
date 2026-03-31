@@ -132,3 +132,6 @@ else
   echo "Activating conda environment '$env_name'"
   conda activate $env_name
 fi
+
+# Clear the ERR trap to avoid affecting subsequent commands in the parent shell
+trap - ERR
