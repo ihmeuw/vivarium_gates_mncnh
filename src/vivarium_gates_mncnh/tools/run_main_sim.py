@@ -291,7 +291,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-m",
-        "--model_number",
+        "--model-number",
         type=str,
         required=True,
         help=(
@@ -301,7 +301,7 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--baseline_only",
+        "--baseline-only",
         action="store_true",
         help="Whether to run only the baseline scenario.",
     )
