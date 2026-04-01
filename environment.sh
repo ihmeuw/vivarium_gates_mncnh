@@ -77,6 +77,11 @@ set -E
 set set -o pipefail
 
 if [[ "$use_shared" == "yes" ]]; then
+  # Deactivate any active conda environments so only the venv is active
+  while [[ -n "$CONDA_PREFIX" ]]; do
+    conda deactivate
+  done
+
   # Shared environment (venv overlay)
   venv_path=".venv/$env_name"
   
