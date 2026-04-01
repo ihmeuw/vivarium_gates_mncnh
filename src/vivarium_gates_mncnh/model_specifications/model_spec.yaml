@@ -117,7 +117,7 @@ configuration:
             - 'postpartum_depression'
 
     population:
-        population_size: 20_000
+        population_size: 200_000
         initialization_age_min: 10
         initialization_age_max: 54
         include_sex: "Female"
@@ -252,4 +252,18 @@ configuration:
 
     intervention:
         scenario:
-            'baseline'
+            # baseline
+            # cpap_acs_scaleup
+            # cpap_acs_ai_ultrasound_scaleup
+            # neonatal_antibiotics_scaleup
+            # neonatal_probiotics_scaleup
+            # azithromycin_scaleup
+            # ai_ultrasound_scaleup
+            # standard_ultrasound_scaleup
+            full_product_scaleup
+            # mms_total_scaleup
+            # anemia_screening_and_iv_iron_scaleup
+            # azithromycin_vv
+            # misoprostol_vv
+            # ultrasound_vv
+            # anemia_screening_vv
