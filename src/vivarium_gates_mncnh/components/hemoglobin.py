@@ -5,6 +5,7 @@ import pandas as pd
 import scipy
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import MissingDataError
@@ -16,11 +17,6 @@ from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT
 
 class Hemoglobin(Risk):
     @property
-    def columns_created(self):
-        risk_cols = super().columns_created
-        return risk_cols + [COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE]
-
-    @property
     def time_step_priority(self) -> int:
         # update state table hemoglobin after oral iron
         return 9
@@ -30,6 +26,14 @@ class Hemoglobin(Risk):
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
+
+        self.anc1_table = self.build_lookup_table(
+            builder,
+            "ANC1",
+            data_source=builder.data.load(data_keys.ANC.ANC1),
+            value_columns="value",
+        )
+
         self._sim_step_name = builder.time.simulation_event_name()
         self.ifa_coverage = (
             builder.data.load(data_keys.IFA_SUPPLEMENTATION.COVERAGE)
@@ -44,33 +48,31 @@ class Hemoglobin(Risk):
             .value[0]
         )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        # leave handling of exposure column to this class rather than the parent class
-        self.create_exposure_column = False
-        super().on_initialize_simulants(pop_data)
-        hemoglobin = pd.DataFrame({COLUMNS.HEMOGLOBIN_EXPOSURE: np.nan}, index=pop_data.index)
-        first_trimester_hemoglobin = pd.DataFrame(
+        builder.population.register_initializer(
+            initializer=self._initialize_hemoglobin_columns,
+            columns=[
+                COLUMNS.HEMOGLOBIN_EXPOSURE,
+                COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE,
+            ],
+        )
+
+        builder.value.register_attribute_modifier(
+            self.exposure_name,
+            modifier=self._adjust_exposure_for_ifa,
+        )
+
+    def _initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:
+        pop = pd.DataFrame(
             {
+                COLUMNS.HEMOGLOBIN_EXPOSURE: np.nan,
                 COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE: np.nan,
             },
             index=pop_data.index,
         )
-        pop = pd.concat([hemoglobin, first_trimester_hemoglobin], axis=1)
-        self.population_view.update(pop)
+        self.population_view.initialize(pop)
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        self.lookup_tables["ANC1"] = self.build_lookup_table(
-            builder=builder,
-            data_source=builder.data.load(data_keys.ANC.ANC1),
-            value_columns=["value"],
-        )
-
-    def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.propensity(index)
-        gbd_exposure = pd.Series(self.exposure_distribution.ppf(propensity), index=index)
-        return gbd_exposure - (
-            self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
-        )
+    def _adjust_exposure_for_ifa(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
+        return exposure - (self.ifa_effect_size * self.ifa_coverage * self.anc1_table(index))
 
     ########################
     # Event-driven methods #
@@ -83,16 +85,22 @@ class Hemoglobin(Risk):
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
             return
-        pop = self.population_view.get(event.index)
-        pop[COLUMNS.HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
-        self.population_view.update(pop)
+        exposure = self.population_view.get(event.index, self.exposure_name)
+        exposure = exposure.rename(COLUMNS.HEMOGLOBIN_EXPOSURE)
+        self.population_view.update(
+            COLUMNS.HEMOGLOBIN_EXPOSURE,
+            lambda _: exposure,
+        )
 
     def on_time_step_cleanup(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
             return
-        pop = self.population_view.get(event.index)
-        pop[COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE] = self.exposure(event.index)
-        self.population_view.update(pop)
+        exposure = self.population_view.get(event.index, self.exposure_name)
+        exposure = exposure.rename(COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE)
+        self.population_view.update(
+            COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE,
+            lambda _: exposure,
+        )
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):
@@ -100,7 +108,7 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     These are 1) define the RR for the minimum exposure to be the maximum rather than minimum value
     (higher hemoglobin is protective at this level of exposure) and 2) allow RRs to be below 1."""
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
@@ -131,19 +139,16 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_start"] = rr_data["left_exposure"]
-        rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_start"] = rr_data[
+            "left_exposure"
+        ]
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_end"] = rr_data[
+            "right_exposure"
+        ]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, rr_data, rr_value_cols
-        )
-
-        paf_data = self.get_filtered_data(
-            builder, self.configuration.data_sources.population_attributable_fraction
-        )
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
         )
 
     def load_relative_risk(
