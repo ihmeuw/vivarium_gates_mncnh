@@ -235,6 +235,29 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@echo "  Base environment: $(SHARED_ENV_PATH)"
 	$(SHARED_ENV_PATH)/bin/python -m venv --system-site-packages $(venv_path)
 
+#	Patch activate scripts to include shared environment's bin/ in PATH
+#	This ensures CLI entry points (e.g. psimulate) from the shared env are available.
+#	We append to the activate script rather than sed-replacing the PATH line because
+#	the exact format of that line varies across Python versions.
+#	_OLD_VIRTUAL_PATH is set by the activate script before any PATH modification,
+#	so we can reconstruct PATH with the correct precedence:
+#	  venv bin > shared env bin > original PATH
+	@echo "Patching activate scripts to inherit shared environment CLI entry points"
+	@echo '' >> $(venv_path)/bin/activate
+	@echo '# Include shared environment CLI entry points (e.g. psimulate)' >> $(venv_path)/bin/activate
+	@echo 'PATH="$$VIRTUAL_ENV/bin:$(SHARED_ENV_PATH)/bin:$${_OLD_VIRTUAL_PATH}"' >> $(venv_path)/bin/activate
+	@echo 'export PATH' >> $(venv_path)/bin/activate
+	@if [ -f "$(venv_path)/bin/activate.fish" ]; then \
+		echo '' >> $(venv_path)/bin/activate.fish; \
+		echo '# Include shared environment CLI entry points (e.g. psimulate)' >> $(venv_path)/bin/activate.fish; \
+		echo 'set -gx PATH "$$VIRTUAL_ENV/bin" "$(SHARED_ENV_PATH)/bin" $$_OLD_VIRTUAL_PATH' >> $(venv_path)/bin/activate.fish; \
+	fi
+	@if [ -f "$(venv_path)/bin/activate.csh" ]; then \
+		echo '' >> $(venv_path)/bin/activate.csh; \
+		echo '# Include shared environment CLI entry points (e.g. psimulate)' >> $(venv_path)/bin/activate.csh; \
+		echo 'setenv PATH "$$VIRTUAL_ENV/bin:$(SHARED_ENV_PATH)/bin:$$_OLD_VIRTUAL_PATH"' >> $(venv_path)/bin/activate.csh; \
+	fi
+
 #	Install local package in editable mode (no-deps since shared env has dependencies)
 	@echo "Installing local package in editable mode (--no-deps)"
 	$(venv_path)/bin/pip install -e . --no-deps
