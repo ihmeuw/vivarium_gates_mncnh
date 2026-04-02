@@ -139,7 +139,7 @@ build-env: # Create a new environment with installed packages
 	@$(eval force ?= no)
 	@$(call validate_arg,$(force),yes no,force)
 #	python version
-	@$(eval py ?= $(shell python -c "import json; versions = json.load(open('python_versions.json')); print(max(versions, key=lambda x: tuple(map(int, x.split('.')))))"))
+	@$(eval py ?= $(shell cat python_versions.json | tr -d '[]" ' | tr ',' '\n' | sort -t. -k1,1n -k2,2n | tail -1))
 #	Determine conda create flag: -p for path, -n for name
 	@$(eval CONDA_CREATE_FLAG := $(if $(path),-p $(path),-n $(name)))
 #	Determine conda run flag: -p for path, -n for name
