@@ -78,7 +78,7 @@ set set -o pipefail
 
 if [[ "$use_shared" == "yes" ]]; then
   # Deactivate any active conda environments so only the venv is active
-  while [[ -n "$CONDA_PREFIX" ]]; do
+  for i in $(seq ${CONDA_SHLVL}); do
     conda deactivate
   done
 
