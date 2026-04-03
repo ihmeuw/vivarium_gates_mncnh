@@ -150,10 +150,9 @@ ANC_RATES = __ANCRates()
 
 
 class __Columns(NamedTuple):
-    TRACKED = "tracked"
     EXIT_TIME = "exit_time"
     MOTHER_SEX = "sex"
-    MOTHER_ALIVE = "alive"
+    MOTHER_ALIVE = "is_alive"
     CHILD_ALIVE = "child_alive"
     MOTHER_AGE = "age"
     CHILD_AGE = "child_age"
@@ -164,8 +163,8 @@ class __Columns(NamedTuple):
     LOCATION = "location"
     PREGNANCY_OUTCOME = "pregnancy_outcome"
     SEX_OF_CHILD = "sex_of_child"
-    BIRTH_WEIGHT_EXPOSURE = "birth_weight_exposure"
-    GESTATIONAL_AGE_EXPOSURE = "gestational_age_exposure"
+    BIRTH_WEIGHT_EXPOSURE = "birth_weight.exposure"
+    GESTATIONAL_AGE_EXPOSURE = "gestational_age.exposure"
     ANC_ATTENDANCE = "anc_attendance"
     TIME_OF_FIRST_ANC_VISIT = "time_of_first_anc_visit"
     TIME_OF_LATER_ANC_VISIT = "time_of_later_anc_visit"
@@ -256,15 +255,14 @@ class __Pipelines(NamedTuple):
     NEONATAL_ENCEPHALOPATHY_FINAL_CSMR = (
         "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.csmr"
     )
-    PRETERM_WITH_RDS_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk"
-    PRETERM_WITHOUT_RDS_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk"
-    NEONATAL_SEPSIS_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk"
-    NEONATAL_ENCEPHALOPATHY_RR = "effect_of_risk_factor.low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk"
-    ACMR_RR = "effect_of_low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
+    PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk"
+    PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk"
+    NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk"
+    NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk"
+    ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
-    RAW_BIRTH_WEIGHT_EXPOSURE = "raw_birth_weight.birth_exposure"
-    RAW_GESTATIONAL_AGE_EXPOSURE = "raw_gestational_age.birth_exposure"
+
     PREGNANCY_DURATION = "pregnancy_duration"
     BIRTH_OUTCOME_PROBABILITIES = "birth_outcome_probabilities"
     MATERNAL_SEPSIS_INCIDENCE_RISK = (

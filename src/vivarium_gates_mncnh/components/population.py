@@ -12,7 +12,17 @@ from vivarium_gates_mncnh.constants.data_values import CHILD_INITIALIZATION_AGE
 
 
 class AgelessPopulation(ScaledPopulation):
-    """A component to handle the population of the model. Simulants will not have their age incremented"""
+    """A component to handle the population of the model. Simulants will not
+    have their age incremented. Removes standard Mortality, Disability, and
+    AgeOutSimulants sub-components because this model has its own mortality
+    system (MaternalDisordersBurden and NeonatalMortality)."""
+
+    def __init__(self, scaling_factor: str | pd.DataFrame):
+        super().__init__(scaling_factor)
+        self._sub_components = []
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
 
     def on_time_step(self, event: Event) -> None:
         pass
@@ -25,17 +35,6 @@ class EvenlyDistributedPopulation(BasePopulation):
     male and female.
     """
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [
-            "child_age",
-            "sex_of_child",
-            "child_alive",
-            "location",
-            "entrance_time",
-            "exit_time",
-        ]
-
     def __init__(self):
         super().__init__()
         self._sub_components = []
@@ -44,8 +43,19 @@ class EvenlyDistributedPopulation(BasePopulation):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
+        builder.population.register_initializer(
+            self.initialize_evenly_distributed_population,
+            columns=[
+                "child_age",
+                "sex_of_child",
+                "child_alive",
+                "location",
+                "entrance_time",
+                "exit_time",
+            ],
+        )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_evenly_distributed_population(self, pop_data: SimulantData) -> None:
         population = pd.DataFrame(index=pop_data.index)
         population["entrance_time"] = pop_data.creation_time
         population["exit_time"] = pd.NaT
@@ -59,11 +69,14 @@ class EvenlyDistributedPopulation(BasePopulation):
         population["sex_of_child"] = "Female"
         population.loc[population.index % 2 == 1, "sex_of_child"] = "Male"
         self.register_simulants(population[list(self.key_columns)])
-        self.population_view.update(population)
+        self.population_view.initialize(population)
 
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
-        # This is overwriting for columns
-        population = self.population_view.get(event.index, query="child_alive == 'alive'")
-        population["child_age"] += to_years(event.step_size)
-        self.population_view.update(population)
+        population = self.population_view.get(
+            event.index, ["child_age"], query="child_alive == 'alive'"
+        )
+        self.population_view.update(
+            "child_age",
+            lambda age: age + to_years(event.step_size),
+        )
