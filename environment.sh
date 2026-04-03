@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# This script must be sourced, not executed, because it activates an environment
+# in the current shell. Detect non-sourced invocation and fail with a clear message.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo
+  echo "ERROR: This script must be sourced, not executed."
+  echo "Usage: source environment.sh [options]"
+  echo "Run 'source environment.sh -h' for help."
+  exit 1
+fi
+
 # Define variables
 username=$(whoami)
 env_type="simulation"
@@ -67,6 +77,11 @@ set -E
 set set -o pipefail
 
 if [[ "$use_shared" == "yes" ]]; then
+  # Deactivate any active conda environments so only the venv is active
+  for i in $(seq ${CONDA_SHLVL}); do
+    conda deactivate
+  done
+
   # Shared environment (venv overlay)
   venv_path=".venv/$env_name"
   
@@ -132,3 +147,6 @@ else
   echo "Activating conda environment '$env_name'"
   conda activate $env_name
 fi
+
+# Clear the ERR trap to avoid affecting subsequent commands in the parent shell
+trap - ERR
