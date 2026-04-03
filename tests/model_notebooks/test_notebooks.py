@@ -12,8 +12,8 @@ from typing import Any, Dict, List
 import papermill as pm
 import pytest
 from loguru import logger
-
 from vivarium_testing_utils.pytest_plugin import IS_ON_SLURM
+
 from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR, MODEL_RESULTS_DIR
 
 
