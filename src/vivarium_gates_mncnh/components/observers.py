@@ -544,6 +544,7 @@ class NeonatalBurdenObserver(BurdenObserver):
             alive_column=COLUMNS.CHILD_ALIVE,
             ylls_column=COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
             cause_of_death_column=COLUMNS.CHILD_CAUSE_OF_DEATH,
+            dead_filter_value="False",
             excluded_causes=[
                 PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
                 PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,

@@ -95,7 +95,7 @@ def calculate_indirect_effect(location, draw):
 
     data = get_simulated_population(location, draw)
     data["enn_pop"] = data.pregnancy_outcome == "live_birth"
-    data["lnn_pop"] = (data.pregnancy_outcome == "live_birth") & (data.child_alive == "alive")
+    data["lnn_pop"] = (data.pregnancy_outcome == "live_birth") & data.child_alive
 
     interpolators = load_interpolators(location, draw)
     shifts = load_lbwsg_shifts(location, draw).rename(columns={"sex": "sex_of_child"})

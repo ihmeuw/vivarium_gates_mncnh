@@ -39,7 +39,13 @@ def mortality_state(
 
 @pytest.fixture(scope="module")
 def population(birth_state: InteractiveContext) -> pd.DataFrame:
-    return birth_state.get_population()
+    return birth_state.get_population(
+        [
+            COLUMNS.SEX_OF_CHILD,
+            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+            COLUMNS.BIRTH_WEIGHT_EXPOSURE,
+        ]
+    )
 
 
 def test_birth_exposure_coverage(
@@ -97,15 +103,19 @@ def test_relative_risk(
     """Tests that the relative risk is correct"""
     draw = f"draw_{mortality_state.model_specification.configuration.input_data.input_draw_number}"
     relative_risk = artifact.load(LBWSG.RELATIVE_RISK)[draw].reset_index()
-    population = mortality_state.get_population()
+    population = mortality_state.get_population(
+        [
+            COLUMNS.SEX_OF_CHILD,
+            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+            COLUMNS.BIRTH_WEIGHT_EXPOSURE,
+        ]
+    )
     sim_exposure = get_simulation_exposure_categories(population, mortality_state)
 
     # Get ACMR source and pipeline
-    acmr_source = mortality_state.get_value(PIPELINES.ACMR)(population.index)
-    acmr_pipeline = mortality_state.get_value(PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY)(
-        population.index
-    )
-    rr_pipeline = mortality_state.get_value(PIPELINES.ACMR_RR)(population.index)
+    acmr_source = mortality_state.get_population(PIPELINES.ACMR)
+    acmr_pipeline = mortality_state.get_population(PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY)
+    rr_pipeline = mortality_state.get_population(PIPELINES.ACMR_RR)
 
     # TODO: Test something?
 
@@ -123,24 +133,25 @@ def get_simulation_exposure_categories(
         ]
     ].copy()
     if intervention_effects:
-        sim_exposure = pd.concat(
+        sim_exposure = sim.get_population(
             [
-                pop[COLUMNS.SEX_OF_CHILD],
-                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)(pop.index),
-                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)(pop.index),
-            ],
-            axis=1,
+                COLUMNS.SEX_OF_CHILD,
+                "gestational_age.birth_exposure",
+                "birth_weight.birth_exposure",
+            ]
         )
     else:
+        lbwsg = sim.get_component("risk_factor.low_birth_weight_and_short_gestation")
+        index = pop.index
         sim_exposure = pd.concat(
             [
                 pop[COLUMNS.SEX_OF_CHILD],
-                sim.get_value(PIPELINES.GESTATIONAL_AGE_EXPOSURE)
-                .source(pop.index)
-                .rename("gestational_age.birth_exposure"),
-                sim.get_value(PIPELINES.BIRTH_WEIGHT_EXPOSURE)
-                .source(pop.index)
-                .rename("birth_weight.birth_exposure"),
+                lbwsg.get_birth_exposure("gestational_age", index).rename(
+                    "gestational_age.birth_exposure"
+                ),
+                lbwsg.get_birth_exposure("birth_weight", index).rename(
+                    "birth_weight.birth_exposure"
+                ),
             ],
             axis=1,
         )

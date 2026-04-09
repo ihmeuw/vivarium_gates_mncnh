@@ -43,8 +43,6 @@ class Pregnancy(Component):
         self.time_step = builder.time.step_size()
         self.randomness = builder.randomness.get_stream(self.name)
 
-        self.gestational_age_name = COLUMNS.GESTATIONAL_AGE_EXPOSURE
-
         # Build lookup tables
         birth_outcome_probabilities_data = self.get_birth_outcome_probabilities(builder)
         self.birth_outcome_probabilities_table = self.build_lookup_table(
@@ -61,13 +59,11 @@ class Pregnancy(Component):
             required_resources=[self.birth_outcome_probabilities_table],
         )
 
+        self._ga_birth_exposure_pipeline = PIPELINES.GESTATIONAL_AGE_EXPOSURE
         builder.value.register_attribute_producer(
             PIPELINES.PREGNANCY_DURATION,
             self.get_pregnancy_durations,
-            required_resources=[
-                COLUMNS.PREGNANCY_OUTCOME,
-                COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
-            ],
+            required_resources=[self._ga_birth_exposure_pipeline],
         )
 
         builder.population.register_initializer(
@@ -196,6 +192,6 @@ class Pregnancy(Component):
         return durations
 
     def get_pregnancy_durations(self, index: pd.Index) -> pd.Series:
-        return pd.to_timedelta(
-            self.population_view.get(index, self.gestational_age_name) * 7, unit="days"
-        )
+        """Convert gestational age from weeks to a timedelta."""
+        ga_weeks = self.population_view.get(index, self._ga_birth_exposure_pipeline)
+        return pd.to_timedelta(ga_weeks * 7, unit="days")

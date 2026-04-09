@@ -12,6 +12,9 @@ from vivarium.component import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium_public_health.risks.data_transformations import (
+    get_exposure_post_processor,
+)
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGDistribution,
@@ -129,7 +132,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         pop = self.population_view.get(
             index, [COLUMNS.SEX_OF_CHILD, COLUMNS.PREGNANCY_OUTCOME]
         )
-        exposure = self.exposure_parameters(index)
+        exposure = self.population_view.get_frame(index, self.exposure_params_pipeline)
         non_stillbirth_categories = self.get_non_stillbirth_categories()
 
         is_stillbirth = (
@@ -205,6 +208,7 @@ class LBWSGRisk(LBWSGRisk_):
         self.continuous_propensity_column_name = {
             axis: f"{self.name}.{axis}.continuous_propensity" for axis in self.AXES
         }
+        self.categorical_propensity_name_correlated = f"{self.name}.correlated_propensity"
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
@@ -212,7 +216,6 @@ class LBWSGRisk(LBWSGRisk_):
         # We have to override the age_end due to the wide state table and this is easier than
         # adding an extra population configuration key
         self.configuration_age_end = 0.0
-        self.categorical_propensity_name_correlated = f"{self.name}.correlated_propensity"
 
         # The parent registers initializers for categorical_propensity, continuous propensities,
         # and exposure columns. We need an additional initializer for our custom continuous
@@ -222,6 +225,65 @@ class LBWSGRisk(LBWSGRisk_):
             columns=[self.continuous_propensity_column_name[axis] for axis in self.AXES],
             required_resources=[self.randomness],
         )
+
+    #################
+    # Setup methods #
+    #################
+
+    def register_birth_exposure_pipeline(self, builder: Builder) -> None:
+        """Override parent to register per-axis pipelines with partial term handling.
+
+        The per-axis pipelines are the modifier targets for intervention effects.
+        The 2-axis pipeline composes them so modifiers are applied automatically.
+        """
+        per_axis_resources = {
+            axis: [
+                self.exposure_distribution.exposure_ppf_pipeline,
+                self.categorical_propensity_name_correlated,
+                self.continuous_propensity_column_name[axis],
+            ]
+            for axis in self.AXES
+        }
+        # Gestational age also depends on partial term pregnancy duration
+        per_axis_resources[GESTATIONAL_AGE].append(COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION)
+
+        # Register per-axis pipelines (modifier targets for interventions)
+        for axis in self.AXES:
+            pipeline_name = self.birth_exposure_pipeline_name(axis)
+            builder.value.register_attribute_producer(
+                pipeline_name,
+                source=lambda index, _axis=axis: self.get_birth_exposure(_axis, index),
+                required_resources=per_axis_resources[axis],
+            )
+
+        # Register 2-axis pipeline that reads from per-axis pipelines
+        per_axis_pipeline_names = [
+            self.birth_exposure_pipeline_name(axis) for axis in self.AXES
+        ]
+        builder.value.register_attribute_producer(
+            self.birth_exposure_pipeline,
+            source=per_axis_pipeline_names,
+            preferred_post_processor=get_exposure_post_processor(builder, self.name),
+        )
+
+    @staticmethod
+    def birth_exposure_pipeline_name(axis: str) -> str:
+        """Return the per-axis birth exposure pipeline name."""
+        return f"{axis}.birth_exposure"
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
+        """Initialize exposure columns to NaN; values are assigned at ultrasound."""
+        exposures = pd.DataFrame(
+            {
+                self.get_exposure_name(axis): pd.Series(np.nan, index=pop_data.index)
+                for axis in self.AXES
+            }
+        )
+        self.population_view.initialize(exposures)
 
     def _initialize_continuous_propensities(self, pop_data: SimulantData) -> None:
         propensity = {
@@ -289,7 +351,10 @@ class LBWSGRisk(LBWSGRisk_):
             birth_exposures = self.population_view.get_frame(
                 event.index, self.birth_exposure_pipeline
             )
-            col_mapping = {axis: self.get_exposure_name(axis) for axis in self.AXES}
+            col_mapping = {
+                self.birth_exposure_pipeline_name(axis): self.get_exposure_name(axis)
+                for axis in self.AXES
+            }
             return birth_exposures.rename(columns=col_mapping)
 
         self.population_view.update(exposure_columns, _update_exposures)
@@ -907,7 +972,7 @@ class LBWSGMortality(Component):
 
     def on_time_step(self, event: Event) -> None:
         child_alive = self.population_view.get(event.index, COLUMNS.CHILD_ALIVE)
-        alive_idx = child_alive.index[child_alive == "alive"]
+        alive_idx = child_alive.index[child_alive]
         acmr = self.population_view.get(alive_idx, PIPELINES.ACMR)
 
         # Determine which neonates die and update metadata
@@ -924,7 +989,7 @@ class LBWSGMortality(Component):
             ]
 
             def _update_mortality(pop: pd.DataFrame) -> pd.DataFrame:
-                pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = "dead"
+                pop.loc[dead_idx, COLUMNS.CHILD_ALIVE] = False
                 pop.loc[dead_idx, COLUMNS.CHILD_CAUSE_OF_DEATH] = "other_causes"
                 pop.loc[dead_idx, COLUMNS.CHILD_YEARS_OF_LIFE_LOST] = self.life_expectancy(
                     dead_idx
@@ -992,7 +1057,7 @@ def calculate_mortality_weights(component: Component, sex: str) -> pd.Series:
     pop_data = pop_data.loc[pop_data["sex_of_child"] == sex]
     weights = (
         pop_data.groupby(["lbwsg_category", "sex_of_child"])["child_alive"]
-        .agg(proportion_alive=lambda x: (x == "alive").mean())
+        .agg(proportion_alive=lambda x: x.mean())
         .reset_index()
     )
     return weights
