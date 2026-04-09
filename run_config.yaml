@@ -1,0 +1,7 @@
+model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
+branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
+result_directory: /ihme/homes/albrja/scratch/
+project: proj_simscience
+peak_memory: 5
+max_runtime: "01:00:00"
+queue: all.q
