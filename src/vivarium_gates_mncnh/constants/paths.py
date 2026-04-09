@@ -28,5 +28,5 @@ FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_sicence/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model31.0"
+MODEL_RESULTS_DIR = "model31.0s"
 MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
