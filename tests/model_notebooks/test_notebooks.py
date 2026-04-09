@@ -12,8 +12,8 @@ from typing import Any, Dict, List
 import papermill as pm
 import pytest
 from loguru import logger
+from vivarium_testing_utils.pytest_plugin import IS_ON_SLURM
 
-from tests.conftest import IS_ON_SLURM
 from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR, MODEL_RESULTS_DIR
 
 
@@ -27,8 +27,13 @@ def discover_notebook_paths(notebook_directory) -> List[Path]:
     Returns:
         List of Path objects for discovered notebooks
     """
+    # Filter out checkpoint files and nbdime merge conflict artifacts (e.g. *_BACKUP_*, *_BASE_*, *_LOCAL_*, *_REMOTE_*)
+    nbdime_suffixes = ("_BACKUP_", "_BASE_", "_LOCAL_", "_REMOTE_")
     notebooks = [
-        nb for nb in notebook_directory.glob("*.ipynb") if ".ipynb_checkpoints" not in str(nb)
+        nb
+        for nb in notebook_directory.glob("*.ipynb")
+        if ".ipynb_checkpoints" not in str(nb)
+        and not any(suffix in nb.stem for suffix in nbdime_suffixes)
     ]
 
     logger.info(f"Found {len(notebooks)} notebook(s) in {notebook_directory}")

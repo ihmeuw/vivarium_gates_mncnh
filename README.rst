@@ -23,20 +23,35 @@ The first step is to clone the repo::
   ...git will copy the repository from github and place it in your current directory...
   :~$ cd vivarium_gates_mncnh
 
-Cloning the repository should take a fair bit of time as git must fetch
-the data artifact associated with the demo (several GB of data) from the
-large file system storage (``git-lfs``). **If your clone works quickly,
-you are likely only retrieving the checksum file that github holds onto,
-and your simulations will fail.** If you are only retrieving checksum
-files you can explicitly pull the data by executing ``git-lfs pull``.
+There are two environment options: a **local conda environment** (for personal machines)
+or a **shared environment on the cluster** with a lightweight venv wrapper.
 
-Users can create environments by running
-``bash environment.sh`` and ``bash environment.sh -t artifact`` which will automatically create and active conda environments
-for running the simulation and artifact generation respectively.
-The environment.sh script has extra options for users. To see these options, pass the 
-``-h`` flag.
+To create or update an environment, use ``source environment.sh``. This will
+automatically create the environment if it doesn't exist, or update it if it
+is stale.
 
-Alternatively, users can manually create the environments as follows::
+**Local conda environment** (default)::
+
+  :~$ source environment.sh
+  ...creates/activates the simulation conda environment...
+  :~$ source environment.sh -t artifact
+  ...creates/activates the artifact conda environment...
+
+To deactivate a local conda environment, run ``conda deactivate``.
+
+**Shared environment on the cluster** (recommended for cluster development)::
+
+  :~$ source environment.sh -s
+  ...creates/activates a venv overlay on the shared simulation environment...
+  :~$ source environment.sh -s -t artifact
+  ...creates/activates a venv overlay on the shared artifact environment...
+
+To deactivate a shared cluster environment, run ``deactivate``.
+
+Additional options are available; pass the ``-h`` flag to see them
+(e.g. ``-f`` to force a rebuild, ``-l`` to install git lfs).
+
+Alternatively, users can manually create conda environments as follows::
 
   :~$ conda create --name=vivarium_gates_mncnh_simulation python=3.11 git git-lfs
   ...conda will download python and base dependencies...
@@ -112,6 +127,9 @@ You'll find six directories inside the main
   This directory hold Python files used to run scripts used to prepare input
   data or process outputs.
 
+When performing merges in this repository, due to the presence of notebooks, there may be conflicts more often than you expect.
+Both the simulation and artifact environments have `nbdime` installed, which makes these conflicts easier to resolve.
+Simply open the conflicting notebooks in a notebook editor (e.g. JupyterLab or VS Code) and resolve the conflicts within that interface.
 
 Running Simulations
 -------------------
@@ -128,13 +146,13 @@ If you don't want to re-generate the RR caps, you can skip this step and simply 
 files included in this repo.
 Generating the caps is achieved with:::
 
-  :~$ conda activate vivarium_gates_mncnh_artifact
+  :~$ source environment.sh -t artifact
   (vivarium_gates_mncnh_artifact) :~$ python src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py -l Pakistan -o src/vivarium_gates_mncnh/data/lbwsg_rr_caps/caps/
 
 The next step is to generate an artifact with base GBD data in it.
 This will only work on the IHME cluster, because it pulls draw-level data from internal GBD databases.:::
 
-  :~$ conda activate vivarium_gates_mncnh_artifact
+  :~$ source environment.sh -t artifact
   (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/
 
 This command will create an artifact file in the ``artifacts/`` directory within the repo;
@@ -146,7 +164,7 @@ for LBWSG in the early neonatal period.
 *Edit* the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml`` so that the ``end``
 is only one day after the ``start``, then run:::
 
-  :~$ conda activate vivarium_gates_mncnh_simulation
+  :~$ source environment.sh
   (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
@@ -200,3 +218,106 @@ Results of the simulation will be written to ``sim_results/``.
 For example, you can check the total deaths due to maternal disorders by
 summing the ``value`` column in the Parquet file at
 ``sim_results/pakistan/<timestamp>/results/maternal_disorders_burden_observer_disorder_deaths.parquet``.
+
+V&V process
+-----------
+
+We do not merge changes to the **main** branch until they have passed verification and validation (V&V).
+Other branches, such as epic branches, can be merged to without V&V; only code review is required.
+The reasoning for this is that V&V is quite a bit more involved than typical software testing, and may involve multiple people.
+We make separate branches and pull requests for each *person's* contribution, so that their code can be reviewed by others.
+
+Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. sensitivity analyses or experiments. In that case,
+we would still follow this process to ensure we did the experiment correctly, then simply close the PRs without merging once the process is complete.
+
+The V&V process is performed through our ``pytest`` suite.
+The test suite contains some tests that run the simulation (using the ``InteractiveContext``),
+and other tests that perform checks on the results of an already-run simulation (run with ``psimulate``).
+Currently, some of these tests are in Python files, and some are in notebooks.
+In the notebooks, there are also some checks which are not ``assert`` statements,
+but require manual review of the notebook outputs to confirm that they are correct.
+When notebook tests are run, the notebook outputs are saved to the ``executed`` subdirectories,
+and must be committed to the repo.
+
+For environment-management reasons, the Python tests run in the simulation environment, and the notebook tests run in the artifact environment.
+This means that "running the tests" involves running the test suite in both environments.
+
+In general, for each V&V process, there are four roles to play: the artifact-builder, the component-updater, the model-runner, and the V&V person.
+The artifact-builder makes the changes to the artifact,
+the component-updater makes any necessary changes to the components,
+the model-runner runs the model,
+and the V&V person does the final sign-off that the model is working as expected.
+We **require** the model-runner and V&V person to be two separate people,
+and the artifact-builder and V&V person to be two separate people, but besides that one person can wear multiple "hats."
+Historically, the artifact-builder, component-updater, and model-runner have been engineers,
+and the V&V person has been a researcher.
+With task shifting, we are now primarily having folks on the research side take on the role of artifact-builder,
+and sometimes also model-runner.
+The model-runner is generally the same person as the artifact-builder if no component changes are needed,
+or the same person as the component-updater if component changes are needed, but we haven't yet completely formalized this.
+
+It is encouraged to keep non-main branches up to date with main, and to merge the latest changes from main
+before doing the V&V process on a branch.
+However, in the case that parallel development results in V&V on a branch being done without changes that are merged to main before that branch is,
+V&V should be repeated once the branch is updated with the latest changes from main.
+
+Anytime the V&V process hands from one person (not role) to another, and code changes must be made,
+the person receiving the handoff should create a new branch off of the last branch, and make a pull request for that branch.
+This way each PR contains only the changes made by one person, and the others can review.
+
+If a bug is found, the process re-starts in a new branch.
+The person best-positioned to fix the bug is identified according to the nature of the bug,
+and they become the artifact-builder and/or component-updater (depending on where the bug is) for the next iteration.
+The V&V person does not change.
+
+If no issues are found, the V&V person gives their sign-off that the branch is ready to be merged to main.
+At this point *all* branches involved may be merged to main (if they've been code-reviewed), in whatever
+order is most convenient according to potential merge conflicts and who would be better placed to resolve them.
+
+The process works as follows:
+
+.. image:: vv_process.drawio.png
+   :alt: Diagram of the V&V process
+
+Additional details on individual tasks follow.
+
+**Update data processing code and build artifact**
+
+* Build the artifact to a directory named descriptively using words rather than a model number (which has not yet been assigned).
+* Be sure to update the model specification to point to the new artifact location.
+
+**Artifact changes backwards compatible?**
+
+This question asks whether or not we expect that existing tests should pass with the new artifact,
+without any changes to the simulation itself.
+In general, the answer should be "yes" when artifact updates do not change the *structure* or *meaning* of existing keys.
+Or in other words, when the only component changes you anticipate needing are adding *new* functionality,
+rather than changing existing functionality.
+
+**Git tag, run psimulate, update the model results dir constant**
+
+Because V&V involves saving outputs to the shared drive, we number all model runs
+and make the shared drive directories correspond to these numbers.
+
+We do not assign the model number until just before running the simulation.
+The model number must be of the form X.Y.Z[a] and should be unique, and strictly *after*
+any other model number which is a git ancestor of it.
+The [a] part indicates that a model may end with a letter, e.g. 21.0.1b.
+The letter is *only* used when the model is a sensitivity analysis or experiment that should *not* be merged into main,
+and it *must* be used in such cases to clearly differentiate these.
+In order to track how these numbers map to git revisions, we tag
+the git revision just before running the simulation with the model number.
+The directory where the artifact has been stored (named using words) should be
+renamed to match the model number, and the update to the artifact path committed to the model spec file, before starting runs.
+
+When running ``psimulate``, the output directory should be set to a directory named with the model number.
+The MODEL_RESULTS_DIR constant in ``src/vivarium_gates_mncnh/constants/paths.py``
+should be updated to reflect the new directory where results are being written,
+so that the tests will be checking the correct results.
+Also, the model run should be tracked on the `MNCNH run tracker <https://uwnetid.sharepoint.com/:x:/s/ihme_simulation_science_team/ERyWpil0FLNDl4wfiEOns1EBnTbGctKsKzSKY_iKDTOmxw>`__.
+
+**Post on Slack, do a quick investigation**
+
+The person who encounters the test failure should post on Slack right away, then do a quick investigation into why the tests are failing,
+time-boxed to 15 minutes.
+If this does not identify a bug, the issue will be escalated to the V&V person.

@@ -489,6 +489,12 @@ class __IFASupplementation(NamedTuple):
     EXCESS_SHIFT: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.excess_shift"
     )
+    EXCESS_GA_SHIFT_ANC: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.excess_gestational_age_shift_anc"
+    )
+    EXCESS_GA_SHIFT_NON_ANC: TargetString = TargetString(
+        "risk_factor.iron_folic_acid_supplementation.excess_gestational_age_shift_non_anc"
+    )
     RISK_SPECIFIC_SHIFT: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.risk_specific_shift"
     )
