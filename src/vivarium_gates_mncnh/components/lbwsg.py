@@ -16,6 +16,7 @@ from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.effect import RiskEffect
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGDistribution,
 )
@@ -527,8 +528,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 ####################################
 class LBWSGPAFRiskEffect(LBWSGRiskEffect):
     def setup(self, builder: Builder) -> None:
-        from vivarium_public_health.risks import RiskEffect
-
         # subclass setup so we don't define sim step name attribute
         self._sim_step_name = None
         self.paf_pipeline_name = f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
