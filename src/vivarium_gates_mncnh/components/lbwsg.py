@@ -527,17 +527,37 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
 ####################################
 class LBWSGPAFRiskEffect(LBWSGRiskEffect):
     def setup(self, builder: Builder) -> None:
+        from vivarium_public_health.risks import RiskEffect
+
         # subclass setup so we don't define sim step name attribute
         self._sim_step_name = None
         self.paf_pipeline_name = f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
         self.age_intervals = self.get_age_intervals(builder)
-        # Call grandparent (RiskEffect) setup — this builds paf_table, rr_table, etc.
-        super(LBWSGRiskEffect, self).setup(builder)
+        # Call RiskEffect.setup() directly — this builds paf_table, rr_table etc.
+        # We skip LBWSGRiskEffect_.setup() because it registers an initializer
+        # with required_resources=["sex"] which doesn't exist in the PAF sim.
+        RiskEffect.setup(self, builder)
+        self.interpolator = self.get_interpolator(builder)
+        exposure_columns = [LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]]
+        builder.population.register_initializer(
+            initializer=self.initialize_relative_risk,
+            columns=self.rr_column_names,
+            required_resources=exposure_columns + [COLUMNS.SEX_OF_CHILD],
+        )
         # Register a separate PAF pipeline after super has built paf_table
         builder.value.register_attribute_producer(
             self.paf_pipeline_name,
             source=self.paf_table,
             required_resources=[self.paf_table],
+        )
+
+    def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        """Override to avoid depending on the exposure pipeline."""
+        exposure_columns = [LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]]
+        builder.value.register_attribute_producer(
+            self.relative_risk_name,
+            self._relative_risk_source,
+            required_resources=exposure_columns,
         )
 
     def initialize_relative_risk(self, pop_data: SimulantData) -> None:
@@ -583,30 +603,55 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
 
 class LBWSGPAFCalculationExposure(LBWSGRisk):
     def setup(self, builder: Builder) -> None:
-        # call grandparent setup to avoid defining sim step name attribute
-        super(LBWSGRisk, self).setup(builder)
+        # Skip the entire Risk/LBWSGRisk_ setup chain because it creates the
+        # LBWSGDistribution which registers pipelines requiring categorical_propensity
+        # — a column that doesn't exist in the PAF simulation.
+        # Instead, we only register the pipelines and initializers that the PAF sim
+        # actually needs.
+        self._components = builder.components
+        self.register_birth_exposure_pipeline(builder)
         self.configuration_age_end = 0.0
-        self.categorical_propensity_name_correlated = f"{self.name}.correlated_propensity"
         self.lbwsg_categories = builder.data.load(data_keys.LBWSG.CATEGORIES)
         self.age_bins = builder.data.load(data_keys.POPULATION.AGE_BINS)
 
-        exposure_columns = [self.get_exposure_name(axis) for axis in self.AXES]
-        extra_columns = ["lbwsg_category", "age_bin"]
+        # Phase 1: initialize category/bin columns (no pipeline dependency)
         builder.population.register_initializer(
-            initializer=self._initialize_paf_exposure,
-            columns=exposure_columns + extra_columns,
+            initializer=self._initialize_categories,
+            columns=["lbwsg_category", "age_bin"],
+            required_resources=["child_age", "sex_of_child"],
+        )
+        # Phase 2: initialize exposure columns via the birth exposure pipeline,
+        # which reads lbwsg_category and age_bin from the state table.
+        exposure_columns = [self.get_exposure_name(axis) for axis in self.AXES]
+        builder.population.register_initializer(
+            initializer=self._initialize_birth_exposures,
+            columns=exposure_columns,
             required_resources=[
                 self.birth_exposure_pipeline,
-                "child_age",
-                "sex_of_child",
+                "lbwsg_category",
+                "age_bin",
             ],
+        )
+
+    #################
+    # Setup methods #
+    #################
+
+    def register_birth_exposure_pipeline(self, builder: Builder) -> None:
+        """Register a birth exposure pipeline with resources available in the PAF sim."""
+        builder.value.register_attribute_producer(
+            self.birth_exposure_pipeline,
+            source=self.get_birth_exposure,
+            preferred_post_processor=get_exposure_post_processor(builder, self.name),
+            required_resources=["child_age", "sex_of_child", "lbwsg_category", "age_bin"],
         )
 
     ########################
     # Event-driven methods #
     ########################
 
-    def _initialize_paf_exposure(self, pop_data: SimulantData) -> None:
+    def _initialize_categories(self, pop_data: SimulantData) -> None:
+        """Assign LBWSG categories and age bins to simulants."""
         pop = self.population_view.get(pop_data.index, ["child_age", "sex_of_child"])
         pop["age_bin"] = pd.cut(pop["child_age"], self.age_bins["age_start"])
         pop = pop.sort_values(["sex_of_child", "child_age"])
@@ -626,14 +671,16 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
         assigned_categories = list(lbwsg_categories) * num_sexes * num_repeats
         pop["lbwsg_category"] = assigned_categories
 
+        self.population_view.initialize(pop[["age_bin", "lbwsg_category"]])
+
+    def _initialize_birth_exposures(self, pop_data: SimulantData) -> None:
+        """Compute birth exposures from the pipeline and write to state table."""
         birth_exposures = self.population_view.get_frame(
             pop_data.index, self.birth_exposure_pipeline
         )
         col_mapping = {axis: self.get_exposure_name(axis) for axis in self.AXES}
         birth_exposures.rename(columns=col_mapping, inplace=True)
-
-        init_data = pd.concat([pop[["age_bin", "lbwsg_category"]], birth_exposures], axis=1)
-        self.population_view.initialize(init_data)
+        self.population_view.initialize(birth_exposures)
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the age bins to match the simulants' ages."""
@@ -646,13 +693,13 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
     # Pipeline sources and modifiers #
     ##################################
 
-    def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
+    def get_birth_exposure(self, index: pd.Index) -> pd.DataFrame:
         pop = self.population_view.get(index, ["age_bin", "sex_of_child", "lbwsg_category"])
         lbwsg_categories = self.lbwsg_categories.keys()
         num_simulants_in_category = int(len(pop) / (len(lbwsg_categories) * 2))
         num_points_in_interval = int(math.sqrt(num_simulants_in_category))
 
-        exposure_values = pd.Series(name=axis, index=pop.index, dtype=float)
+        result = {axis: pd.Series(np.nan, index=pop.index) for axis in self.AXES}
 
         for age_bin, sex, cat in itertools.product(
             pop["age_bin"].unique(), ["Male", "Female"], lbwsg_categories
@@ -694,9 +741,10 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
                 & (pop["age_bin"] == age_bin)
                 & (pop["sex_of_child"] == sex)
             ].index
-            exposure_values.loc[subset_index] = lbwsg_exposures[axis].values
+            for axis in self.AXES:
+                result[axis].loc[subset_index] = lbwsg_exposures[axis].values
 
-        return exposure_values
+        return pd.DataFrame(result)
 
 
 class LBWSGPAFObserver(Component):
@@ -734,7 +782,7 @@ class LBWSGPAFObserver(Component):
         # Add observer to get paf for preterm birth population
         builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}_preterm",
-            pop_filter="gestational_age.exposure < 37",
+            pop_filter="`gestational_age.exposure` < 37",
             aggregator=self.calculate_paf,
             results_updater=self.results_updater,
             requires_attributes=[COLUMNS.GESTATIONAL_AGE_EXPOSURE],
@@ -930,12 +978,13 @@ class LBWSGMortality(Component):
 
         builder.population.register_initializer(
             self.initialize_mortality_columns,
-            columns=[COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST],
+            columns=[COLUMNS.CHILD_ALIVE, COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST],
         )
 
     def initialize_mortality_columns(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
+                COLUMNS.CHILD_ALIVE: True,
                 COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST: 0.0,
             },
