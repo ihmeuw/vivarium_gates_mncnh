@@ -481,9 +481,7 @@ class IVIronEffectOnLBWSG(Component):
     # Pipeline sources and modifiers #
     ##################################
 
-    def apply_iv_iron_to_lbwsg(
-        self, index: pd.Index, exposure: pd.DataFrame
-    ) -> pd.DataFrame:
+    def apply_iv_iron_to_lbwsg(self, index: pd.Index, exposure: pd.DataFrame) -> pd.DataFrame:
         iv_iron = self.population_view.get(index, COLUMNS.IV_IRON_INTERVENTION)
         has_iv_iron = iv_iron == models.IV_IRON_INTERVENTION.COVERED
         covered_index = has_iv_iron.index[has_iv_iron]
@@ -626,9 +624,7 @@ class AdditiveRiskEffect(RiskEffect):
             required_resources=[self.relative_risk_name],
         )
 
-    def _adjust_birth_exposure(
-        self, index: pd.Index, target: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _adjust_birth_exposure(self, index: pd.Index, target: pd.DataFrame) -> pd.DataFrame:
         target[self.target.name] = self.adjust_target(index, target[self.target.name])
         return target
 

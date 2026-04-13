@@ -393,7 +393,6 @@ class BurdenObserver(PublicHealthObserver):
         ylls_column: str,
         cause_of_death_column: str,
         excluded_causes: list[str] = [],
-        dead_filter_value: str = "'dead'",
     ):
         super().__init__()
         self.burden_disorders = burden_disorders
@@ -401,7 +400,6 @@ class BurdenObserver(PublicHealthObserver):
         self.ylls_column = ylls_column
         self.cause_of_death_column = cause_of_death_column
         self.excluded_causes = excluded_causes
-        self.dead_filter_value = dead_filter_value
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -410,7 +408,7 @@ class BurdenObserver(PublicHealthObserver):
         return builder.configuration["stratification"][self.get_configuration_name()]
 
     def register_observations(self, builder: Builder) -> None:
-        dead_pop_filter = f"{self.alive_column} == {self.dead_filter_value}"
+        dead_pop_filter = f"{self.alive_column} == False"
         builder.results.register_stratification(
             name=f"{self.name}_cause_of_death",
             categories=self.burden_disorders + ["not_dead"],
@@ -470,7 +468,6 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
             alive_column=COLUMNS.MOTHER_ALIVE,
             ylls_column=COLUMNS.MOTHER_YEARS_OF_LIFE_LOST,
             cause_of_death_column=COLUMNS.MOTHER_CAUSE_OF_DEATH,
-            dead_filter_value="False",
         )
 
     def setup(self, builder: Builder) -> None:
@@ -544,7 +541,6 @@ class NeonatalBurdenObserver(BurdenObserver):
             alive_column=COLUMNS.CHILD_ALIVE,
             ylls_column=COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
             cause_of_death_column=COLUMNS.CHILD_CAUSE_OF_DEATH,
-            dead_filter_value="False",
             excluded_causes=[
                 PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME,
                 PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME,

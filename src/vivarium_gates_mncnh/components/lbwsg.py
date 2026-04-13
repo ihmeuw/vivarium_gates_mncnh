@@ -537,7 +537,9 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
         # with required_resources=["sex"] which doesn't exist in the PAF sim.
         RiskEffect.setup(self, builder)
         self.interpolator = self.get_interpolator(builder)
-        exposure_columns = [LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]]
+        exposure_columns = [
+            LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]
+        ]
         builder.population.register_initializer(
             initializer=self.initialize_relative_risk,
             columns=self.rr_column_names,
@@ -552,7 +554,9 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
 
     def register_relative_risk_pipeline(self, builder: Builder) -> None:
         """Override to avoid depending on the exposure pipeline."""
-        exposure_columns = [LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]]
+        exposure_columns = [
+            LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]
+        ]
         builder.value.register_attribute_producer(
             self.relative_risk_name,
             self._relative_risk_source,
@@ -977,7 +981,11 @@ class LBWSGMortality(Component):
 
         builder.population.register_initializer(
             self.initialize_mortality_columns,
-            columns=[COLUMNS.CHILD_ALIVE, COLUMNS.CHILD_CAUSE_OF_DEATH, COLUMNS.CHILD_YEARS_OF_LIFE_LOST],
+            columns=[
+                COLUMNS.CHILD_ALIVE,
+                COLUMNS.CHILD_CAUSE_OF_DEATH,
+                COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
+            ],
         )
 
     def initialize_mortality_columns(self, pop_data: SimulantData) -> None:
