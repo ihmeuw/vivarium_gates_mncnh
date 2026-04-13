@@ -442,6 +442,8 @@ class OralIronEffectOnStillbirth(Component):
 class IVIronEffectOnLBWSG(Component):
     """IV iron effects on birth weight and gestational age."""
 
+    BIRTH_EXPOSURE_PIPELINE = "low_birth_weight_and_short_gestation.birth_exposure"
+
     #################
     # Setup methods #
     #################
@@ -470,13 +472,8 @@ class IVIronEffectOnLBWSG(Component):
         )
 
         builder.value.register_attribute_modifier(
-            PIPELINES.GESTATIONAL_AGE_EXPOSURE,
-            self.apply_iv_iron_to_gestational_age,
-            required_resources=[COLUMNS.IV_IRON_INTERVENTION],
-        )
-        builder.value.register_attribute_modifier(
-            PIPELINES.BIRTH_WEIGHT_EXPOSURE,
-            self.apply_iv_iron_to_birth_weight,
+            self.BIRTH_EXPOSURE_PIPELINE,
+            self.apply_iv_iron_to_lbwsg,
             required_resources=[COLUMNS.IV_IRON_INTERVENTION],
         )
 
@@ -484,27 +481,18 @@ class IVIronEffectOnLBWSG(Component):
     # Pipeline sources and modifiers #
     ##################################
 
-    def apply_iv_iron_to_birth_weight(
-        self, index: pd.Index, exposure: pd.Series
-    ) -> pd.Series:
+    def apply_iv_iron_to_lbwsg(
+        self, index: pd.Index, exposure: pd.DataFrame
+    ) -> pd.DataFrame:
         iv_iron = self.population_view.get(index, COLUMNS.IV_IRON_INTERVENTION)
         has_iv_iron = iv_iron == models.IV_IRON_INTERVENTION.COVERED
         covered_index = has_iv_iron.index[has_iv_iron]
 
         bw_effect = self.birth_weight_risk_effect_table(covered_index)
-        exposure.loc[covered_index] += bw_effect
-
-        return exposure
-
-    def apply_iv_iron_to_gestational_age(
-        self, index: pd.Index, exposure: pd.Series
-    ) -> pd.Series:
-        iv_iron = self.population_view.get(index, COLUMNS.IV_IRON_INTERVENTION)
-        has_iv_iron = iv_iron == models.IV_IRON_INTERVENTION.COVERED
-        covered_index = has_iv_iron.index[has_iv_iron]
-
         ga_effect = self.gestational_age_risk_effect_table(covered_index)
-        exposure.loc[covered_index] += ga_effect
+
+        exposure.loc[covered_index, "birth_weight"] += bw_effect
+        exposure.loc[covered_index, "gestational_age"] += ga_effect
 
         return exposure
 
@@ -560,6 +548,8 @@ class IVIronEffectOnStillbirth(Component):
 
 
 class AdditiveRiskEffect(RiskEffect):
+    BIRTH_EXPOSURE_PIPELINE = "low_birth_weight_and_short_gestation.birth_exposure"
+
     def __init__(self, risk: str, target: str):
         super().__init__(risk, target)
         self.effect_pipeline_name = f"{self.risk.name}_on_{self.target.name}.effect"
@@ -631,10 +621,16 @@ class AdditiveRiskEffect(RiskEffect):
 
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            self.target_name,
-            modifier=self.adjust_target,
+            self.BIRTH_EXPOSURE_PIPELINE,
+            modifier=self._adjust_birth_exposure,
             required_resources=[self.relative_risk_name],
         )
+
+    def _adjust_birth_exposure(
+        self, index: pd.Index, target: pd.DataFrame
+    ) -> pd.DataFrame:
+        target[self.target.name] = self.adjust_target(index, target[self.target.name])
+        return target
 
     def get_excess_shift(self, builder: Builder) -> LookupTable:
         self.excess_shift_lookup_table = self.get_excess_shift_lookup_table(builder)

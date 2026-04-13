@@ -231,45 +231,18 @@ class LBWSGRisk(LBWSGRisk_):
     #################
 
     def register_birth_exposure_pipeline(self, builder: Builder) -> None:
-        """Override parent to register per-axis pipelines with partial term handling.
-
-        The per-axis pipelines are the modifier targets for intervention effects.
-        The 2-axis pipeline composes them so modifiers are applied automatically.
-        """
-        per_axis_resources = {
-            axis: [
-                self.exposure_distribution.exposure_ppf_pipeline,
-                self.categorical_propensity_name_correlated,
-                self.continuous_propensity_column_name[axis],
-            ]
-            for axis in self.AXES
-        }
-        # Gestational age also depends on partial term pregnancy duration
-        per_axis_resources[GESTATIONAL_AGE].append(COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION)
-
-        # Register per-axis pipelines (modifier targets for interventions)
-        for axis in self.AXES:
-            pipeline_name = self.birth_exposure_pipeline_name(axis)
-            builder.value.register_attribute_producer(
-                pipeline_name,
-                source=lambda index, _axis=axis: self.get_birth_exposure(_axis, index),
-                required_resources=per_axis_resources[axis],
-            )
-
-        # Register 2-axis pipeline that reads from per-axis pipelines
-        per_axis_pipeline_names = [
-            self.birth_exposure_pipeline_name(axis) for axis in self.AXES
-        ]
+        """Override parent to handle partial term pregnancies in the gestational age axis."""
         builder.value.register_attribute_producer(
             self.birth_exposure_pipeline,
-            source=per_axis_pipeline_names,
+            source=self.get_birth_exposure,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
+            required_resources=[
+                self.exposure_distribution.exposure_ppf_pipeline,
+                self.categorical_propensity_name_correlated,
+                COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
+                *[self.continuous_propensity_column_name[axis] for axis in self.AXES],
+            ],
         )
-
-    @staticmethod
-    def birth_exposure_pipeline_name(axis: str) -> str:
-        """Return the per-axis birth exposure pipeline name."""
-        return f"{axis}.birth_exposure"
 
     ########################
     # Event-driven methods #
@@ -294,46 +267,49 @@ class LBWSGRisk(LBWSGRisk_):
         }
         self.population_view.initialize(pd.DataFrame(propensity))
 
-    def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        exposure = pd.Series(np.nan, index=index, name=f"{axis}.exposure")
+    def get_birth_exposure(self, index: pd.Index) -> pd.DataFrame:
+        """Compute birth exposure for both axes.
 
-        # For gestational age, use partial_term_pregnancy_duration where available
-        if axis == GESTATIONAL_AGE:
-            pop = self.population_view.get(
-                index,
-                [
-                    COLUMNS.SEX_OF_CHILD,
-                    COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
-                    self.continuous_propensity_column_name[axis],
-                ],
-            )
-            partial_term_durations = pop[COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
-            is_partial_term = partial_term_durations.notna()
-            if is_partial_term.any():
+        For gestational age, use partial term pregnancy duration where available.
+        For all other simulants, use the PPF from the LBWSG distribution.
+        """
+        pop = self.population_view.get(
+            index,
+            [
+                COLUMNS.SEX_OF_CHILD,
+                COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
+                self.continuous_propensity_column_name[BIRTH_WEIGHT],
+                self.continuous_propensity_column_name[GESTATIONAL_AGE],
+            ],
+        )
+
+        partial_term_durations = pop[COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION]
+        is_partial_term = partial_term_durations.notna()
+
+        result = {}
+        for axis in self.AXES:
+            exposure = pd.Series(np.nan, index=index)
+
+            if axis == GESTATIONAL_AGE and is_partial_term.any():
                 exposure.loc[is_partial_term] = partial_term_durations.loc[is_partial_term]
-            ppf_index = index[~is_partial_term]
-        else:
-            pop = self.population_view.get(
-                index,
-                [
-                    COLUMNS.SEX_OF_CHILD,
-                    self.continuous_propensity_column_name[axis],
-                ],
-            )
-            ppf_index = index
+                ppf_index = index[~is_partial_term]
+            else:
+                ppf_index = index
 
-        if not ppf_index.empty:
-            categorical_propensity = self.population_view.get(
-                ppf_index, self.categorical_propensity_name_correlated
-            )
-            continuous_propensity = pop.loc[
-                ppf_index, self.continuous_propensity_column_name[axis]
-            ]
-            exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
-                axis, continuous_propensity, categorical_propensity
-            )
+            if not ppf_index.empty:
+                categorical_propensity = self.population_view.get(
+                    ppf_index, self.categorical_propensity_name_correlated
+                )
+                continuous_propensity = pop.loc[
+                    ppf_index, self.continuous_propensity_column_name[axis]
+                ]
+                exposure.loc[ppf_index] = self.exposure_distribution.single_axis_ppf(
+                    axis, continuous_propensity, categorical_propensity
+                )
 
-        return exposure
+            result[axis] = exposure
+
+        return pd.DataFrame(result)
 
     def get_continuous_propensity(self, pop_data: SimulantData, axis: str) -> pd.Series:
         return pd.Series(
@@ -351,10 +327,7 @@ class LBWSGRisk(LBWSGRisk_):
             birth_exposures = self.population_view.get_frame(
                 event.index, self.birth_exposure_pipeline
             )
-            col_mapping = {
-                self.birth_exposure_pipeline_name(axis): self.get_exposure_name(axis)
-                for axis in self.AXES
-            }
+            col_mapping = {axis: self.get_exposure_name(axis) for axis in self.AXES}
             return birth_exposures.rename(columns=col_mapping)
 
         self.population_view.update(exposure_columns, _update_exposures)

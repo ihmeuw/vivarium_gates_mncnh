@@ -125,39 +125,28 @@ def get_simulation_exposure_categories(
     sim: InteractiveContext,
     intervention_effects: bool = True,
 ) -> pd.DataFrame:
-    sim_exposure = pop[
-        [
-            COLUMNS.SEX_OF_CHILD,
-            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
-            COLUMNS.BIRTH_WEIGHT_EXPOSURE,
-        ]
-    ].copy()
+    lbwsg = sim.get_component("risk_factor.low_birth_weight_and_short_gestation")
+
     if intervention_effects:
-        sim_exposure = sim.get_population(
-            [
-                COLUMNS.SEX_OF_CHILD,
-                "gestational_age.birth_exposure",
-                "birth_weight.birth_exposure",
-            ]
+        birth_exposure = sim.get_population(
+            "low_birth_weight_and_short_gestation.birth_exposure"
         )
     else:
-        lbwsg = sim.get_component("risk_factor.low_birth_weight_and_short_gestation")
-        index = pop.index
-        sim_exposure = pd.concat(
-            [
-                pop[COLUMNS.SEX_OF_CHILD],
-                lbwsg.get_birth_exposure("gestational_age", index).rename(
-                    "gestational_age.birth_exposure"
-                ),
-                lbwsg.get_birth_exposure("birth_weight", index).rename(
-                    "birth_weight.birth_exposure"
-                ),
-            ],
-            axis=1,
-        )
-    category_intervals = sim.get_component(
-        "risk_factor.low_birth_weight_and_short_gestation"
-    ).exposure_distribution.category_intervals
+        birth_exposure = lbwsg.get_birth_exposure(pop.index)
+
+    sim_exposure = pd.concat(
+        [
+            pop[COLUMNS.SEX_OF_CHILD],
+            birth_exposure.rename(
+                columns={
+                    "birth_weight": "birth_weight.birth_exposure",
+                    "gestational_age": "gestational_age.birth_exposure",
+                }
+            ),
+        ],
+        axis=1,
+    )
+    category_intervals = lbwsg.exposure_distribution.category_intervals
 
     def map_to_category(value: float, category_dict: dict[str, pd.Interval]) -> list[str]:
         categories = []

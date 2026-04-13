@@ -59,11 +59,13 @@ class Pregnancy(Component):
             required_resources=[self.birth_outcome_probabilities_table],
         )
 
-        self._ga_birth_exposure_pipeline = PIPELINES.GESTATIONAL_AGE_EXPOSURE
+        self._birth_exposure_pipeline = (
+            "low_birth_weight_and_short_gestation.birth_exposure"
+        )
         builder.value.register_attribute_producer(
             PIPELINES.PREGNANCY_DURATION,
             self.get_pregnancy_durations,
-            required_resources=[self._ga_birth_exposure_pipeline],
+            required_resources=[self._birth_exposure_pipeline],
         )
 
         builder.population.register_initializer(
@@ -193,5 +195,8 @@ class Pregnancy(Component):
 
     def get_pregnancy_durations(self, index: pd.Index) -> pd.Series:
         """Convert gestational age from weeks to a timedelta."""
-        ga_weeks = self.population_view.get(index, self._ga_birth_exposure_pipeline)
+        birth_exposure = self.population_view.get_frame(
+            index, self._birth_exposure_pipeline
+        )
+        ga_weeks = birth_exposure["gestational_age"]
         return pd.to_timedelta(ga_weeks * 7, unit="days")
