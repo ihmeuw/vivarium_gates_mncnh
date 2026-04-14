@@ -1,0 +1,21 @@
+pipeline:
+  name: "test_pipeline"
+  project: "proj_simscience"
+  queue: "all.q"
+  output_directory: "/ihme/homes/albrja/scratch/test_pipeline"
+  steps:
+    - name: "step1_echo"
+      command: "echo 'step 1 complete'"
+      resources:
+        memory: 1
+        runtime: "00:01:00"
+    - name: "step2_echo"
+      command: "echo 'step 2 complete'"
+      resources:
+        memory: 1
+        runtime: "00:01:00"
+    - name: "step3_echo"
+      command: "echo 'step 3 complete'"
+      resources:
+        memory: 1
+        runtime: "00:01:00"
