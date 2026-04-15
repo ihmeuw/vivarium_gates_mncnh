@@ -46,8 +46,11 @@ if __name__ == "__main__":
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "gbd_mapping>=5.0.0",
         "layered_config_tree",
-        "vivarium>=3.4.5,<4.0.0",
-        "vivarium_public_health>=4.3.4,<5.0.0",
+        # TODO: UPDATE TO REAL PINS!
+        # "vivarium>=4.0.0, <5.0.0",
+        # "vivarium_public_health>=5.0.0, <6.0.0",
+        "vivarium @ git+https://github.com/ihmeuw/vivarium.git@release_candidate/v4.0.0",
+        "vivarium_public_health @ git+https://github.com/ihmeuw/vivarium_public_health.git@release-candidate/v5.0.0",
         "click",
         "jinja2",
         "pyyaml",
