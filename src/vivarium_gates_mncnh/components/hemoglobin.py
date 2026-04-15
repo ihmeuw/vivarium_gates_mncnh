@@ -65,12 +65,12 @@ class Hemoglobin(Risk):
             value_columns=["value"],
         )
 
-    def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.propensity(index)
-        gbd_exposure = pd.Series(self.exposure_distribution.ppf(propensity), index=index)
-        return gbd_exposure - (
-            self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
-        )
+    # def get_current_exposure(self, index: pd.Index) -> pd.Series:
+    #     propensity = self.propensity(index)
+    #     gbd_exposure = pd.Series(self.exposure_distribution.ppf(propensity), index=index)
+    #     return gbd_exposure - (
+    #         self.ifa_effect_size * self.ifa_coverage * self.lookup_tables["ANC1"](index)
+    #     )
 
     ########################
     # Event-driven methods #
