@@ -1,4 +1,4 @@
-pipeline:
+workflow:
   name: "test_pipeline"
   project: "proj_simscience"
   queue: "all.q"
