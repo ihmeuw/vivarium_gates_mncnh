@@ -364,7 +364,9 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
             self.target_paf_name,
-            modifier=lambda index: self.population_view.get(index, self.paf_pipeline_name),
+            modifier=lambda index, *_: self.population_view.get(
+                index, self.paf_pipeline_name
+            ),
             required_resources=[self.paf_pipeline_name],
         )
 
