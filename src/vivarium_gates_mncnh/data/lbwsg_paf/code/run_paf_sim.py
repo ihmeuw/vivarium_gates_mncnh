@@ -65,6 +65,18 @@ def generate_artifact():
     # Get data/lbwsg_paf
     script_dir = Path(__file__).parent.parent
 
+    # Check if artifact already exists
+    artifact_file = Path(artifact_path) / f"{location}.hdf"
+    skip_initial_artifact = False
+    if artifact_file.exists():
+        print(f"\nArtifact already exists: {artifact_file}")
+        response = input("Use existing artifact? [y/N]: ").strip().lower()
+        if response in ("y", "yes"):
+            skip_initial_artifact = True
+            print("Using existing artifact.")
+        else:
+            print("Will overwrite existing artifact.")
+
     print("\n" + "=" * 80)
     print("PAF Simulation Workflow")
     print("=" * 80)
@@ -78,12 +90,15 @@ def generate_artifact():
         check_conda_environments()
 
         # Step 1: Initial artifact generation
-        run_command(
-            ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
-            f"initial artifact generation for {location.capitalize()}",
-            conda_env="vivarium_gates_mncnh_artifact",
-            auto_confirm=True,
-        )
+        if skip_initial_artifact:
+            print("\nSkipping initial artifact generation (using existing artifact).")
+        else:
+            run_command(
+                ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
+                f"initial artifact generation for {location.capitalize()}",
+                conda_env="vivarium_gates_mncnh_artifact",
+                auto_confirm=True,
+            )
 
         # Step 2: Run first psimulate with early neonatal spec (only one time step)
         psimulate_output = run_command(

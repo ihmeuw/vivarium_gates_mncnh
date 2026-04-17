@@ -64,7 +64,7 @@ class NewChildren(Component):
             return
 
         child_alive = self.population_view.get(event.index, COLUMNS.CHILD_ALIVE)
-        alive_children_idx = child_alive.index[child_alive == "alive"]
+        alive_children_idx = child_alive.index[child_alive]
         # Update age of children to get correct lookup values - use midpoint of age groups
         age_group_midpoints = {
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: (7 / 2) / 365.0,

@@ -41,14 +41,17 @@ class EvenlyDistributedPopulation(BasePopulation):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
+        # Skip BasePopulation.setup() to avoid double-registering columns
+        # (age, sex, location, entrance_time, exit_time) that it claims.
+        # We only need register_simulants and key_columns from the parent's setup.
+        self.key_columns = builder.configuration.randomness.key_columns
+        self.register_simulants = builder.randomness.register_simulants
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         builder.population.register_initializer(
             self.initialize_evenly_distributed_population,
             columns=[
                 "child_age",
                 "sex_of_child",
-                "child_alive",
                 "location",
                 "entrance_time",
                 "exit_time",
@@ -59,7 +62,6 @@ class EvenlyDistributedPopulation(BasePopulation):
         population = pd.DataFrame(index=pop_data.index)
         population["entrance_time"] = pop_data.creation_time
         population["exit_time"] = pd.NaT
-        population["child_alive"] = "alive"
         population["location"] = self.location
         # NOTE: If ages are initialized less than or equal to CHILD_INITIALIZATION_AGE,
         # those simulants will be mapped to the stillbirth age group, so we must start at that value!
@@ -74,7 +76,7 @@ class EvenlyDistributedPopulation(BasePopulation):
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
         population = self.population_view.get(
-            event.index, ["child_age"], query="child_alive == 'alive'"
+            event.index, ["child_age"], query="child_alive == True"
         )
         self.population_view.update(
             "child_age",

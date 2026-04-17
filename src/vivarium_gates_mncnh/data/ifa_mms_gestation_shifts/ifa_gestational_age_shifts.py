@@ -145,7 +145,14 @@ def lookup_continuous_bw_ga(row, art_exposure):
 
 def return_sim_data(location, draw, art_exposure):
     sim = initialize_simulation(location, draw)
-    pop = sim.get_population()
+    pop = sim.get_population(
+        [
+            "pregnancy_outcome",
+            "birth_weight_exposure",
+            "gestational_age_exposure",
+            "anc_attendance",
+        ]
+    )
     df = pop[pop["pregnancy_outcome"] == "live_birth"].copy()
     df["parameter"] = df.apply(lookup_continuous_bw_ga, axis=1, args=(art_exposure,))
     df["anc1"] = df["anc_attendance"] != "none"
