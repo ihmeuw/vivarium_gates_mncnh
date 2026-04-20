@@ -38,7 +38,13 @@ def pregnancy_state(
 
 @pytest.fixture(scope="module")
 def population(pregnancy_state: InteractiveContext) -> pd.DataFrame:
-    return pregnancy_state.get_population()
+    return pregnancy_state.get_population(
+        [
+            COLUMNS.PREGNANCY_OUTCOME,
+            COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
+            COLUMNS.GESTATIONAL_AGE_EXPOSURE,
+        ]
+    )
 
 
 def test_partial_term_pregnancy_durations(
@@ -73,8 +79,5 @@ def test_pregnancy_duration_pipeline(
     non_partial_ga = population.loc[non_partial_idx, COLUMNS.GESTATIONAL_AGE_EXPOSURE]
     gestational_age = pd.concat([partial_ga, non_partial_ga]).sort_index()
     unit_converted_ga = pd.to_timedelta(7 * gestational_age, unit="days")
-    pregnancy_duration = pregnancy_state.get_value(PIPELINES.PREGNANCY_DURATION)(
-        population.index
-    )
-
+    pregnancy_duration = pregnancy_state.get_population(PIPELINES.PREGNANCY_DURATION)
     assert all(unit_converted_ga == pregnancy_duration)

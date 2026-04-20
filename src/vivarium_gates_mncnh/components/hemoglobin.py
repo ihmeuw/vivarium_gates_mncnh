@@ -78,10 +78,6 @@ class Hemoglobin(Risk):
     # Event-driven methods #
     ########################
 
-    def on_time_step_prepare(self, event: Event) -> None:
-        # overwrite parent class method so we don't update state table
-        pass
-
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
             return

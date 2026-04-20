@@ -253,7 +253,7 @@ class NeonatalMortality(Component):
     def _initialize_mortality_columns(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
-                COLUMNS.CHILD_ALIVE: pd.NA,
+                COLUMNS.CHILD_ALIVE: False,
                 COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST: 0.0,
             },
@@ -281,8 +281,8 @@ class NeonatalMortality(Component):
         live_birth_index = pregnancy_outcome.index[
             pregnancy_outcome == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
         ]
-        child_alive = pd.Series("dead", index=event.index, name=COLUMNS.CHILD_ALIVE)
-        child_alive.loc[live_birth_index] = "alive"
+        child_alive = pd.Series(False, index=event.index, name=COLUMNS.CHILD_ALIVE)
+        child_alive.loc[live_birth_index] = True
         self.population_view.update(
             COLUMNS.CHILD_ALIVE,
             lambda _: child_alive,
@@ -296,7 +296,7 @@ class NeonatalMortality(Component):
             return
 
         pop = self.population_view.get(event.index, [COLUMNS.CHILD_ALIVE])
-        alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE] == "alive"]
+        alive_idx = pop.index[pop[COLUMNS.CHILD_ALIVE]]
         mortality_risk = self.population_view.get(
             alive_idx, PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY
         )
@@ -313,7 +313,7 @@ class NeonatalMortality(Component):
 
             self.population_view.update(
                 COLUMNS.CHILD_ALIVE,
-                lambda current: pd.Series("dead", index=dead_idx),
+                lambda current: pd.Series(False, index=dead_idx),
             )
             self.population_view.update(
                 COLUMNS.CHILD_CAUSE_OF_DEATH,
