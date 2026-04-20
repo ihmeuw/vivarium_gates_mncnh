@@ -1,0 +1,12 @@
+name: crosswalk
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - "crosswalk @ git+https://github.com/ihmeuw-msca/crosswalk.git"
+      - ipykernel
+      - pandas==1.5.3
+      - numpy==1.24.2
+      - dill
