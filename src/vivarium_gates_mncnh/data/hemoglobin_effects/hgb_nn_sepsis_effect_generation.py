@@ -46,17 +46,24 @@ def get_simulated_population(location, draw):
     # now take one more step to complete early neonatal mortality
     sim.step()
 
-    pop = sim.get_population()
     cols = [
         "sex_of_child",
         "pregnancy_outcome",
         "child_alive",
-        "birth_weight_exposure",
-        "gestational_age_exposure",
+        "birth_weight.exposure",
+        "gestational_age.exposure",
         "effect_of_low_birth_weight_and_short_gestation_on_early_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk",
         "effect_of_low_birth_weight_and_short_gestation_on_late_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk",
     ]
-    return pop[cols]
+    pop = sim.get_population(cols)
+    # Rename columns to match downstream code expectations
+    pop = pop.rename(
+        columns={
+            "birth_weight.exposure": "birth_weight_exposure",
+            "gestational_age.exposure": "gestational_age_exposure",
+        }
+    )
+    return pop
 
 
 def load_interpolators(location, draw):

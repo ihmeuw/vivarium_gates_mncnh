@@ -21,6 +21,7 @@ LBWSG_RR_CAPS_DIR = REPO_DATA_DIR / "lbwsg_rr_caps" / "caps"
 STILLBIRTH_RATIO_DATA_DIR = REPO_DATA_DIR / "stillbirth_ratio"
 ORAL_IRON_DATA_DIR = REPO_DATA_DIR / "ifa_mms_gestation_shifts"
 HEMOGLOBIN_EFFECTS_DATA_DIR = REPO_DATA_DIR / "hemoglobin_effects"
+HEMOGLOBIN_PAF_OUTPUTS_DIR = REPO_DATA_DIR / "hgb_pafs_maternal_disorders" / "outputs"
 FERRITIN_TESTING_COVERAGE_DATA_DIR = REPO_DATA_DIR / "ferritin_testing_coverage"
 FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
     REPO_DATA_DIR / "facility_choice" / "facility_choice_optimization_results.csv"

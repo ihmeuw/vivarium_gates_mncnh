@@ -91,7 +91,7 @@ def load_hemoglobin_rrs_on_maternal_disorders():
 def initialize_simulation(location, draw, population_size):
     """This function uses the interactive context to initialze a simulation with the specified
     location and draw and artifact directory."""
-    path = Path(os.getcwd() + "/../../model_specifications/model_spec.yaml")
+    path = Path(os.getcwd() + "/../../../model_specifications/model_spec.yaml")
     custom_model_specification = build_model_specification(path)
     del custom_model_specification.configuration.observers
     artifact_directory = custom_model_specification.configuration.input_data.artifact_path
@@ -107,7 +107,7 @@ def initialize_simulation(location, draw, population_size):
 
 def load_direct_nn_sepsis_rrs(location, draw):
     # note that the neonatal sepsis direct effects have already been scaled to the TMRED of 120 g/L during the data generation process
-    path = os.getcwd() + "/../hemoglobin_effects/direct_sepsis_effects/"
+    path = os.getcwd() + "/../../hemoglobin_effects/direct_sepsis_effects/"
     sepsis_rrs = pd.read_csv(path + "draw_" + str(draw) + ".csv")
     sepsis_rrs = sepsis_rrs.loc[sepsis_rrs.location == location]
     sepsis_rrs["child_age_group"] = np.where(
@@ -131,12 +131,12 @@ def load_rrs(location, draw, population_size, md_rr_data):
     """Load up maternal disorder PAFs and relative risks from the simulation, then stratify
     by GBD age group."""
     sim = initialize_simulation(location, draw, population_size)
-    pop = sim.get_population()[["age", "hemoglobin_exposure", "pregnancy_outcome"]]
+    pop = sim.get_population(["age", "hemoglobin.exposure", "pregnancy_outcome"])
 
     sepsis_rrs = load_direct_nn_sepsis_rrs(location, draw)
     for col in [x for x in sepsis_rrs.columns if "neonatal_sepsis" in x]:
         pop[col] = np.interp(
-            pop["hemoglobin_exposure"], sepsis_rrs["exposure"], sepsis_rrs[col]
+            pop["hemoglobin.exposure"], sepsis_rrs["exposure"], sepsis_rrs[col]
         )
 
     # read in and assign maternal disorders RRs
@@ -144,7 +144,7 @@ def load_rrs(location, draw, population_size, md_rr_data):
     for cause in md_rrs["affected_entity"].unique():
         if cause != "maternal_hypertensive_disorders":
             pop[f"{cause}_rr"] = np.interp(
-                pop["hemoglobin_exposure"],
+                pop["hemoglobin.exposure"],
                 md_rrs.loc[md_rrs["affected_entity"] == cause, "exposure"],
                 md_rrs.loc[md_rrs["affected_entity"] == cause, f"draw_{draw}"],
             )
@@ -174,7 +174,7 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
     and then calculate and save the PAFs using the formula PAF = (mean_RR-1)/mean_RR"""
     data = load_rrs(location, draw, population_size, md_rr_data)
     md_mean_rr = (
-        data.drop(columns=["age", "hemoglobin_exposure", "pregnancy_outcome"])
+        data.drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])
         .groupby(["location", "age_group"])[
             [x for x in data.columns if "neonatal_sepsis" not in x and "rr" in x]
         ]
@@ -194,8 +194,8 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
     # we can revisit this assumption if our simulated LNN mortality does not calibrate after the inclusion of hemoglobin effects on NN sepsis
     # also note that in that case we'd probably want to re-run WITHOUT also calculating the effects on maternal disorders again because we could probably get away with a smaller population size
     nn_mean_rr = (
-        data.loc[data.pregnancy_outcome == "live_birth"]
-        .drop(columns=["age", "hemoglobin_exposure", "pregnancy_outcome"])
+        data.loc[data.pregnancy_outcome == "full_term"]
+        .drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])
         .groupby(["location"])[[x for x in data.columns if "neonatal_sepsis" in x]]
         .mean()
     )

@@ -1696,17 +1696,16 @@ def load_hemoglobin_relative_risk(
     return hemoglobin_data
 
 
-def load_hemoglobin_paf(
+def _load_gbd_hemoglobin_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ):
+    """Load GBD-based hemoglobin PAF data (original source)."""
     hemoglobin_data = extra_gbd.get_hemoglobin_paf_data(key, location)
     hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
     levels_to_drop = ["metric_id", "measure_id", "rei_id", "version_id"]
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
-    # hemoglobin PAF-specific processing
     hemoglobin_data = hemoglobin_data.reset_index()
-    # we are pulling PAF data for deaths to define incidence risk
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
     index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
@@ -1715,12 +1714,134 @@ def load_hemoglobin_paf(
     ]
     hemoglobin_data = hemoglobin_data.set_index(index_cols)
 
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
     expanded_draws_df = utilities.expand_draw_columns(
         hemoglobin_data, num_draws=100, num_repeats=5
     )
-
     return expanded_draws_df
+
+
+def _load_generated_hemoglobin_paf(location: str):
+    """Load simulation-generated PAF data from per-draw CSVs for maternal
+    hemorrhage, maternal sepsis, and neonatal sepsis."""
+    paf_dir = paths.HEMOGLOBIN_PAF_OUTPUTS_DIR
+    loc = location.lower()
+
+    # Maternal disorder column name -> affected_entity mapping
+    maternal_cols = {
+        "maternal_hemorrhage_rr": "maternal_hemorrhage",
+        "maternal_sepsis_and_other_maternal_infections_rr": "maternal_sepsis_and_other_maternal_infections",
+    }
+    # Neonatal sepsis column name -> (child_age_group, sex) mapping
+    neonatal_cols = {
+        "neonatal_sepsis_early_neonatal_female": ("early_neonatal", "Female"),
+        "neonatal_sepsis_early_neonatal_male": ("early_neonatal", "Male"),
+        "neonatal_sepsis_late_neonatal_female": ("late_neonatal", "Female"),
+        "neonatal_sepsis_late_neonatal_male": ("late_neonatal", "Male"),
+    }
+    maternal_age_map = {
+        "10_to_14": (10.0, 15.0),
+        "15_to_19": (15.0, 20.0),
+        "20_to_24": (20.0, 25.0),
+        "25_to_29": (25.0, 30.0),
+        "30_to_34": (30.0, 35.0),
+        "35_to_39": (35.0, 40.0),
+        "40_to_44": (40.0, 45.0),
+        "45_to_49": (45.0, 50.0),
+        "50_to_54": (50.0, 55.0),
+    }
+    child_age_map = {
+        "early_neonatal": (
+            data_values.EARLY_NEONATAL_AGE_START,
+            data_values.LATE_NEONATAL_AGE_START,
+        ),
+        "late_neonatal": (
+            data_values.LATE_NEONATAL_AGE_START,
+            data_values.LATE_NEONATAL_AGE_END,
+        ),
+    }
+
+    maternal_rows = []
+    neonatal_rows = []
+
+    loc_dir = paf_dir / loc
+    for f in sorted(loc_dir.glob("draw_*.csv")):
+        draw_num = int(f.stem.split("_")[-1])
+        df = pd.read_csv(f, keep_default_na=False, na_values=[""])
+
+        maternal_df = df[df["age_group"] != "N/A"]
+        for _, row in maternal_df.iterrows():
+            age_start, age_end = maternal_age_map[row["age_group"]]
+            for col_name, entity in maternal_cols.items():
+                maternal_rows.append(
+                    {
+                        "sex": "Female",
+                        "age_start": age_start,
+                        "age_end": age_end,
+                        "year_start": metadata.ARTIFACT_YEAR_START,
+                        "year_end": metadata.ARTIFACT_YEAR_END,
+                        "affected_entity": entity,
+                        "affected_measure": "incidence_risk",
+                        "draw": draw_num,
+                        "value": row[col_name],
+                    }
+                )
+
+        neonatal_df = df[df["age_group"] == "N/A"]
+        for _, row in neonatal_df.iterrows():
+            for col_name, (child_age_group, sex) in neonatal_cols.items():
+                age_start, age_end = child_age_map[child_age_group]
+                neonatal_rows.append(
+                    {
+                        "sex": sex,
+                        "age_start": age_start,
+                        "age_end": age_end,
+                        "year_start": metadata.ARTIFACT_YEAR_START,
+                        "year_end": metadata.ARTIFACT_YEAR_END,
+                        "affected_entity": "neonatal_sepsis_and_other_neonatal_infections",
+                        "affected_measure": "incidence_risk",
+                        "draw": draw_num,
+                        "value": row[col_name],
+                    }
+                )
+
+    all_rows = pd.DataFrame(maternal_rows + neonatal_rows)
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+    ]
+    result = all_rows.pivot_table(
+        index=index_cols,
+        columns="draw",
+        values="value",
+    )
+    result.columns = [f"draw_{int(c)}" for c in result.columns]
+    return result.sort_index()
+
+
+def load_hemoglobin_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    # Start with the full GBD-based PAF data
+    gbd_data = _load_gbd_hemoglobin_paf(key, location, years)
+
+    # Load simulation-generated PAFs for hemorrhage, sepsis, and neonatal sepsis
+    generated_data = _load_generated_hemoglobin_paf(location)
+
+    # Drop the GBD rows for entities we have generated data for, then combine
+    generated_entities = generated_data.reset_index()["affected_entity"].unique()
+    gbd_data = gbd_data.reset_index()
+    gbd_data = gbd_data[~gbd_data["affected_entity"].isin(generated_entities)]
+    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
+        "affected_entity",
+        "affected_measure",
+    ]
+    gbd_data = gbd_data.set_index(index_cols)
+
+    # Only keep draws that exist in the generated data
+    gbd_data = gbd_data[generated_data.columns]
+
+    result = pd.concat([gbd_data, generated_data]).sort_index()
+    return result
 
 
 def load_hemoglobin_tmred(
