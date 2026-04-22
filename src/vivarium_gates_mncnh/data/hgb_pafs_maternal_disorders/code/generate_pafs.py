@@ -2,7 +2,7 @@
 Run maternal disorders PAF generation for all scenario draws that have neonatal sepsis RRs.
 
 Usage:
-    python run_paf_generation.py [--skip-existing]
+    python generate_pafs.py [--skip-existing]
 
 Options:
     --skip-existing    Skip (location, draw) pairs that already have output files.
