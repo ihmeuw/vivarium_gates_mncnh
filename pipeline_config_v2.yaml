@@ -2,7 +2,7 @@ workflow:
   name: "test_pipeline"
   project: "proj_simscience"
   queue: "all.q"
-  output_directory: "/ihme/homes/albrja/scratch/test_pipeline"
+  output_directory: "/ihme/homes/albrja/scratch/test_pipeline_v2"
   steps:
     - name: "step1_echo"
       command: "echo 'step 1 complete'"
@@ -11,11 +11,13 @@ workflow:
         runtime: "00:01:00"
     - name: run_simulation
       type: simulation
-      resources:  # task runner resources
+      resources:
         memory_gb: 16
         runtime: "01:00:00"
       args:
-        config: run_config.yaml
+        model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
+        branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
+        result_directory: /ihme/homes/albrja/scratch/
     - name: "step3_echo"
       command: "echo 'step 3 complete'"
       resources:
