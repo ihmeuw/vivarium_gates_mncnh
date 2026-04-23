@@ -1,12 +1,12 @@
 import os
-import pickle
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import scipy
-from vivarium import Artifact, InteractiveContext
+from vivarium import InteractiveContext
 from vivarium.framework.configuration import build_model_specification
+
+from vivarium_gates_mncnh.constants import metadata
 
 # This code relies on data specific to:
 # 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 18.0)
@@ -18,18 +18,19 @@ from vivarium.framework.configuration import build_model_specification
 
 
 def load_hemoglobin_rrs_on_maternal_disorders():
-    # calling this from loader.py instead of the artifact because the latest artifact version available
-    # as of 9.30.25 (model 18.0) has version that cuts at 100 draws
-    # and we want to upate to 250 draws instead
-    # note that eventually we could update this code to use RR values assigned within the simulation
-    # or directly from some specified artifact version
-    # this would allow us to use the same environment to load the RRs as we use to run the simulation
+    """Load hemoglobin relative risks on maternal disorders, scaled to the TMRED.
 
+    Load from a cached CSV if available; otherwise compute from GBD data,
+    scale to the TMRED, and cache to disk. Calling from loader.py instead of
+    the artifact because the latest artifact version available as of 9.30.25
+    (model 18.0) has version that cuts at 100 draws and we want to update to
+    250 draws instead.
+    """
     if "hemoglobin_rrs_scaled_to_tmred.csv" in os.listdir():
         rrs_scaled = pd.read_csv("hemoglobin_rrs_scaled_to_tmred.csv")
     else:
         print(
-            "NOTE: data for scaled hemoglobin RRs on maternal disorders must be generated using the artifact enviornment prior to running the interactive context using the simulation environment. see code for more details."
+            "NOTE: data for scaled hemoglobin RRs on maternal disorders must be generated using the artifact environment prior to running the interactive context using the simulation environment. see code for more details."
         )
         location = "Ethiopia"  # RRs do not vary by location, so using this as an arbitrary hard coded value
         from vivarium_gates_mncnh.data.loader import (
@@ -64,9 +65,11 @@ def load_hemoglobin_rrs_on_maternal_disorders():
         tmred = load_hemoglobin_tmred(key="risk_factor.hemoglobin.tmred", location=location)
         assert tmred["min"] == tmred["max"], "TMRED min and max are not equal"
         tmred = tmred["min"]
-        if tmred != 120.0:
+        if tmred != metadata.HEMOGLOBIN_TMRED:
             raise ValueError(
-                "TMRED is not equal to expected value 120 g/L. Please confirm that the RR for the direct effect of neonatal sepsis has been scaled to the correct TMRED value before proceeding"
+                f"TMRED is not equal to expected value {metadata.HEMOGLOBIN_TMRED} g/L. "
+                "Please confirm that the RR for the direct effect of neonatal "
+                "sepsis has been scaled to the correct TMRED value before proceeding"
             )
         # find RR value for the TMRED using linear interpolation
         interpolated_rows = []
@@ -106,7 +109,8 @@ def initialize_simulation(location, draw, population_size):
 
 
 def load_direct_nn_sepsis_rrs(location, draw):
-    # note that the neonatal sepsis direct effects have already been scaled to the TMRED of 120 g/L during the data generation process
+    # Note: neonatal sepsis direct effects have already been scaled to the
+    # TMRED (see metadata.HEMOGLOBIN_TMRED) during data generation.
     path = os.getcwd() + "/../../hemoglobin_effects/direct_sepsis_effects/"
     sepsis_rrs = pd.read_csv(path + "draw_" + str(draw) + ".csv")
     sepsis_rrs = sepsis_rrs.loc[sepsis_rrs.location == location]
@@ -128,7 +132,7 @@ def load_direct_nn_sepsis_rrs(location, draw):
 
 
 def load_rrs(location, draw, population_size, md_rr_data):
-    """Load up maternal disorder PAFs and relative risks from the simulation, then stratify
+    """Load relative risks from the simulation and assign to the population, then stratify
     by GBD age group."""
     sim = initialize_simulation(location, draw, population_size)
     pop = sim.get_population(["age", "hemoglobin.exposure", "pregnancy_outcome"])
@@ -149,19 +153,10 @@ def load_rrs(location, draw, population_size, md_rr_data):
                 md_rrs.loc[md_rrs["affected_entity"] == cause, f"draw_{draw}"],
             )
 
-    bins = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
-    labels = [
-        "10_to_14",
-        "15_to_19",
-        "20_to_24",
-        "25_to_29",
-        "30_to_34",
-        "35_to_39",
-        "40_to_44",
-        "45_to_49",
-        "50_to_54",
-    ]
-
+    # Use shared maternal age bins from metadata (canonical source for both
+    # PAF generation and loader).
+    labels = list(metadata.MATERNAL_AGE_MAP.keys())
+    bins = sorted({v for bounds in metadata.MATERNAL_AGE_MAP.values() for v in bounds})
     pop["age_group"] = pd.cut(
         pop["age"], bins=bins, labels=labels, right=False, include_lowest=True
     )
@@ -170,8 +165,16 @@ def load_rrs(location, draw, population_size, md_rr_data):
 
 
 def calculate_pafs(location, draw, population_size, md_rr_data):
-    """For each GBD age group, calculate the mean RR for maternal hemorrhage and sepsis
-    and then calculate and save the PAFs using the formula PAF = (mean_RR-1)/mean_RR"""
+    """Calculate PAFs for maternal disorders and neonatal sepsis.
+
+    For each GBD age group, calculate the mean RR for maternal hemorrhage and sepsis
+    and then calculate the PAFs using the formula PAF = (mean_RR - 1) / mean_RR.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        A tuple of (maternal_paf, neonatal_paf) DataFrames.
+    """
     data = load_rrs(location, draw, population_size, md_rr_data)
     md_mean_rr = (
         data.drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])
@@ -180,28 +183,39 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
         ]
         .mean()
     )
-    # restrict PAF for neonatal sepsis to non partial term pregnancies only
-    # we do this because the ratio of partial term pregnancies as well as hemoglobin exposure is age-specific,
-    # so this will influence the overall hemoglobin exposure distribution of all pregnancies that advance to live birth
-    # note that I am keeping in stillbirths here even though they are not at risk of neonatal sepsis,
-    # however, there should be no difference in hemoglobin exposure distribution between stillbirths and live births
-    # so I am keeping them in for statistical power
-    # note that we are not (but could) advance the simulation to late neonatal age group and then restrict to surviving neonates
-    # for the calculation of the neonatal sepsis PAF among the late neonatal age group
-    # however, given that hemoglobin has a smaller overall effect on neonatal mortality than LBWSG,
-    # we will hypothesize that this limitation in our PAF calculation will not have a large impact on our PAF value
-    # (we assume that the distribution of hemoglobin of parents of all live births ~= that of neonates that survive ENN age group)
-    # we can revisit this assumption if our simulated LNN mortality does not calibrate after the inclusion of hemoglobin effects on NN sepsis
-    # also note that in that case we'd probably want to re-run WITHOUT also calculating the effects on maternal disorders again because we could probably get away with a smaller population size
+    maternal_paf = ((md_mean_rr - 1) / md_mean_rr).reset_index()
+    # Rename columns from *_rr to *_paf since these are now PAF values
+    maternal_paf = maternal_paf.rename(
+        columns={
+            c: c.replace("_rr", "_paf") for c in maternal_paf.columns if c.endswith("_rr")
+        }
+    )
+
+    # Restrict PAF for neonatal sepsis to non partial term pregnancies only.
+    # We do this because the ratio of partial term pregnancies as well as hemoglobin
+    # exposure is age-specific, so this will influence the overall hemoglobin exposure
+    # distribution of all pregnancies that advance to live birth.
+    # Note that I am keeping in stillbirths here even though they are not at risk of
+    # neonatal sepsis, however, there should be no difference in hemoglobin exposure
+    # distribution between stillbirths and live births so I am keeping them in for
+    # statistical power.
+    # Note that we are not (but could) advance the simulation to late neonatal age group
+    # and then restrict to surviving neonates for the calculation of the neonatal sepsis
+    # PAF among the late neonatal age group. However, given that hemoglobin has a smaller
+    # overall effect on neonatal mortality than LBWSG, we will hypothesize that this
+    # limitation in our PAF calculation will not have a large impact on our PAF value
+    # (we assume that the distribution of hemoglobin of parents of all live births ~= that
+    # of neonates that survive ENN age group).
+    # We can revisit this assumption if our simulated LNN mortality does not calibrate
+    # after the inclusion of hemoglobin effects on NN sepsis. Also note that in that case
+    # we'd probably want to re-run WITHOUT also calculating the effects on maternal
+    # disorders again because we could probably get away with a smaller population size.
     nn_mean_rr = (
         data.loc[data.pregnancy_outcome == "full_term"]
         .drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])
         .groupby(["location"])[[x for x in data.columns if "neonatal_sepsis" in x]]
         .mean()
     )
-    nn_mean_rr["age_group"] = "N/A"
-    mean_rr = pd.concat(
-        [md_mean_rr, nn_mean_rr.reset_index().set_index(["location", "age_group"])], axis=0
-    )
-    paf = (mean_rr - 1) / mean_rr
-    return paf.reset_index()
+    neonatal_paf = ((nn_mean_rr - 1) / nn_mean_rr).reset_index()
+
+    return maternal_paf, neonatal_paf

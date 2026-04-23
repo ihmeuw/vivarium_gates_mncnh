@@ -70,16 +70,16 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
     from scipy.interpolate import interp1d
 
     x_new = exposure_levels
-    rrs_interp = pd.DataFrame({"risk": x_new})
     x_old = rrs["risk"].values
+    interp_cols = {"risk": x_new}
     for col in rrs.columns:
         if col.startswith("draw_"):
             y = rrs[col].values
             f = interp1d(
                 x_old, y, kind="linear", bounds_error=False, fill_value=(y[0], y[-1])
             )
-            rrs_interp[col] = f(x_new)
-    return rrs_interp
+            interp_cols[col] = f(x_new)
+    return pd.DataFrame(interp_cols)
 
 
 def transform_and_reorder_rrs(rrs, exposure_levels):

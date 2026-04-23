@@ -9,22 +9,21 @@ Options:
                        Default behavior is to regenerate and overwrite all outputs.
 """
 
-import os
 import sys
 import time
 import warnings
-from functools import partial
 from pathlib import Path
-
-import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-# Force unbuffered output so progress is visible in real time
-print = partial(print, flush=True)
+_CODE_DIR = Path(__file__).parent
 
-# Must run from the hgb_pafs_maternal_disorders/code directory
-os.chdir(Path(__file__).parent)
+# hgb_maternal_disorder_paf_generation.py uses os.getcwd() internally,
+# so the working directory must be the code/ folder.
+import os
+
+os.chdir(_CODE_DIR)
+sys.path.insert(0, str(_CODE_DIR))
 
 from hgb_maternal_disorder_paf_generation import (
     calculate_pafs,
@@ -35,8 +34,8 @@ from vivarium_gates_mncnh.constants.metadata import SCENARIO_DRAWS
 
 POPULATION_SIZE = 500_000
 LOCATIONS = ["ethiopia", "nigeria", "pakistan"]
-SEPSIS_RR_DIR = Path("../../hemoglobin_effects/direct_sepsis_effects/")
-OUTPUT_DIR = Path("../outputs/")
+SEPSIS_RR_DIR = _CODE_DIR / "../../hemoglobin_effects/direct_sepsis_effects/"
+OUTPUT_DIR = _CODE_DIR / "../outputs/"
 
 
 def fmt_time(seconds):
@@ -54,7 +53,7 @@ def progress_bar(current, total, width=30):
 
 def get_available_draws():
     """Get draws that have neonatal sepsis RR files AND are in the scenario draws."""
-    sepsis_draws = {int(f.stem.split("_")[1]) for f in SEPSIS_RR_DIR.glob("draw_*.csv")}
+    sepsis_draws = {int(f.stem.split("_")[-1]) for f in SEPSIS_RR_DIR.glob("draw_*.csv")}
     draws = sorted(sepsis_draws & set(SCENARIO_DRAWS))
     return draws
 
@@ -85,8 +84,8 @@ def main():
         for loc in LOCATIONS:
             loc_dir = OUTPUT_DIR / loc
             if loc_dir.is_dir():
-                for f in loc_dir.glob("draw_*.csv"):
-                    draw_num = int(f.stem.split("_")[-1])
+                for f in loc_dir.glob("draw_*_maternal.csv"):
+                    draw_num = int(f.stem.split("_")[1])
                     existing.add((loc, draw_num))
 
     tasks = [(loc, d) for loc in LOCATIONS for d in draws if (loc, d) not in existing]
@@ -104,6 +103,7 @@ def main():
 
     run_start = time.time()
     draw_times = []
+    failures = []
 
     for i, (location, draw) in enumerate(tasks):
         task_num = completed_count + i + 1
@@ -117,36 +117,49 @@ def main():
 
         print(
             f"  {progress_bar(task_num - 1, total_tasks)}  "
-            f"Elapsed: {fmt_time(elapsed)}  {eta_str}"
+            f"Elapsed: {fmt_time(elapsed)}  {eta_str}",
+            flush=True,
         )
-        print(f"  -> Location: {location}, Draw: {draw}")
+        print(f"  -> Location: {location}, Draw: {draw}", flush=True)
 
         draw_start = time.time()
         try:
-            paf = calculate_pafs(location, draw, POPULATION_SIZE, hgb_rrs)
-            paf["draw"] = draw
-            paf["location_run"] = location
+            maternal_paf, neonatal_paf = calculate_pafs(
+                location, draw, POPULATION_SIZE, hgb_rrs
+            )
+            maternal_paf["draw"] = draw
+            maternal_paf["location_run"] = location
+            neonatal_paf["draw"] = draw
+            neonatal_paf["location_run"] = location
             loc_dir = OUTPUT_DIR / location
             loc_dir.mkdir(parents=True, exist_ok=True)
-            out_file = loc_dir / f"draw_{draw}.csv"
-            paf.to_csv(out_file, index=False)
+            maternal_paf.to_csv(loc_dir / f"draw_{draw}_maternal.csv", index=False)
+            neonatal_paf.to_csv(loc_dir / f"draw_{draw}_neonatal.csv", index=False)
             draw_elapsed = time.time() - draw_start
             draw_times.append(draw_elapsed)
-            print(f"     Done in {fmt_time(draw_elapsed)}")
+            print(f"     Done in {fmt_time(draw_elapsed)}", flush=True)
         except Exception as e:
             draw_elapsed = time.time() - draw_start
             draw_times.append(draw_elapsed)
-            print(f"     ERROR ({fmt_time(draw_elapsed)}): {e}", file=sys.stderr)
+            failures.append((location, draw, str(e)))
+            print(f"     ERROR ({fmt_time(draw_elapsed)}): {e}", file=sys.stderr, flush=True)
 
     total_elapsed = time.time() - run_start
 
-    print()
-    print("=" * 60)
-    print(f"  {progress_bar(total_tasks, total_tasks)}")
-    print(f"  Total time:    {fmt_time(total_elapsed)}")
+    print(flush=True)
+    print("=" * 60, flush=True)
+    print(f"  {progress_bar(total_tasks, total_tasks)}", flush=True)
+    print(f"  Total time:    {fmt_time(total_elapsed)}", flush=True)
     if draw_times:
-        print(f"  Avg per task:  {fmt_time(sum(draw_times) / len(draw_times))}")
-    print("=" * 60)
+        print(f"  Avg per task:  {fmt_time(sum(draw_times) / len(draw_times))}", flush=True)
+    if failures:
+        print(f"  FAILURES:      {len(failures)}", flush=True)
+        for loc, d, err in failures:
+            print(f"    {loc} draw {d}: {err}", flush=True)
+    print("=" * 60, flush=True)
+
+    if failures:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
