@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -6,6 +7,8 @@ import scipy
 from vivarium import Artifact
 
 from vivarium_gates_mncnh.constants import metadata
+
+_DIR = Path(__file__).parent
 
 """
 This code is intended to read in the effects of hemoglobin on stillbirth, birth weight
@@ -44,7 +47,7 @@ artifact_directory = (
 
 def load_bop_rrs(outcome):
     """Load burden of proof hemoglobin estimates for specified outcome"""
-    rrs = pd.read_csv(f"{outcome}_bop_rrs.csv")
+    rrs = pd.read_csv(_DIR / f"{outcome}_bop_rrs.csv")
     rrs = rrs.set_index("risk")
     rrs = np.exp(
         rrs
@@ -512,5 +515,5 @@ def calculate_iv_iron_stillbirth_effects():
     effects = effects.pivot_table(
         index=["location", "exposure"], values="value", columns="draw"
     ).reset_index()
-    effects.to_csv("iv_iron_stillbirth_rrs.csv")
+    effects.to_csv(_DIR / "iv_iron_stillbirth_rrs.csv")
     return effects

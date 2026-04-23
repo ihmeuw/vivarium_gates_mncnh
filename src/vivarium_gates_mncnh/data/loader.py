@@ -1766,6 +1766,11 @@ def _load_generated_hemoglobin_paf(location: str):
     neonatal_rows = []
 
     loc_dir = paf_dir / loc
+    if not loc_dir.is_dir() or not any(loc_dir.glob("draw_*_maternal.csv")):
+        raise FileNotFoundError(
+            f"No generated PAF data found for {location} at {loc_dir}. "
+            "Run generate_pafs.py first."
+        )
     for f in sorted(loc_dir.glob("draw_*_maternal.csv")):
         draw_num = int(f.stem.split("_")[1])
         df = pd.read_csv(f)

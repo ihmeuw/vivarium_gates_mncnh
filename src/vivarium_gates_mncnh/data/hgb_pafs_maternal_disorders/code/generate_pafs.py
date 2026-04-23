@@ -1,12 +1,13 @@
-"""
-Run maternal disorders PAF generation for all scenario draws that have neonatal sepsis RRs.
+"""Run maternal disorders PAF generation for all scenario draws that have neonatal sepsis RRs.
 
 Usage:
-    python generate_pafs.py [--skip-existing]
+    python generate_pafs.py [--skip-existing] [--locations LOC [LOC ...]]
 
 Options:
-    --skip-existing    Skip (location, draw) pairs that already have output files.
-                       Default behavior is to regenerate and overwrite all outputs.
+    --skip-existing           Skip (location, draw) pairs that already have output files.
+                              Default behavior is to regenerate and overwrite all outputs.
+    --locations LOC [LOC ..]  Run only the specified locations (case-insensitive).
+                              Defaults to all locations in metadata.LOCATIONS.
 """
 
 import sys
@@ -18,11 +19,6 @@ warnings.filterwarnings("ignore")
 
 _CODE_DIR = Path(__file__).parent
 
-# hgb_maternal_disorder_paf_generation.py uses os.getcwd() internally,
-# so the working directory must be the code/ folder.
-import os
-
-os.chdir(_CODE_DIR)
 sys.path.insert(0, str(_CODE_DIR))
 
 from hgb_maternal_disorder_paf_generation import (
@@ -30,10 +26,11 @@ from hgb_maternal_disorder_paf_generation import (
     load_hemoglobin_rrs_on_maternal_disorders,
 )
 
+from vivarium_gates_mncnh.constants.metadata import LOCATIONS as _LOCATIONS
 from vivarium_gates_mncnh.constants.metadata import SCENARIO_DRAWS
 
 POPULATION_SIZE = 500_000
-LOCATIONS = ["ethiopia", "nigeria", "pakistan"]
+ALL_LOCATIONS = [loc.lower() for loc in _LOCATIONS]
 SEPSIS_RR_DIR = _CODE_DIR / "../../hemoglobin_effects/direct_sepsis_effects/"
 OUTPUT_DIR = _CODE_DIR / "../outputs/"
 
@@ -58,22 +55,49 @@ def get_available_draws():
     return draws
 
 
+def _parse_locations(args):
+    """Extract --locations values from *args*, returning (locations, remaining_args)."""
+    if "--locations" not in args:
+        return ALL_LOCATIONS, args
+    idx = args.index("--locations")
+    locs = []
+    for val in args[idx + 1 :]:
+        if val.startswith("--"):
+            break
+        locs.append(val.lower())
+    if not locs:
+        print("Error: --locations requires at least one location.", file=sys.stderr)
+        sys.exit(1)
+    unknown = set(locs) - set(ALL_LOCATIONS)
+    if unknown:
+        print(
+            f"Error: unknown location(s): {', '.join(sorted(unknown))}. "
+            f"Valid: {', '.join(ALL_LOCATIONS)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    remaining = args[:idx] + args[idx + 1 + len(locs) :]
+    return locs, remaining
+
+
 def main():
-    skip_existing = "--skip-existing" in sys.argv
+    args = sys.argv[1:]
+    locations, args = _parse_locations(args)
+    skip_existing = "--skip-existing" in args
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     draws = get_available_draws()
-    total_tasks = len(draws) * len(LOCATIONS)
+    total_tasks = len(draws) * len(locations)
 
     print("=" * 60)
     print("  Maternal Disorders PAF Generation")
     print("=" * 60)
-    print(f"  Locations:       {', '.join(LOCATIONS)}")
+    print(f"  Locations:       {', '.join(locations)}")
     print(f"  Draws:           {draws}")
     print(f"  Population size: {POPULATION_SIZE:,}")
     print(
-        f"  Total tasks:     {total_tasks} ({len(draws)} draws x {len(LOCATIONS)} locations)"
+        f"  Total tasks:     {total_tasks} ({len(draws)} draws x {len(locations)} locations)"
     )
     print(f"  Skip existing:   {skip_existing}")
     print("=" * 60)
@@ -81,14 +105,14 @@ def main():
     # Check which (location, draw) pairs have already been completed
     existing = set()
     if skip_existing:
-        for loc in LOCATIONS:
+        for loc in locations:
             loc_dir = OUTPUT_DIR / loc
             if loc_dir.is_dir():
                 for f in loc_dir.glob("draw_*_maternal.csv"):
                     draw_num = int(f.stem.split("_")[1])
                     existing.add((loc, draw_num))
 
-    tasks = [(loc, d) for loc in LOCATIONS for d in draws if (loc, d) not in existing]
+    tasks = [(loc, d) for loc in locations for d in draws if (loc, d) not in existing]
     completed_count = total_tasks - len(tasks)
 
     if existing:

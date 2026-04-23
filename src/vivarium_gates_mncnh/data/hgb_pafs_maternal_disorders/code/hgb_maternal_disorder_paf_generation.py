@@ -1,12 +1,12 @@
-import os
 from pathlib import Path
+
+_CODE_DIR = Path(__file__).parent
 
 import numpy as np
 import pandas as pd
-from vivarium import InteractiveContext
-from vivarium.framework.configuration import build_model_specification
 
 from vivarium_gates_mncnh.constants import metadata
+from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 # This code relies on data specific to:
 # 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 18.0)
@@ -26,8 +26,8 @@ def load_hemoglobin_rrs_on_maternal_disorders():
     (model 18.0) has version that cuts at 100 draws and we want to update to
     250 draws instead.
     """
-    if "hemoglobin_rrs_scaled_to_tmred.csv" in os.listdir():
-        rrs_scaled = pd.read_csv("hemoglobin_rrs_scaled_to_tmred.csv")
+    if (_CODE_DIR / "hemoglobin_rrs_scaled_to_tmred.csv").exists():
+        rrs_scaled = pd.read_csv(_CODE_DIR / "hemoglobin_rrs_scaled_to_tmred.csv")
     else:
         print(
             "NOTE: data for scaled hemoglobin RRs on maternal disorders must be generated using the artifact environment prior to running the interactive context using the simulation environment. see code for more details."
@@ -87,32 +87,18 @@ def load_hemoglobin_rrs_on_maternal_disorders():
             / rrs_tmred
         )
         rrs_scaled = rrs_scaled.reset_index()
-        rrs_scaled.to_csv("hemoglobin_rrs_scaled_to_tmred.csv", index=False)
+        rrs_scaled.to_csv(_CODE_DIR / "hemoglobin_rrs_scaled_to_tmred.csv", index=False)
     return rrs_scaled
 
 
-def initialize_simulation(location, draw, population_size):
-    """This function uses the interactive context to initialze a simulation with the specified
-    location and draw and artifact directory."""
-    path = Path(os.getcwd() + "/../../../model_specifications/model_spec.yaml")
-    custom_model_specification = build_model_specification(path)
-    del custom_model_specification.configuration.observers
-    artifact_directory = custom_model_specification.configuration.input_data.artifact_path
-    artifact_base = artifact_directory.rsplit("/", 1)[0] + "/"
-    custom_model_specification.configuration.input_data.artifact_path = (
-        artifact_base + location + ".hdf"
-    )
-    custom_model_specification.configuration.input_data.input_draw_number = draw
-    custom_model_specification.configuration.population.population_size = population_size
-    sim = InteractiveContext(custom_model_specification)
-    return sim
+# initialize_simulation is imported from vivarium_gates_mncnh.data.utilities
 
 
 def load_direct_nn_sepsis_rrs(location, draw):
     # Note: neonatal sepsis direct effects have already been scaled to the
     # TMRED (see metadata.HEMOGLOBIN_TMRED) during data generation.
-    path = os.getcwd() + "/../../hemoglobin_effects/direct_sepsis_effects/"
-    sepsis_rrs = pd.read_csv(path + "draw_" + str(draw) + ".csv")
+    path = _CODE_DIR / "../../hemoglobin_effects/direct_sepsis_effects"
+    sepsis_rrs = pd.read_csv(path / f"draw_{draw}.csv")
     sepsis_rrs = sepsis_rrs.loc[sepsis_rrs.location == location]
     sepsis_rrs["child_age_group"] = np.where(
         sepsis_rrs.age_group_id == 2, "early_neonatal", "late_neonatal"

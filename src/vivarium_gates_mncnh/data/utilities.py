@@ -13,6 +13,7 @@ from vivarium_gates_mncnh.constants.metadata import (
     ARTIFACT_INDEX_COLUMNS,
     CHILDREN_INDEX_COLUMNS,
 )
+from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 
 def get_entity(key: Union[str, EntityKey]):

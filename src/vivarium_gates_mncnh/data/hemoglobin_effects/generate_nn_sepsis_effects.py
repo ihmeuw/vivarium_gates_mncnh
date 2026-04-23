@@ -1,54 +1,48 @@
 """Generate neonatal sepsis effect data (direct and indirect RRs) for scenario draws.
 
 Usage:
-    python generate_nn_sepsis_effects.py [--skip-existing] [--num-steps N] [draw_numbers...]
+    python generate_nn_sepsis_effects.py [--skip-existing] [--num-steps N]
+                                         [--locations LOC [LOC ...]] [draw_numbers...]
 
 Options:
-    --skip-existing    Skip draws that already have output files.
-                       Default behavior is to regenerate and overwrite all outputs.
-    --num-steps N      Run only N simulation time steps per location and exit.
-                       Use this to test parallelization overhead without running
-                       the full computation. No output files are written.
+    --skip-existing           Skip draws that already have output files.
+                              Default behavior is to regenerate and overwrite all outputs.
+    --num-steps N             Run only N simulation time steps per location and exit.
+                              Use this to test parallelization overhead without running
+                              the full computation. No output files are written.
+    --locations LOC [LOC ..]  Run only the specified locations (case-insensitive).
+                              Defaults to all locations in metadata.LOCATIONS.
 
 If no draw numbers are provided, generates all draws from the
 SCENARIO_DRAWS list defined in vivarium_gates_mncnh.constants.metadata.
 """
 
-import os
 import sys
 import time
 from pathlib import Path
 
-# Must run from the hemoglobin_effects directory
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+_DIR = Path(__file__).parent
+sys.path.insert(0, str(_DIR))
 
-from vivarium_gates_mncnh.constants.metadata import LOCATIONS, SCENARIO_DRAWS
+from vivarium_gates_mncnh.constants.metadata import LOCATIONS as _LOCATIONS
+from vivarium_gates_mncnh.constants.metadata import SCENARIO_DRAWS
+
+ALL_LOCATIONS = [loc.lower() for loc in _LOCATIONS]
 
 
-def _run_test_steps(draw, num_steps):
+def _run_test_steps(draw, num_steps, locations=None):
     """Start real simulations but only run a limited number of time steps.
 
     Use this to verify parallelization overhead (imports, artifact loading,
     simulation setup) without waiting for the full RR computation.
     """
-    from vivarium import InteractiveContext
-    from vivarium.framework.configuration import build_model_specification
+    from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
-    spec_path = Path(os.getcwd()) / ".." / ".." / "model_specifications" / "model_spec.yaml"
-    # Build once just to discover the artifact base path
-    base_spec = build_model_specification(spec_path)
-    artifact_base = base_spec.configuration.input_data.artifact_path.rsplit("/", 1)[0] + "/"
-
-    for location in [loc.lower() for loc in LOCATIONS]:
+    if locations is None:
+        locations = ALL_LOCATIONS
+    for location in locations:
         t0 = time.time()
-        # Build a fresh spec each time — InteractiveContext mutates it
-        spec = build_model_specification(spec_path)
-        del spec.configuration.observers
-        spec.configuration.input_data.artifact_path = artifact_base + location + ".hdf"
-        spec.configuration.input_data.input_draw_number = draw
-        spec.configuration.population.population_size = 200_000
-
-        sim = InteractiveContext(spec)
+        sim = initialize_simulation(location, draw, population_size=200_000)
         for step in range(num_steps):
             sim.step()
 
@@ -57,7 +51,7 @@ def _run_test_steps(draw, num_steps):
         sys.stdout.flush()
 
 
-def run_single_draw(draw, num_steps=None):
+def run_single_draw(draw, num_steps=None, locations=None):
     """Run generation for a single draw in this process."""
     t0 = time.time()
     print(f"[draw {draw}] Starting...")
@@ -65,14 +59,14 @@ def run_single_draw(draw, num_steps=None):
 
     try:
         if num_steps is not None:
-            _run_test_steps(draw, num_steps)
+            _run_test_steps(draw, num_steps, locations=locations)
             elapsed = time.time() - t0
             print(f"[draw {draw}] Test complete in {elapsed:.0f}s")
         else:
             from hgb_nn_sepsis_effect_generation import calculate_direct_effect
 
-            results_dir = os.getcwd()
-            direct, _ = calculate_direct_effect(results_dir, draw)
+            results_dir = str(_DIR)
+            direct, _ = calculate_direct_effect(results_dir, draw, locations=locations)
             elapsed = time.time() - t0
             print(f"[draw {draw}] Complete in {elapsed:.0f}s  shape={direct.shape}")
     except Exception as e:
@@ -97,18 +91,41 @@ def main():
         num_steps = int(args[idx + 1])
         del args[idx : idx + 2]
 
+    # Parse --locations LOC [LOC ...] flag
+    locations = None
+    if "--locations" in args:
+        idx = args.index("--locations")
+        locs = []
+        for val in args[idx + 1 :]:
+            if val.startswith("--") or val.isdigit():
+                break
+            locs.append(val.lower())
+        if not locs:
+            print("Error: --locations requires at least one location.", file=sys.stderr)
+            sys.exit(1)
+        unknown = set(locs) - set(ALL_LOCATIONS)
+        if unknown:
+            print(
+                f"Error: unknown location(s): {', '.join(sorted(unknown))}. "
+                f"Valid: {', '.join(ALL_LOCATIONS)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        locations = locs
+        del args[idx : idx + 1 + len(locs)]
+
     draws = [int(d) for d in args] if args else list(SCENARIO_DRAWS)
 
-    results_dir = os.getcwd()
-    os.makedirs(f"{results_dir}/direct_sepsis_effects", exist_ok=True)
-    os.makedirs(f"{results_dir}/indirect_sepsis_effects", exist_ok=True)
+    results_dir = _DIR
+    (results_dir / "direct_sepsis_effects").mkdir(parents=True, exist_ok=True)
+    (results_dir / "indirect_sepsis_effects").mkdir(parents=True, exist_ok=True)
 
     existing = set()
     if skip_existing and num_steps is None:
         existing = {
-            int(f.replace("draw_", "").replace(".csv", ""))
-            for f in os.listdir(f"{results_dir}/direct_sepsis_effects")
-            if f.startswith("draw_") and f.endswith(".csv")
+            int(f.stem.replace("draw_", ""))
+            for f in (results_dir / "direct_sepsis_effects").iterdir()
+            if f.name.startswith("draw_") and f.name.endswith(".csv")
         }
     draws_to_run = [d for d in draws if d not in existing]
 
@@ -118,6 +135,7 @@ def main():
 
     mode = f"test ({num_steps} step(s))" if num_steps is not None else "full"
     print(f"Mode:            {mode}")
+    print(f"Locations:       {', '.join(locations or ALL_LOCATIONS)}")
     print(f"Draws requested: {draws}")
     print(f"Skip existing:   {skip_existing}")
     if existing:
@@ -129,7 +147,7 @@ def main():
     for i, draw in enumerate(draws_to_run, 1):
         print(f"\n[{i}/{len(draws_to_run)}] Starting draw {draw}...")
         sys.stdout.flush()
-        run_single_draw(draw, num_steps=num_steps)
+        run_single_draw(draw, num_steps=num_steps, locations=locations)
 
     print(f"\n{'='*60}")
     print("Done.")
