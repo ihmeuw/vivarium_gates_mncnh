@@ -18,6 +18,7 @@ Examples:
     python parallel_runner.py --workers 4 -- generate_nn_sepsis_effects.py --skip-existing
 """
 
+import os
 import subprocess
 import sys
 import time
@@ -73,7 +74,7 @@ def parse_args():
         sys.exit(1)
 
     # Parse runner args manually for simplicity
-    workers = 2
+    workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
     draws = None
 
     i = 0
