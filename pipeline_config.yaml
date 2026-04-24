@@ -12,10 +12,11 @@ workflow:
     - name: run_simulation
       type: simulation
       resources:  # task runner resources
-        memory_gb: 16
-        runtime: "01:00:00"
+        memory_gb: 14
+        runtime: "00:20:00"
       args:
-        config: run_config.yaml
+        model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
+        branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
     - name: "step3_echo"
       command: "echo 'step 3 complete'"
       resources:
