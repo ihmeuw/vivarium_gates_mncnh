@@ -12,7 +12,7 @@ workflow:
     - name: run_simulation
       type: simulation
       resources:  # task runner resources
-        memory_gb: 14
+        memory_gb: 4
         runtime: "00:20:00"
       args:
         model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
