@@ -1696,37 +1696,170 @@ def load_hemoglobin_relative_risk(
     return hemoglobin_data
 
 
-def load_hemoglobin_paf(
+def _load_gbd_hemoglobin_paf(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ):
+    """Load GBD-based hemoglobin PAF data (original source)."""
     hemoglobin_data = extra_gbd.get_hemoglobin_paf_data(key, location)
     hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
     levels_to_drop = ["metric_id", "measure_id", "rei_id", "version_id"]
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
-    # hemoglobin PAF-specific processing
     hemoglobin_data = hemoglobin_data.reset_index()
-    # we are pulling PAF data for deaths to define incidence risk
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
-    index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
-        "affected_entity",
-        "affected_measure",
-    ]
-    hemoglobin_data = hemoglobin_data.set_index(index_cols)
+    hemoglobin_data = hemoglobin_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
 
-    # Expand draw columns from 0-99 to 0-499 by repeating 5 times
     expanded_draws_df = utilities.expand_draw_columns(
         hemoglobin_data, num_draws=100, num_repeats=5
     )
-
     return expanded_draws_df
+
+
+def _load_generated_hemoglobin_paf(location: str):
+    """Load simulation-generated PAF data from per-draw CSVs.
+
+    Read separate maternal and neonatal CSV files produced by ``generate_pafs.py``
+    and combine them into a single DataFrame indexed by
+    ``metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS`` with one ``draw_N`` column per draw.
+
+    Maternal CSVs (``draw_N_maternal.csv``) have columns::
+
+        location, age_group, maternal_hemorrhage_paf,
+        maternal_sepsis_and_other_maternal_infections_paf,
+        depressive_disorders_paf, draw, location_run
+
+    Neonatal CSVs (``draw_N_neonatal.csv``) have columns::
+
+        location, neonatal_sepsis_early_neonatal_female,
+        neonatal_sepsis_early_neonatal_male,
+        neonatal_sepsis_late_neonatal_female,
+        neonatal_sepsis_late_neonatal_male, draw, location_run
+    """
+    paf_dir = paths.HEMOGLOBIN_PAF_OUTPUTS_DIR
+    loc = location.lower()
+
+    # Maternal disorder column name -> affected_entity mapping
+    maternal_cols = {
+        "maternal_hemorrhage_paf": "maternal_hemorrhage",
+        "maternal_sepsis_and_other_maternal_infections_paf": "maternal_sepsis_and_other_maternal_infections",
+    }
+    # Neonatal sepsis column name -> (child_age_group, sex) mapping
+    neonatal_cols = {
+        "neonatal_sepsis_early_neonatal_female": ("early_neonatal", "Female"),
+        "neonatal_sepsis_early_neonatal_male": ("early_neonatal", "Male"),
+        "neonatal_sepsis_late_neonatal_female": ("late_neonatal", "Female"),
+        "neonatal_sepsis_late_neonatal_male": ("late_neonatal", "Male"),
+    }
+    child_age_map = {
+        "early_neonatal": (
+            data_values.EARLY_NEONATAL_AGE_START,
+            data_values.LATE_NEONATAL_AGE_START,
+        ),
+        "late_neonatal": (
+            data_values.LATE_NEONATAL_AGE_START,
+            data_values.LATE_NEONATAL_AGE_END,
+        ),
+    }
+
+    maternal_rows = []
+    neonatal_rows = []
+
+    loc_dir = paf_dir / loc
+    if not loc_dir.is_dir() or not any(loc_dir.glob("draw_*_maternal.csv")):
+        raise FileNotFoundError(
+            f"No generated PAF data found for {location} at {loc_dir}. "
+            "Run generate_pafs.py first."
+        )
+    for f in sorted(loc_dir.glob("draw_*_maternal.csv")):
+        draw_num = int(f.stem.split("_")[1])
+        df = pd.read_csv(f)
+
+        for _, row in df.iterrows():
+            age_start, age_end = metadata.MATERNAL_AGE_MAP[row["age_group"]]
+            for col_name, entity in maternal_cols.items():
+                maternal_rows.append(
+                    {
+                        "sex": "Female",
+                        "age_start": age_start,
+                        "age_end": age_end,
+                        "year_start": metadata.ARTIFACT_YEAR_START,
+                        "year_end": metadata.ARTIFACT_YEAR_END,
+                        "affected_entity": entity,
+                        "affected_measure": "incidence_risk",
+                        "draw": draw_num,
+                        "value": row[col_name],
+                    }
+                )
+
+    for f in sorted(loc_dir.glob("draw_*_neonatal.csv")):
+        draw_num = int(f.stem.split("_")[1])
+        df = pd.read_csv(f)
+
+        for _, row in df.iterrows():
+            for col_name, (child_age_group, sex) in neonatal_cols.items():
+                age_start, age_end = child_age_map[child_age_group]
+                neonatal_rows.append(
+                    {
+                        "sex": sex,
+                        "age_start": age_start,
+                        "age_end": age_end,
+                        "year_start": metadata.ARTIFACT_YEAR_START,
+                        "year_end": metadata.ARTIFACT_YEAR_END,
+                        "affected_entity": "neonatal_sepsis_and_other_neonatal_infections",
+                        "affected_measure": "incidence_risk",
+                        "draw": draw_num,
+                        "value": row[col_name],
+                    }
+                )
+
+    all_rows = pd.DataFrame(maternal_rows + neonatal_rows)
+    result = all_rows.pivot(
+        index=metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS,
+        columns="draw",
+        values="value",
+    )
+    result.columns = [f"draw_{int(c)}" for c in result.columns]
+    return result.sort_index()
+
+
+def load_hemoglobin_paf(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+):
+    """Load hemoglobin PAF data, merging GBD and simulation-generated sources.
+
+    Start with the full GBD-based PAF data (expanded to 500 draws), then
+    replace entities for which simulation-generated PAFs exist (maternal
+    hemorrhage, maternal sepsis, neonatal sepsis). The result is subset to
+    only the draws present in the generated data (the scenario draws),
+    so the returned DataFrame has fewer draw columns than other artifact keys.
+    """
+    # Start with the full GBD-based PAF data
+    gbd_data = _load_gbd_hemoglobin_paf(key, location, years)
+
+    # Load simulation-generated PAFs for hemorrhage, sepsis, and neonatal sepsis
+    generated_data = _load_generated_hemoglobin_paf(location)
+
+    # Drop the GBD rows for entities we have generated data for, then combine
+    generated_entities = generated_data.reset_index()["affected_entity"].unique()
+    gbd_data = gbd_data.reset_index()
+    gbd_data = gbd_data[~gbd_data["affected_entity"].isin(generated_entities)]
+    gbd_data = gbd_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
+
+    # Subset GBD draws to match the generated data's scenario draws.
+    # This intentionally reduces the draw count from 500 to ~20.
+    gbd_data = gbd_data[generated_data.columns]
+
+    result = pd.concat([gbd_data, generated_data]).sort_index()
+    return result
 
 
 def load_hemoglobin_tmred(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> dict[str, str | bool | float]:
-    return {"distribution": "uniform", "min": 120.0, "max": 120.0}
+    """Return the hemoglobin TMRED as a uniform distribution dict."""
+    tmred = metadata.HEMOGLOBIN_TMRED
+    return {"distribution": "uniform", "min": tmred, "max": tmred}
 
 
 def load_propensity_correlations(

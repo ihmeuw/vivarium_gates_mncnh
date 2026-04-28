@@ -1,19 +1,21 @@
-import os
 import pickle
 from pathlib import Path
+
+_DIR = Path(__file__).parent
 
 import numpy as np
 import pandas as pd
 import scipy
 from hgb_birth_effect_generation import *
-from vivarium import Artifact, InteractiveContext
-from vivarium.framework.configuration import build_model_specification
+from vivarium import Artifact
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
 )
 from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
+
+from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 # This code relies on data specific to:
 # 1. The LBWSG birth exposure in GBD (using GBD 2021 data at the time of running)
@@ -26,37 +28,33 @@ def get_simulated_population(location, draw):
     """This function uses the interactive context to initialze a simulation with the specified
     location and draw and artifact directory. It then advances the simulation past the early
     neonatal mortality timestep."""
-    path = Path(os.getcwd() + "/../../model_specifications/model_spec.yaml")
-    custom_model_specification = build_model_specification(path)
-    del custom_model_specification.configuration.observers
-    artifact_directory = custom_model_specification.configuration.input_data.artifact_path
+    sim = initialize_simulation(location, draw, population_size=20_000 * 10)
     global artifact_base
-    artifact_base = artifact_directory.rsplit("/", 1)[0] + "/"
-
-    custom_model_specification.configuration.input_data.artifact_path = (
-        artifact_base + location + ".hdf"
-    )
-    custom_model_specification.configuration.input_data.input_draw_number = draw
-    # NOTE: setting population size to what we are using in the simulation for a single draw
-    custom_model_specification.configuration.population.population_size = 20_000 * 10
-    sim = InteractiveContext(custom_model_specification)
+    artifact_base = sim.configuration.input_data.artifact_path.rsplit("/", 1)[0] + "/"
     get_event_name = sim._builder.time.simulation_event_name()
     while get_event_name() != "early_neonatal_mortality":
         sim.step()
     # now take one more step to complete early neonatal mortality
     sim.step()
 
-    pop = sim.get_population()
     cols = [
         "sex_of_child",
         "pregnancy_outcome",
         "child_alive",
-        "birth_weight_exposure",
-        "gestational_age_exposure",
+        "birth_weight.exposure",
+        "gestational_age.exposure",
         "effect_of_low_birth_weight_and_short_gestation_on_early_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk",
         "effect_of_low_birth_weight_and_short_gestation_on_late_neonatal_neonatal_sepsis_and_other_neonatal_infections_relative_risk",
     ]
-    return pop[cols]
+    pop = sim.get_population(cols)
+    # Rename columns to match downstream code expectations
+    pop = pop.rename(
+        columns={
+            "birth_weight.exposure": "birth_weight_exposure",
+            "gestational_age.exposure": "gestational_age_exposure",
+        }
+    )
+    return pop
 
 
 def load_interpolators(location, draw):
@@ -78,7 +76,7 @@ def load_interpolators(location, draw):
 
 def load_lbwsg_shifts(location, draw):
     """Read in effect of hemoglobin on gestational age and birthweight, as calculated and saved separately"""
-    data = pd.read_csv(os.getcwd() + f"/lbwsg_shifts/draw_{draw}.csv")
+    data = pd.read_csv(_DIR / f"lbwsg_shifts/draw_{draw}.csv")
     data = data.loc[data.location == location]
     return data
 
@@ -164,10 +162,11 @@ def calculate_indirect_effect(location, draw):
     return result
 
 
-def calculate_direct_effect(results_directory, draw):
+def calculate_direct_effect(results_directory, draw, locations=None):
     """Calculate and save the direct (unmediated) effect of hemoglobin on neonatal sepsis mortality.
     This is done by dividing the total effect by the indirect effect."""
-    locations = [location.lower() for location in metadata.LOCATIONS]
+    if locations is None:
+        locations = [location.lower() for location in metadata.LOCATIONS]
     indirect_rrs = pd.concat(
         [calculate_indirect_effect(location, draw) for location in locations],
         ignore_index=True,
