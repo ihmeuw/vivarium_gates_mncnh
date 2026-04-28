@@ -156,6 +156,29 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
     For each GBD age group, calculate the mean RR for maternal hemorrhage and sepsis
     and then calculate the PAFs using the formula PAF = (mean_RR - 1) / mean_RR.
 
+    The PAF for neonatal sepsis is restricted to non partial term pregnancies only.
+    We do this because the ratio of partial term pregnancies as well as hemoglobin
+    exposure is age-specific, so this will influence the overall hemoglobin exposure
+    distribution of all pregnancies that advance to live birth.
+
+    Note that we keep stillbirths here even though they are not at risk of
+    neonatal sepsis, however, there should be no difference in hemoglobin exposure
+    distribution between stillbirths and live births so we keep them in for
+    statistical power.
+
+    Note that we are not (but could) advance the simulation to late neonatal age group
+    and then restrict to surviving neonates for the calculation of the neonatal sepsis
+    PAF among the late neonatal age group. However, given that hemoglobin has a smaller
+    overall effect on neonatal mortality than LBWSG, we hypothesize that this
+    limitation in our PAF calculation will not have a large impact on our PAF value
+    (we assume that the distribution of hemoglobin of parents of all live births ~= that
+    of neonates that survive ENN age group).
+
+    We can revisit this assumption if our simulated LNN mortality does not calibrate
+    after the inclusion of hemoglobin effects on NN sepsis. Also note that in that case
+    we'd probably want to re-run WITHOUT also calculating the effects on maternal
+    disorders again because we could probably get away with a smaller population size.
+
     Returns
     -------
     tuple[pd.DataFrame, pd.DataFrame]
@@ -177,25 +200,6 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
         }
     )
 
-    # Restrict PAF for neonatal sepsis to non partial term pregnancies only.
-    # We do this because the ratio of partial term pregnancies as well as hemoglobin
-    # exposure is age-specific, so this will influence the overall hemoglobin exposure
-    # distribution of all pregnancies that advance to live birth.
-    # Note that I am keeping in stillbirths here even though they are not at risk of
-    # neonatal sepsis, however, there should be no difference in hemoglobin exposure
-    # distribution between stillbirths and live births so I am keeping them in for
-    # statistical power.
-    # Note that we are not (but could) advance the simulation to late neonatal age group
-    # and then restrict to surviving neonates for the calculation of the neonatal sepsis
-    # PAF among the late neonatal age group. However, given that hemoglobin has a smaller
-    # overall effect on neonatal mortality than LBWSG, we will hypothesize that this
-    # limitation in our PAF calculation will not have a large impact on our PAF value
-    # (we assume that the distribution of hemoglobin of parents of all live births ~= that
-    # of neonates that survive ENN age group).
-    # We can revisit this assumption if our simulated LNN mortality does not calibrate
-    # after the inclusion of hemoglobin effects on NN sepsis. Also note that in that case
-    # we'd probably want to re-run WITHOUT also calculating the effects on maternal
-    # disorders again because we could probably get away with a smaller population size.
     nn_mean_rr = (
         data.loc[data.pregnancy_outcome == "full_term"]
         .drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])

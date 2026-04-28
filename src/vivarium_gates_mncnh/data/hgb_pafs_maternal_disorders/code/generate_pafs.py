@@ -35,10 +35,10 @@ SEPSIS_RR_DIR = _CODE_DIR / "../../hemoglobin_effects/direct_sepsis_effects/"
 OUTPUT_DIR = _CODE_DIR / "../outputs/"
 
 
-def fmt_time(seconds):
-    m, s = divmod(int(seconds), 60)
-    h, m = divmod(m, 60)
-    return f"{h}h {m:02d}m {s:02d}s" if h else f"{m}m {s:02d}s"
+def fmt_time(seconds) -> str:
+    minutes, secs = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes:02d}m {secs:02d}s" if hours else f"{minutes}m {secs:02d}s"
 
 
 def progress_bar(current, total, width=30):
