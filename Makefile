@@ -159,7 +159,7 @@ build-env: # Create a new environment with installed packages
 
 	conda create $(CONDA_CREATE_FLAG) python=$(py) --yes
 # 	Bootstrap vivarium_build_utils into the new environment
-	conda run $(CONDA_RUN_FLAG) pip install vivarium_build_utils
+	conda run $(CONDA_RUN_FLAG) pip install git+https://github.com/ihmeuw/vivarium_build_utils.git@albrja/add-slackbot-install
 #	Install packages based on type
 	@if [ "$(type)" = "simulation" ]; then \
 		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=dev; \
