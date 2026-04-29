@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     install_requirements = [
         "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
-        "vivarium_build_utils>=2.0.1,<3.0.0",
+        "vivarium_build_utils @ git+https://github.com/ihmeuw/vivarium_build_utils.git@albrja/add-slackbot-install",
         "gbd_mapping>=5.0.0",
         "layered_config_tree",
         "vivarium>=4.0.0, <4.1.0",

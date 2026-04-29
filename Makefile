@@ -171,8 +171,6 @@ build-env: # Create a new environment with installed packages
 		conda run $(CONDA_RUN_FLAG) conda install -c conda-forge git-lfs --yes; \
 		conda run $(CONDA_RUN_FLAG) git lfs install; \
 	fi
-#	Set up slack integration
-	conda run $(CONDA_RUN_FLAG) make setup-slack
 
 	@echo
 	@echo "Finished building environment"
