@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -6,6 +7,8 @@ import scipy
 from vivarium import Artifact
 
 from vivarium_gates_mncnh.constants import metadata
+
+_DIR = Path(__file__).parent
 
 """
 This code is intended to read in the effects of hemoglobin on stillbirth, birth weight
@@ -44,7 +47,7 @@ artifact_directory = (
 
 def load_bop_rrs(outcome):
     """Load burden of proof hemoglobin estimates for specified outcome"""
-    rrs = pd.read_csv(f"{outcome}_bop_rrs.csv")
+    rrs = pd.read_csv(_DIR / f"{outcome}_bop_rrs.csv")
     rrs = rrs.set_index("risk")
     rrs = np.exp(
         rrs
@@ -70,16 +73,16 @@ def convert_rrs_to_gbd_exposure(rrs, exposure_levels):
     from scipy.interpolate import interp1d
 
     x_new = exposure_levels
-    rrs_interp = pd.DataFrame({"risk": x_new})
     x_old = rrs["risk"].values
+    interp_cols = {"risk": x_new}
     for col in rrs.columns:
         if col.startswith("draw_"):
             y = rrs[col].values
             f = interp1d(
                 x_old, y, kind="linear", bounds_error=False, fill_value=(y[0], y[-1])
             )
-            rrs_interp[col] = f(x_new)
-    return rrs_interp
+            interp_cols[col] = f(x_new)
+    return pd.DataFrame(interp_cols)
 
 
 def transform_and_reorder_rrs(rrs, exposure_levels):
@@ -512,5 +515,5 @@ def calculate_iv_iron_stillbirth_effects():
     effects = effects.pivot_table(
         index=["location", "exposure"], values="value", columns="draw"
     ).reset_index()
-    effects.to_csv("iv_iron_stillbirth_rrs.csv")
+    effects.to_csv(_DIR / "iv_iron_stillbirth_rrs.csv")
     return effects
