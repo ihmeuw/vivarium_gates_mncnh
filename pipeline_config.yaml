@@ -17,8 +17,12 @@ workflow:
       args:
         model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
         branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
-    - name: "step3_echo"
-      command: "echo 'step 3 complete'"
+    - name: "tests"
+      type: pytest
+      environment: art
       resources:
-        memory_gb: 1
+        memory_gb: 2
         runtime: "00:01:00"
+      args:
+        path: /tests/automated_v_and_v/test_measures.py
+        runslow: true
