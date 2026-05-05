@@ -25,6 +25,6 @@ workflow:
         runtime: "00:01:00"
         cores: 2
       args:
-        path: /tests/automated_v_and_v/test_measures.py
+        path: tests/automated_v_and_v/test_measures.py
         runslow: true
         numprocesses: 2
