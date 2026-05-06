@@ -30,3 +30,13 @@ workflow:
           - tests/automated_v_and_v/test_formatting.py
         runslow: true
         numprocesses: 2
+    - name: "python_script"
+      type: python
+      resources:
+        memory_gb: 1
+        runtime: "00:01:00"
+      args:
+        path: baseball.py
+        player_name: cal_raleigh
+        stat_category: home_runs
+
