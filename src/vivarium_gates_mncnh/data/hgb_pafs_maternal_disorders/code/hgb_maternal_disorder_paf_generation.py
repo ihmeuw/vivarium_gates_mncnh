@@ -139,7 +139,7 @@ def load_rrs(location, draw, population_size, md_rr_data):
 
     # read in and assign maternal disorders RRs
     # NOTE: This duplicates a computation also done in the simulation, but we do this in order to not have
-    # to deal with an artifact that has the RRs but not the PAFs.
+    # to create an artifact that has the RRs but not the PAFs, when adding a new cause.
     md_rrs = md_rr_data[["affected_entity", "exposure", f"draw_{draw}"]]
     for cause in md_rrs["affected_entity"].unique():
         if cause != "maternal_hypertensive_disorders":
