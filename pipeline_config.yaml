@@ -37,6 +37,6 @@ workflow:
         runtime: "00:01:00"
       args:
         path: baseball.py
-        python_positional_args:
+        positional_args:
           - "foo"
           - "bar"
