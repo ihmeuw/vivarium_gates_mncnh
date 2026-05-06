@@ -21,10 +21,11 @@ PLAYER_STATS = {
 
 def main():
     parser = argparse.ArgumentParser(description="Print basic baseball statistics.")
-    parser.add_argument("player_name", help="Player name (e.g. mike_trout)")
+    parser.add_argument("player_name", help="Player name (e.g. cal_raleigh, shohei_ohtani)")
     parser.add_argument(
-        "stat_category",
-        help="Stat category (e.g. batting_average, home_runs, rbi, stolen_bases, ops)",
+        "--stat-category",
+        default="batting_average",
+        help="Stat category (default: batting_average)",
     )
     args = parser.parse_args()
 

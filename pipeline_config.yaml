@@ -38,5 +38,6 @@ workflow:
       args:
         path: baseball.py
         positional_args:
-          - "foo"
-          - "bar"
+          - "cal_raleigh"
+        keyword_args:
+          stat-category: home_runs
