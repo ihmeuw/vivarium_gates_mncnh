@@ -1,5 +1,10 @@
 from pathlib import Path
 
+from vivarium_gates_mncnh.constants.data_values import (
+    PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
+)
+
 _CODE_DIR = Path(__file__).parent
 
 import numpy as np
@@ -121,6 +126,11 @@ def load_rrs(location, draw, population_size, md_rr_data):
     """Load relative risks from the simulation and assign to the population, then stratify
     by GBD age group."""
     sim = initialize_simulation(location, draw, population_size)
+
+    # First maternal disorder timestep. Note that it is key that maternal disorders are independent.
+    while sim._clock.step_name != SIMULATION_EVENT_NAMES.OBSTRUCTED_LABOR:
+        sim.step()
+
     pop = sim.get_population(["age", "hemoglobin.exposure", "pregnancy_outcome"])
 
     sepsis_rrs = load_direct_nn_sepsis_rrs(location, draw)
@@ -130,6 +140,8 @@ def load_rrs(location, draw, population_size, md_rr_data):
         )
 
     # read in and assign maternal disorders RRs
+    # NOTE: This duplicates a computation also done in the simulation, but we do this in order to not have
+    # to deal with an artifact that has the RRs but not the PAFs.
     md_rrs = md_rr_data[["affected_entity", "exposure", f"draw_{draw}"]]
     for cause in md_rrs["affected_entity"].unique():
         if cause != "maternal_hypertensive_disorders":
@@ -147,7 +159,11 @@ def load_rrs(location, draw, population_size, md_rr_data):
         pop["age"], bins=bins, labels=labels, right=False, include_lowest=True
     )
     pop["location"] = location
-    return pop
+
+    # Subset to full term pregnancies
+    return pop[pop.pregnancy_outcome != PREGNANCY_OUTCOMES.PARTIAL_TERM_OUTCOME].drop(
+        columns=["age", "hemoglobin.exposure", "pregnancy_outcome"]
+    )
 
 
 def calculate_pafs(location, draw, population_size, md_rr_data):
@@ -185,13 +201,9 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
         A tuple of (maternal_paf, neonatal_paf) DataFrames.
     """
     data = load_rrs(location, draw, population_size, md_rr_data)
-    md_mean_rr = (
-        data.drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])
-        .groupby(["location", "age_group"])[
-            [x for x in data.columns if "neonatal_sepsis" not in x and "rr" in x]
-        ]
-        .mean()
-    )
+    md_mean_rr = data.groupby(["location", "age_group"])[
+        [x for x in data.columns if "neonatal_sepsis" not in x and "rr" in x]
+    ].mean()
     maternal_paf = ((md_mean_rr - 1) / md_mean_rr).reset_index()
     # Rename columns from *_rr to *_paf since these are now PAF values
     maternal_paf = maternal_paf.rename(
@@ -200,12 +212,9 @@ def calculate_pafs(location, draw, population_size, md_rr_data):
         }
     )
 
-    nn_mean_rr = (
-        data.loc[data.pregnancy_outcome == "full_term"]
-        .drop(columns=["age", "hemoglobin.exposure", "pregnancy_outcome"])
-        .groupby(["location"])[[x for x in data.columns if "neonatal_sepsis" in x]]
-        .mean()
-    )
+    nn_mean_rr = data.groupby(["location"])[
+        [x for x in data.columns if "neonatal_sepsis" in x]
+    ].mean()
     neonatal_paf = ((nn_mean_rr - 1) / nn_mean_rr).reset_index()
 
     return maternal_paf, neonatal_paf
