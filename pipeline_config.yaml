@@ -39,4 +39,3 @@ workflow:
         path: baseball.py
         player_name: cal_raleigh
         stat_category: home_runs
-
