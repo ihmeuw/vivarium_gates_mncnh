@@ -14,11 +14,9 @@ from vivarium_gates_mncnh.constants import metadata
 from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 # This code relies on data specific to:
-# 1. The low hemoglobin risk exposure levels (using GBD 2023 data in artifact 18.0)
-# 2. The low hemoglobin relative risk values (using GBD 2021 data in artifact 18.0)
-# 3. The direct effect of neonatal sepsis relative risk values, which are themselves dependent on:
-# a. The LBWSG risk factor data (using GBD 2021 data in artifact 18.0)
-# b. Hemoglobin risk factor data, specifically the effect on neonatal sepsis (using GBD 2023 data in artifact 18.0)
+# 1. The low hemoglobin risk exposure levels
+# 2. The low hemoglobin relative risk values
+# 3. The direct effect of neonatal sepsis relative risk values, which are themselves dependent on other things (see hgb_nn_sepsis_effect_generation.py for more details)
 # Therefore, it will need to be re-run if any of these are updated
 
 
