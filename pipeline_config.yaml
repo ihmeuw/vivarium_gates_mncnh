@@ -29,7 +29,6 @@ workflow:
           - tests/automated_v_and_v/test_measures.py
           - tests/automated_v_and_v/test_formatting.py
         runslow: true
-        numprocesses: 2
     - name: "python_script"
       type: python
       resources:
