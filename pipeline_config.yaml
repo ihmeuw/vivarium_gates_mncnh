@@ -40,3 +40,15 @@ workflow:
           - "cal_raleigh"
         keyword_args:
           stat-category: home_runs
+    - name: "test_notebook"
+      environment: art
+      type: notebook
+      resources:
+        memory_gb: 2
+        runtime: "00:02:00"
+      args:
+        path: baseball.ipynb
+        output_path: /ihme/homes/albrja/scratch/test_pipeline/baseball_analysis.ipynb
+        parameters:
+          player_name: "cal_raleigh"
+          stat_category: "home_runs"
