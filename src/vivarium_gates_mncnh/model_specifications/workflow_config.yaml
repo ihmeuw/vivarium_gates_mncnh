@@ -53,7 +53,7 @@ workflow:
       args:
         model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
         branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
-    - name: "tests"
+    - name: "tests_artifact"
       type: pytest
       environment: vivarium_gates_mncnh_artifact
       resources:
@@ -64,7 +64,7 @@ workflow:
         path: 
           - tests/
         runslow: true
-    - name: "tests"
+    - name: "tests_simulation"
       type: pytest
       resources:
         memory_gb: 2
