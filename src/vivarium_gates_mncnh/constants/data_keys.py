@@ -126,10 +126,20 @@ MATERNAL_SEPSIS = __MaternalSepsis()
 
 
 class __MaternalHemorrhage(NamedTuple):
-    # Keys that will be loaded into the artifact. must have a colon type declaration
     RAW_INCIDENCE_RATE: str = "cause.maternal_hemorrhage.incidence_rate"
     CSMR: str = "cause.maternal_hemorrhage.cause_specific_mortality_rate"
+    POSTPARTUM_FRACTION: str = "cause.maternal_hemorrhage.postpartum_fraction"
+    INCIDENCE_MODERATE: str = "cause.maternal_hemorrhage.incidence_rate_moderate"
+    INCIDENCE_SEVERE: str = "cause.maternal_hemorrhage.incidence_rate_severe"
     YLD_RATE: str = "cause.maternal_hemorrhage.yld_rate"
+    YLD_RATE_MODERATE: str = "cause.maternal_hemorrhage.yld_rate_moderate"
+    YLD_RATE_SEVERE: str = "cause.maternal_hemorrhage.yld_rate_severe"
+    YLDS_PER_CASE_MODERATE: str = "cause.antepartum_hemorrhage.ylds_per_case_moderate"
+    YLDS_PER_CASE_SEVERE: str = "cause.antepartum_hemorrhage.ylds_per_case_severe"
+    SEVERE_FRACTION: str = "cause.maternal_hemorrhage.severe_fraction"
+    CASE_FATALITY_RATE: str = "cause.maternal_hemorrhage.case_fatality_rate"
+    APH_INCIDENCE_RISK: str = "cause.antepartum_hemorrhage.incidence_risk"
+    PPH_INCIDENCE_RISK: str = "cause.postpartum_hemorrhage.incidence_risk"
 
     @property
     def name(self):
@@ -141,6 +151,41 @@ class __MaternalHemorrhage(NamedTuple):
 
 
 MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
+
+
+class __NonPregnantHemoglobin(NamedTuple):
+    EXPOSURE: str = "risk_factor.non_pregnant_hemoglobin.exposure"
+    # Standard deviation is identical to HEMOGLOBIN.STANDARD_DEVIATION - use that key instead
+    # Distribution weights are identical to HEMOGLOBIN.DISTRIBUTION_WEIGHTS - use that key instead
+
+    @property
+    def name(self):
+        return "non_pregnant_hemoglobin"
+
+    @property
+    def log_name(self):
+        return "non-pregnant hemoglobin"
+
+
+NON_PREGNANT_HEMOGLOBIN = __NonPregnantHemoglobin()
+
+
+class __HemorrhageHemoglobinShift(NamedTuple):
+    PPH_SHIFT_0_6W: str = "risk_effect.hemorrhage_hemoglobin_shift.pph_shift_0_6w"
+    PPH_SHIFT_6W_9M: str = "risk_effect.hemorrhage_hemoglobin_shift.pph_shift_6w_9m"
+    APH_SHIFT_0_6W: str = "risk_effect.hemorrhage_hemoglobin_shift.aph_shift_0_6w"
+    APH_SHIFT_6W_9M: str = "risk_effect.hemorrhage_hemoglobin_shift.aph_shift_6w_9m"
+
+    @property
+    def name(self):
+        return "hemorrhage_hemoglobin_shift"
+
+    @property
+    def log_name(self):
+        return "hemorrhage hemoglobin shift"
+
+
+HEMORRHAGE_HEMOGLOBIN_SHIFT = __HemorrhageHemoglobinShift()
 
 
 class __AbortionMiscarriageEctopicPregnancy(NamedTuple):
@@ -637,7 +682,9 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
+    NON_PREGNANT_HEMOGLOBIN,
     IV_IRON,
+    HEMORRHAGE_HEMOGLOBIN_SHIFT,
 ]
 
 

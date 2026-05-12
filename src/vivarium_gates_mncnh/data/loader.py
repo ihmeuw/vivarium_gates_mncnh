@@ -83,7 +83,23 @@ def get_data(
         data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
+        data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION: load_postpartum_fraction,
+        data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE: load_sequela_data,
+        data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE: load_sequela_data,
         data_keys.MATERNAL_HEMORRHAGE.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE: load_sequela_data,
+        data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: load_sequela_data,
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE: load_hemorrhage_ylds_per_case,
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE: load_hemorrhage_ylds_per_case,
+        data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION: load_hemorrhage_severe_fraction,
+        data_keys.MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE: load_hemorrhage_case_fatality_rate,
+        data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK: load_antepartum_hemorrhage_incidence,
+        data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK: load_postpartum_hemorrhage_incidence,
+        data_keys.NON_PREGNANT_HEMOGLOBIN.EXPOSURE: load_non_pregnant_hemoglobin_exposure,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.RAW_INCIDENCE_RATE: load_abortion_miscarriage_ectopic_incidence,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.CSMR: load_abortion_miscarriage_ectopic_csmr,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.YLD_RATE: load_abortion_miscarriage_ectopic_yld_rate,
@@ -1942,3 +1958,220 @@ def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: i
     deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[draw_cols]
     deaths = reshape_to_vivarium_format(deaths, location)
     return deaths
+
+
+###########################
+# Hemorrhage split loaders
+###########################
+
+SEQUELA_DATA_MAP = {
+    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE: (180, "Incidence rate"),
+    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE: (181, "Incidence rate"),
+    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE: (180, "YLDs"),
+    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: (181, "YLDs"),
+}
+
+
+def load_postpartum_fraction(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load postpartum fraction of maternal hemorrhage from crosswalk parameters."""
+    params = pd.read_csv(paths.PPH_CROSSWALK_PARAMETERS_CSV)
+    num_draws = len(vi_globals.DRAW_COLUMNS)
+    seed = f"{key}_{location}"
+    rng = np.random.RandomState(hash(seed) % 2**32)
+
+    draw_data = {}
+    for _, row in params.iterrows():
+        log_ratio = rng.normal(row["pred_diff_mean"], row["pred_diff_sd"], num_draws)
+        pp_fraction = np.clip(np.exp(log_ratio), 0, 1)
+        draw_data[(row["age_start"], row["age_end"], row["sex"])] = pp_fraction
+
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
+    demography = demography.droplevel("location")
+
+    result = pd.DataFrame(0.0, index=demography.index, columns=vi_globals.DRAW_COLUMNS)
+    for (age_start, age_end, sex), draws in draw_data.items():
+        mask = (result.index.get_level_values("age_start") >= age_start) & (
+            result.index.get_level_values("age_start") < age_end
+        )
+        result.loc[mask] = draws
+
+    # above_one = (result > 1).values.sum()
+    # total = result.size
+    # print(
+    #     f"Prevalence of values > 1 after exponentiation: "
+    #     f"{above_one}/{total} ({above_one / total:.2%})"
+    # )
+    # breakpoint()
+    return result
+
+
+def load_sequela_data(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load sequela-level data from COMO."""
+    sequela_id, measure = SEQUELA_DATA_MAP[key]
+    data = extra_gbd.get_sequela_data(sequela_id, location, measure)
+    groupby_cols = ["age_group_id", "sex_id", "year_id"]
+    draw_cols = vi_globals.DRAW_COLUMNS
+    data = data[groupby_cols + draw_cols]
+    return reshape_to_vivarium_format(data, location)
+
+
+def load_hemorrhage_severe_fraction(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute severe fraction as incidence_severe / (incidence_moderate + incidence_severe)."""
+    inc_moderate = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE, location)
+    inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
+    total = inc_moderate + inc_severe
+    # Avoid division by zero
+    severe_fraction = inc_severe / total.replace(0, np.nan)
+    severe_fraction = severe_fraction.fillna(0)
+    return severe_fraction
+
+
+def load_hemorrhage_case_fatality_rate(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute CFR as CSMR_c367 / incidence_severe, clipped to [0, 1]."""
+    csmr = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
+    inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
+    cfr = csmr / inc_severe.replace(0, np.nan)
+    cfr = cfr.fillna(0).clip(lower=0, upper=1)
+    return cfr
+
+
+def load_antepartum_hemorrhage_incidence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute APH per-pregnancy incidence risk.
+
+    Splits the c367 population-level incidence rate by the antepartum fraction
+    and divides by pregnancy rate to convert to per-pregnancy risk.
+    """
+    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
+    inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
+    aph_incidence = (1 - pp_fraction) * inc_c367
+    pregnancy_rate = get_data(data_keys.POPULATION.SCALING_FACTOR, location)
+    return (aph_incidence / pregnancy_rate).fillna(0.0)
+
+
+def load_postpartum_hemorrhage_incidence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute PPH per-pregnancy incidence risk.
+
+    Splits the c367 population-level incidence rate by the postpartum fraction
+    and divides by birth rate to convert to per-pregnancy risk.
+    """
+    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
+    inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
+    pph_incidence = pp_fraction * inc_c367
+    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location)
+    return (pph_incidence / birth_rate).fillna(0.0)
+
+
+def load_hemorrhage_ylds_per_case(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute YLDs per case as sequela YLD rate / sequela incidence."""
+    key_to_sequela = {
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE: (
+            data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE,
+            data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE,
+        ),
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE: (
+            data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE,
+            data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE,
+        ),
+    }
+    yld_key, inc_key = key_to_sequela[key]
+    yld_rate = get_data(yld_key, location)
+    incidence = get_data(inc_key, location)
+    yld_per_case = yld_rate / incidence.replace(0, np.nan)
+    yld_per_case = yld_per_case.fillna(0)
+    return yld_per_case
+
+
+###################################
+# Non-pregnant hemoglobin loaders
+###################################
+
+
+def load_non_pregnant_hemoglobin_exposure(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load non-pregnant hemoglobin exposure data (MEID 27596)."""
+    data = extra_gbd.get_non_pregnant_hemoglobin_exposure_data(location)
+    # The GBD source returns 1000 draws + stgpr_model_version_id. Keep only the
+    # columns needed for reshape_to_vivarium_format to avoid extras landing in
+    # the index.
+    keep_cols = [
+        c for c in data.columns if not c.startswith("draw_") or c in vi_globals.DRAW_COLUMNS
+    ]
+    keep_cols = [c for c in keep_cols if c != "stgpr_model_version_id"]
+    data = data[keep_cols]
+    data = reshape_to_vivarium_format(data, location)
+    levels_to_drop = [
+        "measure_id",
+        "metric_id",
+        "model_version_id",
+        "modelable_entity_id",
+        "parameter",
+    ]
+    existing_levels = [l for l in levels_to_drop if l in data.index.names]
+    data.index = data.index.droplevel(existing_levels)
+
+    expanded_draws_df_1 = utilities.expand_draw_columns(data, num_draws=100, num_repeats=2)
+    expanded_draws_df_2 = data[[f"draw_{i}" for i in range(50)]].rename(
+        {f"draw_{i}": f"draw_{i+200}" for i in range(50)}, axis=1
+    )
+    expanded_draws_df = pd.concat([expanded_draws_df_1, expanded_draws_df_2], axis=1)
+    return expanded_draws_df
+
+
+#######################################
+# Hemorrhage hemoglobin shift loaders
+#######################################
+
+HEMORRHAGE_SHIFT_DAY_RANGES = {
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: (0, 42),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: (42, 270),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: (0, 49),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: (49, 245),
+}
+
+
+def load_hemorrhage_hemoglobin_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load hemorrhage hemoglobin shift averaged over the appropriate day range.
+
+    Uses pred_data.csv shift curve and generates draw-level data using
+    the draw_se column for uncertainty.
+    """
+    pred_data = pd.read_csv(paths.HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV)
+    day_start, day_end = HEMORRHAGE_SHIFT_DAY_RANGES[key]
+
+    subset = pred_data[
+        (pred_data["postpartum_days"] >= day_start) & (pred_data["postpartum_days"] < day_end)
+    ]
+    mean_shift = subset["pred_mean"].mean()
+    mean_se = subset["draw_se"].mean()
+
+    num_draws = len(vi_globals.DRAW_COLUMNS)
+    seed = hash(f"{key}_{location}") % 2**32
+    rng = np.random.RandomState(seed)
+    draws = rng.normal(mean_shift, mean_se, num_draws)
+
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
+    demography = demography.droplevel("location")
+
+    result = pd.DataFrame(
+        np.tile(draws, (len(demography), 1)),
+        index=demography.index,
+        columns=vi_globals.DRAW_COLUMNS,
+    )
+    return result
