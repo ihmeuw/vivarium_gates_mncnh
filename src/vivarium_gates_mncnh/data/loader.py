@@ -2064,7 +2064,7 @@ def load_postpartum_hemorrhage_incidence(
     """Compute PPH per-pregnancy incidence risk.
 
     Splits the c367 population-level incidence rate by the postpartum fraction
-    and divides by birth rate to convert to per-pregnancy risk.
+    and divides by birth rate to convert to per-birth risk.
     """
     pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
     inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
