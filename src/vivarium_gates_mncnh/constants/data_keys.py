@@ -126,6 +126,7 @@ MATERNAL_SEPSIS = __MaternalSepsis()
 
 
 class __MaternalHemorrhage(NamedTuple):
+    # Keys that will be loaded into the artifact. must have a colon type declaration
     RAW_INCIDENCE_RATE: str = "cause.maternal_hemorrhage.incidence_rate"
     CSMR: str = "cause.maternal_hemorrhage.cause_specific_mortality_rate"
     POSTPARTUM_FRACTION: str = "cause.maternal_hemorrhage.postpartum_fraction"
@@ -151,23 +152,6 @@ class __MaternalHemorrhage(NamedTuple):
 
 
 MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
-
-
-class __NonPregnantHemoglobin(NamedTuple):
-    EXPOSURE: str = "risk_factor.non_pregnant_hemoglobin.exposure"
-    # Standard deviation is identical to HEMOGLOBIN.STANDARD_DEVIATION - use that key instead
-    # Distribution weights are identical to HEMOGLOBIN.DISTRIBUTION_WEIGHTS - use that key instead
-
-    @property
-    def name(self):
-        return "non_pregnant_hemoglobin"
-
-    @property
-    def log_name(self):
-        return "non-pregnant hemoglobin"
-
-
-NON_PREGNANT_HEMOGLOBIN = __NonPregnantHemoglobin()
 
 
 class __HemorrhageHemoglobinShift(NamedTuple):
@@ -643,6 +627,7 @@ class __Hemoglobin(NamedTuple):
     PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
     SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
+    NON_PREGNANT_EXPOSURE: str = "risk_factor.non_pregnant_hemoglobin.exposure"
 
     @property
     def name(self):
@@ -682,7 +667,6 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,
     HEMOGLOBIN,
-    NON_PREGNANT_HEMOGLOBIN,
     IV_IRON,
     HEMORRHAGE_HEMOGLOBIN_SHIFT,
 ]

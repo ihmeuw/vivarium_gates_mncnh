@@ -95,7 +95,6 @@ def get_data(
         data_keys.MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE: load_hemorrhage_case_fatality_rate,
         data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK: load_antepartum_hemorrhage_incidence,
         data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK: load_postpartum_hemorrhage_incidence,
-        data_keys.NON_PREGNANT_HEMOGLOBIN.EXPOSURE: load_non_pregnant_hemoglobin_exposure,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
@@ -176,6 +175,7 @@ def get_data(
         data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
+        data_keys.HEMOGLOBIN.NON_PREGNANT_EXPOSURE: load_non_pregnant_hemoglobin_exposure,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
         data_keys.IV_IRON.LBWSG_EFFECT_SIZE: load_iv_iron_lbwsg_effect_size,
         data_keys.IV_IRON.STILLBIRTH_RR: load_iv_iron_stillbirth_rr,
@@ -1989,6 +1989,13 @@ def load_postpartum_fraction(
 
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
     demography = demography.droplevel("location")
+    reproductive_ages = metadata.MATERNAL_AGE_MAP.values()
+    min_age = min(a for a, _ in reproductive_ages)
+    max_age = max(b for _, b in reproductive_ages)
+    demography = demography.loc[
+        (demography.index.get_level_values("age_start") >= min_age)
+        & (demography.index.get_level_values("age_end") <= max_age)
+    ]
 
     result = pd.DataFrame(0.0, index=demography.index, columns=vi_globals.DRAW_COLUMNS)
     for (age_start, age_end, sex), draws in draw_data.items():
@@ -1997,13 +2004,6 @@ def load_postpartum_fraction(
         )
         result.loc[mask] = draws
 
-    # above_one = (result > 1).values.sum()
-    # total = result.size
-    # print(
-    #     f"Prevalence of values > 1 after exponentiation: "
-    #     f"{above_one}/{total} ({above_one / total:.2%})"
-    # )
-    # breakpoint()
     return result
 
 
