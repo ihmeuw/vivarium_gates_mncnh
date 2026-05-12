@@ -38,7 +38,7 @@ workflow:
 
     - name: "make_artifacts"
       environment: vivarium_gates_mncnh_artifact
-      command: command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
+      command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
       resources:
         memory_gb: 1
         runtime: "01:00:00"
