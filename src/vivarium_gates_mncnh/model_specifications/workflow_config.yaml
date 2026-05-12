@@ -2,15 +2,17 @@ workflow:
   name: "test_pipeline"
   project: "proj_simscience"
   queue: "all.q"
-  output_directory: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/test_workflow"
+  output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/test_workflow
   steps:
+    # - name: "check_clean_working_tree"
+      
     - name: "paf_sim"
       type: python
       resources:
         memory_gb: 16
         runtime: "00:30:00"
       args:
-        path: ../data/lbwsg_paf/code/run_paf_sim.py
+        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
           a: test_workflow
           l: "Ethiopia"
@@ -32,7 +34,7 @@ workflow:
     #     memory_gb: 1
     #     runtime: "00:20:00"
     #   args:
-    #     path: ../data/hgb_pafs_maternal_disorders/code/generate_pafs.py
+    #     path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
 
     - name: "make_artifacts"
       environment: vivarium_gates_mncnh_artifact
