@@ -11,6 +11,7 @@ workflow:
       resources:
         memory_gb: 16
         runtime: "00:30:00"
+        requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
