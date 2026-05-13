@@ -15,7 +15,7 @@ workflow:
     # Regenerate LBWSG relative risk caps - NOT IMPLEMENTED yet
     # - name: "regenerate_lbws_relative_risk_caps"
 
-    - name: "paf_sim"
+    - name: "paf_sim_ethiopia"
       type: python
       resources:
         memory_gb: 16
@@ -26,6 +26,30 @@ workflow:
         keyword_args:
           a: test_workflow
           l: "Ethiopia"
+
+    - name: "paf_sim_nigeria"
+      type: python
+      resources:
+        memory_gb: 16
+        runtime: "00:30:00"
+        requires_archive_node: True
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+        keyword_args:
+          a: test_workflow
+          l: "Nigeria"
+
+    - name: "paf_sim_pakistan"
+      type: python
+      resources:
+        memory_gb: 16
+        runtime: "00:30:00"
+        requires_archive_node: True
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+        keyword_args:
+          a: test_workflow
+          l: "Pakistan"
     
     # NOTE: NOT IMPLEMENTED YET - configuration stubs but not wired up and tested
     # - name: "hemoglobin_effects_birth_effect"
