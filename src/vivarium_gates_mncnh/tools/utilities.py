@@ -14,6 +14,33 @@ from typing import List, Optional
 import pyarrow.parquet as pq
 
 
+def check_clean_tree() -> None:
+    """Abort if there are uncommitted changes to tracked files in src/vivarium_gates_mncnh,
+    excluding the validation/ and tools/ subdirectories."""
+    result = subprocess.run(
+        [
+            "git",
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+            "--",
+            "src/vivarium_gates_mncnh",
+            ":!src/vivarium_gates_mncnh/validation",
+            ":!src/vivarium_gates_mncnh/tools",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    if result.stdout.strip():
+        raise RuntimeError(
+            "There are uncommitted changes to tracked files in src/vivarium_gates_mncnh "
+            "(excluding validation/ and tools/). "
+            "Please commit or stash them before running this script.\n"
+            f"{result.stdout.strip()}"
+        )
+
+
 def check_conda_environments() -> None:
     """
     Check that required conda environments are installed.

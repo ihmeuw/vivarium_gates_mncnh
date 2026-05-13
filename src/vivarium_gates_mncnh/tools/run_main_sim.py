@@ -19,6 +19,7 @@ import yaml
 
 from vivarium_gates_mncnh.constants.metadata import LOCATIONS
 from vivarium_gates_mncnh.tools.utilities import (
+    check_clean_tree,
     check_conda_environments,
     check_psimulate_finished,
     extract_results_dir,
@@ -53,33 +54,6 @@ def _head_commit() -> str:
         check=True,
     )
     return result.stdout.strip()
-
-
-def _check_clean_tree() -> None:
-    """Abort if there are uncommitted changes to tracked files in src/vivarium_gates_mncnh,
-    excluding the validation/ and tools/ subdirectories."""
-    result = subprocess.run(
-        [
-            "git",
-            "status",
-            "--porcelain",
-            "--untracked-files=no",
-            "--",
-            "src/vivarium_gates_mncnh",
-            ":!src/vivarium_gates_mncnh/validation",
-            ":!src/vivarium_gates_mncnh/tools",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    if result.stdout.strip():
-        raise RuntimeError(
-            "There are uncommitted changes to tracked files in src/vivarium_gates_mncnh "
-            "(excluding validation/ and tools/). "
-            "Please commit or stash them before running this script.\n"
-            f"{result.stdout.strip()}"
-        )
 
 
 def _create_and_push_tag(model_number: str) -> None:
@@ -216,7 +190,7 @@ def run_sim(
     print(f"Baseline only: {baseline_only}")
     print("=" * 80)
 
-    _check_clean_tree()
+    check_clean_tree()
     _create_and_push_tag(model_number)
     _update_model_results_dir(model_number)
     check_conda_environments()
