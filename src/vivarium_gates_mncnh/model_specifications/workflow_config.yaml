@@ -12,46 +12,17 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/tools/check_working_tree.py
 
-    - name: "paf_sim"
-      type: python
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          a: test_workflow
-          l: "Ethiopia"
-    # - name: "hemoglobin_effects_birth_effect"
-    #   command: "python parallel_runner.py --workers 4 -- generate_birth_effects.py"
-    #   resources:
-    #     memory_gb: 1
-    #     runtime: "06:00:00"
-
-    # - name: "hemoglobin_effects_sepsis"
-    #   command: "python parallel_runner.py --workers 4 -- generate_nn_sepsis_effects.py"
-    #   resources:
-    #     memory_gb: 1
-    #     runtime: "02:00:00"
-
-    # - name: "hemoglobin_maternal_disorders_sim"
+    # NOTE: It is expected a user would manually do this between workflows
+    # - name: "commit_and_tag"
     #   type: python
     #   resources:
     #     memory_gb: 1
-    #     runtime: "00:20:00"
+    #     runtime: "00:01:00"
     #   args:
-    #     path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
+    #     path: src/vivarium_gates_mncnh/tools/commit_and_tag.py
+    #     positional_args:
+    #       - "10.0"
 
-    - name: "make_artifacts"
-      environment: vivarium_gates_mncnh_artifact
-      command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
-      resources:
-        memory_gb: 1
-        runtime: "01:00:00"
-    
-    # - name: "commit_and_tag"
-      
     - name: run_simulation
       type: simulation
       resources:  # task runner resources
@@ -71,13 +42,4 @@ workflow:
         path: 
           - tests/
         runslow: true
-    - name: "tests_simulation"
-      type: pytest
-      resources:
-        memory_gb: 2
-        runtime: "00:30:00"
-        cores: 2
-      args:
-        path: 
-          - tests/
-        runslow: true
+        k: "results"

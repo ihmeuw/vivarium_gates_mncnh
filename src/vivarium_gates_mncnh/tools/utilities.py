@@ -14,6 +14,111 @@ from typing import List, Optional
 import pyarrow.parquet as pq
 
 
+def tag_commit(tag: str) -> Optional[str]:
+    """Return the commit SHA a tag points to, or ``None`` if it doesn't exist."""
+    result = subprocess.run(
+        ["git", "rev-list", "-n1", tag],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def head_commit() -> str:
+    """Return the SHA of the current HEAD."""
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def commit_pending_changes(message: str) -> None:
+    """Commit any uncommitted tracked-file changes with ``message`` and push to origin.
+
+    No-op if the working tree has nothing to commit. Untracked files are ignored.
+    """
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    if not status.stdout.strip():
+        print("No pending changes to commit.")
+        return
+
+    try:
+        subprocess.run(["git", "add", "-u"], check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "commit", "-m", message], check=True, capture_output=True, text=True
+        )
+        print(f"Committed pending changes: {message!r}")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to commit pending changes.\n  stderr: {e.stderr.strip()}")
+
+    try:
+        subprocess.run(
+            ["git", "push", "origin", "HEAD"], check=True, capture_output=True, text=True
+        )
+        print("Pushed commit to origin.")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to push commit to origin.\n  stderr: {e.stderr.strip()}")
+
+
+def create_and_push_tag(model_number: str) -> None:
+    """Create a git tag ``v{model_number}`` for the current HEAD and push it to origin.
+
+    If the tag already exists on the current commit, it is left as-is. If it
+    exists on a *different* commit the user is prompted to force-update;
+    when stdin is not a TTY (e.g. running inside a jobmon task) the prompt
+    aborts cleanly instead of crashing.
+    """
+    tag = f"v{model_number}"
+    force = False
+
+    existing_commit = tag_commit(tag)
+    if existing_commit is not None:
+        head = head_commit()
+        if existing_commit == head:
+            print(f"\nGit tag '{tag}' already exists on the current commit. Skipping.")
+            return
+        print(f"\nWARNING: Git tag '{tag}' already exists (on commit {existing_commit[:8]}).")
+        try:
+            response = input(f"Update tag '{tag}' to the current commit and force-push? [y/N] ")
+        except EOFError:
+            raise RuntimeError(
+                f"Git tag '{tag}' already exists on a different commit "
+                f"({existing_commit[:8]}). Refusing to force-update non-interactively. "
+                "Resolve the tag conflict manually before re-running."
+            )
+        if response.strip().lower() != "y":
+            raise RuntimeError(f"Aborted: tag '{tag}' already exists.")
+        force = True
+
+    print(f"\n{'Updating' if force else 'Creating'} git tag '{tag}' and pushing to origin...")
+
+    try:
+        cmd = ["git", "tag", "-f", tag] if force else ["git", "tag", tag]
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print(f"  {'Updated' if force else 'Created'} tag '{tag}'")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
+
+    try:
+        cmd = ["git", "push", "--force", "origin", tag] if force else ["git", "push", "origin", tag]
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print(f"  Pushed tag '{tag}' to origin")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Failed to push git tag '{tag}' to origin.\n  stderr: {e.stderr.strip()}"
+        )
+
+
 def check_clean_tree() -> None:
     """Abort if there are uncommitted changes to tracked files in src/vivarium_gates_mncnh,
     excluding the validation/ and tools/ subdirectories."""

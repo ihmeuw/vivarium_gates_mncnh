@@ -22,6 +22,7 @@ from vivarium_gates_mncnh.tools.utilities import (
     check_clean_tree,
     check_conda_environments,
     check_psimulate_finished,
+    create_and_push_tag,
     extract_results_dir,
     run_command,
 )
@@ -31,84 +32,6 @@ MODEL_SPEC_DIR = Path(__file__).resolve().parent.parent / "model_specifications"
 MODEL_SPEC_PATH = MODEL_SPEC_DIR / "model_spec.yaml"
 PATHS_MODULE = Path(__file__).resolve().parent.parent / "constants" / "paths.py"
 CONDA_ENV = "vivarium_gates_mncnh_simulation"
-
-
-def _tag_commit(tag: str) -> str | None:
-    """Return the commit SHA a tag points to, or ``None`` if it doesn't exist."""
-    result = subprocess.run(
-        ["git", "rev-list", "-n1", tag],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip()
-
-
-def _head_commit() -> str:
-    """Return the SHA of the current HEAD."""
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return result.stdout.strip()
-
-
-def _create_and_push_tag(model_number: str) -> None:
-    """Create a git tag for the model number and push it to origin.
-
-    If the tag already exists on the current commit, it is left as-is.  If it
-    exists on a *different* commit the user is prompted for confirmation, after
-    which the tag is moved to the current commit and force-pushed.
-
-    Parameters
-    ----------
-    model_number
-        The model number (e.g. "29.0.2"). The tag will be ``v{model_number}``.
-
-    Raises
-    ------
-    RuntimeError
-        If git operations fail.
-    """
-    tag = f"v{model_number}"
-    force = False
-
-    existing_commit = _tag_commit(tag)
-    if existing_commit is not None:
-        head = _head_commit()
-        if existing_commit == head:
-            print(f"\nGit tag '{tag}' already exists on the current commit. Skipping.")
-            return
-        print(f"\nWARNING: Git tag '{tag}' already exists (on commit {existing_commit[:8]}).")
-        response = input(f"Update tag '{tag}' to the current commit and force-push? [y/N] ")
-        if response.strip().lower() != "y":
-            raise RuntimeError(f"Aborted: tag '{tag}' already exists.")
-        force = True
-
-    print(f"\n{'Updating' if force else 'Creating'} git tag '{tag}' and pushing to origin...")
-
-    try:
-        cmd = ["git", "tag", tag]
-        if force:
-            cmd = ["git", "tag", "-f", tag]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"  {'Updated' if force else 'Created'} tag '{tag}'")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
-
-    try:
-        cmd = ["git", "push", "origin", tag]
-        if force:
-            cmd = ["git", "push", "--force", "origin", tag]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"  Pushed tag '{tag}' to origin")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Failed to push git tag '{tag}' to origin.\n  stderr: {e.stderr.strip()}"
-        )
 
 
 def _update_model_results_dir(model_number: str) -> None:
@@ -191,7 +114,7 @@ def run_sim(
     print("=" * 80)
 
     check_clean_tree()
-    _create_and_push_tag(model_number)
+    create_and_push_tag(model_number)
     _update_model_results_dir(model_number)
     check_conda_environments()
 
