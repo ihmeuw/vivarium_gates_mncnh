@@ -29,8 +29,19 @@ from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
+from vivarium_gates_mncnh.constants.data_values import (
+    DAYS_PER_WEEK,
+    DAYS_PER_YEAR,
+    MODERATE_HEMORRHAGE_SEQUELA_ID,
+    MONTHS_PER_YEAR,
+    SEVERE_HEMORRHAGE_SEQUELA_ID,
+)
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
+from vivarium_gates_mncnh.utilities import (
+    get_norm,
+    get_random_variable_draws,
+    get_truncnorm,
+)
 
 
 def get_data(
@@ -1651,15 +1662,7 @@ def load_hemoglobin_exposure_data(
         levels_to_drop.append("parameter")
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
-    # Expand draw columns from 0-99 to 0-249 by repeating 2.5 times
-    expanded_draws_df_1 = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=100, num_repeats=2
-    )
-    expanded_draws_df_2 = hemoglobin_data[[f"draw_{i}" for i in range(50)]].rename(
-        {f"draw_{i}": f"draw_{i+200}" for i in range(50)}, axis=1
-    )
-    expanded_draws_df = pd.concat([expanded_draws_df_1, expanded_draws_df_2], axis=1)
-    return expanded_draws_df
+    return utilities.expand_100_draws_to_250(hemoglobin_data)
 
 
 def load_hemoglobin_distribution_weights(
@@ -1960,15 +1963,26 @@ def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: i
     return deaths
 
 
+def _safe_divide(numerator: pd.DataFrame, denominator: pd.DataFrame) -> pd.DataFrame:
+    """Divide two DataFrames, returning 0 where the denominator is 0."""
+    return (numerator / denominator.replace(0, np.nan)).fillna(0)
+
+
 ###########################
 # Hemorrhage split loaders
 ###########################
 
 SEQUELA_DATA_MAP = {
-    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE: (180, "Incidence rate"),
-    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE: (181, "Incidence rate"),
-    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE: (180, "YLDs"),
-    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: (181, "YLDs"),
+    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE: (
+        MODERATE_HEMORRHAGE_SEQUELA_ID,
+        "Incidence rate",
+    ),
+    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE: (
+        SEVERE_HEMORRHAGE_SEQUELA_ID,
+        "Incidence rate",
+    ),
+    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE: (MODERATE_HEMORRHAGE_SEQUELA_ID, "YLDs"),
+    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: (SEVERE_HEMORRHAGE_SEQUELA_ID, "YLDs"),
 }
 
 
@@ -1977,15 +1991,22 @@ def load_postpartum_fraction(
 ) -> pd.DataFrame:
     """Load postpartum fraction of maternal hemorrhage from crosswalk parameters."""
     params = pd.read_csv(paths.PPH_CROSSWALK_PARAMETERS_CSV)
-    num_draws = len(vi_globals.DRAW_COLUMNS)
-    seed = f"{key}_{location}"
-    rng = np.random.RandomState(hash(seed) % 2**32)
+    age_bins = list(zip(params["age_start"], params["age_end"]))
+    if len(age_bins) != len(set(age_bins)):
+        raise ValueError("Crosswalk parameters CSV contains duplicate age bins.")
 
     draw_data = {}
-    for _, row in params.iterrows():
-        log_ratio = rng.normal(row["pred_diff_mean"], row["pred_diff_sd"], num_draws)
-        pp_fraction = np.clip(np.exp(log_ratio), 0, 1)
-        draw_data[(row["age_start"], row["age_end"], row["sex"])] = pp_fraction
+    # Sample from a distribution for each age bin across draws
+    for age_start, age_end, mean, sd in zip(
+        params["age_start"],
+        params["age_end"],
+        params["pred_diff_mean"],
+        params["pred_diff_sd"],
+    ):
+        dist = get_norm(mean=mean, sd=sd)
+        age_seed = f"{key}_{age_start}"
+        log_ratio = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, age_seed, dist)
+        draw_data[(age_start, age_end)] = np.clip(np.exp(log_ratio), 0, 1)
 
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
     demography = demography.droplevel("location")
@@ -1998,7 +2019,7 @@ def load_postpartum_fraction(
     ]
 
     result = pd.DataFrame(0.0, index=demography.index, columns=vi_globals.DRAW_COLUMNS)
-    for (age_start, age_end, sex), draws in draw_data.items():
+    for (age_start, age_end), draws in draw_data.items():
         mask = (result.index.get_level_values("age_start") >= age_start) & (
             result.index.get_level_values("age_start") < age_end
         )
@@ -2026,10 +2047,8 @@ def load_hemorrhage_severe_fraction(
     inc_moderate = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE, location)
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
     total = inc_moderate + inc_severe
-    # Avoid division by zero
-    severe_fraction = inc_severe / total.replace(0, np.nan)
-    severe_fraction = severe_fraction.fillna(0)
-    return severe_fraction
+    # Returns 0 for age groups outside reproductive age where incidence is 0
+    return _safe_divide(inc_severe, total)
 
 
 def load_hemorrhage_case_fatality_rate(
@@ -2037,9 +2056,10 @@ def load_hemorrhage_case_fatality_rate(
 ) -> pd.DataFrame:
     """Compute CFR as CSMR_c367 / incidence_severe, clipped to [0, 1]."""
     csmr = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
+    # fatalities only in severe cases
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
-    cfr = csmr / inc_severe.replace(0, np.nan)
-    cfr = cfr.fillna(0).clip(lower=0, upper=1)
+    # Returns 0 for age groups outside reproductive age where incidence is 0
+    cfr = _safe_divide(csmr, inc_severe)
     return cfr
 
 
@@ -2061,7 +2081,7 @@ def load_antepartum_hemorrhage_incidence(
 def load_postpartum_hemorrhage_incidence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute PPH per-pregnancy incidence risk.
+    """Compute PPH per-birth incidence risk.
 
     Splits the c367 population-level incidence rate by the postpartum fraction
     and divides by birth rate to convert to per-birth risk.
@@ -2090,9 +2110,8 @@ def load_hemorrhage_ylds_per_case(
     yld_key, inc_key = key_to_sequela[key]
     yld_rate = get_data(yld_key, location)
     incidence = get_data(inc_key, location)
-    yld_per_case = yld_rate / incidence.replace(0, np.nan)
-    yld_per_case = yld_per_case.fillna(0)
-    return yld_per_case
+    # Returns 0 for age groups outside reproductive age where incidence is 0
+    return _safe_divide(yld_rate, incidence)
 
 
 ###################################
@@ -2124,12 +2143,7 @@ def load_non_pregnant_hemoglobin_exposure(
     existing_levels = [l for l in levels_to_drop if l in data.index.names]
     data.index = data.index.droplevel(existing_levels)
 
-    expanded_draws_df_1 = utilities.expand_draw_columns(data, num_draws=100, num_repeats=2)
-    expanded_draws_df_2 = data[[f"draw_{i}" for i in range(50)]].rename(
-        {f"draw_{i}": f"draw_{i+200}" for i in range(50)}, axis=1
-    )
-    expanded_draws_df = pd.concat([expanded_draws_df_1, expanded_draws_df_2], axis=1)
-    return expanded_draws_df
+    return utilities.expand_100_draws_to_250(data)
 
 
 #######################################
@@ -2137,10 +2151,18 @@ def load_non_pregnant_hemoglobin_exposure(
 #######################################
 
 HEMORRHAGE_SHIFT_DAY_RANGES = {
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: (0, 42),
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: (42, 270),
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: (0, 49),
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: (49, 245),
+    # 6 weeks * 7 days/week = 42 days
+    # 9 months / 12 months/year * 365.25 days/year ~= 274 days
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: (0, 6 * DAYS_PER_WEEK),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: (
+        6 * DAYS_PER_WEEK,
+        9 * (1 / MONTHS_PER_YEAR) * DAYS_PER_YEAR,
+    ),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: (0, 6 * DAYS_PER_WEEK),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: (
+        6 * DAYS_PER_WEEK,
+        9 * (1 / MONTHS_PER_YEAR) * DAYS_PER_YEAR,
+    ),
 }
 
 
@@ -2160,18 +2182,14 @@ def load_hemorrhage_hemoglobin_shift(
     ]
     mean_shift = subset["pred_mean"].mean()
     mean_se = subset["draw_se"].mean()
-
-    num_draws = len(vi_globals.DRAW_COLUMNS)
-    seed = hash(f"{key}_{location}") % 2**32
-    rng = np.random.RandomState(seed)
-    draws = rng.normal(mean_shift, mean_se, num_draws)
+    dist = get_norm(mean=mean_shift, sd=mean_se)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
 
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
     demography = demography.droplevel("location")
 
     result = pd.DataFrame(
-        np.tile(draws, (len(demography), 1)),
+        [draws] * len(demography),
         index=demography.index,
-        columns=vi_globals.DRAW_COLUMNS,
     )
     return result

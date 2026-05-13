@@ -22,6 +22,11 @@ from vivarium_gates_mncnh.utilities import (
 # Time conversion constants
 DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
+MONTHS_PER_YEAR = 12
+
+# GBD sequela IDs for maternal hemorrhage severity splits
+MODERATE_HEMORRHAGE_SEQUELA_ID = 180
+SEVERE_HEMORRHAGE_SEQUELA_ID = 181
 
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
