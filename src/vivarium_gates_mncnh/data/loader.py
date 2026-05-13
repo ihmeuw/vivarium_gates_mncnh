@@ -2023,7 +2023,7 @@ def load_postpartum_fraction(
         mask = (result.index.get_level_values("age_start") >= age_start) & (
             result.index.get_level_values("age_start") < age_end
         )
-        result.loc[mask] = draws
+        result.loc[mask] = draws.values
 
     return result
 
