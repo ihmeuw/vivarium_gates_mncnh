@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
+import pyarrow.parquet as pq
+
 
 def check_conda_environments() -> None:
     """
@@ -271,8 +273,10 @@ def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
     """
     Move result files to the destination directory.
 
-    Expects directories matching the pattern, each containing a single file 0000.parquet.
-    Moves each parquet file and renames it to {directory_name}.parquet.
+    Expects directories matching the pattern. Each directory contains one or more
+    partition parquet files written by psimulate. They are concatenated into a
+    single parquet file at ``{dest_dir}/{directory_name}.parquet`` and the source
+    directory is removed.
 
     Parameters
     ----------
@@ -298,21 +302,21 @@ def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
             f"Failed to move {description}. No directories matched pattern: {source_pattern}"
         )
 
-    # Move files from matching directories
     moved_count = 0
     for source_path in matching_paths:
         source_path_obj = Path(source_path)
 
         try:
-            # Look for 0000.parquet file
-            parquet_file = source_path_obj / "0000.parquet"
-            if not parquet_file.exists():
-                raise RuntimeError(f"Expected file 0000.parquet not found in {source_path}")
+            partition_files = sorted(source_path_obj.glob("*.parquet"))
+            if not partition_files:
+                raise RuntimeError(f"No parquet partition files found in {source_path}")
 
-            # Move and rename to {directory_name}.parquet
-            dest_filename = f"{source_path_obj.name}.parquet"
-            dest_file = Path(dest_dir) / dest_filename
-            shutil.move(str(parquet_file), dest_file)
+            combined = pq.ParquetDataset([str(p) for p in partition_files]).read()
+
+            dest_file = Path(dest_dir) / f"{source_path_obj.name}.parquet"
+            pq.write_table(combined, dest_file)
+
+            shutil.rmtree(source_path_obj)
             moved_count += 1
         except Exception as e:
             raise RuntimeError(f"Failed to move from {source_path} to {dest_dir}. Error: {e}")
