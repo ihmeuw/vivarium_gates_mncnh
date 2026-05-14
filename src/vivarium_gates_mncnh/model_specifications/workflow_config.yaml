@@ -59,7 +59,7 @@ workflow:
       resources:
         memory_gb: 2
         runtime: "01:00:00"
-        cores: 2
+        cores: 4
       args:
         path: 
           - tests/
