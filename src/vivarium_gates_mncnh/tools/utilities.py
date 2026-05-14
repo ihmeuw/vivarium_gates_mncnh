@@ -89,7 +89,9 @@ def create_and_push_tag(model_number: str) -> None:
             return
         print(f"\nWARNING: Git tag '{tag}' already exists (on commit {existing_commit[:8]}).")
         try:
-            response = input(f"Update tag '{tag}' to the current commit and force-push? [y/N] ")
+            response = input(
+                f"Update tag '{tag}' to the current commit and force-push? [y/N] "
+            )
         except EOFError:
             raise RuntimeError(
                 f"Git tag '{tag}' already exists on a different commit "
@@ -110,7 +112,11 @@ def create_and_push_tag(model_number: str) -> None:
         raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
 
     try:
-        cmd = ["git", "push", "--force", "origin", tag] if force else ["git", "push", "origin", tag]
+        cmd = (
+            ["git", "push", "--force", "origin", tag]
+            if force
+            else ["git", "push", "origin", tag]
+        )
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(f"  Pushed tag '{tag}' to origin")
     except subprocess.CalledProcessError as e:
