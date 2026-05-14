@@ -52,6 +52,7 @@ workflow:
         model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
         branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
         artifact_path: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/pakistan.hdf
+    
     - name: "tests_artifact"
       type: pytest
       environment: vivarium_gates_mncnh_artifact
