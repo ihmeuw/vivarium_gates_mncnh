@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
+    HEMORRHAGE_CAUSES,
     HEMORRHAGE_SEVERITY,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
@@ -58,10 +59,7 @@ class MaternalDisordersBurden(Component):
     def __init__(self) -> None:
         super().__init__()
         self.maternal_disorders = MATERNAL_DISORDERS
-        self.hemorrhage_causes = [
-            COLUMNS.ANTEPARTUM_HEMORRHAGE,
-            COLUMNS.POSTPARTUM_HEMORRHAGE,
-        ]
+        self.hemorrhage_causes = HEMORRHAGE_CAUSES
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -110,8 +108,12 @@ class MaternalDisordersBurden(Component):
 
         # Only severe hemorrhage cases can die
         for cause in self.hemorrhage_causes:
-            severity = self.population_view.get(event.index, f"{cause}_severity")
-            pop[cause] = pop[cause] & (severity == HEMORRHAGE_SEVERITY.SEVERE)
+            affected = pop.index[pop[cause]]
+            if not affected.empty:
+                severity = self.population_view.get(affected, f"{cause}_severity")
+                pop.loc[affected, cause] = severity == HEMORRHAGE_SEVERITY.SEVERE
+            else:
+                pop[cause] = False
 
         has_maternal_disorders = pop.loc[pop.any(axis=1)]
 
@@ -161,7 +163,13 @@ class MaternalDisordersBurden(Component):
 
     def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
-        # Hemorrhage CFR is already (CSMR / incidence_severe) and applies only to severe cases
+        # Both APH and PPH use the same CFR = CSMR_c367 / incidence_severe,
+        # derived from the total maternal hemorrhage cause. This means a simulant
+        # with both severe APH and severe PPH will have their hemorrhage mortality
+        # contribution counted twice. Per the research docs, this is an accepted
+        # simplification: APH and PPH are assumed uncorrelated (except through
+        # hemoglobin), so dual severe hemorrhage should be rare.
+        # See: antepartum_hemorrhage.rst and postpartum_hemorrhage.rst limitations.
         if cause in self.hemorrhage_causes:
             cfr = builder.data.load(MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE)
         else:
@@ -182,7 +190,6 @@ class MaternalDisordersBurden(Component):
     def calculate_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
         """Calculate the total and proportional case fatality rate for each simulant."""
 
-        # Simulants is a boolean dataframe of whether or not a simulant has each maternal disorder.
         for cause in self.maternal_disorders:
             simulants[cause] = simulants[cause] * getattr(
                 self, f"{cause}_case_fatality_rate"

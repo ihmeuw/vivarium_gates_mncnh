@@ -12,7 +12,11 @@ from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    HEMORRHAGE_CAUSES,
+    SIMULATION_EVENT_NAMES,
+)
 
 
 class Hemoglobin(Risk):
@@ -105,10 +109,7 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     (higher hemoglobin is protective at this level of exposure) and 2) allow RRs to be below 1."""
 
     # APH and PPH share the same RR/PAF data keyed as "maternal_hemorrhage" in the artifact
-    HEMORRHAGE_ENTITY_REMAP = {
-        "antepartum_hemorrhage": "maternal_hemorrhage",
-        "postpartum_hemorrhage": "maternal_hemorrhage",
-    }
+    HEMORRHAGE_ENTITY_REMAP = {cause: "maternal_hemorrhage" for cause in HEMORRHAGE_CAUSES}
 
     def get_filtered_data(
         self, builder: Builder, data_source: str | float | pd.DataFrame
@@ -130,7 +131,7 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
             filter_entity = self.HEMORRHAGE_ENTITY_REMAP.get(
                 self.target.name, self.target.name
             )
-            correct_target_mask = True
+            correct_target_mask = pd.Series(True, index=data.index)
             columns_to_drop = []
             if "affected_entity" in data.columns:
                 correct_target_mask &= data["affected_entity"] == filter_entity

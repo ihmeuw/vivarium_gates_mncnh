@@ -25,6 +25,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DAYS_PER_WEEK,
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
+    HEMORRHAGE_CAUSES,
     HEMORRHAGE_SEVERITY,
     INTERVENTIONS,
     LOW_HEMOGLOBIN_THRESHOLD,
@@ -449,14 +450,12 @@ class BurdenObserver(PublicHealthObserver):
 
 
 class MaternalDisordersBurdenObserver(BurdenObserver):
-    HEMORRHAGE_CAUSES = [COLUMNS.ANTEPARTUM_HEMORRHAGE, COLUMNS.POSTPARTUM_HEMORRHAGE]
-
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         non_hemorrhage_sources = {
             f"{cause}_ylds": partial(self.load_ylds_per_case, cause=cause)
             for cause in self.burden_disorders
-            if cause not in self.HEMORRHAGE_CAUSES
+            if cause not in HEMORRHAGE_CAUSES
         }
         hemorrhage_sources = {
             "hemorrhage_ylds_moderate": MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE,
@@ -485,7 +484,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         self.yld_lookup_tables = {
             cause: self.build_lookup_table(builder, f"{cause}_ylds")
             for cause in self.burden_disorders
-            if cause not in self.HEMORRHAGE_CAUSES
+            if cause not in HEMORRHAGE_CAUSES
         }
         self.hemorrhage_ylds_moderate = self.build_lookup_table(
             builder, "hemorrhage_ylds_moderate"
@@ -521,7 +520,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.MORTALITY
 
     def calculate_ylds(self, data: pd.DataFrame, cause: str) -> float:
-        if cause in self.HEMORRHAGE_CAUSES:
+        if cause in HEMORRHAGE_CAUSES:
             severity = self.population_view.get(data.index, f"{cause}_severity")
             moderate_idx = severity.index[severity == HEMORRHAGE_SEVERITY.MODERATE]
             severe_idx = severity.index[severity == HEMORRHAGE_SEVERITY.SEVERE]

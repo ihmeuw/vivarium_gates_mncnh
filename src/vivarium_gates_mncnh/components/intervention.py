@@ -31,10 +31,8 @@ class InterventionRiskEffect(Component):
     This is the implementation of the RiskEffect for these dichoctomous risks."""
 
     INTERVENTION_PIPELINE_MODIFIERS_MAP = {
-        # add neonatal interventions below here
         INTERVENTIONS.ANTIBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
         INTERVENTIONS.PROBIOTICS: PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR,
-        # add maternal interventions below here
         INTERVENTIONS.AZITHROMYCIN: PIPELINES.MATERNAL_SEPSIS_INCIDENCE_RISK,
         INTERVENTIONS.MISOPROSTOL: PIPELINES.POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK,
     }
