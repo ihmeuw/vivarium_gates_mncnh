@@ -15,8 +15,9 @@ components:
             - ANCAttendance()
             - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
-            - MaternalDisorder("maternal_hemorrhage")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
+            - AntepartumHemorrhage()
+            - PostpartumHemorrhage()
             - ResidualMaternalDisorders()
             - AbortionMiscarriageEctopicPregnancy()
             - MaternalDisordersBurden()
@@ -54,7 +55,8 @@ components:
             - InterventionAccess('misoprostol')
             - ACSAccess()
             - PostpartumDepression()
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.antepartum_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - CorrelatedPropensities()
             - AnemiaScreening()
@@ -79,7 +81,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model33.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/aph/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -99,6 +101,7 @@ configuration:
             - 'later_pregnancy_intervention'
             - 'later_pregnancy_visit_timing'
             - 'ultrasound'
+            - 'antepartum_hemorrhage'
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'
@@ -107,7 +110,7 @@ configuration:
             - 'antibiotics_access'
             - 'probiotics_access'
             - 'maternal_obstructed_labor_and_uterine_rupture'
-            - 'maternal_hemorrhage'
+            - 'postpartum_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'residual_maternal_disorders'
             - 'abortion_miscarriage_ectopic_pregnancy'

@@ -1705,6 +1705,7 @@ def load_hemoglobin_relative_risk(
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = hemoglobin_data.drop(["exposure", "morbidity", "mortality"], axis=1)
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+
     index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
         "affected_entity",
         "affected_measure",
@@ -1727,6 +1728,7 @@ def _load_gbd_hemoglobin_paf(
     hemoglobin_data = hemoglobin_data.reset_index()
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+
     hemoglobin_data = hemoglobin_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
 
     expanded_draws_df = utilities.expand_draw_columns(
@@ -2023,7 +2025,7 @@ def load_postpartum_fraction(
         mask = (result.index.get_level_values("age_start") >= age_start) & (
             result.index.get_level_values("age_start") < age_end
         )
-        result.loc[mask] = draws
+        result.loc[mask] = draws.values
 
     return result
 

@@ -11,8 +11,10 @@ from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
+    HEMORRHAGE_SEVERITY,
     POSTPARTUM_DEPRESSION_CASE_TYPES,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
@@ -254,3 +256,120 @@ class ResidualMaternalDisorders(MaternalDisorder):
             self.maternal_disorder,
             lambda col: col.where(~col.index.isin(full_term), True),
         )
+
+
+class MaternalHemorrhageBase(MaternalDisorder):
+    """Base class for antepartum and postpartum hemorrhage with severity logic."""
+
+    INCIDENCE_RISK_KEY: str = ""  # Overridden by subclasses
+
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    "incidence_risk_data": self.INCIDENCE_RISK_KEY,
+                    "severe_fraction": data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION,
+                }
+            }
+        }
+
+    @property
+    def columns_created(self) -> list:
+        return [self.maternal_disorder, f"{self.maternal_disorder}_severity"]
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.severe_fraction_table = self.build_lookup_table(builder, "severe_fraction")
+
+        builder.population.register_initializer(
+            self.initialize_severity_column,
+            columns=[f"{self.maternal_disorder}_severity"],
+        )
+
+    def initialize_severity_column(self, pop_data: SimulantData) -> None:
+        self.population_view.initialize(
+            pd.DataFrame(
+                {f"{self.maternal_disorder}_severity": HEMORRHAGE_SEVERITY.NONE},
+                index=pop_data.index,
+            )
+        )
+
+    def assign_outcomes(self, eligible_idx: pd.Index) -> None:
+        """Assign hemorrhage outcomes (incidence and severity) to eligible population."""
+        incidence_risk = self.population_view.get(
+            eligible_idx, self.incidence_risk_pipeline_name
+        )
+        got_disorder_idx = self.randomness.filter_for_probability(
+            eligible_idx,
+            incidence_risk,
+            f"got_{self.maternal_disorder}_choice",
+        )
+
+        # Determine severity for those who got hemorrhage
+        severe_fraction = self.severe_fraction_table(got_disorder_idx)
+        severe_idx = self.randomness.filter_for_probability(
+            got_disorder_idx,
+            severe_fraction,
+            f"{self.maternal_disorder}_severity_choice",
+        )
+
+        severity = pd.Series(HEMORRHAGE_SEVERITY.MODERATE, index=got_disorder_idx)
+        severity.loc[severe_idx] = HEMORRHAGE_SEVERITY.SEVERE
+
+        def _set_disorder(col: pd.Series) -> pd.Series:
+            result = col.copy()
+            result.loc[got_disorder_idx] = True
+            return result
+
+        def _set_severity(col: pd.Series) -> pd.Series:
+            result = col.copy()
+            result.loc[got_disorder_idx] = severity
+            return result
+
+        self.population_view.update(self.maternal_disorder, _set_disorder)
+        self.population_view.update(f"{self.maternal_disorder}_severity", _set_severity)
+
+
+class AntepartumHemorrhage(MaternalHemorrhageBase):
+    """Applies pregnancy-scaled incidence risk to all pregnant people."""
+
+    INCIDENCE_RISK_KEY = data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK
+
+    def __init__(self) -> None:
+        super().__init__(COLUMNS.ANTEPARTUM_HEMORRHAGE)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE:
+            return
+
+        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        # All pregnant people (excluding invalid outcomes)
+        eligible = pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME
+        ].index
+
+        self.assign_outcomes(eligible)
+
+
+class PostpartumHemorrhage(MaternalHemorrhageBase):
+    """Applies birth-scaled incidence risk to full-term births."""
+
+    INCIDENCE_RISK_KEY = data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK
+
+    def __init__(self) -> None:
+        super().__init__(COLUMNS.POSTPARTUM_HEMORRHAGE)
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE:
+            return
+
+        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        # Full-term births only (stillbirths and live births)
+        full_term = pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            )
+        ].index
+
+        self.assign_outcomes(full_term)
