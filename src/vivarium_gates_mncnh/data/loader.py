@@ -1963,11 +1963,6 @@ def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: i
     return deaths
 
 
-def _safe_divide(numerator: pd.DataFrame, denominator: pd.DataFrame) -> pd.DataFrame:
-    """Divide two DataFrames, returning 0 where the denominator is 0."""
-    return (numerator / denominator.replace(0, np.nan)).fillna(0)
-
-
 ###########################
 # Hemorrhage split loaders
 ###########################
@@ -2048,7 +2043,7 @@ def load_hemorrhage_severe_fraction(
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
     total = inc_moderate + inc_severe
     # Returns 0 for age groups outside reproductive age where incidence is 0
-    return _safe_divide(inc_severe, total)
+    return (inc_severe / total).fillna(0)
 
 
 def load_hemorrhage_case_fatality_rate(
@@ -2059,8 +2054,8 @@ def load_hemorrhage_case_fatality_rate(
     # fatalities only in severe cases
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
     # Returns 0 for age groups outside reproductive age where incidence is 0
-    cfr = _safe_divide(csmr, inc_severe)
-    return cfr
+    cfr = (csmr / inc_severe).fillna(0)
+    return cfr.clip(upper=1.0)
 
 
 def load_antepartum_hemorrhage_incidence(
@@ -2111,7 +2106,7 @@ def load_hemorrhage_ylds_per_case(
     yld_rate = get_data(yld_key, location)
     incidence = get_data(inc_key, location)
     # Returns 0 for age groups outside reproductive age where incidence is 0
-    return _safe_divide(yld_rate, incidence)
+    return (yld_rate / incidence).fillna(0)
 
 
 ###################################
