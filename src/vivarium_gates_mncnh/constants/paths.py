@@ -27,6 +27,13 @@ FERRITIN_TESTING_COVERAGE_DATA_DIR = REPO_DATA_DIR / "ferritin_testing_coverage"
 FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
     REPO_DATA_DIR / "facility_choice" / "facility_choice_optimization_results.csv"
 )
+# GBD 2023 crosswalk model output for PPH fraction; see vivarium_research PR #308
+PPH_CROSSWALK_PARAMETERS_CSV = (
+    REPO_DATA_DIR / "postpartum_hemorrhage_split" / "crosswalk_parameters.csv"
+)
+HEMORRHAGE_HEMOGLOBIN_SHIFT_DIR = REPO_DATA_DIR / "hemorrhage_hemoglobin_shift"
+# MR-BRT causal attribution model from GBD anemia team: /mnt/team/anemia/pub/emotive/mat_hem/
+HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV = HEMORRHAGE_HEMOGLOBIN_SHIFT_DIR / "pred_data.csv"
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/

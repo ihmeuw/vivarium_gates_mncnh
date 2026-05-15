@@ -139,6 +139,19 @@ def expand_draw_columns(data: pd.DataFrame, num_draws: int, num_repeats: int) ->
     return expanded_draws_df
 
 
+def expand_100_draws_to_250(data: pd.DataFrame) -> pd.DataFrame:
+    """Expand 100 GBD draw columns to 250 by repeating with wraparound.
+
+    Draws 0-99 map to draws 0-99, draws 100-199 repeat draws 0-99,
+    and draws 200-249 repeat draws 0-49.
+    """
+    first_200 = expand_draw_columns(data, num_draws=100, num_repeats=2)
+    last_50 = data[[f"draw_{i}" for i in range(50)]].rename(
+        {f"draw_{i}": f"draw_{i + 200}" for i in range(50)}, axis=1
+    )
+    return pd.concat([first_200, last_50], axis=1)
+
+
 def get_facility_choice_validation_targets() -> pd.DataFrame:
     path = (
         Path(__file__).resolve().parent
