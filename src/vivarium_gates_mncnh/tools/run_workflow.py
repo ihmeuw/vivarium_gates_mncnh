@@ -23,6 +23,8 @@ from pathlib import Path
 from jobmon.client.api import Tool
 from jobmon.client.task import Task
 from jobmon.client.workflow import Workflow
+from jobmon.core.configuration import JobmonConfig
+from jobmon.core.exceptions import ConfigError
 from vivarium_cluster_tools.psimulate.workflow_config import ResourceConfig
 from vivarium_cluster_tools.psimulate.workflow_config.config import BaseStepConfig
 from vivarium_cluster_tools.psimulate.workflow_config.interface import (
@@ -159,6 +161,12 @@ def main(resume: bool) -> None:
 
     workflow.bind()
     print(f"Submitting Jobmon workflow {workflow_args!r} (id={workflow.workflow_id}).")
+    try:
+        gui_url = JobmonConfig().get("http", "gui_url")
+    except ConfigError:
+        gui_url = ""
+    if gui_url:
+        print(f"Monitor progress at {gui_url}/#/workflow/{workflow.workflow_id}")
     status = workflow.run(resume=resume)
     print(f"Workflow finished with status {status!r}.")
     if status != "D":
