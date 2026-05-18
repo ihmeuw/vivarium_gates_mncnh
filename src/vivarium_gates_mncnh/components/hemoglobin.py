@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     HEMORRHAGE_CAUSES,
+    PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
 
@@ -65,6 +66,30 @@ class Hemoglobin(Risk):
             modifier=self._adjust_exposure_for_ifa,
         )
 
+        # Postpartum hemoglobin: load hemorrhage shift data and non-pregnant
+        # exposure data, then register a pipeline modifier that applies
+        # hemorrhage shifts at the 0-6w and 6w-9m postpartum events.
+        self.pph_shift_0_6w = builder.data.load(
+            data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W
+        )["value"].item()
+        self.aph_shift_0_6w = builder.data.load(
+            data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W
+        )["value"].item()
+        self.pph_shift_6w_9m = builder.data.load(
+            data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M
+        )["value"].item()
+        self.aph_shift_6w_9m = builder.data.load(
+            data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M
+        )["value"].item()
+        self.non_pregnant_exposure_data = builder.data.load(
+            data_keys.HEMOGLOBIN.NON_PREGNANT_EXPOSURE
+        )
+
+        builder.value.register_attribute_modifier(
+            self.exposure_name,
+            modifier=self._modify_exposure_for_postpartum,
+        )
+
     def _initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:
         pop = pd.DataFrame(
             {
@@ -83,7 +108,11 @@ class Hemoglobin(Risk):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION:
+        if self._sim_step_name() not in (
+            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
+        ):
             return
         exposure = self.population_view.get(event.index, self.exposure_name)
         exposure = exposure.rename(COLUMNS.HEMOGLOBIN_EXPOSURE)
@@ -101,6 +130,121 @@ class Hemoglobin(Risk):
             COLUMNS.FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE,
             lambda _: exposure,
         )
+
+    ##############################
+    # Postpartum pipeline modifier
+    ##############################
+
+    def _modify_exposure_for_postpartum(
+        self, index: pd.Index, exposure: pd.Series
+    ) -> pd.Series:
+        """Apply hemorrhage hemoglobin shifts at postpartum events.
+
+        At ``early_neonatal_mortality`` (0-6 week postpartum): apply PPH and APH
+        shifts to the existing pregnancy hemoglobin for hemorrhage cases.
+
+        At ``postpartum_hemoglobin_nine_month`` (6w-9m): replace pregnancy
+        hemoglobin with a draw from the non-pregnant distribution and apply
+        PPH/APH shifts for hemorrhage cases.
+
+        At all other events this is a no-op.
+        """
+        event_name = self._sim_step_name()
+
+        if event_name == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+            return self._apply_0_6w_shifts(index, exposure)
+        elif event_name == SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH:
+            return self._apply_6w_9m_shifts(index, exposure)
+        else:
+            return exposure
+
+    def _apply_0_6w_shifts(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
+        """Apply 0-6 week hemorrhage shifts to pregnancy hemoglobin."""
+        pop = self.population_view.get(
+            index,
+            [
+                COLUMNS.PREGNANCY_OUTCOME,
+                COLUMNS.POSTPARTUM_HEMORRHAGE,
+                COLUMNS.ANTEPARTUM_HEMORRHAGE,
+            ],
+        )
+
+        survived_mask = pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+            [PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME]
+        )
+
+        if not survived_mask.any():
+            return exposure
+
+        result = exposure.copy()
+
+        pph_mask = survived_mask & (pop[COLUMNS.POSTPARTUM_HEMORRHAGE] == True)
+        if pph_mask.any():
+            result.loc[pph_mask] = result.loc[pph_mask] + self.pph_shift_0_6w
+
+        aph_mask = survived_mask & (pop[COLUMNS.ANTEPARTUM_HEMORRHAGE] == True)
+        if aph_mask.any():
+            result.loc[aph_mask] = result.loc[aph_mask] + self.aph_shift_0_6w
+
+        return result.clip(lower=0)
+
+    def _apply_6w_9m_shifts(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
+        """Replace pregnancy hemoglobin with non-pregnant values and apply 6w-9m shifts."""
+        pop = self.population_view.get(
+            index,
+            [
+                COLUMNS.PREGNANCY_OUTCOME,
+                COLUMNS.POSTPARTUM_HEMORRHAGE,
+                COLUMNS.ANTEPARTUM_HEMORRHAGE,
+            ],
+        )
+
+        survived_mask = pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+            [PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME]
+        )
+        survived_idx = pop.loc[survived_mask].index
+
+        if survived_idx.empty:
+            return exposure
+
+        hgb = self._draw_non_pregnant_hemoglobin(survived_idx)
+
+        pph_mask = survived_mask & (pop[COLUMNS.POSTPARTUM_HEMORRHAGE] == True)
+        hgb.loc[pph_mask] = hgb.loc[pph_mask] + self.pph_shift_6w_9m
+
+        aph_mask = survived_mask & (pop[COLUMNS.ANTEPARTUM_HEMORRHAGE] == True)
+        hgb.loc[aph_mask] = hgb.loc[aph_mask] + self.aph_shift_6w_9m
+
+        hgb = hgb.clip(lower=0)
+
+        result = exposure.copy()
+        result.loc[survived_idx] = hgb
+        return result
+
+    def _draw_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
+        """Draw hemoglobin values from the non-pregnant distribution."""
+        pop = self.population_view.get(index, ["age"])
+        return self._lookup_by_age(pop["age"], self.non_pregnant_exposure_data)
+
+    def _lookup_by_age(self, ages: pd.Series, data: pd.DataFrame) -> pd.Series:
+        """Look up values from age-binned data for each simulant's age."""
+        result = pd.Series(np.nan, index=ages.index)
+
+        if "age_start" in data.index.names:
+            data_reset = data.reset_index()
+        else:
+            data_reset = data
+
+        for _, row in data_reset.iterrows():
+            age_start = row.get("age_start", 0)
+            age_end = row.get("age_end", 200)
+            mask = (ages >= age_start) & (ages < age_end)
+            result.loc[mask] = row["value"]
+
+        if result.isna().any():
+            result = result.fillna(data_reset["value"].mean())
+
+        return result
 
 
 class HemoglobinRiskEffect(NonLogLinearRiskEffect):

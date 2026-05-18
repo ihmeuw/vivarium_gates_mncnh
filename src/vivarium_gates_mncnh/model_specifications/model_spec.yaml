@@ -117,6 +117,7 @@ configuration:
             - 'mortality'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
+            - 'postpartum_hemoglobin_nine_month'
             - 'postpartum_depression'
 
     population:
