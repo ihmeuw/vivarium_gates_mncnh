@@ -1,11 +1,12 @@
 """
 Programmatic equivalent of ``model_specifications/workflow_config.yaml``.
 
-VCT is used only to build step instances via its workflow-config API
-(``get_python_step`` / ``get_simulation_step`` / ``get_pytest_step``).
-This script owns the Jobmon side of the workflow directly: it creates the
-``Tool`` and ``Workflow``, calls ``step.get_tasks(...)`` on each step, wires
-sequential dependencies, and binds + runs the workflow.
+VCT is used to build per-step Jobmon tasks via its workflow-config API
+(``get_python_step_tasks`` / ``get_simulation_step_tasks`` /
+``get_pytest_step_tasks``). This script owns the Jobmon side of the
+workflow directly: it creates the ``Tool`` and ``Workflow``, wires
+sequential dependencies between the task lists each API call returns,
+and binds + runs the workflow.
 
 Run from the repository root so relative step paths resolve::
 
@@ -26,12 +27,10 @@ from jobmon.client.workflow import Workflow
 from jobmon.core.configuration import JobmonConfig
 from jobmon.core.exceptions import ConfigError
 from vivarium_cluster_tools.psimulate.workflow_config import ResourceConfig
-from vivarium_cluster_tools.psimulate.workflow_config.config import BaseStepConfig
 from vivarium_cluster_tools.psimulate.workflow_config.interface import (
-    get_pytest_step,
-    get_python_step,
-    get_simulation_step,
-    resolve_step_env_prefix,
+    get_pytest_step_tasks,
+    get_python_step_tasks,
+    get_simulation_step_tasks,
 )
 
 WORKFLOW_NAME = "simulation_workflow"
@@ -54,9 +53,9 @@ PYTEST_ENVIRONMENT = "vivarium_gates_mncnh_artifact"
 MAX_ATTEMPTS = 2
 
 
-def build_steps() -> list[BaseStepConfig]:
-    """Build each workflow step via the VCT API."""
-    check_clean_working_tree_step = get_python_step(
+def build_step_task_groups(tool: Tool, is_resume: bool) -> list[list[Task]]:
+    """Build each workflow step's Jobmon tasks via the VCT API."""
+    check_clean_working_tree_tasks = get_python_step_tasks(
         name="check_clean_working_tree",
         resources=ResourceConfig(
             memory_gb=1,
@@ -66,10 +65,12 @@ def build_steps() -> list[BaseStepConfig]:
         ),
         output_directory=OUTPUT_DIRECTORY,
         path="src/vivarium_gates_mncnh/tools/check_working_tree.py",
+        tool=tool,
+        is_resume=is_resume,
     )
 
-    simulation_steps = [
-        get_simulation_step(
+    simulation_task_groups = [
+        get_simulation_step_tasks(
             name=f"run_simulation_{location}",
             resources=ResourceConfig(
                 memory_gb=4,
@@ -81,11 +82,13 @@ def build_steps() -> list[BaseStepConfig]:
             model_specification=MODEL_SPECIFICATION,
             branch_configuration=BRANCH_CONFIGURATION,
             artifact_path=ARTIFACT_ROOT / f"{location}.hdf",
+            tool=tool,
+            is_resume=is_resume,
         )
         for location in LOCATIONS
     ]
 
-    tests_artifact_step = get_pytest_step(
+    tests_artifact_tasks = get_pytest_step_tasks(
         name="tests_artifact",
         resources=ResourceConfig(
             memory_gb=2,
@@ -99,14 +102,18 @@ def build_steps() -> list[BaseStepConfig]:
         path=["tests/"],
         k="results",
         runslow=True,
+        tool=tool,
+        is_resume=is_resume,
     )
 
-    return [check_clean_working_tree_step, *simulation_steps, tests_artifact_step]
+    return [
+        check_clean_working_tree_tasks,
+        *simulation_task_groups,
+        tests_artifact_tasks,
+    ]
 
 
-def build_jobmon_workflow(
-    steps: list[BaseStepConfig], workflow_args: str, build_timestamp: str, is_resume: bool
-) -> Workflow:
+def build_jobmon_workflow(workflow_args: str, is_resume: bool) -> Workflow:
     """Create the Jobmon workflow and populate it with tasks from the steps."""
     tool = Tool(name="vivarium_gates_mncnh_run_workflow")
     workflow = tool.create_workflow(
@@ -116,15 +123,11 @@ def build_jobmon_workflow(
         default_max_attempts=MAX_ATTEMPTS,
     )
 
+    task_groups = build_step_task_groups(tool, is_resume=is_resume)
+
     previous_step_tasks: list[Task] = []
     all_tasks: list[Task] = []
-    for step in steps:
-        step_tasks = step.get_tasks(
-            tool,
-            env_prefix=resolve_step_env_prefix(step),
-            build_timestamp=build_timestamp,
-            is_resume=is_resume,
-        )
+    for step_tasks in task_groups:
         for task in step_tasks:
             for prev in previous_step_tasks:
                 task.add_upstream(prev)
@@ -139,23 +142,16 @@ def main(resume: bool) -> None:
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
     workflow_args_path = OUTPUT_DIRECTORY / ".workflow_args"
-    build_timestamp_path = OUTPUT_DIRECTORY / ".build_timestamp"
 
     if resume:
         workflow_args = workflow_args_path.read_text().strip()
-        build_timestamp = build_timestamp_path.read_text().strip()
     else:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         workflow_args = f"workflow_{WORKFLOW_NAME}_{timestamp}"
-        build_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         workflow_args_path.write_text(workflow_args)
-        build_timestamp_path.write_text(build_timestamp)
 
-    steps = build_steps()
     workflow = build_jobmon_workflow(
-        steps,
         workflow_args=workflow_args,
-        build_timestamp=build_timestamp,
         is_resume=resume,
     )
 
