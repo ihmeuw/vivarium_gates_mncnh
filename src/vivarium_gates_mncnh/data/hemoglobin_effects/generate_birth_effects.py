@@ -44,9 +44,4 @@ NOT DRAW-PARALLEL
 from this script -- handle it as a separate single-invocation workflow
 step (see workflow_config.yaml).
 
-EXPECTED RUNTIME
-----------------
-~10-15 min per draw, sequential within a worker. With 20 SCENARIO_DRAWS
-and 4 workers, expect ~1 hour wall time (pad accordingly in the workflow
-resources block).
 """

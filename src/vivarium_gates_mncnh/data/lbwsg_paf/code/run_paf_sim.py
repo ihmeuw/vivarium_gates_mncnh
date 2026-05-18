@@ -89,7 +89,6 @@ def generate_artifact():
     print(f"Working directory: {working_dir_str}")
     print("=" * 80)
 
-    success = False  # TEMPORARY (debug): see TEMPORARY note in finally block below
     try:
         # Check for required conda environments
         check_conda_environments()
@@ -217,7 +216,6 @@ def generate_artifact():
         print("\n" + "=" * 80)
         print("PAF Simulation Workflow Completed Successfully!")
         print("=" * 80 + "\n")
-        success = True
 
     except Exception as e:
         print(f"\n{'='*80}", file=sys.stderr)
@@ -225,11 +223,7 @@ def generate_artifact():
         print(f"{'='*80}\n", file=sys.stderr)
         sys.exit(1)
     finally:
-        # TEMPORARY (debug): only clean up on success so psimulate output is
-        # preserved for inspection when steps fail. To restore the original
-        # behavior, remove the `success` flag (set above and at end of try)
-        # and drop the `success and` guard so cleanup runs unconditionally.
-        if success and working_dir.exists():
+        if working_dir.exists():
             shutil.rmtree(working_dir, ignore_errors=True)
 
 
