@@ -7,11 +7,33 @@ import pandas as pd
 from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
+from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
 from vivarium.framework.randomness import get_hash
 from vivarium.types import NumberLike, NumericArray
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_gates_mncnh.constants import metadata
+
+Q_LOWER_BOUND = 0.0011
+Q_UPPER_BOUND = 0.998
+
+
+def clip_quantiles(q: pd.Series) -> pd.Series:
+    """Clip quantile values to avoid distribution boundary issues."""
+    q[q > Q_UPPER_BOUND] = Q_UPPER_BOUND
+    q[q < Q_LOWER_BOUND] = Q_LOWER_BOUND
+    return q
+
+
+def get_risk_distribution_parameter(data: float | pd.DataFrame) -> float | pd.Series:
+    """Convert risk distribution parameter data to a usable format."""
+    if isinstance(data, pd.DataFrame):
+        if "parameter" in data.columns and set(data["parameter"]) == {"continuous"}:
+            data = data.drop("parameter", axis=1)
+        index = [col for col in data.columns if col != DEFAULT_VALUE_COLUMN]
+        data = data.set_index(index).squeeze(axis=1)
+    return data
+
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 

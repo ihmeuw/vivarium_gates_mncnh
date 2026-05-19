@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import risk_distributions as rd
 import scipy
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.data_transformations import pivot_categorical
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
 
@@ -17,6 +19,10 @@ from vivarium_gates_mncnh.constants.data_values import (
     HEMORRHAGE_CAUSES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
+)
+from vivarium_gates_mncnh.utilities import (
+    clip_quantiles,
+    get_risk_distribution_parameter,
 )
 
 
@@ -81,13 +87,54 @@ class Hemoglobin(Risk):
         self.aph_shift_6w_9m = builder.data.load(
             data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M
         )["value"].item()
-        self.non_pregnant_exposure_data = builder.data.load(
-            data_keys.HEMOGLOBIN.NON_PREGNANT_EXPOSURE
-        )
+        self._build_non_pregnant_distribution(builder)
 
         builder.value.register_attribute_modifier(
             self.exposure_name,
             modifier=self._modify_exposure_for_postpartum,
+        )
+
+    def _build_non_pregnant_distribution(self, builder: Builder) -> None:
+        """Build ensemble distribution machinery for non-pregnant hemoglobin sampling."""
+        non_pregnant_mean = builder.data.load(data_keys.HEMOGLOBIN.NON_PREGNANT_EXPOSURE)
+        sd_data = builder.data.load(data_keys.HEMOGLOBIN.STANDARD_DEVIATION)
+        raw_weights = builder.data.load(data_keys.HEMOGLOBIN.DISTRIBUTION_WEIGHTS)
+
+        # glnorm not currently supported by risk_distributions
+        glnorm_mask = raw_weights["parameter"] == "glnorm"
+        raw_weights = raw_weights[~glnorm_mask]
+        distributions = list(raw_weights["parameter"].unique())
+        raw_weights = pivot_categorical(
+            raw_weights, pivot_column="parameter", reset_index=False
+        )
+
+        weights, parameters = rd.EnsembleDistribution.get_parameters(
+            raw_weights,
+            mean=get_risk_distribution_parameter(non_pregnant_mean),
+            sd=get_risk_distribution_parameter(sd_data),
+        )
+
+        self._non_pregnant_weights_table = self.build_lookup_table(
+            builder,
+            "non_pregnant_weights",
+            data_source=weights.reset_index(),
+            value_columns=distributions,
+        )
+        self._non_pregnant_parameters = {
+            param_name: self.build_lookup_table(
+                builder,
+                f"non_pregnant_{param_name}",
+                data_source=param_data.reset_index(),
+                value_columns=list(param_data.columns),
+            )
+            for param_name, param_data in parameters.items()
+        }
+
+        self._non_pregnant_propensity_stream = builder.randomness.get_stream(
+            "non_pregnant_hemoglobin_propensity"
+        )
+        self._non_pregnant_ensemble_stream = builder.randomness.get_stream(
+            "non_pregnant_hemoglobin_ensemble_propensity"
         )
 
     def _initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:
@@ -108,7 +155,8 @@ class Hemoglobin(Risk):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() not in (
+        event_name = self._sim_step_name()
+        if event_name not in (
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
             SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
@@ -207,7 +255,7 @@ class Hemoglobin(Risk):
         if survived_idx.empty:
             return exposure
 
-        hgb = self._draw_non_pregnant_hemoglobin(survived_idx)
+        hgb = self._sample_non_pregnant_hemoglobin(survived_idx)
 
         pph_mask = survived_mask & (pop[COLUMNS.POSTPARTUM_HEMORRHAGE] == True)
         hgb.loc[pph_mask] = hgb.loc[pph_mask] + self.pph_shift_6w_9m
@@ -221,29 +269,18 @@ class Hemoglobin(Risk):
         result.loc[survived_idx] = hgb
         return result
 
-    def _draw_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
-        """Draw hemoglobin values from the non-pregnant distribution."""
-        pop = self.population_view.get(index, ["age"])
-        return self._lookup_by_age(pop["age"], self.non_pregnant_exposure_data)
-
-    def _lookup_by_age(self, ages: pd.Series, data: pd.DataFrame) -> pd.Series:
-        """Look up values from age-binned data for each simulant's age."""
-        result = pd.Series(np.nan, index=ages.index)
-
-        if "age_start" in data.index.names:
-            data_reset = data.reset_index()
-        else:
-            data_reset = data
-
-        for _, row in data_reset.iterrows():
-            age_start = row.get("age_start", 0)
-            age_end = row.get("age_end", 200)
-            mask = (ages >= age_start) & (ages < age_end)
-            result.loc[mask] = row["value"]
-
-        if result.isna().any():
-            result = result.fillna(data_reset["value"].mean())
-
+    def _sample_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
+        """Sample hemoglobin values from the non-pregnant ensemble distribution."""
+        quantiles = clip_quantiles(self._non_pregnant_propensity_stream.get_draw(index))
+        ensemble_propensities = self._non_pregnant_ensemble_stream.get_draw(index)
+        weights = self._non_pregnant_weights_table(index)
+        parameters = {
+            name: param(index) for name, param in self._non_pregnant_parameters.items()
+        }
+        result = rd.EnsembleDistribution(weights, parameters).ppf(
+            quantiles, ensemble_propensities
+        )
+        result[result.isnull()] = 0
         return result
 
 
