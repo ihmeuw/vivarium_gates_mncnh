@@ -162,6 +162,12 @@ class Hemoglobin(Risk):
             SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
         ):
             return
+        # At LATER_PREGNANCY_INTERVENTION: snapshot of pregnancy hemoglobin
+        # (pre-partum, before any hemorrhage shifts).
+        # At EARLY_NEONATAL_MORTALITY (0-6w postpartum): hemoglobin after
+        # antepartum/postpartum hemorrhage shifts have been applied.
+        # At POSTPARTUM_HEMOGLOBIN_NINE_MONTH (6w-9m): hemoglobin drawn from
+        # the non-pregnant distribution with hemorrhage shifts applied.
         exposure = self.population_view.get(event.index, self.exposure_name)
         exposure = exposure.rename(COLUMNS.HEMOGLOBIN_EXPOSURE)
         self.population_view.update(
@@ -179,9 +185,9 @@ class Hemoglobin(Risk):
             lambda _: exposure,
         )
 
-    ##############################
-    # Postpartum pipeline modifier
-    ##############################
+    ################################
+    # Postpartum pipeline modifier #
+    ################################
 
     def _modify_exposure_for_postpartum(
         self, index: pd.Index, exposure: pd.Series
@@ -206,8 +212,8 @@ class Hemoglobin(Risk):
         else:
             return exposure
 
-    def _apply_0_6w_shifts(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
-        """Apply 0-6 week hemorrhage shifts to pregnancy hemoglobin."""
+    def _get_postpartum_pop_and_mask(self, index: pd.Index) -> tuple[pd.DataFrame, pd.Series]:
+        """Fetch postpartum population columns and compute the survived mask."""
         pop = self.population_view.get(
             index,
             [
@@ -216,57 +222,61 @@ class Hemoglobin(Risk):
                 COLUMNS.ANTEPARTUM_HEMORRHAGE,
             ],
         )
-
         survived_mask = pop[COLUMNS.PREGNANCY_OUTCOME].isin(
             [PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME]
         )
+        return pop, survived_mask
+
+    def _apply_hemorrhage_shifts(
+        self, hgb: pd.Series, pop: pd.DataFrame, pph_shift: float, aph_shift: float
+    ) -> pd.Series:
+        """Apply PPH and APH hemorrhage shifts to hemoglobin values.
+
+        Shifts are applied additively; simulants with both conditions
+        receive both shifts.
+        """
+        pph_mask = pop[COLUMNS.POSTPARTUM_HEMORRHAGE].fillna(False)
+        if pph_mask.any():
+            hgb.loc[pph_mask] += pph_shift
+
+        aph_mask = pop[COLUMNS.ANTEPARTUM_HEMORRHAGE].fillna(False)
+        if aph_mask.any():
+            hgb.loc[aph_mask] += aph_shift
+
+        return hgb.clip(lower=0)
+
+    def _apply_0_6w_shifts(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
+        """Apply 0-6 week hemorrhage shifts to pregnancy hemoglobin."""
+        pop, survived_mask = self._get_postpartum_pop_and_mask(index)
 
         if not survived_mask.any():
             return exposure
 
+        survived_pop = pop.loc[survived_mask]
         result = exposure.copy()
-
-        pph_mask = survived_mask & (pop[COLUMNS.POSTPARTUM_HEMORRHAGE] == True)
-        if pph_mask.any():
-            result.loc[pph_mask] = result.loc[pph_mask] + self.pph_shift_0_6w
-
-        aph_mask = survived_mask & (pop[COLUMNS.ANTEPARTUM_HEMORRHAGE] == True)
-        if aph_mask.any():
-            result.loc[aph_mask] = result.loc[aph_mask] + self.aph_shift_0_6w
-
-        return result.clip(lower=0)
+        result.loc[survived_pop.index] = self._apply_hemorrhage_shifts(
+            result.loc[survived_pop.index].copy(),
+            survived_pop,
+            self.pph_shift_0_6w,
+            self.aph_shift_0_6w,
+        )
+        return result
 
     def _apply_6w_9m_shifts(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
         """Replace pregnancy hemoglobin with non-pregnant values and apply 6w-9m shifts."""
-        pop = self.population_view.get(
-            index,
-            [
-                COLUMNS.PREGNANCY_OUTCOME,
-                COLUMNS.POSTPARTUM_HEMORRHAGE,
-                COLUMNS.ANTEPARTUM_HEMORRHAGE,
-            ],
-        )
+        pop, survived_mask = self._get_postpartum_pop_and_mask(index)
+        survived_pop = pop.loc[survived_mask]
 
-        survived_mask = pop[COLUMNS.PREGNANCY_OUTCOME].isin(
-            [PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME]
-        )
-        survived_idx = pop.loc[survived_mask].index
-
-        if survived_idx.empty:
+        if survived_pop.empty:
             return exposure
 
-        hgb = self._sample_non_pregnant_hemoglobin(survived_idx)
-
-        pph_mask = survived_mask & (pop[COLUMNS.POSTPARTUM_HEMORRHAGE] == True)
-        hgb.loc[pph_mask] = hgb.loc[pph_mask] + self.pph_shift_6w_9m
-
-        aph_mask = survived_mask & (pop[COLUMNS.ANTEPARTUM_HEMORRHAGE] == True)
-        hgb.loc[aph_mask] = hgb.loc[aph_mask] + self.aph_shift_6w_9m
-
-        hgb = hgb.clip(lower=0)
+        hgb = self._sample_non_pregnant_hemoglobin(survived_pop.index)
+        hgb = self._apply_hemorrhage_shifts(
+            hgb, survived_pop, self.pph_shift_6w_9m, self.aph_shift_6w_9m
+        )
 
         result = exposure.copy()
-        result.loc[survived_idx] = hgb
+        result.loc[survived_pop.index] = hgb
         return result
 
     def _sample_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
