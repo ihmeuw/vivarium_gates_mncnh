@@ -7,11 +7,12 @@
 
 """
 
+import os
 import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import click
 from loguru import logger
@@ -19,6 +20,21 @@ from loguru import logger
 from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.tools.app_logging import add_logging_sink, decode_status
 from vivarium_gates_mncnh.utilities import sanitize_location
+
+
+def _get_drmaa() -> Any:
+    # Replaces vivarium_cluster_tools.utilities.get_drmaa, which was removed
+    # when VCT dropped DRMAA support. Used only by `build_all_artifacts` to
+    # fan out per-location artifact builds in parallel on slurm.
+    try:
+        import drmaa
+    except (RuntimeError, OSError):
+        if "slurm" in os.environ.get("HOSTNAME", ""):
+            os.environ["DRMAA_LIBRARY_PATH"] = "/opt/slurm-drmaa/lib/libdrmaa.so"
+            import drmaa
+        else:
+            drmaa = object()
+    return drmaa
 
 
 def running_from_cluster() -> bool:
@@ -142,9 +158,7 @@ def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> No
         called by the :func:`build_artifacts` function located in the same
         module.
     """
-    from vivarium_cluster_tools.utilities import get_drmaa
-
-    drmaa = get_drmaa()
+    drmaa = _get_drmaa()
 
     jobs = {}
     with drmaa.Session() as session:
