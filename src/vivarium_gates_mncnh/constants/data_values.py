@@ -24,6 +24,10 @@ DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
 MONTHS_PER_YEAR = 12
 
+# Duration constants for anemia YLD calculations
+EARLY_NEONATAL_DURATION_WEEKS = 6
+POSTPARTUM_NINE_MONTH_DURATION_WEEKS = 34  # 40 weeks (full term) - 6 weeks postpartum
+
 # GBD sequela IDs for maternal hemorrhage severity splits
 MODERATE_HEMORRHAGE_SEQUELA_ID = 180
 SEVERE_HEMORRHAGE_SEQUELA_ID = 181
@@ -541,8 +545,8 @@ HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # low hemoglobin that tests low
 HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # adequate hemoglobin that tests adequate
 LOW_HEMOGLOBIN_THRESHOLD = 100
 
-ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
-ANEMIA_THRESHOLDS_NON_PREGNANCY = [80, 110, 120]  # ordering is severe, moderate, mild
+ANEMIA_THRESHOLDS = [70, 100, 110]  # g/L, ascending: severe < moderate < mild
+ANEMIA_THRESHOLDS_NON_PREGNANCY = [80, 110, 120]  # g/L, ascending: severe < moderate < mild
 
 RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
     "maternal_hypertensive_disorders",  # 369
