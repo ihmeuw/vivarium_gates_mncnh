@@ -20,6 +20,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
 from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     ANEMIA_THRESHOLDS,
+    ANEMIA_THRESHOLDS_NON_PREGNANCY,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DAYS_PER_WEEK,
@@ -44,12 +45,16 @@ from vivarium_gates_mncnh.constants.metadata import (
 from vivarium_gates_mncnh.utilities import get_child_age_bins
 
 
-def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
+def get_anemia_status_from_hemoglobin(
+    hemoglobin: pd.Series, thresholds: list[float] | None = None
+) -> pd.Series:
     """Use anemia thresholds to determine anemia status."""
+    if thresholds is None:
+        thresholds = ANEMIA_THRESHOLDS
     anemia_status = (
         pd.cut(
             hemoglobin,
-            bins=[-np.inf] + ANEMIA_THRESHOLDS,
+            bins=[-np.inf] + thresholds,
             labels=["severe", "moderate", "mild"],
             right=False,
         )
@@ -593,13 +598,26 @@ class NeonatalBurdenObserver(BurdenObserver):
 
 
 class AnemiaYLDsObserver(PublicHealthObserver):
+    TIMESTEP_CATEGORIES = [
+        SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+        SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
+        SIMULATION_EVENT_NAMES.ULTRASOUND,
+        SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+        SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
+    ]
+
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": [],
-                    "include": ["age_group", "anemia_status", "pregnancy_outcome"],
+                    "include": [
+                        "age_group",
+                        "anemia_status",
+                        "pregnancy_outcome",
+                        "timestep",
+                    ],
                 },
             },
         }
@@ -608,6 +626,13 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         self._sim_step_name = builder.time.simulation_event_name()
         self.hemoglobin_name = PIPELINES.HEMOGLOBIN_EXPOSURE
         self.gestational_age_name = COLUMNS.GESTATIONAL_AGE_EXPOSURE
+        builder.results.register_stratification(
+            "timestep",
+            self.TIMESTEP_CATEGORIES,
+            mapper=self._map_timestep,
+            is_vectorized=True,
+            requires_attributes=["age"],
+        )
 
     def register_observations(self, builder: Builder) -> None:
         self.register_adding_observation(
@@ -651,6 +676,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
             SIMULATION_EVENT_NAMES.ULTRASOUND,
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
         ]
 
     def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
@@ -665,9 +691,17 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         defined for live births and stillbirths by that point. This gestational
         age exposure will be modified by any iron interventions received at a
         first trimester ANC visit.
+
+        For the 6w-9m postpartum period, non-pregnancy-specific anemia
+        thresholds are used to determine disability weights.
         """
+        # Use non-pregnancy thresholds for the 6w-9m postpartum period
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH:
+            thresholds = ANEMIA_THRESHOLDS_NON_PREGNANCY
+        else:
+            thresholds = ANEMIA_THRESHOLDS
         anemia_status = get_anemia_status_from_hemoglobin(
-            self.population_view.get(data.index, self.hemoglobin_name)
+            self.population_view.get(data.index, self.hemoglobin_name), thresholds
         )
         dw = self.get_disability_weight_from_anemia_status(anemia_status)
         duration_years = self._get_duration_years(data)
@@ -695,6 +729,9 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
                 6 * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
             ),  # 6 weeks in years
+            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH: lambda df: pd.Series(
+                34 * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
+            ),  # 34 weeks (9 months - 6 weeks) in years
         }
         return duration_calculators[self._sim_step_name()](data)
 
@@ -741,6 +778,9 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             "not_anemic": 0.0,
         }
         return anemia_status.map(anemia_status_to_dw)
+
+    def _map_timestep(self, pop: pd.DataFrame) -> pd.Series:
+        return pd.Series(self._sim_step_name(), index=pop.index)
 
 
 class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
