@@ -40,7 +40,14 @@ def early_neonatal_mortality_state(
 
 @pytest.fixture(scope="module")
 def population(late_neonatal_mortality_state: InteractiveContext) -> pd.DataFrame:
-    return late_neonatal_mortality_state.get_population()
+    return late_neonatal_mortality_state.get_population(
+        [
+            COLUMNS.MOTHER_ALIVE,
+            COLUMNS.CHILD_ALIVE,
+            COLUMNS.MOTHER_CAUSE_OF_DEATH,
+            COLUMNS.CHILD_CAUSE_OF_DEATH,
+        ]
+    )
 
 
 def test_get_proportional_case_fatality_rates():
@@ -75,7 +82,7 @@ def test_get_proportional_case_fatality_rates():
 def test_cause_of_death_normalized(
     cause_of_death_column: str, alive_column: str, population: pd.DataFrame
 ) -> None:
-    dead = population.loc[population[alive_column] == "dead"]
+    dead = population.loc[~population[alive_column]]
     is_normalized = 0.0
     for cause_of_death in dead[cause_of_death_column].unique():
         is_normalized += (dead[cause_of_death_column] == cause_of_death).sum() / len(dead)
@@ -94,8 +101,14 @@ def test_neonatal_acmr(
     artifact: Artifact,
     fuzzy_checker: FuzzyChecker,
 ) -> None:
-    enn = early_neonatal_mortality_state.get_population()
-    lnn = late_neonatal_mortality_state.get_population()
+    acmr_population_attributes = [
+        COLUMNS.SEX_OF_CHILD,
+        COLUMNS.CHILD_AGE,
+        COLUMNS.PREGNANCY_OUTCOME,
+        COLUMNS.CHILD_CAUSE_OF_DEATH,
+    ]
+    enn = early_neonatal_mortality_state.get_population(acmr_population_attributes)
+    lnn = late_neonatal_mortality_state.get_population(acmr_population_attributes)
 
     enn_death_idx, enn_live_birth_idx = get_births_and_deaths_idx(
         enn,
@@ -173,8 +186,14 @@ def test_neonatal_csmr(
 ) -> None:
     """Tests the csmr for each neonatal cause in the model. Note that both preterm with and without
     RDS are combined to match the GBD value."""
-    enn = early_neonatal_mortality_state.get_population()
-    lnn = late_neonatal_mortality_state.get_population()
+    csmr_population_attributes = [
+        COLUMNS.SEX_OF_CHILD,
+        COLUMNS.CHILD_AGE,
+        COLUMNS.PREGNANCY_OUTCOME,
+        COLUMNS.CHILD_CAUSE_OF_DEATH,
+    ]
+    enn = early_neonatal_mortality_state.get_population(csmr_population_attributes)
+    lnn = late_neonatal_mortality_state.get_population(csmr_population_attributes)
 
     enn_death_idx, enn_live_birth_idx = get_births_and_deaths_idx(
         enn, sex, "early_neonatal_mortality", cause_of_death
