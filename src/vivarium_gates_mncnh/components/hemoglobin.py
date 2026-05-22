@@ -130,11 +130,8 @@ class Hemoglobin(Risk):
             for param_name, param_data in parameters.items()
         }
 
-        self._non_pregnant_propensity_stream = builder.randomness.get_stream(
-            "non_pregnant_hemoglobin_propensity"
-        )
-        self._non_pregnant_ensemble_stream = builder.randomness.get_stream(
-            "non_pregnant_hemoglobin_ensemble_propensity"
+        self._propensity_view = builder.population.get_view(
+            [self.propensity_name, f"ensemble_propensity.{self.causal_factor}"]
         )
 
     def _initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:
@@ -281,8 +278,9 @@ class Hemoglobin(Risk):
 
     def _sample_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
         """Sample hemoglobin values from the non-pregnant ensemble distribution."""
-        quantiles = clip_quantiles(self._non_pregnant_propensity_stream.get_draw(index))
-        ensemble_propensities = self._non_pregnant_ensemble_stream.get_draw(index)
+        propensities = self._propensity_view.get(index)
+        quantiles = clip_quantiles(propensities[self.propensity_name])
+        ensemble_propensities = propensities[f"ensemble_propensity.{self.causal_factor}"]
         weights = self._non_pregnant_weights_table(index)
         parameters = {
             name: param(index) for name, param in self._non_pregnant_parameters.items()
