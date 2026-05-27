@@ -13,6 +13,7 @@ from vivarium_public_health.results import ResultsStratifier as ResultsStratifie
 
 from vivarium_gates_mncnh.constants.data_keys import (
     IFA_SUPPLEMENTATION,
+    MATERNAL_HEMORRHAGE,
     MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,
 )
@@ -24,6 +25,8 @@ from vivarium_gates_mncnh.constants.data_values import (
     DAYS_PER_WEEK,
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
+    HEMORRHAGE_CAUSES,
+    HEMORRHAGE_SEVERITY,
     INTERVENTIONS,
     LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
@@ -449,15 +452,21 @@ class BurdenObserver(PublicHealthObserver):
 class MaternalDisordersBurdenObserver(BurdenObserver):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        non_hemorrhage_sources = {
+            f"{cause}_ylds": partial(self.load_ylds_per_case, cause=cause)
+            for cause in self.burden_disorders
+            if cause not in HEMORRHAGE_CAUSES
+        }
+        hemorrhage_sources = {
+            "hemorrhage_ylds_moderate": MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE,
+            "hemorrhage_ylds_severe": MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE,
+        }
         return {
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": [],
                     "include": [],
-                    "data_sources": {
-                        f"{cause}_ylds": partial(self.load_ylds_per_case, cause=cause)
-                        for cause in self.burden_disorders
-                    },
+                    "data_sources": {**non_hemorrhage_sources, **hemorrhage_sources},
                 },
             },
         }
@@ -475,7 +484,14 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         self.yld_lookup_tables = {
             cause: self.build_lookup_table(builder, f"{cause}_ylds")
             for cause in self.burden_disorders
+            if cause not in HEMORRHAGE_CAUSES
         }
+        self.hemorrhage_ylds_moderate = self.build_lookup_table(
+            builder, "hemorrhage_ylds_moderate"
+        )
+        self.hemorrhage_ylds_severe = self.build_lookup_table(
+            builder, "hemorrhage_ylds_severe"
+        )
 
     def register_observations(self, builder: Builder) -> None:
         super().register_observations(builder)
@@ -504,8 +520,19 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.MORTALITY
 
     def calculate_ylds(self, data: pd.DataFrame, cause: str) -> float:
-        yld_per_case = self.yld_lookup_tables[cause](data.index)
-        return yld_per_case.sum()
+        if cause in HEMORRHAGE_CAUSES:
+            severity = self.population_view.get(data.index, f"{cause}_severity")
+            moderate_idx = severity.index[severity == HEMORRHAGE_SEVERITY.MODERATE]
+            severe_idx = severity.index[severity == HEMORRHAGE_SEVERITY.SEVERE]
+            ylds = 0.0
+            if not moderate_idx.empty:
+                ylds += self.hemorrhage_ylds_moderate(moderate_idx).sum()
+            if not severe_idx.empty:
+                ylds += self.hemorrhage_ylds_severe(severe_idx).sum()
+        else:
+            yld_per_case = self.yld_lookup_tables[cause](data.index)
+            ylds = yld_per_case.sum()
+        return ylds
 
     ##################
     # Helper methods #

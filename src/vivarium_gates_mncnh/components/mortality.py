@@ -10,11 +10,13 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
 
-from vivarium_gates_mncnh.constants.data_keys import POPULATION
+from vivarium_gates_mncnh.constants.data_keys import MATERNAL_HEMORRHAGE, POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
+    HEMORRHAGE_CAUSES,
+    HEMORRHAGE_SEVERITY,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
     PIPELINES,
@@ -57,6 +59,7 @@ class MaternalDisordersBurden(Component):
     def __init__(self) -> None:
         super().__init__()
         self.maternal_disorders = MATERNAL_DISORDERS
+        self.hemorrhage_causes = HEMORRHAGE_CAUSES
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -102,6 +105,16 @@ class MaternalDisordersBurden(Component):
             return
 
         pop = self.population_view.get(event.index, self.maternal_disorders)
+
+        # Only severe hemorrhage cases can die
+        for cause in self.hemorrhage_causes:
+            affected = pop.index[pop[cause]]
+            if not affected.empty:
+                severity = self.population_view.get(affected, f"{cause}_severity")
+                pop.loc[affected, cause] = severity == HEMORRHAGE_SEVERITY.SEVERE
+            else:
+                pop[cause] = False
+
         has_maternal_disorders = pop.loc[pop.any(axis=1)]
 
         # Get raw and conditional case fatality rates for each simulant
@@ -150,24 +163,33 @@ class MaternalDisordersBurden(Component):
 
     def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
-        csmr = builder.data.load(f"cause.{cause}.cause_specific_mortality_rate").set_index(
-            ARTIFACT_INDEX_COLUMNS
-        )
-        special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
-        incidence_rate_key = special_incidence_rates.get(
-            cause, f"cause.{cause}.incidence_rate"
-        )
-        incidence_rate = builder.data.load(incidence_rate_key).set_index(
-            ARTIFACT_INDEX_COLUMNS
-        )
-        cfr = (csmr / incidence_rate).fillna(0).reset_index()
+        # Both APH and PPH use the same CFR = CSMR_c367 / incidence_severe,
+        # derived from the total maternal hemorrhage cause. This means a simulant
+        # with both severe APH and severe PPH will have their hemorrhage mortality
+        # contribution counted twice. Per the research docs, this is an accepted
+        # simplification: APH and PPH are assumed uncorrelated (except through
+        # hemoglobin), so dual severe hemorrhage should be rare.
+        # See: antepartum_hemorrhage.rst and postpartum_hemorrhage.rst limitations.
+        if cause in self.hemorrhage_causes:
+            cfr = builder.data.load(MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE)
+        else:
+            csmr = builder.data.load(
+                f"cause.{cause}.cause_specific_mortality_rate"
+            ).set_index(ARTIFACT_INDEX_COLUMNS)
+            special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
+            incidence_rate_key = special_incidence_rates.get(
+                cause, f"cause.{cause}.incidence_rate"
+            )
+            incidence_rate = builder.data.load(incidence_rate_key).set_index(
+                ARTIFACT_INDEX_COLUMNS
+            )
+            cfr = (csmr / incidence_rate).fillna(0).reset_index()
 
         return cfr
 
     def calculate_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
         """Calculate the total and proportional case fatality rate for each simulant."""
 
-        # Simulants is a boolean dataframe of whether or not a simulant has each maternal disorder.
         for cause in self.maternal_disorders:
             simulants[cause] = simulants[cause] * getattr(
                 self, f"{cause}_case_fatality_rate"

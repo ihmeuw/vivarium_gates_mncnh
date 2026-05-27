@@ -1705,6 +1705,7 @@ def load_hemoglobin_relative_risk(
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = hemoglobin_data.drop(["exposure", "morbidity", "mortality"], axis=1)
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+
     index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
         "affected_entity",
         "affected_measure",
@@ -1727,6 +1728,7 @@ def _load_gbd_hemoglobin_paf(
     hemoglobin_data = hemoglobin_data.reset_index()
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+
     hemoglobin_data = hemoglobin_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
 
     expanded_draws_df = utilities.expand_draw_columns(
@@ -2020,6 +2022,14 @@ def load_postpartum_fraction(
         )
         result.loc[mask] = draws.values
 
+    unmatched = (result == 0.0).all(axis=1)
+    if unmatched.any():
+        unmatched_ages = result.index[unmatched].tolist()
+        raise ValueError(
+            f"Postpartum fraction has unmatched demography rows (all draws are 0.0), "
+            f"which would silently shift all hemorrhage to APH: {unmatched_ages}"
+        )
+
     return result
 
 
@@ -2058,34 +2068,35 @@ def load_hemorrhage_case_fatality_rate(
     return cfr.clip(upper=1.0)
 
 
-def load_antepartum_hemorrhage_incidence(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
-    """Compute APH per-pregnancy incidence risk.
+def _load_hemorrhage_incidence(location: str, antepartum: bool) -> pd.DataFrame:
+    """Compute hemorrhage per-pregnancy/birth incidence risk.
 
-    Splits the c367 population-level incidence rate by the antepartum fraction
-    and divides by pregnancy rate to convert to per-pregnancy risk.
+    Splits the c367 population-level incidence rate by the APH/PPH fraction
+    and divides by the appropriate rate to convert to per-event risk.
     """
     pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
     inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
-    aph_incidence = (1 - pp_fraction) * inc_c367
-    pregnancy_rate = get_data(data_keys.POPULATION.SCALING_FACTOR, location)
-    return (aph_incidence / pregnancy_rate).fillna(0.0)
+    if antepartum:
+        incidence = (1 - pp_fraction) * inc_c367
+        denominator = get_data(data_keys.POPULATION.SCALING_FACTOR, location)
+    else:
+        incidence = pp_fraction * inc_c367
+        denominator = get_data(data_keys.POPULATION.BIRTH_RATE, location)
+    return (incidence / denominator).fillna(0.0)
+
+
+def load_antepartum_hemorrhage_incidence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute APH per-pregnancy incidence risk."""
+    return _load_hemorrhage_incidence(location, antepartum=True)
 
 
 def load_postpartum_hemorrhage_incidence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute PPH per-birth incidence risk.
-
-    Splits the c367 population-level incidence rate by the postpartum fraction
-    and divides by birth rate to convert to per-birth risk.
-    """
-    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
-    inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
-    pph_incidence = pp_fraction * inc_c367
-    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location)
-    return (pph_incidence / birth_rate).fillna(0.0)
+    """Compute PPH per-birth incidence risk."""
+    return _load_hemorrhage_incidence(location, antepartum=False)
 
 
 def load_hemorrhage_ylds_per_case(
@@ -2145,19 +2156,17 @@ def load_non_pregnant_hemoglobin_exposure(
 # Hemorrhage hemoglobin shift loaders
 #######################################
 
+_SHIFT_0_6W = (0, 6 * DAYS_PER_WEEK)  # 6 weeks * 7 days/week = 42 days
+_SHIFT_6W_9M = (
+    6 * DAYS_PER_WEEK,
+    9 * (1 / MONTHS_PER_YEAR) * DAYS_PER_YEAR,  # ~274 days
+)
+
 HEMORRHAGE_SHIFT_DAY_RANGES = {
-    # 6 weeks * 7 days/week = 42 days
-    # 9 months / 12 months/year * 365.25 days/year ~= 274 days
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: (0, 6 * DAYS_PER_WEEK),
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: (
-        6 * DAYS_PER_WEEK,
-        9 * (1 / MONTHS_PER_YEAR) * DAYS_PER_YEAR,
-    ),
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: (0, 6 * DAYS_PER_WEEK),
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: (
-        6 * DAYS_PER_WEEK,
-        9 * (1 / MONTHS_PER_YEAR) * DAYS_PER_YEAR,
-    ),
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: _SHIFT_0_6W,
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: _SHIFT_6W_9M,
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: _SHIFT_0_6W,
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: _SHIFT_6W_9M,
 }
 
 

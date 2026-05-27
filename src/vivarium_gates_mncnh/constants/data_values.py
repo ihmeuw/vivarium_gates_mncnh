@@ -80,8 +80,9 @@ class _SimulationEventNames(NamedTuple):
     ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
+    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
-    MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
@@ -177,7 +178,8 @@ class __Columns(NamedTuple):
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
-    MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
+    POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -209,10 +211,16 @@ COLUMNS = __Columns()
 # TODO: add other maternal disorders when implemented
 MATERNAL_DISORDERS = [
     COLUMNS.OBSTRUCTED_LABOR,
-    COLUMNS.MATERNAL_HEMORRHAGE,
+    COLUMNS.ANTEPARTUM_HEMORRHAGE,
+    COLUMNS.POSTPARTUM_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     COLUMNS.RESIDUAL_MATERNAL_DISORDERS,
+]
+
+HEMORRHAGE_CAUSES = [
+    COLUMNS.ANTEPARTUM_HEMORRHAGE,
+    COLUMNS.POSTPARTUM_HEMORRHAGE,
 ]
 
 
@@ -273,7 +281,8 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
-    MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    ANTEPARTUM_HEMORRHAGE_INCIDENCE_RISK = "antepartum_hemorrhage.incidence_risk"
+    POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
@@ -459,6 +468,15 @@ class __PostpartumDepressionCaseTypes(NamedTuple):
 
 
 POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
+
+
+class __HemorrhageSeverity(NamedTuple):
+    NONE: str = "none"
+    MODERATE: str = "moderate"
+    SEVERE: str = "severe"
+
+
+HEMORRHAGE_SEVERITY = __HemorrhageSeverity()
 
 
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18

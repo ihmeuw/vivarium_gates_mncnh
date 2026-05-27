@@ -12,7 +12,11 @@ from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import (
+    COLUMNS,
+    HEMORRHAGE_CAUSES,
+    SIMULATION_EVENT_NAMES,
+)
 
 
 class Hemoglobin(Risk):
@@ -103,6 +107,40 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     """Make some small modifications to the NonLogLinearRiskEffect class to handle hemoglobin data.
     These are 1) define the RR for the minimum exposure to be the maximum rather than minimum value
     (higher hemoglobin is protective at this level of exposure) and 2) allow RRs to be below 1."""
+
+    # APH and PPH share the same RR/PAF data keyed as "maternal_hemorrhage" in the artifact
+    HEMORRHAGE_ENTITY_REMAP = {cause: "maternal_hemorrhage" for cause in HEMORRHAGE_CAUSES}
+
+    def get_filtered_data(
+        self, builder: Builder, data_source: str | float | pd.DataFrame
+    ) -> float | pd.DataFrame:
+        """Load and filter RR/PAF data for this target, with hemorrhage remapping.
+
+        APH and PPH are modeled as separate causes in the component configuration,
+        but hemoglobin RR/PAF artifact data is keyed under the shared
+        ``affected_entity == 'maternal_hemorrhage'``. For those two targets, we
+        remap ``self.target.name`` to the shared artifact entity before filtering.
+
+        When present, both ``affected_entity`` and ``affected_measure`` columns are
+        used to select only rows relevant to this target, and then dropped so the
+        returned frame matches the shape expected by downstream interpolation logic.
+        """
+        data = self.get_data(builder, data_source)
+
+        if isinstance(data, pd.DataFrame):
+            filter_entity = self.HEMORRHAGE_ENTITY_REMAP.get(
+                self.target.name, self.target.name
+            )
+            correct_target_mask = pd.Series(True, index=data.index)
+            columns_to_drop = []
+            if "affected_entity" in data.columns:
+                correct_target_mask &= data["affected_entity"] == filter_entity
+                columns_to_drop.append("affected_entity")
+            if "affected_measure" in data.columns:
+                correct_target_mask &= data["affected_measure"] == self.target.measure
+                columns_to_drop.append("affected_measure")
+            data = data[correct_target_mask].drop(columns=columns_to_drop)
+        return data
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         rr_data = self.load_relative_risk(builder)
