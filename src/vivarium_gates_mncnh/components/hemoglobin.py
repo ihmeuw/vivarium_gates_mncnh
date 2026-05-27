@@ -87,7 +87,6 @@ class Hemoglobin(Risk):
             COLUMNS.HEMOGLOBIN_EXPOSURE,
             lambda _: exposure,
         )
-        raise RuntimeError("Testing Jobmon GUI logging.")
 
     def on_time_step_cleanup(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC:
