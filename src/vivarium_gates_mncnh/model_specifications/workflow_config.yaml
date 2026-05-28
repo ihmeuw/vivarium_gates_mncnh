@@ -4,6 +4,7 @@ workflow:
   queue: "all.q"
   #output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/model33.1
   output_directory: /ihme/homes/albrja/scratch/test_workflow
+  
   steps:
     - name: "check_clean_working_tree"
       type: python
@@ -54,15 +55,22 @@ workflow:
     #     branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
     #     artifact_path: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/pakistan.hdf
     
-    - name: "tests_artifact"
-      type: pytest
-      environment: vivarium_gates_mncnh_artifact
+    # - name: "tests_artifact"
+    #   type: pytest
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 2
+    #     runtime: "01:00:00"
+    #     cores: 4
+    #   args:
+    #     path:
+    #       - tests/
+    #     runslow: true
+    #     k: "results"
+
+    - name: "hello_world"
+      type: bash
+      command: "echo 'hello world'"
       resources:
-        memory_gb: 2
-        runtime: "01:00:00"
-        cores: 4
-      args:
-        path: 
-          - tests/
-        runslow: true
-        k: "results"
+        memory_gb: 1
+        runtime: "00:01:00"
