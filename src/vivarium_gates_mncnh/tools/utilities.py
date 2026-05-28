@@ -271,8 +271,11 @@ def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
     """
     Move result files to the destination directory.
 
-    Expects directories matching the pattern, each containing a single file 0000.parquet.
-    Moves each parquet file and renames it to {directory_name}.parquet.
+    Handles two output formats:
+    1. Flat parquet files matching the pattern (e.g., {measure}.parquet)
+    2. Directories matching the pattern, each containing parquet file(s)
+
+    In both cases, the destination file is named {measure_name}.parquet.
 
     Parameters
     ----------
@@ -295,25 +298,48 @@ def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
 
     if not matching_paths:
         raise RuntimeError(
-            f"Failed to move {description}. No directories matched pattern: {source_pattern}"
+            f"Failed to move {description}. No paths matched pattern: {source_pattern}"
         )
 
-    # Move files from matching directories
+    # Move files from matching paths
     moved_count = 0
     for source_path in matching_paths:
         source_path_obj = Path(source_path)
 
         try:
-            # Look for 0000.parquet file
-            parquet_file = source_path_obj / "0000.parquet"
-            if not parquet_file.exists():
-                raise RuntimeError(f"Expected file 0000.parquet not found in {source_path}")
+            if source_path_obj.is_file() and source_path_obj.suffix == ".parquet":
+                # Flat parquet file: move directly
+                dest_file = Path(dest_dir) / source_path_obj.name
+                shutil.move(str(source_path_obj), dest_file)
+                moved_count += 1
+            elif source_path_obj.is_dir():
+                # Directory: find parquet files inside
+                parquet_files = sorted(source_path_obj.glob("*.parquet"))
+                if not parquet_files:
+                    raise RuntimeError(
+                        f"No parquet files found in directory {source_path}. "
+                        f"Contents: {[f.name for f in source_path_obj.iterdir()]}"
+                    )
+                elif len(parquet_files) == 1:
+                    # Single parquet file: move and rename to {directory_name}.parquet
+                    dest_filename = f"{source_path_obj.name}.parquet"
+                    dest_file = Path(dest_dir) / dest_filename
+                    shutil.move(str(parquet_files[0]), dest_file)
+                    moved_count += 1
+                else:
+                    # Multiple shards: concatenate into single file
+                    import pandas as pd
 
-            # Move and rename to {directory_name}.parquet
-            dest_filename = f"{source_path_obj.name}.parquet"
-            dest_file = Path(dest_dir) / dest_filename
-            shutil.move(str(parquet_file), dest_file)
-            moved_count += 1
+                    dfs = [pd.read_parquet(f) for f in parquet_files]
+                    combined = pd.concat(dfs, ignore_index=True)
+                    dest_filename = f"{source_path_obj.name}.parquet"
+                    dest_file = Path(dest_dir) / dest_filename
+                    combined.to_parquet(dest_file, index=False)
+                    moved_count += 1
+            else:
+                raise RuntimeError(
+                    f"Unexpected path type for {source_path}: not a .parquet file or directory"
+                )
         except Exception as e:
             raise RuntimeError(f"Failed to move from {source_path} to {dest_dir}. Error: {e}")
 

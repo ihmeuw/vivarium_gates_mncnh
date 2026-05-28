@@ -213,14 +213,16 @@ def generate_artifact():
         print("PAF Simulation Workflow Completed Successfully!")
         print("=" * 80 + "\n")
 
+        # Clean up working directory only on success
+        if working_dir.exists():
+            shutil.rmtree(working_dir, ignore_errors=True)
+
     except Exception as e:
         print(f"\n{'='*80}", file=sys.stderr)
         print(f"ERROR: {str(e)}", file=sys.stderr)
+        print(f"Working directory preserved for debugging: {working_dir}", file=sys.stderr)
         print(f"{'='*80}\n", file=sys.stderr)
         sys.exit(1)
-    finally:
-        if working_dir.exists():
-            shutil.rmtree(working_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
