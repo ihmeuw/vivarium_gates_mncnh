@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     data_requirements = ["vivarium_inputs>=7.1.4"]
     cluster_requirements = [
-        "vivarium_cluster_tools @ git+https://github.com/ihmeuw/vivarium_cluster_tools.git@epic/phase-3-automated-validation",
+        "vivarium_cluster_tools @ git+https://github.com/ihmeuw/vivarium_cluster_tools.git@albrja/feature/mic-7066/new-cli-group",
         "drmaa",
     ]
     test_requirements = [
