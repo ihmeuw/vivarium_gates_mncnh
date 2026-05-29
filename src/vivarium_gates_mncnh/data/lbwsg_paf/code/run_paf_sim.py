@@ -70,8 +70,12 @@ def generate_artifact():
     skip_initial_artifact = False
     if artifact_file.exists():
         print(f"\nArtifact already exists: {artifact_file}")
-        response = input("Use existing artifact? [y/N]: ").strip().lower()
-        if response in ("y", "yes"):
+        try:
+            response = input("Use existing artifact? [Y/n]: ").strip().lower()
+        except EOFError:
+            response = "y"
+            print("No interactive input available; defaulting to use existing artifact.")
+        if response in ("", "y", "yes"):
             skip_initial_artifact = True
             print("Using existing artifact.")
         else:

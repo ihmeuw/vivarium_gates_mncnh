@@ -18,9 +18,9 @@ from vivarium_public_health.risks.implementations.low_birth_weight_and_short_ges
 from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 # This code relies on data specific to:
-# 1. The LBWSG birth exposure in GBD (using GBD 2021 data at the time of running)
-# 2. The hemoglobin risk exposure levels (using GBD 2023 data at the time of running)
-# 3. The LBWSG relative risk values (using GBD 2021 data at the time of running)
+# 1. The LBWSG birth exposure in GBD
+# 2. The hemoglobin risk exposure levels
+# 3. The LBWSG relative risk values
 # Therefore, it will need to be re-run if any of these are updated
 
 
