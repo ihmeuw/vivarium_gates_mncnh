@@ -26,3 +26,5 @@ branches:
         - "misoprostol_vv"
         - "ultrasound_vv"
         - "anemia_screening_vv"
+    population:
+      population_size: 20_000
