@@ -46,6 +46,7 @@ components:
             - IVIronEffectOnHemoglobin()
             - IVIronEffectOnLBWSG()
             - IVIronEffectOnStillbirth()
+            - SepsisEffectsOnHemoglobin()
             - DeliveryFacility()
             - InterventionAccess('cpap')
             - InterventionAccess('antibiotics')

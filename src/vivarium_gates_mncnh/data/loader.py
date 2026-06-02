@@ -30,7 +30,7 @@ from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
+from vivarium_gates_mncnh.utilities import get_norm, get_random_variable_draws, get_truncnorm
 
 
 def get_data(
@@ -81,6 +81,7 @@ def get_data(
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
         data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT: load_maternal_sepsis_hemoglobin_shift,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.YLD_RATE: load_maternal_disorder_yld_rate,
@@ -1017,6 +1018,50 @@ def load_iv_iron_hemoglobin_effect_size(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, effect_size_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+    return data
+
+
+def load_maternal_sepsis_hemoglobin_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load maternal sepsis hemoglobin shift draw data averaged over two postpartum periods.
+
+    Averages the pred_mean and draw_se curve over two time periods, then generates
+    draws from Normal(mean, se) for each period:
+      - "early_postpartum": 0 to 42 days (first 6 weeks)
+      - "late_postpartum": 42 to 273 days (6 weeks to 39 weeks)
+
+    The source data is the GBD 2023 puerperal sepsis hemoglobin shift curve from
+    /mnt/team/anemia/pub/emotive/mat_sep/pred_data.csv.
+    """
+    curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
+
+    # Define time periods (in days)
+    early_mask = curve_data["postpartum_days"] < 42  # 0 to 6 weeks
+    late_mask = (curve_data["postpartum_days"] >= 42) & (
+        curve_data["postpartum_days"] < 273
+    )  # 6 to 39 weeks
+
+    # Average the curve parameters over each time period
+    early_mean = curve_data.loc[early_mask, "pred_mean"].mean()
+    early_se = curve_data.loc[early_mask, "draw_se"].mean()
+    late_mean = curve_data.loc[late_mask, "pred_mean"].mean()
+    late_se = curve_data.loc[late_mask, "draw_se"].mean()
+
+    # Generate draws for each period
+    early_dist = get_norm(early_mean, sd=early_se)
+    late_dist = get_norm(late_mean, sd=late_se)
+    early_draws = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, f"{key}_early_postpartum", early_dist
+    )
+    late_draws = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, f"{key}_late_postpartum", late_dist
+    )
+
+    data = pd.DataFrame(
+        [early_draws, late_draws],
+        index=pd.Index(["early_postpartum", "late_postpartum"], name="postpartum_period"),
+    )
     return data
 
 

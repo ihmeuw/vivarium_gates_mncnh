@@ -21,6 +21,8 @@ LBWSG_RR_CAPS_DIR = REPO_DATA_DIR / "lbwsg_rr_caps" / "caps"
 STILLBIRTH_RATIO_DATA_DIR = REPO_DATA_DIR / "stillbirth_ratio"
 ORAL_IRON_DATA_DIR = REPO_DATA_DIR / "ifa_mms_gestation_shifts"
 HEMOGLOBIN_EFFECTS_DATA_DIR = REPO_DATA_DIR / "hemoglobin_effects"
+# Copied from /mnt/team/anemia/pub/emotive/mat_sep/pred_data.csv
+MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV = HEMOGLOBIN_EFFECTS_DATA_DIR / "sepsis_on_pph" / "pred_data.csv"
 HEMOGLOBIN_PAF_OUTPUTS_DIR = REPO_DATA_DIR / "hgb_pafs_maternal_disorders" / "outputs"
 MODEL_SPEC_PATH = BASE_DIR / "model_specifications" / "model_spec.yaml"
 FERRITIN_TESTING_COVERAGE_DATA_DIR = REPO_DATA_DIR / "ferritin_testing_coverage"
@@ -30,5 +32,5 @@ FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model33.1"
+MODEL_RESULTS_DIR = "model36.0"
 MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
