@@ -1030,8 +1030,8 @@ def load_maternal_sepsis_hemoglobin_shift(
 ) -> pd.DataFrame:
     """Load maternal sepsis hemoglobin shift draw data averaged over two postpartum periods.
 
-    Averages the pred_mean and draw_se curve over two time periods, then generates
-    draws from Normal(mean, se) for each period:
+    Generate draws from Normal(pred_mean, draw_se) at each time point, then average
+    the draws over two time periods:
       - "early_postpartum": 0 to 42 days (first 6 weeks)
       - "late_postpartum": 42 to 273 days (6 weeks to 39 weeks)
 
@@ -1040,26 +1040,32 @@ def load_maternal_sepsis_hemoglobin_shift(
     """
     curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
 
+    # Generate draws at each time point from Normal(pred_mean, draw_se)
+    pointwise_draws = np.column_stack(
+        [
+            get_random_variable_draws(
+                metadata.ARTIFACT_COLUMNS,
+                f"{key}_day_{row.postpartum_days}",
+                get_norm(row.pred_mean, sd=row.draw_se),
+            )
+            for _, row in curve_data.iterrows()
+        ]
+    )  # shape: (num_draws, num_time_points)
+
     # Define time periods (in days)
-    early_mask = curve_data["postpartum_days"] < 42  # 0 to 6 weeks
-    late_mask = (curve_data["postpartum_days"] >= 42) & (
-        curve_data["postpartum_days"] < 273
+    early_mask = curve_data["postpartum_days"].values < 42  # 0 to 6 weeks
+    late_mask = (curve_data["postpartum_days"].values >= 42) & (
+        curve_data["postpartum_days"].values < 273
     )  # 6 to 39 weeks
 
-    # Average the curve parameters over each time period
-    early_mean = curve_data.loc[early_mask, "pred_mean"].mean()
-    early_se = curve_data.loc[early_mask, "draw_se"].mean()
-    late_mean = curve_data.loc[late_mask, "pred_mean"].mean()
-    late_se = curve_data.loc[late_mask, "draw_se"].mean()
-
-    # Generate draws for each period
-    early_dist = get_norm(early_mean, sd=early_se)
-    late_dist = get_norm(late_mean, sd=late_se)
-    early_draws = get_random_variable_draws(
-        metadata.ARTIFACT_COLUMNS, f"{key}_early_postpartum", early_dist
+    # Average draws over each time period
+    early_draws = pd.Series(
+        pointwise_draws[:, early_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
     )
-    late_draws = get_random_variable_draws(
-        metadata.ARTIFACT_COLUMNS, f"{key}_late_postpartum", late_dist
+    late_draws = pd.Series(
+        pointwise_draws[:, late_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
     )
 
     data = pd.DataFrame(
