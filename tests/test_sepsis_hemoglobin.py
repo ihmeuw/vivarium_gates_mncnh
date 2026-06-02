@@ -56,9 +56,7 @@ def test_sepsis_hemoglobin_shift_applied(
     by approximately the expected shift magnitude."""
     sim: InteractiveContext = request.getfixturevalue(state_fixture)
 
-    pop = sim.get_population(
-        [COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME]
-    )
+    pop = sim.get_population([COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME])
     # Only look at live births (avoid confounding from stillbirths/other outcomes)
     live_births = pop.loc[
         pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
