@@ -52,8 +52,7 @@ def late_neonatal_state(
 def test_sepsis_hemoglobin_shift_applied(
     state_fixture: str, step_name: str, request: pytest.FixtureRequest
 ) -> None:
-    """Check that simulants with sepsis have lower hemoglobin than those without,
-    by approximately the expected shift magnitude."""
+    """Check that simulants with sepsis have lower hemoglobin than those without."""
     sim: InteractiveContext = request.getfixturevalue(state_fixture)
 
     pop = sim.get_population(
