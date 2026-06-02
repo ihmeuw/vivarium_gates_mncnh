@@ -283,7 +283,6 @@ def test_results_notebook(notebook_path) -> None:
     discover_notebook_paths(MODEL_NOTEBOOKS_DIR / "artifact"),
     ids=lambda x: x.stem,
 )
-@pytest.mark.skip(reason="No notebooks currently in artifact directory")
 def test_artifact_notebooks(notebook_path) -> None:
     """
     Test notebooks in the artifact directory.
