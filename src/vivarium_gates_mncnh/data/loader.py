@@ -30,7 +30,11 @@ from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_norm, get_random_variable_draws, get_truncnorm
+from vivarium_gates_mncnh.utilities import (
+    get_norm,
+    get_random_variable_draws,
+    get_truncnorm,
+)
 
 
 def get_data(

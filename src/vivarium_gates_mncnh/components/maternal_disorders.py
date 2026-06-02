@@ -272,8 +272,8 @@ class SepsisEffectsOnHemoglobin(Component):
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
-        self.early_postpartum_shift, self.late_postpartum_shift = (
-            self._load_shift_values(builder)
+        self.early_postpartum_shift, self.late_postpartum_shift = self._load_shift_values(
+            builder
         )
 
         builder.value.register_attribute_modifier(
