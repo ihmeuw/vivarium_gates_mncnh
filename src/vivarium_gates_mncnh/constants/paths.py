@@ -23,7 +23,7 @@ ORAL_IRON_DATA_DIR = REPO_DATA_DIR / "ifa_mms_gestation_shifts"
 HEMOGLOBIN_EFFECTS_DATA_DIR = REPO_DATA_DIR / "hemoglobin_effects"
 # Copied from /mnt/team/anemia/pub/emotive/mat_sep/pred_data.csv
 MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV = (
-    HEMOGLOBIN_EFFECTS_DATA_DIR / "sepsis_on_pph" / "pred_data.csv"
+    HEMOGLOBIN_EFFECTS_DATA_DIR / "sepsis_on_hemoglobin" / "pred_data.csv"
 )
 HEMOGLOBIN_PAF_OUTPUTS_DIR = REPO_DATA_DIR / "hgb_pafs_maternal_disorders" / "outputs"
 MODEL_SPEC_PATH = BASE_DIR / "model_specifications" / "model_spec.yaml"

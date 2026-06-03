@@ -7,8 +7,6 @@ effect in each post-pregnancy time step.
 
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 
@@ -55,9 +53,7 @@ def test_sepsis_hemoglobin_shift_applied(
     """Check that simulants with sepsis have lower hemoglobin than those without."""
     sim: InteractiveContext = request.getfixturevalue(state_fixture)
 
-    pop = sim.get_population(
-        [COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME]
-    )
+    pop = sim.get_population([COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME])
     # Only look at live births (avoid confounding from stillbirths/other outcomes)
     live_births = pop.loc[
         pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
@@ -71,7 +67,7 @@ def test_sepsis_hemoglobin_shift_applied(
         pytest.skip(f"No simulants with sepsis at {step_name}")
 
     # Get hemoglobin exposure values from the pipeline
-    hgb = sim.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)(live_births.index)
+    hgb = sim.get_population(PIPELINES.HEMOGLOBIN_EXPOSURE).loc[live_births.index]
 
     mean_hgb_sepsis = hgb.loc[sepsis_idx].mean()
     mean_hgb_no_sepsis = hgb.loc[no_sepsis_idx].mean()

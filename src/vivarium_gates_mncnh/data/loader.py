@@ -1032,11 +1032,28 @@ def load_maternal_sepsis_hemoglobin_shift(
 
     Generate draws from Normal(pred_mean, draw_se) at each time point, then average
     the draws over two time periods:
-      - "early_postpartum": 0 to 42 days (first 6 weeks)
-      - "late_postpartum": 42 to 273 days (6 weeks to 39 weeks)
+      - "early_postpartum": 0 to ``EARLY_POSTPARTUM_END_DAYS`` days (first 6 weeks)
+      - "late_postpartum": ``EARLY_POSTPARTUM_END_DAYS`` to
+        ``LATE_POSTPARTUM_END_DAYS`` days (6 weeks to 39 weeks)
 
-    The source data is the GBD 2023 puerperal sepsis hemoglobin shift curve from
-    /mnt/team/anemia/pub/emotive/mat_sep/pred_data.csv.
+    The source data is the GBD 2023 puerperal sepsis hemoglobin shift curve referenced
+    by ``paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV``.
+
+    Parameters
+    ----------
+    key
+        The artifact data key for the hemoglobin shift data.
+    location
+        The location to get data for. Not used for this loader since the
+        source data is location-independent.
+    years
+        Not used. Accepted for interface compatibility with the loader dispatch.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame indexed by postpartum period with one column per draw,
+        containing the average hemoglobin shift for each period.
     """
     curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
 
@@ -1052,11 +1069,13 @@ def load_maternal_sepsis_hemoglobin_shift(
         ]
     )  # shape: (num_draws, num_time_points)
 
-    # Define time periods (in days)
-    early_mask = curve_data["postpartum_days"].values < 42  # 0 to 6 weeks
-    late_mask = (curve_data["postpartum_days"].values >= 42) & (
-        curve_data["postpartum_days"].values < 273
-    )  # 6 to 39 weeks
+    # Define time periods (in days). Days beyond LATE_POSTPARTUM_END_DAYS are
+    # discarded because the component only acts during early/late neonatal steps.
+    days = curve_data["postpartum_days"].values
+    early_mask = days < data_values.EARLY_POSTPARTUM_END_DAYS
+    late_mask = (days >= data_values.EARLY_POSTPARTUM_END_DAYS) & (
+        days < data_values.LATE_POSTPARTUM_END_DAYS
+    )
 
     # Average draws over each time period
     early_draws = pd.Series(
@@ -1070,7 +1089,10 @@ def load_maternal_sepsis_hemoglobin_shift(
 
     data = pd.DataFrame(
         [early_draws, late_draws],
-        index=pd.Index(["early_postpartum", "late_postpartum"], name="postpartum_period"),
+        index=pd.Index(
+            [data_values.EARLY_POSTPARTUM_PERIOD, data_values.LATE_POSTPARTUM_PERIOD],
+            name="postpartum_period",
+        ),
     )
     return data
 

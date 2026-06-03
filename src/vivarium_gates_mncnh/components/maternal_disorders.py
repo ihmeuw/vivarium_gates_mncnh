@@ -11,6 +11,8 @@ from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
+    EARLY_POSTPARTUM_PERIOD,
+    LATE_POSTPARTUM_PERIOD,
     PIPELINES,
     POSTPARTUM_DEPRESSION_CASE_TYPES,
     PREGNANCY_OUTCOMES,
@@ -282,16 +284,14 @@ class SepsisEffectsOnHemoglobin(Component):
             required_resources=[COLUMNS.MATERNAL_SEPSIS],
         )
 
-    @staticmethod
-    def _load_shift_values(builder: Builder) -> tuple[float, float]:
-        shift_data = (
-            builder.data.load(data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT)
-            .reset_index()
-            .set_index("postpartum_period")
+    def _load_shift_values(self, builder: Builder) -> tuple[float, float]:
+        """Load early and late postpartum hemoglobin shift values from the artifact."""
+        shift_data = builder.data.load(data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT).set_index(
+            "postpartum_period"
         )
         return (
-            shift_data.loc["early_postpartum", "value"],
-            shift_data.loc["late_postpartum", "value"],
+            shift_data.loc[EARLY_POSTPARTUM_PERIOD, "value"],
+            shift_data.loc[LATE_POSTPARTUM_PERIOD, "value"],
         )
 
     ##################################
@@ -301,6 +301,21 @@ class SepsisEffectsOnHemoglobin(Component):
     def apply_sepsis_hemoglobin_shift(
         self, index: pd.Index, exposure: pd.Series[float]
     ) -> pd.Series[float]:
+        """Apply the sepsis hemoglobin shift to simulants who experienced sepsis.
+
+        Parameters
+        ----------
+        index
+            The index of the simulants to apply the shift to.
+        exposure
+            The current hemoglobin exposure values for the simulants.
+
+        Returns
+        -------
+        pd.Series[float]
+            The modified hemoglobin exposure values with the sepsis shift applied
+            to simulants who experienced maternal sepsis.
+        """
         shift = self._get_current_shift()
         if shift is None:
             return exposure
@@ -315,7 +330,10 @@ class SepsisEffectsOnHemoglobin(Component):
     ##################
 
     def _get_current_shift(self) -> float | None:
+        """Return the hemoglobin shift for the current simulation event, or None."""
         current_event = self._sim_step_name()
+        # The early/late neonatal mortality steps correspond to the early/late
+        # postpartum periods for the mother.
         if current_event == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
             return self.early_postpartum_shift
         elif current_event == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY:
