@@ -25,15 +25,15 @@ workflow:
     #     positional_args:
     #       - "10.0"
 
-    - name: run_simulation_ethiopia
-      type: simulation
-      resources:  # task runner resources
-        memory_gb: 4
-        runtime: "00:20:00"
-      args:
-        model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
-        branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
-        artifact_path: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/ethiopia.hdf
+    # - name: run_simulation_ethiopia
+    #   type: simulation
+    #   resources:  # task runner resources
+    #     memory_gb: 4
+    #     runtime: "00:20:00"
+    #   args:
+    #     model_specification: src/vivarium_gates_mncnh/model_specifications/model_spec.yaml
+    #     branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
+    #     artifact_path: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/ethiopia.hdf
 
     # - name: run_simulation_nigeria
     #   type: simulation
@@ -71,6 +71,13 @@ workflow:
     - name: "hello_world"
       type: bash
       command: "echo 'hello world'"
+      resources:
+        memory_gb: 1
+        runtime: "00:01:00"
+    
+    - name: "goodbye_world"
+      type: bash
+      command: "echo 'goodbye world'"
       resources:
         memory_gb: 1
         runtime: "00:01:00"
