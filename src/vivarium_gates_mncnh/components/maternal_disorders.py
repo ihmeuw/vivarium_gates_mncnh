@@ -312,7 +312,6 @@ class SepsisEffectsOnHemoglobin(Component):
 
         Returns
         -------
-        pd.Series[float]
             The modified hemoglobin exposure values with the sepsis shift applied
             to simulants who experienced maternal sepsis.
         """

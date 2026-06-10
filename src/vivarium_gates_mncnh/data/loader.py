@@ -1030,14 +1030,13 @@ def load_maternal_sepsis_hemoglobin_shift(
 ) -> pd.DataFrame:
     """Load maternal sepsis hemoglobin shift draw data averaged over two postpartum periods.
 
-    Generate draws from Normal(pred_mean, draw_se) at each time point, then average
-    the draws over two time periods:
+    For each draw, sample a single standard-normal z-score ``z`` and build the
+    shift curve as ``pred_mean + z * draw_se`` at each time point, so the shift
+    is correlated over time and each draw follows the shape of the mean curve.
+    Then average the draws over two time periods:
       - "early_postpartum": 0 to ``EARLY_POSTPARTUM_END_DAYS`` days (first 6 weeks)
       - "late_postpartum": ``EARLY_POSTPARTUM_END_DAYS`` to
         ``LATE_POSTPARTUM_END_DAYS`` days (6 weeks to 39 weeks)
-
-    The source data is the GBD 2023 puerperal sepsis hemoglobin shift curve referenced
-    by ``paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV``.
 
     Parameters
     ----------
@@ -1057,16 +1056,13 @@ def load_maternal_sepsis_hemoglobin_shift(
     """
     curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
 
-    # Generate draws at each time point from Normal(pred_mean, draw_se)
-    pointwise_draws = np.column_stack(
-        [
-            get_random_variable_draws(
-                metadata.ARTIFACT_COLUMNS,
-                f"{key}_day_{row.postpartum_days}",
-                get_norm(row.pred_mean, sd=row.draw_se),
-            )
-            for _, row in curve_data.iterrows()
-        ]
+    z = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, get_norm(0.0, sd=1.0)
+    ).values  # one z-score per draw; shape: (num_draws,)
+    pred_mean = curve_data["pred_mean"].values
+    draw_se = curve_data["draw_se"].values
+    pointwise_draws = (
+        pred_mean[np.newaxis, :] + z[:, np.newaxis] * draw_se[np.newaxis, :]
     )  # shape: (num_draws, num_time_points)
 
     # Define time periods (in days). Days beyond LATE_POSTPARTUM_END_DAYS are
