@@ -80,7 +80,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/sepsis_on_hemoglobin/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model37.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -118,7 +118,7 @@ configuration:
             - 'postpartum_depression'
 
     population:
-        population_size: 200_000
+        population_size: 20_000
         initialization_age_min: 10
         initialization_age_max: 54
         include_sex: "Female"
@@ -253,7 +253,7 @@ configuration:
 
     intervention:
         scenario:
-            # baseline
+            baseline
             # cpap_acs_scaleup
             # cpap_acs_ai_ultrasound_scaleup
             # neonatal_antibiotics_scaleup
@@ -261,7 +261,7 @@ configuration:
             # azithromycin_scaleup
             # ai_ultrasound_scaleup
             # standard_ultrasound_scaleup
-            full_product_scaleup
+            # full_product_scaleup
             # mms_total_scaleup
             # anemia_screening_and_iv_iron_scaleup
             # azithromycin_vv
