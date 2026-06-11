@@ -112,6 +112,9 @@ class __MaternalSepsis(NamedTuple):
         "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
     )
     YLD_RATE: str = "cause.maternal_sepsis_and_other_maternal_infections.yld_rate"
+    HEMOGLOBIN_SHIFT: str = (
+        "cause.maternal_sepsis_and_other_maternal_infections.hemoglobin_shift"
+    )
 
     @property
     def name(self):

@@ -23,6 +23,14 @@ from vivarium_gates_mncnh.utilities import (
 DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
 
+# Postpartum period boundaries (in days)
+EARLY_POSTPARTUM_END_DAYS = 6 * DAYS_PER_WEEK  # 6 weeks
+LATE_POSTPARTUM_END_DAYS = 39 * DAYS_PER_WEEK  # 39 weeks
+
+# Postpartum period labels (shared between loader and component)
+EARLY_POSTPARTUM_PERIOD = "early_postpartum"
+LATE_POSTPARTUM_PERIOD = "late_postpartum"
+
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
