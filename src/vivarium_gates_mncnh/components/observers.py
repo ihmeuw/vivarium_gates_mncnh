@@ -916,7 +916,7 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_count",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}' and {COLUMNS.CHILD_ALIVE} == True",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -926,7 +926,7 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_nonzero_count",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}' and {COLUMNS.CHILD_ALIVE} == True",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -936,7 +936,7 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_sum",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}' and {COLUMNS.CHILD_ALIVE} == True",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -946,7 +946,7 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_sum_of_squares",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}' and {COLUMNS.CHILD_ALIVE} == True",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
