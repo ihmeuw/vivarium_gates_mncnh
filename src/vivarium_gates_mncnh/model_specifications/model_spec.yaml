@@ -252,7 +252,7 @@ configuration:
 
     intervention:
         scenario:
-            # baseline
+            baseline
             # cpap_acs_scaleup
             # cpap_acs_ai_ultrasound_scaleup
             # neonatal_antibiotics_scaleup
@@ -260,7 +260,7 @@ configuration:
             # azithromycin_scaleup
             # ai_ultrasound_scaleup
             # standard_ultrasound_scaleup
-            full_product_scaleup
+            # full_product_scaleup
             # mms_total_scaleup
             # anemia_screening_and_iv_iron_scaleup
             # azithromycin_vv
