@@ -225,6 +225,7 @@ class NeonatalMortality(Component):
             columns=[
                 COLUMNS.CHILD_ALIVE,
                 COLUMNS.CHILD_CAUSE_OF_DEATH,
+                COLUMNS.CHILD_EXIT_STEP,
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
             ],
             required_resources=[COLUMNS.PREGNANCY_OUTCOME],
@@ -253,6 +254,7 @@ class NeonatalMortality(Component):
             {
                 COLUMNS.CHILD_ALIVE: False,
                 COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
+                COLUMNS.CHILD_EXIT_STEP: pd.NA,
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST: 0.0,
             },
             index=pop_data.index,
@@ -316,6 +318,10 @@ class NeonatalMortality(Component):
             self.population_view.update(
                 COLUMNS.CHILD_CAUSE_OF_DEATH,
                 lambda current: cause_of_death,
+            )
+            self.population_view.update(
+                COLUMNS.CHILD_EXIT_STEP,
+                lambda current: pd.Series(self._sim_step_name(), index=dead_idx),
             )
             self.population_view.update(
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
