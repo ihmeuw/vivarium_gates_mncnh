@@ -37,9 +37,7 @@ class MaternalDisordersBurden(Component):
         return {
             self.name: {
                 "data_sources": {
-                    **{
-                        "life_expectancy": "population.theoretical_minimum_risk_life_expectancy"
-                    },
+                    **{"life_expectancy": POPULATION.TMRLE},
                     **{
                         f"{cause}_case_fatality_rate": partial(
                             self.load_cfr_data, cause=cause
@@ -338,9 +336,7 @@ class NeonatalMortality(Component):
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
-        life_expectancy = builder.data.load(
-            "population.theoretical_minimum_risk_life_expectancy"
-        )
+        life_expectancy = builder.data.load(POPULATION.TMRLE)
         # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
