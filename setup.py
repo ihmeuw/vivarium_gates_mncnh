@@ -114,8 +114,9 @@ if __name__ == "__main__":
             "tag_regex": r"^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$",
         },
         setup_requires=setup_requires,
-        entry_points="""
-            [console_scripts]
-            make_artifacts=vivarium_gates_mncnh.tools.cli:make_artifacts
-        """,
+        entry_points={
+            "console_scripts": [
+                "make_artifacts=vivarium_gates_mncnh.tools.cli:make_artifacts",
+            ],
+        },
     )
