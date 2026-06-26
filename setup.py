@@ -81,7 +81,8 @@ if __name__ == "__main__":
     ]
 
     setup(
-        name=about["__title__"],
+        # name is declared statically in pyproject.toml's [project] block.
+        # Setuptools errors if it's also passed here.
         description=about["__summary__"],
         long_description=long_description,
         license=about["__license__"],
