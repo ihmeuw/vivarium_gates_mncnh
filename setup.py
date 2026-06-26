@@ -44,7 +44,10 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies<2.0.0",
         "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
-        "vivarium_build_utils>=3.0.1",
+        # Pin to <=3.3.2 until this model repo's deps are migrated to the post-monorepo names
+        # NOTE: v3.3.3 / v3.3.4 are post-archive sunset releases of the standalone vbu repo that
+        #   were never tagged in the monorepo, so the Jenkins shared library loader can't find them
+        "vivarium_build_utils>=3.0.1,<=3.3.2",
         "gbd_mapping>=5.0.0,<6.0.0",
         "layered_config_tree<5.0.0",
         "vivarium>=4.0.0, <4.1.0",
