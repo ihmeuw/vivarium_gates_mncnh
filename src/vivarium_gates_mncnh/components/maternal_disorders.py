@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.values import list_combiner, union_post_processor
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.causal_factor.calibration_constant import (
+    register_risk_affected_attribute_producer,
+)
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
@@ -36,18 +38,14 @@ class MaternalDisorder(Component):
         self.incidence_risk_table = self.build_lookup_table(builder, "incidence_risk_data")
 
         self.incidence_risk_pipeline_name = f"{self.maternal_disorder}.incidence_risk"
-        builder.value.register_attribute_producer(
+        # RiskAffectedPipeline: RiskEffects multiply their RR onto this pipeline and
+        # contribute their PAF to the auto-created
+        # ``{disorder}.incidence_risk.calibration_constant`` pipeline, which is applied
+        # as ``incidence_risk * (1 - joint_paf)``.
+        register_risk_affected_attribute_producer(
+            builder,
             self.incidence_risk_pipeline_name,
-            source=self.calculate_risk_deleted_incidence,
-        )
-
-        paf = builder.lookup.build_table(0)
-        self.joint_paf_pipeline_name = f"{self.maternal_disorder}.incidence_risk.paf"
-        builder.value.register_attribute_producer(
-            self.joint_paf_pipeline_name,
-            source=lambda index: [paf(index)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
+            source=self.get_incidence_risk,
         )
 
         builder.population.register_initializer(
@@ -102,10 +100,10 @@ class MaternalDisorder(Component):
         incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
         return incidence_risk.reset_index()
 
-    def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:
-        incidence_risk = self.incidence_risk_table(index)
-        joint_paf = self.population_view.get(index, self.joint_paf_pipeline_name)
-        return incidence_risk * (1 - joint_paf)
+    def get_incidence_risk(self, index: pd.Index) -> pd.Series:
+        # Raw incidence risk. The RiskAffectedPipeline applies the joint-PAF
+        # calibration (1 - calibration_constant) and any RiskEffect relative risks.
+        return self.incidence_risk_table(index)
 
 
 class PostpartumDepression(MaternalDisorder):

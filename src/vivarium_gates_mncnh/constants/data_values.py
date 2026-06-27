@@ -158,6 +158,7 @@ class __Columns(NamedTuple):
     CHILD_AGE = "child_age"
     MOTHER_CAUSE_OF_DEATH = "cause_of_death"
     CHILD_CAUSE_OF_DEATH = "child_cause_of_death"
+    CHILD_EXIT_STEP = "child_exit_step"
     MOTHER_YEARS_OF_LIFE_LOST = "years_of_life_lost"
     CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"
@@ -255,11 +256,11 @@ class __Pipelines(NamedTuple):
     NEONATAL_ENCEPHALOPATHY_FINAL_CSMR = (
         "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.csmr"
     )
-    PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk"
-    PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk"
-    NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk"
-    NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk"
-    ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
+    PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.cause_specific_mortality_risk.relative_risk"
+    PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.cause_specific_mortality_risk.relative_risk"
+    NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
+    NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk.relative_risk"
+    ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.all_cause_mortality_risk.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
 

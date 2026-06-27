@@ -8,25 +8,26 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from vivarium.component import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium_public_health.risks.data_transformations import (
-    get_exposure_post_processor,
+from vivarium.engine.component import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.causal_factor.calibration_constant import (
+    register_risk_affected_attribute_producer,
 )
-from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.risks.effect import RiskEffect
-from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+from vivarium.public_health.causal_factor.distributions import MissingDataError
+from vivarium.public_health.causal_factor.utilities import get_exposure_post_processor
+from vivarium.public_health.risks.effect import RiskEffect
+from vivarium.public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGDistribution,
 )
-from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+from vivarium.public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
 )
-from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+from vivarium.public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
-from vivarium_public_health.utilities import TargetString, to_snake_case
+from vivarium.public_health.utilities import TargetString, to_snake_case
 
 from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.constants.data_values import (
@@ -120,7 +121,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         sex_specific_ordering = self.ordered_categories[sex]
         return pd.Series(
             np.array(sex_specific_ordering)[category_index],
-            name=self.risk + ".exposure",
+            name=self.causal_factor + ".exposure",
             index=quantiles.index,
         )
 
@@ -352,8 +353,14 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         # age_intervals must be set before super().setup() since it's used by
         # register_relative_risk_pipeline and initialize_relative_risk
         self.age_intervals = self.get_age_intervals(builder)
-        # super().setup() calls build_paf_lookup_table, register_relative_risk_pipeline, etc.
+        # super().setup() registers the relative risk pipeline, the (multiplicative)
+        # target modifier, and the calibration-constant modifier (overridden below).
         super().setup(builder)
+        # VPH 5.1 no longer builds ``self.paf_table`` on RiskEffect; build it here
+        # from the PAF data the base now loads onto ``self.paf_data``.
+        self.paf_table = self.build_lookup_table(
+            builder, "population_attributable_fraction", data_source=self.paf_data
+        )
         # Register a separate PAF pipeline that exposes the PAF for other components
         builder.value.register_attribute_producer(
             self.paf_pipeline_name,
@@ -361,9 +368,14 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             required_resources=[self.paf_table],
         )
 
-    def register_paf_modifier(self, builder: Builder) -> None:
+    def register_calibration_constant_modifier(self, builder: Builder) -> None:
+        # VPH 5.1 renamed ``register_paf_modifier`` -> ``register_calibration_constant_modifier``.
+        # MNCNH keeps its own ``{target}.paf`` pipeline (registered by LBWSGMortality),
+        # so inject the LBWSG PAF there rather than onto the VPH default
+        # ``{target}.calibration_constant`` pipeline.
+        target_paf_name = f"{self.target.name}.{self.target.measure}.paf"
         builder.value.register_attribute_modifier(
-            self.target_paf_name,
+            target_paf_name,
             modifier=lambda index, *_: self.population_view.get(
                 index, self.paf_pipeline_name
             ),
@@ -534,9 +546,9 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
         self._sim_step_name = None
         self.paf_pipeline_name = f"lbwsg_paf_on_{self.target.name}.{self.target.measure}.paf"
         self.age_intervals = self.get_age_intervals(builder)
-        # Call RiskEffect.setup() directly — this builds paf_table, rr_table etc.
-        # We skip LBWSGRiskEffect_.setup() because it registers an initializer
-        # with required_resources=["sex"] which doesn't exist in the PAF sim.
+        # Call RiskEffect.setup() directly — this loads PAF data, builds the rr
+        # machinery, etc. We skip LBWSGRiskEffect_.setup() because it registers an
+        # initializer with required_resources=["sex"] which doesn't exist in the PAF sim.
         RiskEffect.setup(self, builder)
         self.interpolator = self.get_interpolator(builder)
         exposure_columns = [
@@ -547,7 +559,11 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
             columns=self.rr_column_names,
             required_resources=exposure_columns + [COLUMNS.SEX_OF_CHILD],
         )
-        # Register a separate PAF pipeline after super has built paf_table
+        # VPH 5.1 no longer builds ``self.paf_table``; build it from ``self.paf_data``.
+        self.paf_table = self.build_lookup_table(
+            builder, "population_attributable_fraction", data_source=self.paf_data
+        )
+        # Register a separate PAF pipeline after building paf_table
         builder.value.register_attribute_producer(
             self.paf_pipeline_name,
             source=self.paf_table,
@@ -772,6 +788,9 @@ class LBWSGPAFObserver(Component):
         self.risk_effect = builder.components.get_component(
             f"risk_effect.low_birth_weight_and_short_gestation_on_{self.target}"
         )
+        # VPH 5.1 removed RiskEffect.adjust_target; read the per-simulant relative
+        # risk from the effect's relative_risk attribute pipeline instead.
+        self.relative_risk_name = self.risk_effect.relative_risk_name
         self.config = builder.configuration.stratification.lbwsg_paf
         self.pop_size = builder.configuration.population.population_size
         self.step_number = 1
@@ -814,7 +833,7 @@ class LBWSGPAFObserver(Component):
         return df
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
-        relative_risk = self.risk_effect.adjust_target(x.index, pd.Series(1, index=x.index))
+        relative_risk = self.population_view.get(x.index, self.relative_risk_name)
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index, "lbwsg_category")
         unique_sexes = x["sex_of_child"].unique()
@@ -974,11 +993,15 @@ class LBWSGMortality(Component):
         # Register pipelines
         self.get_acmr_paf_pipeline(builder)
 
-        builder.value.register_attribute_producer(
+        # RiskAffectedPipeline so LBWSGRiskEffect applies its relative risk via the
+        # multiplication combiner. The (1 - ACMR PAF) normalization stays in
+        # ``get_acmr_pipeline`` (reads the LBWSG ACMR PAF pipeline), so ACMR's own
+        # ``.calibration_constant`` stays 0 (no extra factor) and behavior is preserved.
+        register_risk_affected_attribute_producer(
+            builder,
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
-            required_resources=[self.all_cause_mortality_risk]
-            + [self.acmr_paf_pipeline_name],
+            required_resources=[self.all_cause_mortality_risk, self.acmr_paf_pipeline_name],
         )
 
         builder.population.register_initializer(
@@ -1041,9 +1064,7 @@ class LBWSGMortality(Component):
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
-        life_expectancy = builder.data.load(
-            "population.theoretical_minimum_risk_life_expectancy"
-        )
+        life_expectancy = builder.data.load(data_keys.POPULATION.TMRLE)
         # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
