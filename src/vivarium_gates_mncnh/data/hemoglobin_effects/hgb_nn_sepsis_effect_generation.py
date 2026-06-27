@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 import scipy
 from hgb_birth_effect_generation import *
-from vivarium import Artifact
-from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+from vivarium.artifact import Artifact
+from vivarium.public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk as LBWSGRisk_,
 )
-from vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation import (
+from vivarium.public_health.risks.implementations.low_birth_weight_and_short_gestation import (
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
 
