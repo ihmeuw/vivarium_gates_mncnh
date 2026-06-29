@@ -121,7 +121,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         sex_specific_ordering = self.ordered_categories[sex]
         return pd.Series(
             np.array(sex_specific_ordering)[category_index],
-            name=self.causal_factor + ".exposure",
+            name=self.risk + ".exposure",
             index=quantiles.index,
         )
 
@@ -353,8 +353,6 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         # age_intervals must be set before super().setup() since it's used by
         # register_relative_risk_pipeline and initialize_relative_risk
         self.age_intervals = self.get_age_intervals(builder)
-        # super().setup() registers the relative risk pipeline, the (multiplicative)
-        # target modifier, and the calibration-constant modifier (overridden below).
         super().setup(builder)
         # VPH 5.1 no longer builds ``self.paf_table`` on RiskEffect; build it here
         # from the PAF data the base now loads onto ``self.paf_data``.

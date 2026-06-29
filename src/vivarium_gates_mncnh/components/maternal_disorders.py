@@ -101,8 +101,8 @@ class MaternalDisorder(Component):
         return incidence_risk.reset_index()
 
     def get_incidence_risk(self, index: pd.Index) -> pd.Series:
-        # Raw incidence risk. The RiskAffectedPipeline applies the joint-PAF
-        # calibration (1 - calibration_constant) and any RiskEffect relative risks.
+        """Raw incidence risk. The RiskAffectedPipeline applies the joint-PAF
+        calibration (1 - calibration_constant) and any RiskEffect relative risks."""
         return self.incidence_risk_table(index)
 
 

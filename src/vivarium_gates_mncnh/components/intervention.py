@@ -78,11 +78,6 @@ class InterventionRiskEffect(Component):
     ##################
 
     def modify_target_pipeline(self, index: pd.Index) -> pd.Series[float]:
-        # The target is a RiskAffectedPipeline (multiplication combiner), so this
-        # modifier returns a per-simulant multiplier rather than the modified value.
-        # No intervention access is like a dichotomous risk factor: those with access
-        # are unaffected; those without get the no-intervention relative risk.
-        # Multiplying (1 - paf) directly is equivalent to a joint-PAF calibration.
         pop = self.population_view.get(index, self.col_required)
         no_intervention_idx = pop.index[pop == False]
         # NOTE: PAF is for no intervention
