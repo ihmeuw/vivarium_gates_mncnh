@@ -56,8 +56,6 @@ def test_sepsis_hemoglobin_shift_applied(
     by approximately the expected shift magnitude."""
     sim: InteractiveContext = request.getfixturevalue(state_fixture)
 
-    # hemoglobin.exposure is an attribute pipeline; request it via get_population
-    # so it's resolved into the returned table (it is no longer a value pipeline).
     pop = sim.get_population(
         [COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME, PIPELINES.HEMOGLOBIN_EXPOSURE]
     )
@@ -73,7 +71,6 @@ def test_sepsis_hemoglobin_shift_applied(
     if len(sepsis_idx) == 0:
         pytest.skip(f"No simulants with sepsis at {step_name}")
 
-    # Hemoglobin exposure values, read from the population table (attribute pipeline)
     hgb = live_births[PIPELINES.HEMOGLOBIN_EXPOSURE]
 
     mean_hgb_sepsis = hgb.loc[sepsis_idx].mean()
