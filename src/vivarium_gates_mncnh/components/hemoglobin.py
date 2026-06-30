@@ -117,6 +117,28 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     These are 1) define the RR for the minimum exposure to be the maximum rather than minimum value
     (higher hemoglobin is protective at this level of exposure) and 2) allow RRs to be below 1."""
 
+    # The hemoglobin RR/PAF data key both antepartum and postpartum hemorrhage
+    # under the single GBD cause "maternal_hemorrhage", so remap those targets to
+    # it before filtering on affected_entity. Other targets pass through unchanged.
+    _AFFECTED_ENTITY_REMAP = {
+        COLUMNS.ANTEPARTUM_HEMORRHAGE: "maternal_hemorrhage",
+        COLUMNS.POSTPARTUM_HEMORRHAGE: "maternal_hemorrhage",
+    }
+
+    def get_filtered_data(
+        self, builder: Builder, data_source: str | float | pd.DataFrame
+    ) -> float | pd.DataFrame:
+        data = super().get_data(builder, data_source)
+        if isinstance(data, pd.DataFrame) and "affected_entity" in data.columns:
+            entity = self._AFFECTED_ENTITY_REMAP.get(self.target.name, self.target.name)
+            mask = data["affected_entity"] == entity
+            columns_to_drop = ["affected_entity"]
+            if "affected_measure" in data.columns:
+                mask &= data["affected_measure"] == self.target.measure
+                columns_to_drop.append("affected_measure")
+            data = data[mask].drop(columns=columns_to_drop)
+        return data
+
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
@@ -327,28 +349,20 @@ class PostpartumHemoglobin(Component):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
-        self.shift_0_6w_tables = {
-            COLUMNS.ANTEPARTUM_HEMORRHAGE: self.build_lookup_table(
-                builder,
-                "aph_shift_0_6w",
-                data_source=data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W,
+        self.shift_0_6w = {
+            COLUMNS.ANTEPARTUM_HEMORRHAGE: self._load_shift(
+                builder, data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W
             ),
-            COLUMNS.POSTPARTUM_HEMORRHAGE: self.build_lookup_table(
-                builder,
-                "pph_shift_0_6w",
-                data_source=data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W,
+            COLUMNS.POSTPARTUM_HEMORRHAGE: self._load_shift(
+                builder, data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W
             ),
         }
-        self.shift_6w_9m_tables = {
-            COLUMNS.ANTEPARTUM_HEMORRHAGE: self.build_lookup_table(
-                builder,
-                "aph_shift_6w_9m",
-                data_source=data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M,
+        self.shift_6w_9m = {
+            COLUMNS.ANTEPARTUM_HEMORRHAGE: self._load_shift(
+                builder, data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M
             ),
-            COLUMNS.POSTPARTUM_HEMORRHAGE: self.build_lookup_table(
-                builder,
-                "pph_shift_6w_9m",
-                data_source=data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M,
+            COLUMNS.POSTPARTUM_HEMORRHAGE: self._load_shift(
+                builder, data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M
             ),
         }
 
@@ -380,7 +394,7 @@ class PostpartumHemoglobin(Component):
         living_idx = self._living_mothers(event.index)
         pop = self.population_view.get(living_idx, [COLUMNS.HEMOGLOBIN_EXPOSURE])
         hemoglobin = pop[COLUMNS.HEMOGLOBIN_EXPOSURE] + self._total_shift(
-            living_idx, self.shift_0_6w_tables
+            living_idx, self.shift_0_6w
         )
         self._update_postpartum_hemoglobin(living_idx, hemoglobin)
 
@@ -389,32 +403,45 @@ class PostpartumHemoglobin(Component):
         non_pregnant_hemoglobin = self.population_view.get(
             living_idx, [self.non_pregnant_hemoglobin_pipeline_name]
         )[self.non_pregnant_hemoglobin_pipeline_name]
-        hemoglobin = non_pregnant_hemoglobin + self._total_shift(
-            living_idx, self.shift_6w_9m_tables
-        )
+        hemoglobin = non_pregnant_hemoglobin + self._total_shift(living_idx, self.shift_6w_9m)
         self._update_postpartum_hemoglobin(living_idx, hemoglobin)
 
     def _living_mothers(self, index: pd.Index) -> pd.Index:
         is_alive = self.population_view.get(index, [COLUMNS.MOTHER_ALIVE])
         return is_alive.loc[is_alive[COLUMNS.MOTHER_ALIVE]].index
 
-    def _total_shift(
-        self, index: pd.Index, shift_tables: dict[str, LookupTable]
-    ) -> pd.Series:
-        """Sum the per-track shifts, applying each only to that track's cases."""
+    def _load_shift(self, builder: Builder, key: str) -> float:
+        """Load a hemorrhage hemoglobin shift as a single g/L scalar.
+
+        The shift is age/sex-agnostic (one value per draw, replicated across the
+        female demography in the artifact), so reduce it to a scalar for the
+        input draw rather than building a demographic lookup table.
+        """
+        data = builder.data.load(key)
+        if isinstance(data, (int, float)):
+            return float(data)
+        data = data.drop(columns=[c for c in ["index"] if c in data.columns])
+        draw_column = f"draw_{builder.configuration.input_data.input_draw_number}"
+        for candidate in (draw_column, "value"):
+            if candidate in data.columns:
+                return float(data[candidate].iloc[0])
+        return float(data.select_dtypes("number").to_numpy().reshape(-1)[0])
+
+    def _total_shift(self, index: pd.Index, shifts: dict[str, float]) -> pd.Series:
+        """Sum the per-track scalar shifts, applying each only to that track's cases."""
         pop = self.population_view.get(
             index, [COLUMNS.ANTEPARTUM_HEMORRHAGE, COLUMNS.POSTPARTUM_HEMORRHAGE]
         )
         total = pd.Series(0.0, index=index)
-        for column, table in shift_tables.items():
+        for column, shift in shifts.items():
             had_hemorrhage = pop[column] != HEMORRHAGE_SEVERITY.NONE
-            total = total + table(index).where(had_hemorrhage, 0.0)
+            total = total + had_hemorrhage * shift
         return total
 
     def _update_postpartum_hemoglobin(self, index: pd.Index, hemoglobin: pd.Series) -> None:
-        self.population_view.update(
-            pd.DataFrame(
-                {COLUMNS.POSTPARTUM_HEMOGLOBIN_EXPOSURE: hemoglobin},
-                index=index,
-            )
-        )
+        def _set(col: pd.Series) -> pd.Series:
+            result = col.copy()
+            result.loc[index] = hemoglobin
+            return result
+
+        self.population_view.update(COLUMNS.POSTPARTUM_HEMOGLOBIN_EXPOSURE, _set)
