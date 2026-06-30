@@ -10,11 +10,13 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
 
+from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_keys import POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
     CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
+    HEMORRHAGE_SEVERITY,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
     PIPELINES,
@@ -57,6 +59,9 @@ class MaternalDisordersBurden(Component):
     def __init__(self) -> None:
         super().__init__()
         self.maternal_disorders = MATERNAL_DISORDERS
+        # Hemorrhage mortality is gated on severity rather than a boolean column;
+        # the indicator is derived from the per-track severity columns instead.
+        self.severity_derived_disorders = [COLUMNS.MATERNAL_HEMORRHAGE]
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -101,7 +106,7 @@ class MaternalDisordersBurden(Component):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.MORTALITY:
             return
 
-        pop = self.population_view.get(event.index, self.maternal_disorders)
+        pop = self._get_disorder_indicators(event.index)
         has_maternal_disorders = pop.loc[pop.any(axis=1)]
 
         # Get raw and conditional case fatality rates for each simulant
@@ -150,6 +155,11 @@ class MaternalDisordersBurden(Component):
 
     def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
+        # Hemorrhage CFR is keyed to severe-case incidence (csmr/inc_severe, clipped),
+        # since only severe cases carry mortality.
+        if cause == COLUMNS.MATERNAL_HEMORRHAGE:
+            return builder.data.load(data_keys.MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE)
+
         csmr = builder.data.load(f"cause.{cause}.cause_specific_mortality_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
@@ -163,6 +173,31 @@ class MaternalDisordersBurden(Component):
         cfr = (csmr / incidence_rate).fillna(0).reset_index()
 
         return cfr
+
+    def _get_disorder_indicators(self, index: pd.Index) -> pd.DataFrame:
+        """Build a per-simulant boolean indicator for each maternal disorder.
+
+        Non-hemorrhage disorders read their own boolean state-table column; the
+        hemorrhage indicator is True when a simulant has a severe antepartum or
+        postpartum hemorrhage, so only severe cases carry mortality.
+        """
+        boolean_disorders = [
+            cause
+            for cause in self.maternal_disorders
+            if cause not in self.severity_derived_disorders
+        ]
+        indicators = self.population_view.get(index, boolean_disorders)
+
+        severity = self.population_view.get(
+            index,
+            [COLUMNS.ANTEPARTUM_HEMORRHAGE, COLUMNS.POSTPARTUM_HEMORRHAGE],
+        )
+        has_severe_hemorrhage = (
+            severity[COLUMNS.ANTEPARTUM_HEMORRHAGE] == HEMORRHAGE_SEVERITY.SEVERE
+        ) | (severity[COLUMNS.POSTPARTUM_HEMORRHAGE] == HEMORRHAGE_SEVERITY.SEVERE)
+        indicators[COLUMNS.MATERNAL_HEMORRHAGE] = has_severe_hemorrhage
+
+        return indicators[self.maternal_disorders]
 
     def calculate_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
         """Calculate the total and proportional case fatality rate for each simulant."""

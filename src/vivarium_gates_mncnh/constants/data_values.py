@@ -81,6 +81,7 @@ class _SimulationEventNames(NamedTuple):
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
+    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
@@ -177,7 +178,11 @@ class __Columns(NamedTuple):
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
+    # Shared hemorrhage cause-of-death label / CSMR cause name. This is NOT a
+    # state-table column any more; per-track severity lives in the columns below.
     MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
+    POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -204,6 +209,15 @@ class __Columns(NamedTuple):
 
 
 COLUMNS = __Columns()
+
+
+class __HemorrhageSeverity(NamedTuple):
+    NONE: str = "none"
+    MODERATE: str = "moderate"
+    SEVERE: str = "severe"
+
+
+HEMORRHAGE_SEVERITY = __HemorrhageSeverity()
 
 
 # TODO: add other maternal disorders when implemented
@@ -273,7 +287,8 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
-    MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    ANTEPARTUM_HEMORRHAGE_INCIDENCE_RISK = "antepartum_hemorrhage.incidence_risk"
+    POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"

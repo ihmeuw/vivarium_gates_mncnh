@@ -15,7 +15,8 @@ components:
             - ANCAttendance()
             - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
-            - MaternalDisorder("maternal_hemorrhage")
+            - AntepartumHemorrhage()
+            - PostpartumHemorrhage()
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
             - ResidualMaternalDisorders()
             - AbortionMiscarriageEctopicPregnancy()
@@ -54,7 +55,8 @@ components:
             - InterventionAccess('misoprostol')
             - ACSAccess()
             - PostpartumDepression()
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.antepartum_hemorrhage.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - CorrelatedPropensities()
             - AnemiaScreening()
@@ -107,6 +109,7 @@ configuration:
             - 'antibiotics_access'
             - 'probiotics_access'
             - 'maternal_obstructed_labor_and_uterine_rupture'
+            - 'antepartum_hemorrhage'
             - 'maternal_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'residual_maternal_disorders'

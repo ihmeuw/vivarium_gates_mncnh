@@ -11,8 +11,10 @@ from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
+    HEMORRHAGE_SEVERITY,
     POSTPARTUM_DEPRESSION_CASE_TYPES,
     PREGNANCY_OUTCOMES,
+    SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location
@@ -106,6 +108,151 @@ class MaternalDisorder(Component):
         incidence_risk = self.incidence_risk_table(index)
         joint_paf = self.population_view.get(index, self.joint_paf_pipeline_name)
         return incidence_risk * (1 - joint_paf)
+
+
+class MaternalHemorrhageBase(Component):
+    """Shared severity logic for antepartum and postpartum hemorrhage.
+
+    Subclasses fix the severity column, the event the disorder fires on, the
+    incidence-risk artifact key, and which simulants are eligible. On the firing
+    event, incident cases are drawn from the ``{type}.incidence_risk`` pipeline and
+    each is assigned a moderate or severe severity by the age/sex-specific severe
+    fraction.
+    """
+
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    "incidence_risk_data": self.incidence_risk_key,
+                    "severe_fraction": data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION,
+                }
+            }
+        }
+
+    def __init__(
+        self,
+        hemorrhage_column: str,
+        event_name: str,
+        incidence_risk_key: str,
+    ) -> None:
+        super().__init__()
+        self.hemorrhage_column = hemorrhage_column
+        self.event_name = event_name
+        self.incidence_risk_key = incidence_risk_key
+        self.incidence_risk_pipeline_name = f"{hemorrhage_column}.incidence_risk"
+        self.joint_paf_pipeline_name = f"{hemorrhage_column}.incidence_risk.paf"
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.randomness = builder.randomness.get_stream(self.name)
+
+        self.incidence_risk_table = self.build_lookup_table(builder, "incidence_risk_data")
+        self.severe_fraction_table = self.build_lookup_table(builder, "severe_fraction")
+
+        builder.value.register_attribute_producer(
+            self.incidence_risk_pipeline_name,
+            source=self.calculate_risk_deleted_incidence,
+        )
+
+        paf = builder.lookup.build_table(0)
+        builder.value.register_attribute_producer(
+            self.joint_paf_pipeline_name,
+            source=lambda index: [paf(index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
+
+        builder.population.register_initializer(
+            self.initialize_hemorrhage,
+            columns=[self.hemorrhage_column],
+            required_resources=[COLUMNS.PREGNANCY_OUTCOME],
+        )
+
+    def initialize_hemorrhage(self, pop_data: SimulantData) -> None:
+        self.population_view.initialize(
+            pd.DataFrame(
+                {self.hemorrhage_column: HEMORRHAGE_SEVERITY.NONE},
+                index=pop_data.index,
+            )
+        )
+
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != self.event_name:
+            return
+
+        eligible_idx = self.get_eligible_simulants(event)
+        incidence_risk = self.population_view.get(
+            eligible_idx, self.incidence_risk_pipeline_name
+        )
+        incident_idx = self.randomness.filter_for_probability(
+            eligible_idx,
+            incidence_risk,
+            f"got_{self.hemorrhage_column}_choice",
+        )
+
+        severe_fraction = self.severe_fraction_table(incident_idx)
+        # p is (n_simulants, 2) so each incident simulant uses its own severe fraction.
+        severity_probabilities = np.column_stack([1 - severe_fraction, severe_fraction])
+        severity = self.randomness.choice(
+            incident_idx,
+            [HEMORRHAGE_SEVERITY.MODERATE, HEMORRHAGE_SEVERITY.SEVERE],
+            severity_probabilities,
+            f"{self.hemorrhage_column}_severity_choice",
+        )
+
+        def _set_severity(col: pd.Series) -> pd.Series:
+            result = col.copy()
+            result.loc[incident_idx] = severity
+            return result
+
+        self.population_view.update(self.hemorrhage_column, _set_severity)
+
+    def get_eligible_simulants(self, event: Event) -> pd.Index:
+        """Return the index of simulants eligible for incidence on this event."""
+        raise NotImplementedError
+
+    def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:
+        incidence_risk = self.incidence_risk_table(index)
+        joint_paf = self.population_view.get(index, self.joint_paf_pipeline_name)
+        return incidence_risk * (1 - joint_paf)
+
+
+class AntepartumHemorrhage(MaternalHemorrhageBase):
+    """Pregnancy-scaled hemorrhage applied to all pregnant simulants after ultrasound."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            COLUMNS.ANTEPARTUM_HEMORRHAGE,
+            SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE,
+            data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK,
+        )
+
+    def get_eligible_simulants(self, event: Event) -> pd.Index:
+        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        return pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME
+        ].index
+
+
+class PostpartumHemorrhage(MaternalHemorrhageBase):
+    """Birth-scaled hemorrhage applied to full-term births at the maternal_hemorrhage event."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            COLUMNS.POSTPARTUM_HEMORRHAGE,
+            SIMULATION_EVENT_NAMES.MATERNAL_HEMORRHAGE,
+            data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK,
+        )
+
+    def get_eligible_simulants(self, event: Event) -> pd.Index:
+        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        return pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            )
+        ].index
 
 
 class PostpartumDepression(MaternalDisorder):

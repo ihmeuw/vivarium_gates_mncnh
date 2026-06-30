@@ -26,8 +26,11 @@ from vivarium_gates_mncnh.components.lbwsg import (
 )
 from vivarium_gates_mncnh.components.maternal_disorders import (
     AbortionMiscarriageEctopicPregnancy,
+    AntepartumHemorrhage,
     MaternalDisorder,
+    MaternalHemorrhageBase,
     PostpartumDepression,
+    PostpartumHemorrhage,
     ResidualMaternalDisorders,
 )
 from vivarium_gates_mncnh.components.mortality import (
