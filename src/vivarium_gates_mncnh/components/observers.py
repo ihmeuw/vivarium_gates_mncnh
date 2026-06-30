@@ -13,6 +13,7 @@ from vivarium_public_health.results import ResultsStratifier as ResultsStratifie
 
 from vivarium_gates_mncnh.constants.data_keys import (
     IFA_SUPPLEMENTATION,
+    MATERNAL_HEMORRHAGE,
     MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,
 )
@@ -24,9 +25,11 @@ from vivarium_gates_mncnh.constants.data_values import (
     DAYS_PER_WEEK,
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
+    HEMORRHAGE_SEVERITY,
     INTERVENTIONS,
     LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
+    NON_PREGNANT_ANEMIA_THRESHOLDS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -41,12 +44,18 @@ from vivarium_gates_mncnh.constants.metadata import (
 from vivarium_gates_mncnh.utilities import get_child_age_bins
 
 
-def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
-    """Use anemia thresholds to determine anemia status."""
+def get_anemia_status_from_hemoglobin(
+    hemoglobin: pd.Series, thresholds: list[int] = ANEMIA_THRESHOLDS
+) -> pd.Series:
+    """Use anemia thresholds to determine anemia status.
+
+    Defaults to the pregnant thresholds; pass NON_PREGNANT_ANEMIA_THRESHOLDS
+    for the non-pregnant (9-month postpartum) classification.
+    """
     anemia_status = (
         pd.cut(
             hemoglobin,
-            bins=[-np.inf] + ANEMIA_THRESHOLDS,
+            bins=[-np.inf] + thresholds,
             labels=["severe", "moderate", "mild"],
             right=False,
         )
@@ -447,6 +456,16 @@ class BurdenObserver(PublicHealthObserver):
 
 
 class MaternalDisordersBurdenObserver(BurdenObserver):
+    # Per-track hemorrhage severity columns. A simulant had a hemorrhage of a
+    # given severity iff its track column equals that severity.
+    HEMORRHAGE_TRACKS = [COLUMNS.ANTEPARTUM_HEMORRHAGE, COLUMNS.POSTPARTUM_HEMORRHAGE]
+    HEMORRHAGE_SEVERITIES = [HEMORRHAGE_SEVERITY.MODERATE, HEMORRHAGE_SEVERITY.SEVERE]
+    # Severity -> direct artifact key for YLDs per case.
+    HEMORRHAGE_YLDS_PER_CASE_KEYS = {
+        HEMORRHAGE_SEVERITY.MODERATE: MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE,
+        HEMORRHAGE_SEVERITY.SEVERE: MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE,
+    }
+
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
@@ -455,8 +474,19 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
                     "exclude": [],
                     "include": [],
                     "data_sources": {
-                        f"{cause}_ylds": partial(self.load_ylds_per_case, cause=cause)
-                        for cause in self.burden_disorders
+                        **{
+                            f"{cause}_ylds": partial(self.load_ylds_per_case, cause=cause)
+                            for cause in self.non_hemorrhage_disorders
+                        },
+                        # Severity-specific YLDs/case for each hemorrhage track. Both
+                        # tracks of a given severity share the same artifact key.
+                        **{
+                            f"{track}_{severity}_ylds": self.HEMORRHAGE_YLDS_PER_CASE_KEYS[
+                                severity
+                            ]
+                            for track in self.HEMORRHAGE_TRACKS
+                            for severity in self.HEMORRHAGE_SEVERITIES
+                        },
                     },
                 },
             },
@@ -469,17 +499,28 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
             ylls_column=COLUMNS.MOTHER_YEARS_OF_LIFE_LOST,
             cause_of_death_column=COLUMNS.MOTHER_CAUSE_OF_DEATH,
         )
+        # Hemorrhage YLDs/counts are observed per track and severity below, so it
+        # is excluded from the boolean per-cause loop. It remains in
+        # burden_disorders so deaths/YLLs and cause-of-death still cover it.
+        self.non_hemorrhage_disorders = [
+            cause for cause in self.burden_disorders if cause != COLUMNS.MATERNAL_HEMORRHAGE
+        ]
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.yld_lookup_tables = {
             cause: self.build_lookup_table(builder, f"{cause}_ylds")
-            for cause in self.burden_disorders
+            for cause in self.non_hemorrhage_disorders
+        }
+        self.hemorrhage_yld_lookup_tables = {
+            (track, severity): self.build_lookup_table(builder, f"{track}_{severity}_ylds")
+            for track in self.HEMORRHAGE_TRACKS
+            for severity in self.HEMORRHAGE_SEVERITIES
         }
 
     def register_observations(self, builder: Builder) -> None:
         super().register_observations(builder)
-        for cause in self.burden_disorders:
+        for cause in self.non_hemorrhage_disorders:
             self.register_adding_observation(
                 builder=builder,
                 name=f"{cause}_counts",
@@ -499,12 +540,43 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
                 to_observe=self.to_observe,
                 aggregator=partial(self.calculate_ylds, cause=cause),
             )
+        for track in self.HEMORRHAGE_TRACKS:
+            for severity in self.HEMORRHAGE_SEVERITIES:
+                pop_filter = f"{track} == '{severity}'"
+                self.register_adding_observation(
+                    builder=builder,
+                    name=f"{track}_{severity}_counts",
+                    pop_filter=pop_filter,
+                    requires_attributes=[track],
+                    additional_stratifications=self.configuration.include,
+                    excluded_stratifications=self.configuration.exclude,
+                    to_observe=self.to_observe,
+                )
+                self.register_adding_observation(
+                    builder=builder,
+                    name=f"{track}_{severity}_ylds",
+                    pop_filter=pop_filter,
+                    requires_attributes=[track],
+                    additional_stratifications=self.configuration.include,
+                    excluded_stratifications=self.configuration.exclude,
+                    to_observe=self.to_observe,
+                    aggregator=partial(
+                        self.calculate_hemorrhage_ylds, track=track, severity=severity
+                    ),
+                )
 
     def to_observe(self, event: Event) -> bool:
         return self._sim_step_name() == SIMULATION_EVENT_NAMES.MORTALITY
 
     def calculate_ylds(self, data: pd.DataFrame, cause: str) -> float:
         yld_per_case = self.yld_lookup_tables[cause](data.index)
+        return yld_per_case.sum()
+
+    def calculate_hemorrhage_ylds(
+        self, data: pd.DataFrame, track: str, severity: str
+    ) -> float:
+        """Sum severity-specific YLDs per case for a hemorrhage track."""
+        yld_per_case = self.hemorrhage_yld_lookup_tables[(track, severity)](data.index)
         return yld_per_case.sum()
 
     ##################
@@ -580,6 +652,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
         self.hemoglobin_name = PIPELINES.HEMOGLOBIN_EXPOSURE
+        self.postpartum_hemoglobin_name = COLUMNS.POSTPARTUM_HEMOGLOBIN_EXPOSURE
         self.gestational_age_name = COLUMNS.GESTATIONAL_AGE_EXPOSURE
 
     def register_observations(self, builder: Builder) -> None:
@@ -593,6 +666,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
                 COLUMNS.TIME_OF_LATER_ANC_VISIT,
                 COLUMNS.ANC_ATTENDANCE,
                 PIPELINES.HEMOGLOBIN_EXPOSURE,
+                COLUMNS.POSTPARTUM_HEMOGLOBIN_EXPOSURE,
                 COLUMNS.GESTATIONAL_AGE_EXPOSURE,
             ],
             additional_stratifications=self.configuration.include,
@@ -610,6 +684,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
                 COLUMNS.TIME_OF_LATER_ANC_VISIT,
                 COLUMNS.ANC_ATTENDANCE,
                 PIPELINES.HEMOGLOBIN_EXPOSURE,
+                COLUMNS.POSTPARTUM_HEMOGLOBIN_EXPOSURE,
                 COLUMNS.GESTATIONAL_AGE_EXPOSURE,
             ],
             additional_stratifications=self.configuration.include,
@@ -623,6 +698,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
             SIMULATION_EVENT_NAMES.ULTRASOUND,
+            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_9_MONTHS,
             SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
         ]
 
@@ -638,10 +714,15 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         defined for live births and stillbirths by that point. This gestational
         age exposure will be modified by any iron interventions received at a
         first trimester ANC visit.
+
+        The two postpartum windows read the post-hemorrhage hemoglobin column
+        instead of the live pipeline: the 6-week value is classified with
+        pregnant thresholds, the 9-month value with non-pregnant thresholds.
+        Because that column is written during the main phase of each
+        postpartum-hemoglobin step, each value is tallied one step later (during
+        time_step__prepare), so the totals are unaffected by the lifecycle phase.
         """
-        anemia_status = get_anemia_status_from_hemoglobin(
-            self.population_view.get(data.index, self.hemoglobin_name)
-        )
+        anemia_status = self._get_anemia_status(data.index)
         dw = self.get_disability_weight_from_anemia_status(anemia_status)
         duration_years = self._get_duration_years(data)
         ylds = dw * duration_years
@@ -659,15 +740,48 @@ class AnemiaYLDsObserver(PublicHealthObserver):
     # Helper methods #
     ##################
 
+    # Postpartum windows read the post-hemorrhage hemoglobin column rather than
+    # the live pipeline, with the thresholds used to classify each. The column is
+    # written during the main phase of each postpartum-hemoglobin step, so each
+    # value is observed (during time_step__prepare) at the *following* step:
+    # the 6-week value at the 9-month step, the 9-month value at early neonatal
+    # mortality. See the class docstring of PostpartumHemoglobin for the writes.
+    POSTPARTUM_STEP_THRESHOLDS = {
+        SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_9_MONTHS: ANEMIA_THRESHOLDS,
+        SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: NON_PREGNANT_ANEMIA_THRESHOLDS,
+    }
+
+    def _get_anemia_status(self, index: pd.Index) -> pd.Series:
+        """Classify anemia from the hemoglobin source for the current event.
+
+        In-pregnancy events use the live hemoglobin pipeline and pregnant
+        thresholds. The postpartum windows use the post-hemorrhage hemoglobin
+        column with pregnant thresholds for the 6-week value and non-pregnant
+        thresholds for the 9-month value.
+        """
+        step = self._sim_step_name()
+        if step in self.POSTPARTUM_STEP_THRESHOLDS:
+            hemoglobin = self.population_view.get(index, self.postpartum_hemoglobin_name)
+            return get_anemia_status_from_hemoglobin(
+                hemoglobin, thresholds=self.POSTPARTUM_STEP_THRESHOLDS[step]
+            )
+        hemoglobin = self.population_view.get(index, self.hemoglobin_name)
+        return get_anemia_status_from_hemoglobin(hemoglobin)
+
     def _get_duration_years(self, data: pd.DataFrame) -> pd.Series | float:
         """Get the duration in years for the current simulation event."""
         duration_calculators = {
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
+            # 6-week value (delivery to 6 weeks): 6 weeks in years.
+            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_9_MONTHS: lambda df: pd.Series(
                 6 * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
-            ),  # 6 weeks in years
+            ),
+            # 9-month value (6 weeks to 9 months): 40 - 6 = 34 weeks in years.
+            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
+                (40 - 6) * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
+            ),
         }
         return duration_calculators[self._sim_step_name()](data)
 

@@ -548,7 +548,12 @@ HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # low hemoglobin that tests low
 HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # adequate hemoglobin that tests adequate
 LOW_HEMOGLOBIN_THRESHOLD = 100
 
-ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
+# Pregnant thresholds (used in pregnancy and at the 6-week postpartum step).
+# Ordering is severe, moderate, mild.
+ANEMIA_THRESHOLDS = [70, 100, 110]
+# Non-pregnant thresholds (used at the 9-month postpartum step). Ordering is
+# severe, moderate, mild.
+NON_PREGNANT_ANEMIA_THRESHOLDS = [80, 110, 120]
 
 RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
     "maternal_hypertensive_disorders",  # 369
