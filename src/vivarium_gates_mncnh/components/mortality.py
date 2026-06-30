@@ -37,9 +37,7 @@ class MaternalDisordersBurden(Component):
         return {
             self.name: {
                 "data_sources": {
-                    **{
-                        "life_expectancy": "population.theoretical_minimum_risk_life_expectancy"
-                    },
+                    **{"life_expectancy": POPULATION.TMRLE},
                     **{
                         f"{cause}_case_fatality_rate": partial(
                             self.load_cfr_data, cause=cause
@@ -227,6 +225,7 @@ class NeonatalMortality(Component):
             columns=[
                 COLUMNS.CHILD_ALIVE,
                 COLUMNS.CHILD_CAUSE_OF_DEATH,
+                COLUMNS.CHILD_EXIT_STEP,
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
             ],
             required_resources=[COLUMNS.PREGNANCY_OUTCOME],
@@ -255,6 +254,7 @@ class NeonatalMortality(Component):
             {
                 COLUMNS.CHILD_ALIVE: False,
                 COLUMNS.CHILD_CAUSE_OF_DEATH: "not_dead",
+                COLUMNS.CHILD_EXIT_STEP: pd.NA,
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST: 0.0,
             },
             index=pop_data.index,
@@ -320,6 +320,10 @@ class NeonatalMortality(Component):
                 lambda current: cause_of_death,
             )
             self.population_view.update(
+                COLUMNS.CHILD_EXIT_STEP,
+                lambda current: pd.Series(self._sim_step_name(), index=dead_idx),
+            )
+            self.population_view.update(
                 COLUMNS.CHILD_YEARS_OF_LIFE_LOST,
                 lambda current: life_expectancy_values.rename(
                     COLUMNS.CHILD_YEARS_OF_LIFE_LOST
@@ -338,9 +342,7 @@ class NeonatalMortality(Component):
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
-        life_expectancy = builder.data.load(
-            "population.theoretical_minimum_risk_life_expectancy"
-        )
+        life_expectancy = builder.data.load(POPULATION.TMRLE)
         # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy

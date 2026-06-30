@@ -1041,9 +1041,7 @@ class LBWSGMortality(Component):
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
-        life_expectancy = builder.data.load(
-            "population.theoretical_minimum_risk_life_expectancy"
-        )
+        life_expectancy = builder.data.load(data_keys.POPULATION.TMRLE)
         # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy
