@@ -88,6 +88,10 @@ class _SimulationEventNames(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
+    # Postpartum hemoglobin shift periods. Fire after mortality so shifts only
+    # touch mothers who survived labor.
+    POSTPARTUM_HEMOGLOBIN_6_WEEKS = "postpartum_hemoglobin_6_weeks"
+    POSTPARTUM_HEMOGLOBIN_9_MONTHS = "postpartum_hemoglobin_9_months"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
 
@@ -194,6 +198,10 @@ class __Columns(NamedTuple):
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
     HEMOGLOBIN_EXPOSURE = "hemoglobin_exposure"
+    # Postpartum hemoglobin after the maternal hemorrhage shifts. Holds the
+    # 0-6w value after the 6-week event and is overwritten with the 6w-9m value
+    # after the 9-month event.
+    POSTPARTUM_HEMOGLOBIN_EXPOSURE = "postpartum_hemoglobin_exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     IV_IRON_INTERVENTION = "iv_iron_intervention"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
@@ -292,6 +300,9 @@ class __Pipelines(NamedTuple):
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
+    # PPF of the non-pregnant hemoglobin distribution, driven by the same
+    # propensity that assigned the simulant's pregnant hemoglobin.
+    NON_PREGNANT_HEMOGLOBIN_EXPOSURE_PPF = "non_pregnant_hemoglobin.exposure_distribution.ppf"
     FIRST_ANC_HEMOGLOBIN_EXPOSURE = "first_anc_hemoglobin.exposure"
     IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention.exposure"

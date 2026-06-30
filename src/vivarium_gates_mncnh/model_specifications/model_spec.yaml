@@ -54,6 +54,7 @@ components:
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
             - ACSAccess()
+            - PostpartumHemoglobin()
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.antepartum_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_hemorrhage.incidence_risk')
@@ -115,6 +116,8 @@ configuration:
             - 'residual_maternal_disorders'
             - 'abortion_miscarriage_ectopic_pregnancy'
             - 'mortality'
+            - 'postpartum_hemoglobin_6_weeks'
+            - 'postpartum_hemoglobin_9_months'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
             - 'postpartum_depression'
