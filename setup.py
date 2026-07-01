@@ -47,8 +47,12 @@ if __name__ == "__main__":
         "vivarium_build_utils>=4.0.0,<5.0.0",
         "gbd_mapping>=5.0.0,<6.0.0",
         "layered_config_tree<5.0.0",
-        "vivarium_engine>=5.3.0, <5.4.0",
-        "vivarium_public_health>=6.3.1, <6.4.0",
+        # Temporarily install engine + public-health from the unreleased,
+        # stacked age-sims branch of the vivarium-suite monorepo (engine 5.4.0
+        # + public-health 6.4.0 priority work). Revert to version pins once
+        # those releases land on PyPI.
+        "vivarium_engine @ git+https://github.com/ihmeuw/vivarium-suite.git@albrja/mic-6867/age-sims#subdirectory=libs/engine",
+        "vivarium_public_health @ git+https://github.com/ihmeuw/vivarium-suite.git@albrja/mic-6867/age-sims#subdirectory=libs/public-health",
         "click",
         "jinja2",
         "pyyaml",
@@ -59,7 +63,9 @@ if __name__ == "__main__":
 
     data_requirements = ["vivarium_inputs>=8.0.0,<9.0.0"]
     cluster_requirements = [
-        "vivarium_cluster_tools>=4.0.0,<5.0.0",
+        # [cluster] pulls jobmon_installer_ihme (→ jobmon), which psimulate
+        # needs at import time; a plain vivarium_cluster_tools install omits it.
+        "vivarium_cluster_tools[cluster]>=4.0.0,<5.0.0",
         "drmaa",
     ]
     test_requirements = [
