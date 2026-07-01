@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.state_machine import Machine, State, TransientState
-from vivarium.types import ClockTime
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.state_machine import Machine, State, TransientState
+from vivarium.engine.types import ClockTime
 
 from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 

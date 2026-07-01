@@ -5,10 +5,10 @@ from typing import Any, Generator
 import pandas as pd
 import pytest
 import yaml
-from layered_config_tree import LayeredConfigTree
 from pytest import TempPathFactory
-from vivarium import Artifact
-from vivarium_testing_utils import FuzzyChecker
+from vivarium.artifact import Artifact
+from vivarium.config_tree import ConfigTree
+from vivarium.testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
@@ -89,7 +89,7 @@ def sim_state_step_mapper() -> dict[str, int]:
 
 @pytest.fixture(scope="session")
 def artifact(model_spec_path) -> Artifact:
-    config = LayeredConfigTree(model_spec_path)
+    config = ConfigTree(model_spec_path)
     artifact = Artifact(config.configuration.input_data.artifact_path)
     return artifact
 

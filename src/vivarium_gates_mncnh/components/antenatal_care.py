@@ -5,18 +5,18 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness.stream import _choice
-from vivarium.framework.state_machine import (
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.randomness.stream import _choice
+from vivarium.engine.framework.state_machine import (
     State,
     TransientState,
     Transition,
     TransitionSet,
 )
-from vivarium.types import ClockTime, DataInput
+from vivarium.engine.types import ClockTime, DataInput
 
 from vivarium_gates_mncnh.components.tree import DecisionTreeState, TreeMachine
 from vivarium_gates_mncnh.constants.data_keys import ANC

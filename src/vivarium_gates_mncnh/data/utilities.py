@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Union
 
 import pandas as pd
-from gbd_mapping import causes, covariates, risk_factors
-from vivarium.framework.artifact import EntityKey
-from vivarium.framework.randomness import get_hash
+from vivarium.artifact import EntityKey
+from vivarium.engine.framework.randomness import get_hash
+from vivarium.gbd_mapping import causes, covariates, risk_factors
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
 from vivarium_gates_mncnh.constants.data_keys import REMAP_KEY_GROUPS

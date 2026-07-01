@@ -1,5 +1,5 @@
 import pandas as pd
-from vivarium import InteractiveContext
+from vivarium.engine import InteractiveContext
 
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
 
