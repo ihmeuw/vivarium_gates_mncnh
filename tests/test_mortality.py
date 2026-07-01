@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from vivarium.artifact import Artifact
 from vivarium.engine import InteractiveContext
-from vivarium_testing_utils import FuzzyChecker
+from vivarium.testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.components.mortality import MaternalDisordersBurden
 from vivarium_gates_mncnh.constants.data_keys import POPULATION
