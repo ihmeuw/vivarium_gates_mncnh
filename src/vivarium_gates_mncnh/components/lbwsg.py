@@ -121,7 +121,7 @@ class OrderedLBWSGDistribution(LBWSGDistribution):
         sex_specific_ordering = self.ordered_categories[sex]
         return pd.Series(
             np.array(sex_specific_ordering)[category_index],
-            name=self.risk + ".exposure",
+            name=self.causal_factor + ".exposure",
             index=quantiles.index,
         )
 
