@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     data_requirements = ["vivarium_inputs>=8.0.0,<9.0.0"]
     cluster_requirements = [
-        "vivarium_cluster_tools>=4.0.0,<5.0.0",
+        "vivarium_cluster_tools[cluster]>=4.0.0,<5.0.0",
         "drmaa",
     ]
     test_requirements = [
