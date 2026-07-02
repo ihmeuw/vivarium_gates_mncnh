@@ -44,7 +44,10 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies<2.0.0",
         "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
-        "vivarium_build_utils>=3.0.1",
+        # Pin to <=3.3.2 until this model repo's deps are migrated to the post-monorepo names
+        # NOTE: v3.3.3 / v3.3.4 are post-archive sunset releases of the standalone vbu repo that
+        #   were never tagged in the monorepo, so the Jenkins shared library loader can't find them
+        "vivarium_build_utils>=3.0.1,<=3.3.2",
         "gbd_mapping>=5.0.0,<6.0.0",
         "layered_config_tree<5.0.0",
         "vivarium>=4.0.0, <4.1.0",
@@ -58,7 +61,10 @@ if __name__ == "__main__":
     setup_requires = ["setuptools_scm"]
 
     data_requirements = ["vivarium_inputs>=7.1.4"]
-    cluster_requirements = ["vivarium_cluster_tools>=2.0.0,<4.0.0"]
+    cluster_requirements = [
+        "vivarium_cluster_tools @ git+https://github.com/ihmeuw/vivarium_cluster_tools.git@epic/phase-3-automated-validation",
+        "drmaa",
+    ]
     test_requirements = [
         "vivarium_dependencies[pytest]",
         "papermill",
@@ -75,7 +81,8 @@ if __name__ == "__main__":
     ]
 
     setup(
-        name=about["__title__"],
+        # name is declared statically in pyproject.toml's [project] block.
+        # Setuptools errors if it's also passed here.
         description=about["__summary__"],
         long_description=long_description,
         license=about["__license__"],
@@ -107,8 +114,9 @@ if __name__ == "__main__":
             "tag_regex": r"^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$",
         },
         setup_requires=setup_requires,
-        entry_points="""
-            [console_scripts]
-            make_artifacts=vivarium_gates_mncnh.tools.cli:make_artifacts
-        """,
+        entry_points={
+            "console_scripts": [
+                "make_artifacts=vivarium_gates_mncnh.tools.cli:make_artifacts",
+            ],
+        },
     )
