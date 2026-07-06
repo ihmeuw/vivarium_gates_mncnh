@@ -66,9 +66,11 @@ if __name__ == "__main__":
         "vivarium_dependencies[pytest]",
         "papermill",
         "jupyterlab",
-        "vivarium_testing_utils>=0.7.0,<0.8.0",
+        "vivarium_testing_utils>=0.7.4",
     ]
-    validation_requirements = ["vivarium_testing_utils[validation]>=0.7.0,<0.8.0"]
+    validation_requirements = [
+        "vivarium_testing_utils[validation]"
+    ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
     ]
@@ -96,10 +98,8 @@ if __name__ == "__main__":
             "data": data_requirements
             + cluster_requirements
             + lint_requirements
-            + test_requirements,
-            # TODO: fold validation_requirements back into "data" once a
-            # vivarium_testing_utils release supports vivarium_inputs>=8.0.0
-            # (0.7.1's [validation] extra caps vivarium_inputs<8.0.0).
+            + test_requirements
+            + validation_requirements,
             "validation": validation_requirements,
             "interactive": interactive_requirements,
             "dev": test_requirements
