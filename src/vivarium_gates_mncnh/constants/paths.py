@@ -27,7 +27,6 @@ FERRITIN_TESTING_COVERAGE_DATA_DIR = REPO_DATA_DIR / "ferritin_testing_coverage"
 FACILITY_CHOICE_OPTIMIZATION_RESULTS_CSV = (
     REPO_DATA_DIR / "facility_choice" / "facility_choice_optimization_results.csv"
 )
-# GBD 2023 crosswalk model output for PPH fraction; see vivarium_research PR #308
 PPH_CROSSWALK_PARAMETERS_CSV = (
     REPO_DATA_DIR / "postpartum_hemorrhage_split" / "crosswalk_parameters.csv"
 )
