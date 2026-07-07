@@ -26,7 +26,7 @@ MONTHS_PER_YEAR = 12
 
 # Duration constants for anemia YLD calculations
 EARLY_NEONATAL_DURATION_WEEKS = 6
-POSTPARTUM_NINE_MONTH_DURATION_WEEKS = 34  # 40 weeks (full term) - 6 weeks postpartum
+POSTPARTUM_NINE_MONTH_DURATION_WEEKS = 33  # 9 months (~39 weeks) postpartum minus the first 6 weeks (covered by the early-neonatal window)
 
 # GBD sequela IDs for maternal hemorrhage severity splits
 MODERATE_HEMORRHAGE_SEQUELA_ID = 180
