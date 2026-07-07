@@ -56,7 +56,9 @@ def test_sepsis_hemoglobin_shift_applied(
     by approximately the expected shift magnitude."""
     sim: InteractiveContext = request.getfixturevalue(state_fixture)
 
-    pop = sim.get_population([COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME])
+    pop = sim.get_population(
+        [COLUMNS.MATERNAL_SEPSIS, COLUMNS.PREGNANCY_OUTCOME, PIPELINES.HEMOGLOBIN_EXPOSURE]
+    )
     # Only look at live births (avoid confounding from stillbirths/other outcomes)
     live_births = pop.loc[
         pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME
@@ -69,8 +71,7 @@ def test_sepsis_hemoglobin_shift_applied(
     if len(sepsis_idx) == 0:
         pytest.skip(f"No simulants with sepsis at {step_name}")
 
-    # Get hemoglobin exposure values from the pipeline
-    hgb = sim.get_value(PIPELINES.HEMOGLOBIN_EXPOSURE)(live_births.index)
+    hgb = live_births[PIPELINES.HEMOGLOBIN_EXPOSURE]
 
     mean_hgb_sepsis = hgb.loc[sepsis_idx].mean()
     mean_hgb_no_sepsis = hgb.loc[no_sepsis_idx].mean()
