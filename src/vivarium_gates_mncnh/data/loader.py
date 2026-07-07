@@ -106,6 +106,7 @@ def get_data(
         data_keys.MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE: load_hemorrhage_case_fatality_rate,
         data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK: load_antepartum_hemorrhage_incidence,
         data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK: load_postpartum_hemorrhage_incidence,
+        data_keys.MATERNAL_HEMORRHAGE.APH_CSMR: load_antepartum_hemorrhage_csmr,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
@@ -2069,34 +2070,49 @@ def load_hemorrhage_case_fatality_rate(
 
 
 def _load_hemorrhage_incidence(location: str, antepartum: bool) -> pd.DataFrame:
-    """Compute hemorrhage per-pregnancy/birth incidence risk.
+    """Compute hemorrhage per-birth incidence risk.
 
-    Splits the c367 population-level incidence rate by the APH/PPH fraction
-    and divides by the appropriate rate to convert to per-event risk.
+    Splits the c367 population-level incidence rate by the APH/PPH fraction and
+    divides by the appropriate per-birth denominator to convert to per-event
+    risk. APH divides by the birth rate; PPH divides by the birth rate net of
+    the antepartum hemorrhage cause-specific mortality rate, since PPH is
+    conditional on surviving the antepartum period.
     """
     pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
     inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
+    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location)
     if antepartum:
         incidence = (1 - pp_fraction) * inc_c367
-        denominator = get_data(data_keys.POPULATION.SCALING_FACTOR, location)
+        denominator = birth_rate
     else:
         incidence = pp_fraction * inc_c367
-        denominator = get_data(data_keys.POPULATION.BIRTH_RATE, location)
+        csmr_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
+        antepartum_hemorrhage_csmr = (1 - pp_fraction) * csmr_c367
+        denominator = birth_rate - antepartum_hemorrhage_csmr.fillna(0.0)
     return (incidence / denominator).fillna(0.0)
 
 
 def load_antepartum_hemorrhage_incidence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute APH per-pregnancy incidence risk."""
+    """Compute APH per-birth incidence risk."""
     return _load_hemorrhage_incidence(location, antepartum=True)
 
 
 def load_postpartum_hemorrhage_incidence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute PPH per-birth incidence risk."""
+    """Compute PPH per-birth incidence risk net of antepartum hemorrhage mortality."""
     return _load_hemorrhage_incidence(location, antepartum=False)
+
+
+def load_antepartum_hemorrhage_csmr(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute APH cause-specific mortality rate as the antepartum fraction of c367 CSMR."""
+    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
+    csmr_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
+    return ((1 - pp_fraction) * csmr_c367).fillna(0.0)
 
 
 def load_hemorrhage_ylds_per_case(
