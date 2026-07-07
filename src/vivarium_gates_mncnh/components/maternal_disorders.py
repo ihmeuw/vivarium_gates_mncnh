@@ -70,11 +70,16 @@ class MaternalDisorder(Component):
         if self._sim_step_name() != self.maternal_disorder:
             return
 
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        pop = self.population_view.get(
+            event.index, [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.MOTHER_ALIVE]
+        )
+        # Only living, full-term mothers are eligible for an intrapartum disorder;
+        # mothers who died of an antepartum disorder are excluded.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
+            & pop[COLUMNS.MOTHER_ALIVE]
         ]
         incidence_risk = self.population_view.get(
             full_term.index, self.incidence_risk_pipeline_name
@@ -101,7 +106,14 @@ class MaternalDisorder(Component):
             .reindex(asfr.index, level="year_start")
         )
         birth_rate = (sbr + 1) * asfr
-        incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
+        antepartum_hemorrhage_csmr = builder.data.load(
+            data_keys.MATERNAL_HEMORRHAGE.APH_CSMR
+        ).set_index(ARTIFACT_INDEX_COLUMNS)
+        # Intrapartum disorders are conditional on surviving the antepartum period, so
+        # the denominator is births net of antepartum hemorrhage deaths (per-surviving-birth).
+        incidence_risk = (
+            raw_incidence / (birth_rate - antepartum_hemorrhage_csmr)
+        ).fillna(0.0)
         return incidence_risk.reset_index()
 
     def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:
@@ -344,12 +356,15 @@ class AntepartumHemorrhage(MaternalHemorrhageBase):
             return
 
         pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # All pregnant people (excluding invalid outcomes)
-        eligible = pop.loc[
-            pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME
+        # Full-term births only (stillbirths and live births); partial-term (AME)
+        # pregnancies are excluded so APH and AME are mutually exclusive.
+        full_term = pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            )
         ].index
 
-        self.assign_outcomes(eligible)
+        self.assign_outcomes(full_term)
 
 
 class PostpartumHemorrhage(MaternalHemorrhageBase):
@@ -364,12 +379,16 @@ class PostpartumHemorrhage(MaternalHemorrhageBase):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE:
             return
 
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # Full-term births only (stillbirths and live births)
+        pop = self.population_view.get(
+            event.index, [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.MOTHER_ALIVE]
+        )
+        # Full-term births only (stillbirths and live births) among living mothers;
+        # mothers who died of an antepartum disorder are excluded.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
+            & pop[COLUMNS.MOTHER_ALIVE]
         ].index
 
         self.assign_outcomes(full_term)
