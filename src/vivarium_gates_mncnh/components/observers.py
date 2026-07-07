@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
     IFA_SUPPLEMENTATION,
     MATERNAL_HEMORRHAGE,
     MMN_SUPPLEMENTATION,
+    POPULATION,
     POSTPARTUM_DEPRESSION,
 )
 from vivarium_gates_mncnh.constants.data_values import (
@@ -542,13 +543,20 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         yld_rate = builder.data.load(f"cause.{cause}.yld_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
-        special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
-        incidence_rate_key = special_incidence_rates.get(
-            cause, f"cause.{cause}.incidence_rate"
-        )
-        incidence_rate = builder.data.load(incidence_rate_key).set_index(
-            ARTIFACT_INDEX_COLUMNS
-        )
+        if cause == "residual_maternal_disorders":
+            # Residual disorders apply only to antepartum survivors, so ylds_per_case
+            # divides by births net of antepartum hemorrhage deaths.
+            birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(
+                ARTIFACT_INDEX_COLUMNS
+            )
+            aph_csmr = builder.data.load(MATERNAL_HEMORRHAGE.APH_CSMR).set_index(
+                ARTIFACT_INDEX_COLUMNS
+            )
+            incidence_rate = birth_rate - aph_csmr
+        else:
+            incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+                ARTIFACT_INDEX_COLUMNS
+            )
         ylds = (yld_rate / incidence_rate).fillna(0).reset_index()
 
         return ylds
