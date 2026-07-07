@@ -257,11 +257,16 @@ class ResidualMaternalDisorders(MaternalDisorder):
         if self._sim_step_name() != self.maternal_disorder:
             return
 
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        pop = self.population_view.get(
+            event.index, [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.MOTHER_ALIVE]
+        )
+        # Residual disorders apply only to living, full-term mothers; those who
+        # died of an antepartum disorder are excluded.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
+            & pop[COLUMNS.MOTHER_ALIVE]
         ].index
 
         self.population_view.update(
