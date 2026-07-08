@@ -146,8 +146,8 @@ class MaternalDisordersBurden(Component):
             # Only mothers who survived the antepartum pass are eligible to die
             # from an intrapartum disorder, making the two passes mutually exclusive.
             alive = self.population_view.get(event.index, [COLUMNS.MOTHER_ALIVE])
-            survivors = alive.index[alive[COLUMNS.MOTHER_ALIVE]]
-            self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, survivors)
+            survivors = alive.loc[alive[COLUMNS.MOTHER_ALIVE]]
+            self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, survivors.index)
         else:
             return
 
