@@ -17,7 +17,10 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.utilities import get_location
+from vivarium_gates_mncnh.utilities import (
+    get_location,
+    load_births_net_of_aph_mortality,
+)
 
 
 class MaternalDisorder(Component):
@@ -98,24 +101,12 @@ class MaternalDisorder(Component):
     def load_incidence_risk(self, builder: Builder) -> pd.DataFrame:
         artifact_key = "cause." + self.maternal_disorder + ".incidence_rate"
         raw_incidence = builder.data.load(artifact_key).set_index(ARTIFACT_INDEX_COLUMNS)
-        asfr = builder.data.load(data_keys.PREGNANCY.ASFR).set_index(ARTIFACT_INDEX_COLUMNS)
-        sbr = (
-            builder.data.load(data_keys.PREGNANCY.SBR)
-            .set_index("year_start")
-            .drop(columns=["year_end"])
-            .reindex(asfr.index, level="year_start")
-        )
-        birth_rate = (sbr + 1) * asfr
-        antepartum_hemorrhage_csmr = builder.data.load(
-            data_keys.MATERNAL_HEMORRHAGE.APH_CSMR
-        ).set_index(ARTIFACT_INDEX_COLUMNS)
         # This shared loader divides by births net of antepartum-hemorrhage deaths,
         # correct for the intrapartum subclasses (sepsis, obstructed labor) that
         # consume this pipeline. AbortionMiscarriageEctopicPregnancy also inherits it
         # but assigns deterministically off pregnancy outcome and never reads the pipeline.
-        incidence_risk = (raw_incidence / (birth_rate - antepartum_hemorrhage_csmr)).fillna(
-            0.0
-        )
+        denominator = load_births_net_of_aph_mortality(builder)
+        incidence_risk = (raw_incidence / denominator).fillna(0.0)
         return incidence_risk.reset_index()
 
     def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:

@@ -2086,9 +2086,10 @@ def _load_hemorrhage_incidence(location: str, antepartum: bool) -> pd.DataFrame:
         denominator = birth_rate
     else:
         incidence = pp_fraction * inc_c367
-        csmr_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
-        antepartum_hemorrhage_csmr = (1 - pp_fraction) * csmr_c367
-        denominator = birth_rate - antepartum_hemorrhage_csmr.fillna(0.0)
+        antepartum_hemorrhage_csmr = get_data(
+            data_keys.MATERNAL_HEMORRHAGE.APH_CSMR, location
+        )
+        denominator = birth_rate - antepartum_hemorrhage_csmr
     return (incidence / denominator).fillna(0.0)
 
 

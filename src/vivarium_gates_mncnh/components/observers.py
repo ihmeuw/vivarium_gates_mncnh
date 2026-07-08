@@ -15,7 +15,6 @@ from vivarium_gates_mncnh.constants.data_keys import (
     IFA_SUPPLEMENTATION,
     MATERNAL_HEMORRHAGE,
     MMN_SUPPLEMENTATION,
-    POPULATION,
     POSTPARTUM_DEPRESSION,
 )
 from vivarium_gates_mncnh.constants.data_values import (
@@ -42,7 +41,10 @@ from vivarium_gates_mncnh.constants.metadata import (
     ARTIFACT_INDEX_COLUMNS,
     PRETERM_AGE_CUTOFF,
 )
-from vivarium_gates_mncnh.utilities import get_child_age_bins
+from vivarium_gates_mncnh.utilities import (
+    get_child_age_bins,
+    load_births_net_of_aph_mortality,
+)
 
 
 def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
@@ -546,13 +548,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
             # Residual disorders apply only to antepartum survivors, so ylds_per_case
             # divides by births net of antepartum hemorrhage deaths.
-            birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(
-                ARTIFACT_INDEX_COLUMNS
-            )
-            aph_csmr = builder.data.load(MATERNAL_HEMORRHAGE.APH_CSMR).set_index(
-                ARTIFACT_INDEX_COLUMNS
-            )
-            incidence_rate = birth_rate - aph_csmr
+            incidence_rate = load_births_net_of_aph_mortality(builder)
         else:
             incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
                 ARTIFACT_INDEX_COLUMNS

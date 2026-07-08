@@ -26,7 +26,11 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.utilities import get_location, rate_to_probability
+from vivarium_gates_mncnh.utilities import (
+    get_location,
+    load_births_net_of_aph_mortality,
+    rate_to_probability,
+)
 
 
 class MaternalDisordersBurden(Component):
@@ -67,6 +71,7 @@ class MaternalDisordersBurden(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
+        self._validate_step_ordering(builder)
 
         self.life_expectancy = self.build_lookup_table(
             builder, "life_expectancy", value_columns="value"
@@ -86,6 +91,37 @@ class MaternalDisordersBurden(Component):
             ],
             required_resources=[],
         )
+
+    def _validate_step_ordering(self, builder: Builder) -> None:
+        """Guard the two-pass mortality contract against a mis-ordered event schedule.
+
+        Each antepartum disorder must be assigned before the antepartum mortality
+        step, and each intrapartum disorder before the intrapartum mortality step;
+        otherwise a disorder's incidence would not yet be set when its death is resolved.
+        """
+        events = list(builder.configuration.time.simulation_events)
+        antepartum_mortality = events.index(
+            SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY
+        )
+        mortality = events.index(SIMULATION_EVENT_NAMES.MORTALITY)
+        # A disorder's column name is also its incidence-assignment event name.
+        for disorder in ANTEPARTUM_MATERNAL_DISORDERS:
+            if events.index(disorder) >= antepartum_mortality:
+                raise ValueError(
+                    f"Antepartum disorder '{disorder}' is assigned at or after the "
+                    "antepartum mortality step; check simulation_events ordering."
+                )
+        for disorder in INTRAPARTUM_MATERNAL_DISORDERS:
+            if events.index(disorder) >= mortality:
+                raise ValueError(
+                    f"Intrapartum disorder '{disorder}' is assigned at or after the "
+                    "mortality step; check simulation_events ordering."
+                )
+        if antepartum_mortality >= mortality:
+            raise ValueError(
+                "Antepartum mortality must precede intrapartum mortality; "
+                "check simulation_events ordering."
+            )
 
     ########################
     # Event-driven methods #
@@ -192,13 +228,7 @@ class MaternalDisordersBurden(Component):
             if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
                 # Residual disorders are conditional on surviving the antepartum period,
                 # so the denominator is births net of antepartum hemorrhage deaths.
-                birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(
-                    ARTIFACT_INDEX_COLUMNS
-                )
-                aph_csmr = builder.data.load(MATERNAL_HEMORRHAGE.APH_CSMR).set_index(
-                    ARTIFACT_INDEX_COLUMNS
-                )
-                incidence_rate = birth_rate - aph_csmr
+                incidence_rate = load_births_net_of_aph_mortality(builder)
             else:
                 incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
                     ARTIFACT_INDEX_COLUMNS

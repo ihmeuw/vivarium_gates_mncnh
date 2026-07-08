@@ -250,25 +250,32 @@ HEMORRHAGE_CAUSES = [
     COLUMNS.POSTPARTUM_HEMORRHAGE,
 ]
 
-# Antepartum disorders resolve (incidence + mortality) during the pregnancy band,
-# before any intrapartum disorder is assigned. Intrapartum disorders are applied
-# and killed only among antepartum survivors. Together they partition
-# MATERNAL_DISORDERS (the observer still consumes the full union).
+# Maternal disorders resolve in two mortality passes. Antepartum disorders resolve
+# (incidence + mortality) during the pregnancy band, before any intrapartum disorder
+# is assigned; intrapartum disorders are applied and killed only among antepartum
+# survivors. The single phase mapping makes the partition structural — a disorder
+# cannot land in both passes — while the observer still consumes the full union
+# (MATERNAL_DISORDERS).
+MATERNAL_DISORDER_PHASE = {
+    COLUMNS.ANTEPARTUM_HEMORRHAGE: "antepartum",
+    COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY: "antepartum",
+    COLUMNS.OBSTRUCTED_LABOR: "intrapartum",
+    COLUMNS.POSTPARTUM_HEMORRHAGE: "intrapartum",
+    COLUMNS.MATERNAL_SEPSIS: "intrapartum",
+    COLUMNS.RESIDUAL_MATERNAL_DISORDERS: "intrapartum",
+}
+
 ANTEPARTUM_MATERNAL_DISORDERS = [
-    COLUMNS.ANTEPARTUM_HEMORRHAGE,
-    COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
+    disorder for disorder, phase in MATERNAL_DISORDER_PHASE.items() if phase == "antepartum"
 ]
-
 INTRAPARTUM_MATERNAL_DISORDERS = [
-    COLUMNS.OBSTRUCTED_LABOR,
-    COLUMNS.POSTPARTUM_HEMORRHAGE,
-    COLUMNS.MATERNAL_SEPSIS,
-    COLUMNS.RESIDUAL_MATERNAL_DISORDERS,
+    disorder for disorder, phase in MATERNAL_DISORDER_PHASE.items() if phase == "intrapartum"
 ]
 
-assert set(MATERNAL_DISORDERS) == set(
-    ANTEPARTUM_MATERNAL_DISORDERS + INTRAPARTUM_MATERNAL_DISORDERS
-)
+if set(MATERNAL_DISORDER_PHASE) != set(MATERNAL_DISORDERS):
+    raise ValueError(
+        "MATERNAL_DISORDER_PHASE must assign a phase to exactly the MATERNAL_DISORDERS causes."
+    )
 
 
 CHILD_LOOKUP_COLUMN_MAPPER = {
