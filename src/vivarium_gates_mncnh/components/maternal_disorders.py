@@ -111,9 +111,9 @@ class MaternalDisorder(Component):
         ).set_index(ARTIFACT_INDEX_COLUMNS)
         # Intrapartum disorders are conditional on surviving the antepartum period, so
         # the denominator is births net of antepartum hemorrhage deaths (per-surviving-birth).
-        incidence_risk = (
-            raw_incidence / (birth_rate - antepartum_hemorrhage_csmr)
-        ).fillna(0.0)
+        incidence_risk = (raw_incidence / (birth_rate - antepartum_hemorrhage_csmr)).fillna(
+            0.0
+        )
         return incidence_risk.reset_index()
 
     def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:

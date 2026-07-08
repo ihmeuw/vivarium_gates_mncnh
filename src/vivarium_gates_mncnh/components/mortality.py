@@ -202,9 +202,9 @@ class MaternalDisordersBurden(Component):
                 )
                 incidence_rate = birth_rate - aph_csmr
             else:
-                incidence_rate = builder.data.load(
-                    f"cause.{cause}.incidence_rate"
-                ).set_index(ARTIFACT_INDEX_COLUMNS)
+                incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+                    ARTIFACT_INDEX_COLUMNS
+                )
             cfr = (csmr / incidence_rate).fillna(0).reset_index()
 
         return cfr
