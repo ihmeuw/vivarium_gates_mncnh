@@ -3,13 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import scipy
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import SimulantData
-from vivarium_public_health.risks.base_risk import Risk
-from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.causal_factor.distributions import MissingDataError
+from vivarium.public_health.risks.base_risk import Risk
+from vivarium.public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES

@@ -128,9 +128,8 @@ def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> No
     """Build artifacts for all locations in parallel via a Jobmon workflow.
 
     Fan one independent task out per location into a single Jobmon workflow so
-    the locations build concurrently on SLURM, replacing the former DRMAA
-    submission loop. Each task re-invokes this module's ``__main__`` entry point
-    to build one location's artifact.
+    the locations build concurrently on SLURM. Each task re-invokes this
+    module's ``__main__`` entry point to build one location's artifact.
 
     Parameters
     ----------

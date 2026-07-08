@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import vivarium_inputs.validation.sim as validation
 from scipy.interpolate import RectBivariateSpline, griddata
-from vivarium.framework.artifact import EntityKey
+from vivarium.artifact import EntityKey
 from vivarium_inputs import core as vi_core
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
