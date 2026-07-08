@@ -76,6 +76,7 @@ def build_artifacts(
     append: bool,
     replace_keys: Tuple,
     verbose: int,
+    resume: bool = False,
 ) -> None:
     """Main application function for building artifacts.
     Parameters
@@ -99,20 +100,33 @@ def build_artifacts(
         False or if there is no existing artifact at the output location
     verbose
         How noisy the logger should be.
+    resume
+        Resume the previous ``-l all`` build in ``output_dir`` instead of
+        starting fresh, rerunning only the locations that did not finish.
+        Supported only for on-cluster ``all`` builds.
     """
     import vivarium.cluster_tools as vct
 
     output_dir = Path(output_dir)
     vct.mkdir(output_dir, parents=True, exists_ok=True)
 
-    check_for_existing(output_dir, location, append, replace_keys)
+    on_cluster = running_from_cluster()
+    if resume and not (location == "all" and on_cluster):
+        raise ValueError(
+            "--resume is only supported for on-cluster '-l all' builds "
+            f"(got location={location!r}, on cluster={on_cluster})."
+        )
+
+    # A resume keeps the finished artifacts, so skip the delete-and-rebuild prompt.
+    if not resume:
+        check_for_existing(output_dir, location, append, replace_keys)
 
     if location in metadata.LOCATIONS:
         build_single(location, years, output_dir, replace_keys)
     elif location == "all":
-        if running_from_cluster():
+        if on_cluster:
             # parallel build when on cluster
-            build_all_artifacts(output_dir, years, verbose)
+            build_all_artifacts(output_dir, years, verbose, resume=resume)
         else:
             # serial build when not on cluster
             for loc in metadata.LOCATIONS:
@@ -124,7 +138,30 @@ def build_artifacts(
         )
 
 
-def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> None:
+def _resolve_workflow_name(output_dir: Path, resume: bool) -> str:
+    """Return the Jobmon workflow name for this build.
+
+    A fresh build gets a unique, timestamped name recorded in a small sidecar file
+    in ``output_dir``; a resume reads that sidecar back so Jobmon matches the prior
+    run and reruns only its unfinished tasks. The sidecar is overwritten on each
+    fresh build, so it never needs manual cleanup.
+    """
+    sidecar = output_dir / ".artifact_workflow"
+    if resume:
+        if not sidecar.exists():
+            raise FileNotFoundError(
+                f"No previous build found to resume in {output_dir} (missing "
+                f"'{sidecar.name}'). Run without --resume to start a fresh build."
+            )
+        return sidecar.read_text().strip()
+    workflow_name = f"make_artifacts_{int(time.time())}"
+    sidecar.write_text(workflow_name)
+    return workflow_name
+
+
+def build_all_artifacts(
+    output_dir: Path, years: str | None, verbose: int, resume: bool = False
+) -> None:
     """Build artifacts for all locations in parallel via a Jobmon workflow.
 
     Fan one independent task out per location into a single Jobmon workflow so
@@ -140,6 +177,10 @@ def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> No
         If not specified, make for most recent year.
     verbose
         How noisy the logger should be.
+    resume
+        Resume the previous build in ``output_dir`` (matched via the workflow name
+        recorded there) instead of starting fresh, rerunning only the locations
+        that did not finish.
 
     Note
     ----
@@ -152,6 +193,8 @@ def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> No
 
     worker_logging_root = output_dir / "logs"
     worker_logging_root.mkdir(parents=True, exist_ok=True)
+
+    workflow_name = _resolve_workflow_name(output_dir, resume)
 
     python = sys.executable
     this_file = Path(__file__).resolve()
@@ -174,17 +217,26 @@ def build_all_artifacts(output_dir: Path, years: str | None, verbose: int) -> No
         requires_archive_node=True,  # need archive-node (J-drive) access for input data
     )
 
-    _, monitoring_url = build_artifacts_in_parallel(
-        workflow_name=f"make_artifacts_{int(time.time())}",
-        build_commands=build_commands,
-        native_specification=native_specification,
-        worker_logging_root=worker_logging_root,
-        env_prefix=sys.prefix,
-        max_concurrently_running=len(build_commands),
-    )
-    logger.info(f"Submitted artifact workflow for {len(build_commands)} locations.")
+    try:
+        _, monitoring_url = build_artifacts_in_parallel(
+            workflow_name=workflow_name,
+            build_commands=build_commands,
+            native_specification=native_specification,
+            worker_logging_root=worker_logging_root,
+            env_prefix=sys.prefix,
+            resume=resume,
+            max_concurrently_running=len(build_commands),
+        )
+    except RuntimeError:
+        logger.error(
+            "Some location artifacts did not finish. Rerun the same command with "
+            "--resume to retry only the locations that did not complete."
+        )
+        raise
+
+    logger.info(f"Built artifacts for {len(build_commands)} locations.")
     if monitoring_url:
-        logger.info(f"Monitor progress in the Jobmon GUI: {monitoring_url}")
+        logger.info(f"Monitor progress in the Jobmon GUI at: {monitoring_url}")
     logger.info("**Done**")
 
 
