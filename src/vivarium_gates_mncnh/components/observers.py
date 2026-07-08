@@ -543,7 +543,7 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         yld_rate = builder.data.load(f"cause.{cause}.yld_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
-        if cause == "residual_maternal_disorders":
+        if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
             # Residual disorders apply only to antepartum survivors, so ylds_per_case
             # divides by births net of antepartum hemorrhage deaths.
             birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(

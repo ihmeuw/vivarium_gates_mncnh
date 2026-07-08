@@ -105,19 +105,17 @@ class MaternalDisordersBurden(Component):
     def on_time_step(self, event: Event) -> None:
         step = self._sim_step_name()
         if step == SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY:
-            self._resolve_mortality(event, ANTEPARTUM_MATERNAL_DISORDERS, event.index)
+            self._resolve_mortality(ANTEPARTUM_MATERNAL_DISORDERS, event.index)
         elif step == SIMULATION_EVENT_NAMES.MORTALITY:
             # Only mothers who survived the antepartum pass are eligible to die
             # from an intrapartum disorder, making the two passes mutually exclusive.
             alive = self.population_view.get(event.index, [COLUMNS.MOTHER_ALIVE])
             survivors = alive.index[alive[COLUMNS.MOTHER_ALIVE]]
-            self._resolve_mortality(event, INTRAPARTUM_MATERNAL_DISORDERS, survivors)
+            self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, survivors)
         else:
             return
 
-    def _resolve_mortality(
-        self, event: Event, disorders: list[str], eligible_index: pd.Index
-    ) -> None:
+    def _resolve_mortality(self, disorders: list[str], eligible_index: pd.Index) -> None:
         """Resolve maternal mortality for a subset of disorders over eligible simulants."""
         pop = self.population_view.get(eligible_index, disorders)
 
@@ -191,7 +189,7 @@ class MaternalDisordersBurden(Component):
             csmr = builder.data.load(
                 f"cause.{cause}.cause_specific_mortality_rate"
             ).set_index(ARTIFACT_INDEX_COLUMNS)
-            if cause == "residual_maternal_disorders":
+            if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
                 # Residual disorders are conditional on surviving the antepartum period,
                 # so the denominator is births net of antepartum hemorrhage deaths.
                 birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(

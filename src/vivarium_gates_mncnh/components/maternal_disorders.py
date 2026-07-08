@@ -109,8 +109,10 @@ class MaternalDisorder(Component):
         antepartum_hemorrhage_csmr = builder.data.load(
             data_keys.MATERNAL_HEMORRHAGE.APH_CSMR
         ).set_index(ARTIFACT_INDEX_COLUMNS)
-        # Intrapartum disorders are conditional on surviving the antepartum period, so
-        # the denominator is births net of antepartum hemorrhage deaths (per-surviving-birth).
+        # This shared loader divides by births net of antepartum-hemorrhage deaths,
+        # correct for the intrapartum subclasses (sepsis, obstructed labor) that
+        # consume this pipeline. AbortionMiscarriageEctopicPregnancy also inherits it
+        # but assigns deterministically off pregnancy outcome and never reads the pipeline.
         incidence_risk = (raw_incidence / (birth_rate - antepartum_hemorrhage_csmr)).fillna(
             0.0
         )
@@ -349,7 +351,8 @@ class MaternalHemorrhageBase(MaternalDisorder):
 
 
 class AntepartumHemorrhage(MaternalHemorrhageBase):
-    """Applies pregnancy-scaled incidence risk to all pregnant people."""
+    """Applies per-birth incidence risk to full-term pregnancies (stillbirths and
+    live births); partial-term (abortion/miscarriage/ectopic) pregnancies are excluded."""
 
     INCIDENCE_RISK_KEY = data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK
 
