@@ -5,6 +5,8 @@ should differ by approximately the magnitude of the puerperal sepsis hemoglobin
 effect in each post-pregnancy time step.
 """
 
+# TODO: delete this file
+
 from pathlib import Path
 
 import pytest
@@ -78,3 +80,5 @@ def test_sepsis_hemoglobin_shift_applied(
         f"Expected sepsis group to have lower hemoglobin at {step_name}. "
         f"Sepsis mean: {mean_hgb_sepsis:.2f}, No sepsis mean: {mean_hgb_no_sepsis:.2f}"
     )
+
+    # TODO check for age groups as well
