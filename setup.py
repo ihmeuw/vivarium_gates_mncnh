@@ -60,7 +60,6 @@ if __name__ == "__main__":
     data_requirements = ["vivarium_inputs>=8.0.0,<9.0.0"]
     cluster_requirements = [
         "vivarium_cluster_tools[cluster]>=4.0.0,<5.0.0",
-        "drmaa",
     ]
     test_requirements = [
         "vivarium_dependencies[pytest]",
@@ -68,9 +67,7 @@ if __name__ == "__main__":
         "jupyterlab",
         "vivarium_testing_utils>=0.7.4",
     ]
-    validation_requirements = [
-        "vivarium_testing_utils[validation]"
-    ]
+    validation_requirements = ["vivarium_testing_utils[validation]"]
     lint_requirements = [
         "vivarium_dependencies[lint]",
     ]
