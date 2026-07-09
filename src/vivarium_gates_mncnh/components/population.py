@@ -2,10 +2,10 @@ from asyncio import Event
 
 import numpy as np
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import SimulantData
-from vivarium_public_health.population import BasePopulation, ScaledPopulation
-from vivarium_public_health.utilities import to_years
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.population import BasePopulation, ScaledPopulation
+from vivarium.public_health.utilities import to_years
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import CHILD_INITIALIZATION_AGE

@@ -4,10 +4,10 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 from statsmodels.distributions.copula.api import GaussianCopula
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness.stream import get_hash
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.randomness.stream import get_hash
 
 from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.constants.data_keys import PROPENSITY_CORRELATIONS

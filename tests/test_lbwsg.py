@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from vivarium import Artifact, InteractiveContext
-from vivarium_testing_utils import FuzzyChecker
+from vivarium.artifact import Artifact
+from vivarium.engine import InteractiveContext
+from vivarium.testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.components.lbwsg import parse_short_gestation_description
 from vivarium_gates_mncnh.constants import data_keys, metadata

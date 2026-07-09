@@ -1,8 +1,8 @@
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.time import SimulationClock
-from vivarium.framework.time import TimeInterface as TimeInterface_
-from vivarium.framework.time import get_time_stamp
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.time import SimulationClock
+from vivarium.engine.framework.time import TimeInterface as TimeInterface_
+from vivarium.engine.framework.time import get_time_stamp
 
 from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
 

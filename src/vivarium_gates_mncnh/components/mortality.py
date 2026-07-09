@@ -4,11 +4,14 @@ from functools import partial
 from typing import Any
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.values import list_combiner, union_post_processor
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.values import list_combiner, union_post_processor
+from vivarium.public_health.causal_factor.calibration_constant import (
+    register_risk_affected_attribute_producer,
+)
 
 from vivarium_gates_mncnh.constants.data_keys import POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
@@ -37,9 +40,7 @@ class MaternalDisordersBurden(Component):
         return {
             self.name: {
                 "data_sources": {
-                    **{
-                        "life_expectancy": "population.theoretical_minimum_risk_life_expectancy"
-                    },
+                    **{"life_expectancy": POPULATION.TMRLE},
                     **{
                         f"{cause}_case_fatality_rate": partial(
                             self.load_cfr_data, cause=cause
@@ -235,7 +236,11 @@ class NeonatalMortality(Component):
         # Register pipelines
         self._register_acmr_paf(builder)
 
-        builder.value.register_attribute_producer(
+        # RiskAffectedPipeline so LBWSGRiskEffect applies its relative risk via the
+        # multiplication combiner. The (1 - ACMR PAF) normalization stays in
+        # ``get_acmr_pipeline``; ACMR's own ``.calibration_constant`` stays 0.
+        register_risk_affected_attribute_producer(
+            builder,
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
             required_resources=[PIPELINES.ACMR_PAF],
@@ -338,9 +343,7 @@ class NeonatalMortality(Component):
 
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
-        life_expectancy = builder.data.load(
-            "population.theoretical_minimum_risk_life_expectancy"
-        )
+        life_expectancy = builder.data.load(POPULATION.TMRLE)
         # This needs to remain here since it gets used for both maternal and neonatal mortality
         child_life_expectancy = life_expectancy.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_life_expectancy

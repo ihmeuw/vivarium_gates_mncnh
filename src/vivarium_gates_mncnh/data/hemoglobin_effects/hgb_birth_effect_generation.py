@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy
-from vivarium import Artifact
+from vivarium.artifact import Artifact
 
 from vivarium_gates_mncnh.constants import metadata
 

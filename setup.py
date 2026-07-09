@@ -44,14 +44,11 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies<2.0.0",
         "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
-        # Pin to <=3.3.2 until this model repo's deps are migrated to the post-monorepo names
-        # NOTE: v3.3.3 / v3.3.4 are post-archive sunset releases of the standalone vbu repo that
-        #   were never tagged in the monorepo, so the Jenkins shared library loader can't find them
-        "vivarium_build_utils>=3.0.1,<=3.3.2",
+        "vivarium_build_utils>=4.0.0,<5.0.0",
         "gbd_mapping>=5.0.0,<6.0.0",
         "layered_config_tree<5.0.0",
-        "vivarium>=4.0.0, <4.1.0",
-        "vivarium_public_health>=5.0.0, <5.1.0",
+        "vivarium_engine>=5.3.0, <5.4.0",
+        "vivarium_public_health>=6.3.1, <6.4.0",
         "click",
         "jinja2",
         "pyyaml",
@@ -60,18 +57,20 @@ if __name__ == "__main__":
 
     setup_requires = ["setuptools_scm"]
 
-    data_requirements = ["vivarium_inputs>=7.1.4"]
+    data_requirements = ["vivarium_inputs>=8.0.0,<9.0.0"]
     cluster_requirements = [
-        "vivarium_cluster_tools @ git+https://github.com/ihmeuw/vivarium_cluster_tools.git@epic/phase-3-automated-validation",
+        "vivarium_cluster_tools[cluster]>=4.0.0,<5.0.0",
         "drmaa",
     ]
     test_requirements = [
         "vivarium_dependencies[pytest]",
         "papermill",
         "jupyterlab",
-        "vivarium_testing_utils>=0.5.0,<0.6.0",
+        "vivarium_testing_utils>=0.7.4",
     ]
-    validation_requirements = ["vivarium_testing_utils[validation]<0.6.0"]
+    validation_requirements = [
+        "vivarium_testing_utils[validation]"
+    ]
     lint_requirements = [
         "vivarium_dependencies[lint]",
     ]
@@ -101,6 +100,7 @@ if __name__ == "__main__":
             + lint_requirements
             + test_requirements
             + validation_requirements,
+            "validation": validation_requirements,
             "interactive": interactive_requirements,
             "dev": test_requirements
             + cluster_requirements
