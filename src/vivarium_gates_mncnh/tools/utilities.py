@@ -235,7 +235,7 @@ def run_command(
         print(f"Command: {full_cmd}")
         print("Auto-confirm: y (continuous)")
     else:
-        cmd = ["conda", "run", "-n", conda_env] + cmd
+        cmd = ["conda", "run", "--no-capture-output", "-n", conda_env] + cmd
         print(f"Command: {' '.join(cmd)}")
 
     print(f"{'='*80}\n")
