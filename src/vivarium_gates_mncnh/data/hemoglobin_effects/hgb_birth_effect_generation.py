@@ -517,3 +517,11 @@ def calculate_iv_iron_stillbirth_effects():
     ).reset_index()
     effects.to_csv(_DIR / "iv_iron_stillbirth_rrs.csv")
     return effects
+
+
+if __name__ == "__main__":
+    # Single-invocation entry point for the IV-iron stillbirth RRs (all draws
+    # at once, ~7 min; NOT draw-parallel). Run as its own workflow step -- see
+    # artifact_workflow.yaml. The draw-parallel birth-effect functions in this
+    # module are driven separately by generate_birth_effects.py.
+    calculate_iv_iron_stillbirth_effects()

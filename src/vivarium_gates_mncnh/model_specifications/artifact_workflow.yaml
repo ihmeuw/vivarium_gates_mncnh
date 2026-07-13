@@ -3,7 +3,21 @@ workflow:
   project: "proj_simscience"
   queue: "all.q"
   output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/test_workflow
+  # ==========================================================================
+  # Pre-simulation data generation pipeline.
+  #
+  # Dagger steps run STRICTLY SEQUENTIALLY (every task in a step depends on all
+  # tasks of the previous step). Parallelism therefore lives INSIDE steps:
+  #   - parallel_runner.py  -> fans draws across `cores` on one node
+  #   - run_paf_sim.py      -> fans draws via psimulate (jobmon)
+  #   - generate_pafs.py / generate_caps.py -> serial internally
+  #
+  # Steps are laid out below in dependency order. We uncomment them one batch
+  # at a time as each is proven out on the cluster (strict order 1, 2, 3, ...).
+  # Resource values on new steps are first-pass estimates -- tune after a run.
+  # ==========================================================================
   steps:
+    # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"
       type: python
       resources:
@@ -12,95 +26,178 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/tools/check_working_tree.py
 
-    # Regenerate LBWSG relative risk caps - NOT IMPLEMENTED yet
-    # - name: "regenerate_lbws_relative_risk_caps"
-
-    - name: "paf_sim_ethiopia"
+    # ---- Step 1: hemoglobin -> birth effects (LBWSG shifts), per draw --------
+    # Parallel across draws via parallel_runner.py. Produces
+    # lbwsg_shifts/draw_<N>.csv and iv_iron_lbwsg_shifts/draw_<N>.csv, which are
+    # read by Step 3 (sepsis) and by make_artifacts. MUST precede Step 3.
+    - name: "hemoglobin_effects_birth"
       type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 40
+        runtime: "04:00:00"
+        cores: 5
+      args:
+        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
+        positional_args:
+          - "--workers"
+          - 5
+          - "--"
+          - generate_birth_effects.py
+
+    # ---- Step 2: IV-iron stillbirth effects (single invocation) --------------
+    # calculate_iv_iron_stillbirth_effects() loops all draws internally (~7 min)
+    # and is NOT draw-parallel, so it runs as a single-task step. Invoked via
+    # the __main__ block in hgb_birth_effect_generation.py (no new script).
+    # Independent of Step 1's outputs (reads RR source files), so order relative
+    # to Step 1 is free.
+    - name: "hemoglobin_iv_iron_stillbirth"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
       resources:
         memory_gb: 16
         runtime: "00:30:00"
-        requires_archive_node: True
       args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          a: test_workflow
-          l: "Ethiopia"
+        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/hgb_birth_effect_generation.py
 
-    - name: "paf_sim_nigeria"
-      type: python
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          a: test_workflow
-          l: "Nigeria"
+    # ======================================================================
+    # BELOW: scaffolded, commented. Uncomment in dependency order as proven.
+    # ======================================================================
 
-    - name: "paf_sim_pakistan"
-      type: python
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          a: test_workflow
-          l: "Pakistan"
-    
-    # NOTE: NOT IMPLEMENTED YET - configuration stubs but not wired up and tested
-    # - name: "hemoglobin_effects_birth_effect"
-    #   command: "python parallel_runner.py --workers 4 -- generate_birth_effects.py"
-    #   resources:
-    #     memory_gb: 1
-    #     runtime: "06:00:00"
-
+    # ---- Step 3: hemoglobin -> neonatal sepsis effects, per draw -------------
+    # Parallel across draws via parallel_runner.py. Reads lbwsg_shifts/ from
+    # Step 1, so Step 1 MUST complete first.
     # - name: "hemoglobin_effects_sepsis"
-    #   command: "python parallel_runner.py --workers 4 -- generate_nn_sepsis_effects.py"
-    #   resources:
-    #     memory_gb: 1
-    #     runtime: "02:00:00"
-
-    # - name: "hemoglobin_maternal_disorders_sim"
     #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
     #   resources:
-    #     memory_gb: 1
-    #     runtime: "00:20:00"
+    #     memory_gb: 40
+    #     runtime: "02:00:00"
+    #     cores: 5
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
+    #     positional_args:
+    #       - "--workers"
+    #       - 5
+    #       - "--"
+    #       - generate_nn_sepsis_effects.py
+
+    # ---- Step 4: maternal-disorder PAFs --------------------------------------
+    # generate_pafs.py is SERIAL internally (no existing parallel driver, and
+    # the single-draw script has no CLI). Reads neonatal sepsis RRs, so it MUST
+    # run after Step 3. Defaults to all locations + all available draws.
+    # - name: "hgb_maternal_disorders_pafs"
+    #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "06:00:00"
     #   args:
     #     path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
 
-    - name: "make_artifacts"
-      environment: vivarium_gates_mncnh_artifact
-      command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
-      resources:
-        memory_gb: 1
-        runtime: "01:00:00"
-    
-    - name: "tests_sim_env"
-      type: pytest
-      environment: vivarium_gates_mncnh_simulation
-      resources:
-        memory_gb: 2
-        runtime: "01:00:00"
-        cores: 4
-      args:
-        path: 
-          - tests/
-        runslow: true
-        k: "not results"
+    # ---- Step 5: LBWSG relative-risk caps (one step per location) ------------
+    # generate_caps.py is per-location and serial; split into 3 sequential
+    # steps (unique names avoid collisions). MUST precede Step 6 (LBWSG PAFs).
+    # - name: "lbwsg_caps_ethiopia"
+    #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "01:00:00"
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+    #     keyword_args:
+    #       l: "Ethiopia"
+    # - name: "lbwsg_caps_nigeria"
+    #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "01:00:00"
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+    #     keyword_args:
+    #       l: "Nigeria"
+    # - name: "lbwsg_caps_pakistan"
+    #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "01:00:00"
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+    #     keyword_args:
+    #       l: "Pakistan"
 
-    - name: "tests_artifact"
-      type: pytest
-      environment: vivarium_gates_mncnh_artifact
-      resources:
-        memory_gb: 2
-        runtime: "01:00:00"
-        cores: 4
-      args:
-        path: 
-          - tests/
-        runslow: true
-        k: "not results"
+    # ---- Step 6: LBWSG PAFs (one step per location) --------------------------
+    # run_paf_sim.py launches psimulate (parallel across draws). Needs the RR
+    # caps from Step 5. (Preserved from the previous workflow config.)
+    # - name: "paf_sim_ethiopia"
+    #   type: python
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "00:30:00"
+    #     requires_archive_node: True
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+    #     keyword_args:
+    #       a: test_workflow
+    #       l: "Ethiopia"
+    # - name: "paf_sim_nigeria"
+    #   type: python
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "00:30:00"
+    #     requires_archive_node: True
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+    #     keyword_args:
+    #       a: test_workflow
+    #       l: "Nigeria"
+    # - name: "paf_sim_pakistan"
+    #   type: python
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "00:30:00"
+    #     requires_archive_node: True
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+    #     keyword_args:
+    #       a: test_workflow
+    #       l: "Pakistan"
+
+    # ---- Step 7: build artifacts for all locations ---------------------------
+    # (Preserved from the previous workflow config.)
+    # - name: "make_artifacts"
+    #   environment: vivarium_gates_mncnh_artifact
+    #   command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
+    #   resources:
+    #     memory_gb: 1
+    #     runtime: "01:00:00"
+
+    # ---- Step 8: test suites -------------------------------------------------
+    # (Preserved from the previous workflow config.)
+    # - name: "tests_sim_env"
+    #   type: pytest
+    #   environment: vivarium_gates_mncnh_simulation
+    #   resources:
+    #     memory_gb: 2
+    #     runtime: "01:00:00"
+    #     cores: 4
+    #   args:
+    #     path:
+    #       - tests/
+    #     runslow: true
+    #     k: "not results"
+    # - name: "tests_artifact"
+    #   type: pytest
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 2
+    #     runtime: "01:00:00"
+    #     cores: 4
+    #   args:
+    #     path:
+    #       - tests/
+    #     runslow: true
+    #     k: "not results"
