@@ -12,11 +12,13 @@ from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_gates_mncnh.constants.data_keys import MATERNAL_HEMORRHAGE, POPULATION
 from vivarium_gates_mncnh.constants.data_values import (
+    ANTEPARTUM_MATERNAL_DISORDERS,
     CAUSES_OF_NEONATAL_MORTALITY,
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     HEMORRHAGE_CAUSES,
     HEMORRHAGE_SEVERITY,
+    INTRAPARTUM_MATERNAL_DISORDERS,
     MATERNAL_DISORDERS,
     NEONATAL_CAUSES,
     PIPELINES,
@@ -24,7 +26,11 @@ from vivarium_gates_mncnh.constants.data_values import (
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.utilities import get_location, rate_to_probability
+from vivarium_gates_mncnh.utilities import (
+    get_location,
+    load_births_net_of_aph_mortality,
+    rate_to_probability,
+)
 
 
 class MaternalDisordersBurden(Component):
@@ -65,6 +71,7 @@ class MaternalDisordersBurden(Component):
         self._sim_step_name = builder.time.simulation_event_name()
         self.randomness = builder.randomness.get_stream(self.name)
         self.location = get_location(builder)
+        self._validate_step_ordering(builder)
 
         self.life_expectancy = self.build_lookup_table(
             builder, "life_expectancy", value_columns="value"
@@ -85,6 +92,37 @@ class MaternalDisordersBurden(Component):
             required_resources=[],
         )
 
+    def _validate_step_ordering(self, builder: Builder) -> None:
+        """Guard the two-pass mortality contract against a mis-ordered event schedule.
+
+        Each antepartum disorder must be assigned before the antepartum mortality
+        step, and each intrapartum disorder before the intrapartum mortality step;
+        otherwise a disorder's incidence would not yet be set when its death is resolved.
+        """
+        events = list(builder.configuration.time.simulation_events)
+        antepartum_mortality = events.index(
+            SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY
+        )
+        mortality = events.index(SIMULATION_EVENT_NAMES.MORTALITY)
+        # A disorder's column name is also its incidence-assignment event name.
+        for disorder in ANTEPARTUM_MATERNAL_DISORDERS:
+            if events.index(disorder) >= antepartum_mortality:
+                raise ValueError(
+                    f"Antepartum disorder '{disorder}' is assigned at or after the "
+                    "antepartum mortality step; check simulation_events ordering."
+                )
+        for disorder in INTRAPARTUM_MATERNAL_DISORDERS:
+            if events.index(disorder) >= mortality:
+                raise ValueError(
+                    f"Intrapartum disorder '{disorder}' is assigned at or after the "
+                    "mortality step; check simulation_events ordering."
+                )
+        if antepartum_mortality >= mortality:
+            raise ValueError(
+                "Antepartum mortality must precede intrapartum mortality; "
+                "check simulation_events ordering."
+            )
+
     ########################
     # Event-driven methods #
     ########################
@@ -101,13 +139,24 @@ class MaternalDisordersBurden(Component):
         self.population_view.initialize(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.MORTALITY:
+        step = self._sim_step_name()
+        if step == SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY:
+            self._resolve_mortality(ANTEPARTUM_MATERNAL_DISORDERS, event.index)
+        elif step == SIMULATION_EVENT_NAMES.MORTALITY:
+            # Only mothers who survived the antepartum pass are eligible to die
+            # from an intrapartum disorder, making the two passes mutually exclusive.
+            alive = self.population_view.get(event.index, [COLUMNS.MOTHER_ALIVE])
+            survivors = alive.loc[alive[COLUMNS.MOTHER_ALIVE]]
+            self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, survivors.index)
+        else:
             return
 
-        pop = self.population_view.get(event.index, self.maternal_disorders)
+    def _resolve_mortality(self, disorders: list[str], eligible_index: pd.Index) -> None:
+        """Resolve maternal mortality for a subset of disorders over eligible simulants."""
+        pop = self.population_view.get(eligible_index, disorders)
 
         # Only severe hemorrhage cases can die
-        for cause in self.hemorrhage_causes:
+        for cause in [c for c in self.hemorrhage_causes if c in disorders]:
             affected = pop.index[pop[cause]]
             if not affected.empty:
                 severity = self.population_view.get(affected, f"{cause}_severity")
@@ -119,7 +168,7 @@ class MaternalDisordersBurden(Component):
 
         # Get raw and conditional case fatality rates for each simulant
         choice_data = has_maternal_disorders.copy()
-        choice_data = self.calculate_case_fatality_rates(choice_data)
+        choice_data = self.calculate_case_fatality_rates(choice_data, disorders)
 
         # Decide what simulants die from what maternal disorders
         dead_idx = self.randomness.filter_for_probability(
@@ -133,10 +182,10 @@ class MaternalDisordersBurden(Component):
             # Get maternal disorders each simulant is affected by
             cause_of_death = self.randomness.choice(
                 index=dead_idx,
-                choices=self.maternal_disorders,
+                choices=disorders,
                 p=choice_data.loc[
                     dead_idx,
-                    [f"{disorder}_proportional_cfr" for disorder in self.maternal_disorders],
+                    [f"{disorder}_proportional_cfr" for disorder in disorders],
                 ],
                 additional_key="cause_of_death",
             )
@@ -176,33 +225,38 @@ class MaternalDisordersBurden(Component):
             csmr = builder.data.load(
                 f"cause.{cause}.cause_specific_mortality_rate"
             ).set_index(ARTIFACT_INDEX_COLUMNS)
-            special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
-            incidence_rate_key = special_incidence_rates.get(
-                cause, f"cause.{cause}.incidence_rate"
-            )
-            incidence_rate = builder.data.load(incidence_rate_key).set_index(
-                ARTIFACT_INDEX_COLUMNS
-            )
+            if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
+                # Residual disorders are conditional on surviving the antepartum period,
+                # so the denominator is births net of antepartum hemorrhage deaths.
+                incidence_rate = load_births_net_of_aph_mortality(builder)
+            else:
+                incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+                    ARTIFACT_INDEX_COLUMNS
+                )
             cfr = (csmr / incidence_rate).fillna(0).reset_index()
 
         return cfr
 
-    def calculate_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
+    def calculate_case_fatality_rates(
+        self, simulants: pd.DataFrame, disorders: list[str]
+    ) -> pd.DataFrame:
         """Calculate the total and proportional case fatality rate for each simulant."""
 
-        for cause in self.maternal_disorders:
+        for cause in disorders:
             simulants[cause] = simulants[cause] * getattr(
                 self, f"{cause}_case_fatality_rate"
             )(simulants.index)
-        simulants["mortality_probability"] = simulants[self.maternal_disorders].sum(axis=1)
-        cfr_data = self.get_proportional_case_fatality_rates(simulants)
+        simulants["mortality_probability"] = simulants[disorders].sum(axis=1)
+        cfr_data = self.get_proportional_case_fatality_rates(simulants, disorders)
 
         return cfr_data
 
-    def get_proportional_case_fatality_rates(self, simulants: pd.DataFrame) -> pd.DataFrame:
+    def get_proportional_case_fatality_rates(
+        self, simulants: pd.DataFrame, disorders: list[str]
+    ) -> pd.DataFrame:
         """Calculate the proportional case fatality rates for each maternal disorder."""
 
-        for cause in self.maternal_disorders:
+        for cause in disorders:
             simulants[f"{cause}_proportional_cfr"] = (
                 simulants[cause] / simulants["mortality_probability"]
             )

@@ -41,7 +41,10 @@ from vivarium_gates_mncnh.constants.metadata import (
     ARTIFACT_INDEX_COLUMNS,
     PRETERM_AGE_CUTOFF,
 )
-from vivarium_gates_mncnh.utilities import get_child_age_bins
+from vivarium_gates_mncnh.utilities import (
+    get_child_age_bins,
+    load_births_net_of_aph_mortality,
+)
 
 
 def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
@@ -542,13 +545,14 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         yld_rate = builder.data.load(f"cause.{cause}.yld_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
-        special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
-        incidence_rate_key = special_incidence_rates.get(
-            cause, f"cause.{cause}.incidence_rate"
-        )
-        incidence_rate = builder.data.load(incidence_rate_key).set_index(
-            ARTIFACT_INDEX_COLUMNS
-        )
+        if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
+            # Residual disorders apply only to antepartum survivors, so ylds_per_case
+            # divides by births net of antepartum hemorrhage deaths.
+            incidence_rate = load_births_net_of_aph_mortality(builder)
+        else:
+            incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+                ARTIFACT_INDEX_COLUMNS
+            )
         ylds = (yld_rate / incidence_rate).fillna(0).reset_index()
 
         return ylds

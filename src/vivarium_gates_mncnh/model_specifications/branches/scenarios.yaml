@@ -8,21 +8,24 @@ input_draws: [115, 60, 118, 197, 79, 244, 22, 167, 146, 71]
 # Draws should NOT be equal to mod 100, meaning draws 115 and 215 should not be used together
 # due to the 2023 Hemoglobin exposure data only having 100 draws.
 # Other draws that have been generated available to use: 28, 156, 94, 170, 109, 26, 35, 114, 178, 127
+# Standard V&V scenarios for the model 39.0 "PPH/APH split updates" run (MIC-7286).
+# Only the "Standard V&V scenarios list" from the concept model docs is active;
+# the remaining portfolio scenarios are commented out (not deleted) for this run.
 branches:
   - intervention:
-      scenario: 
-        - 'baseline' 
-        - "cpap_acs_scaleup"
-        - "cpap_acs_ai_ultrasound_scaleup"
-        - "neonatal_antibiotics_scaleup"
-        - "neonatal_probiotics_scaleup"
+      scenario:
+        - 'baseline'
+        # - "cpap_acs_scaleup"
+        # - "cpap_acs_ai_ultrasound_scaleup"
+        # - "neonatal_antibiotics_scaleup"
+        # - "neonatal_probiotics_scaleup"
         - "azithromycin_scaleup"
-        - "ai_ultrasound_scaleup"
-        - "standard_ultrasound_scaleup"
-        - "full_product_scaleup"
+        # - "ai_ultrasound_scaleup"
+        # - "standard_ultrasound_scaleup"
+        # - "full_product_scaleup"
         - "mms_total_scaleup"
         - "anemia_screening_and_iv_iron_scaleup"
         - "azithromycin_vv"
         - "misoprostol_vv"
-        - "ultrasound_vv"
+        # - "ultrasound_vv"
         - "anemia_screening_vv"
