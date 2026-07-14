@@ -90,8 +90,6 @@ class _SimulationEventNames(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
-    # Maternal postpartum periods (mother's timeline), distinct from the neonatal
-    # age bands below. Early = 0-6 weeks, late = 6-39 weeks after end of pregnancy.
     EARLY_POSTPARTUM = "early_postpartum"
     LATE_POSTPARTUM = "late_postpartum"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"

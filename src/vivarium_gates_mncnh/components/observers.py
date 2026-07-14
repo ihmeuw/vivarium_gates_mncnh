@@ -668,7 +668,6 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            # Maternal postpartum person-time: early = 0-6 weeks, late = 6-39 weeks.
             SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM: lambda df: pd.Series(
                 EARLY_POSTPARTUM_END_DAYS / DAYS_PER_YEAR, index=df.index
             ),
