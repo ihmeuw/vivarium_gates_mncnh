@@ -20,6 +20,7 @@ workflow:
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"
       type: python
+      environment: vivarium_gates_mncnh_artifact
       resources:
         memory_gb: 1
         runtime: "00:01:00"
@@ -132,8 +133,12 @@ workflow:
     # ---- Step 6: LBWSG PAFs (one step per location) --------------------------
     # run_paf_sim.py launches psimulate (parallel across draws). Needs the RR
     # caps from Step 5. (Preserved from the previous workflow config.)
+    # NOTE: run_paf_sim.py self-dispatches its sub-envs (psimulate ->
+    # ..._simulation, make_artifacts -> ..._artifact via `conda run`); the step
+    # env below is just the orchestrator env (needs the repo + conda).
     # - name: "paf_sim_ethiopia"
     #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
@@ -145,6 +150,7 @@ workflow:
     #       l: "Ethiopia"
     # - name: "paf_sim_nigeria"
     #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
@@ -156,6 +162,7 @@ workflow:
     #       l: "Nigeria"
     # - name: "paf_sim_pakistan"
     #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
