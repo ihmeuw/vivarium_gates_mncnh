@@ -31,11 +31,11 @@ SEPSIS_COMPONENT_NAME = "sepsis_effects_on_hemoglobin"
 
 
 def _state_at(model_spec_path: Path, event_name: str) -> InteractiveContext:
-    """Return a sim stepped to ``event_name`` using the real simulation_events order."""
+    """Return a sim positioned at ``event_name``, using the real simulation_events order."""
     config = LayeredConfigTree(model_spec_path)
     events = list(config.configuration.time.simulation_events)
     sim = InteractiveContext(model_spec_path)
-    sim.take_steps(events.index(event_name) + 1)
+    sim.take_steps(events.index(event_name))
     return sim
 
 
