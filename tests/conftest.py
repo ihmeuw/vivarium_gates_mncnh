@@ -12,7 +12,6 @@ from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 
-
 # Detect environment type by checking for vivarium_inputs package
 try:
     import vivarium_inputs
