@@ -113,6 +113,8 @@ configuration:
             - 'residual_maternal_disorders'
             - 'abortion_miscarriage_ectopic_pregnancy'
             - 'mortality'
+            - 'early_postpartum'
+            - 'late_postpartum'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
             - 'postpartum_depression'
