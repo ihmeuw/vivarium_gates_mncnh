@@ -31,49 +31,15 @@ workflow:
     # Parallel across draws via parallel_runner.py. Produces
     # lbwsg_shifts/draw_<N>.csv and iv_iron_lbwsg_shifts/draw_<N>.csv, which are
     # read by Step 3 (sepsis) and by make_artifacts. MUST precede Step 3.
-    - name: "hemoglobin_effects_birth"
-      type: python
-      environment: vivarium_gates_mncnh_artifact
-      resources:
-        memory_gb: 40
-        runtime: "04:00:00"
-        cores: 5
-      args:
-        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
-        positional_args:
-          - "--workers"
-          - 5
-          - "--"
-          - generate_birth_effects.py
-
-    # ---- Step 2: IV-iron stillbirth effects (single invocation) --------------
-    # calculate_iv_iron_stillbirth_effects() loops all draws internally (~7 min)
-    # and is NOT draw-parallel, so it runs as a single-task step. Invoked via
-    # the __main__ block in hgb_birth_effect_generation.py (no new script).
-    # Independent of Step 1's outputs (reads RR source files), so order relative
-    # to Step 1 is free.
-    - name: "hemoglobin_iv_iron_stillbirth"
-      type: python
-      environment: vivarium_gates_mncnh_artifact
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-      args:
-        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/hgb_birth_effect_generation.py
-
-    # ======================================================================
-    # BELOW: scaffolded, commented. Uncomment in dependency order as proven.
-    # ======================================================================
-
-    # ---- Step 3: hemoglobin -> neonatal sepsis effects, per draw -------------
-    # Parallel across draws via parallel_runner.py. Reads lbwsg_shifts/ from
-    # Step 1, so Step 1 MUST complete first.
-    # - name: "hemoglobin_effects_sepsis"
+    # PROVEN + committed -- commented to skip the ~4h recompute while testing
+    # later steps (Step 3 reads its committed outputs). Re-enable for the final
+    # full run.
+    # - name: "hemoglobin_effects_birth"
     #   type: python
     #   environment: vivarium_gates_mncnh_artifact
     #   resources:
     #     memory_gb: 40
-    #     runtime: "02:00:00"
+    #     runtime: "04:00:00"
     #     cores: 5
     #   args:
     #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
@@ -81,20 +47,59 @@ workflow:
     #       - "--workers"
     #       - 5
     #       - "--"
-    #       - generate_nn_sepsis_effects.py
+    #       - generate_birth_effects.py
+
+    # ---- Step 2: IV-iron stillbirth effects (single invocation) --------------
+    # calculate_iv_iron_stillbirth_effects() loops all draws internally (~7 min)
+    # and is NOT draw-parallel, so it runs as a single-task step. Invoked via
+    # the __main__ block in hgb_birth_effect_generation.py (no new script).
+    # Independent of Step 1's outputs (reads RR source files), so order relative
+    # to Step 1 is free.
+    # PROVEN + committed -- commented to skip recompute while testing later
+    # steps. Re-enable for the final full run.
+    # - name: "hemoglobin_iv_iron_stillbirth"
+    #   type: python
+    #   environment: vivarium_gates_mncnh_artifact
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "00:30:00"
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/hgb_birth_effect_generation.py
+
+    # ======================================================================
+    # BELOW: scaffolded, commented. Uncomment in dependency order as proven.
+    # ======================================================================
+
+    # ---- Step 3: hemoglobin -> neonatal sepsis effects, per draw -------------
+    # Parallel across draws via parallel_runner.py. Reads lbwsg_shifts/ from
+    # Step 1 (committed), so Step 1's outputs must be present.
+    - name: "hemoglobin_effects_sepsis"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 40
+        runtime: "02:00:00"
+        cores: 5
+      args:
+        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
+        positional_args:
+          - "--workers"
+          - 5
+          - "--"
+          - generate_nn_sepsis_effects.py
 
     # ---- Step 4: maternal-disorder PAFs --------------------------------------
     # generate_pafs.py is SERIAL internally (no existing parallel driver, and
     # the single-draw script has no CLI). Reads neonatal sepsis RRs, so it MUST
     # run after Step 3. Defaults to all locations + all available draws.
-    # - name: "hgb_maternal_disorders_pafs"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "06:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
+    - name: "hgb_maternal_disorders_pafs"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 16
+        runtime: "06:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
 
     # ---- Step 5: LBWSG relative-risk caps (one step per location) ------------
     # generate_caps.py is per-location and serial; split into 3 sequential
