@@ -20,7 +20,7 @@ workflow:
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: vivarium_gates_mncnh-explore_artifact
       resources:
         memory_gb: 1
         runtime: "00:01:00"
@@ -36,7 +36,7 @@ workflow:
     # full run.
     # - name: "hemoglobin_effects_birth"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 40
     #     runtime: "04:00:00"
@@ -59,7 +59,7 @@ workflow:
     # steps. Re-enable for the final full run.
     # - name: "hemoglobin_iv_iron_stillbirth"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
@@ -79,7 +79,7 @@ workflow:
     # (NonLogLinearRiskEffect ... include_groups).
     - name: "hemoglobin_effects_sepsis"
       type: python
-      environment: vivarium_gates_mncnh_simulation
+      environment: vivarium_gates_mncnh-explore_simulation
       resources:
         memory_gb: 40
         runtime: "02:00:00"
@@ -101,7 +101,7 @@ workflow:
     # hemoglobin_rrs_scaled_to_tmred.csv cache, so no GBD/vivarium_inputs needed.
     - name: "hgb_maternal_disorders_pafs"
       type: python
-      environment: vivarium_gates_mncnh_simulation
+      environment: vivarium_gates_mncnh-explore_simulation
       resources:
         memory_gb: 16
         runtime: "06:00:00"
@@ -113,7 +113,7 @@ workflow:
     # steps (unique names avoid collisions). MUST precede Step 6 (LBWSG PAFs).
     # - name: "lbwsg_caps_ethiopia"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "01:00:00"
@@ -123,7 +123,7 @@ workflow:
     #       l: "Ethiopia"
     # - name: "lbwsg_caps_nigeria"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "01:00:00"
@@ -133,7 +133,7 @@ workflow:
     #       l: "Nigeria"
     # - name: "lbwsg_caps_pakistan"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "01:00:00"
@@ -150,7 +150,7 @@ workflow:
     # env below is just the orchestrator env (needs the repo + conda).
     # - name: "paf_sim_ethiopia"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
@@ -162,7 +162,7 @@ workflow:
     #       l: "Ethiopia"
     # - name: "paf_sim_nigeria"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
@@ -174,7 +174,7 @@ workflow:
     #       l: "Nigeria"
     # - name: "paf_sim_pakistan"
     #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 16
     #     runtime: "00:30:00"
@@ -188,7 +188,7 @@ workflow:
     # ---- Step 7: build artifacts for all locations ---------------------------
     # (Preserved from the previous workflow config.)
     # - name: "make_artifacts"
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
     #   resources:
     #     memory_gb: 1
@@ -198,7 +198,7 @@ workflow:
     # (Preserved from the previous workflow config.)
     # - name: "tests_sim_env"
     #   type: pytest
-    #   environment: vivarium_gates_mncnh_simulation
+    #   environment: vivarium_gates_mncnh-explore_simulation
     #   resources:
     #     memory_gb: 2
     #     runtime: "01:00:00"
@@ -210,7 +210,7 @@ workflow:
     #     k: "not results"
     # - name: "tests_artifact"
     #   type: pytest
-    #   environment: vivarium_gates_mncnh_artifact
+    #   environment: vivarium_gates_mncnh-explore_artifact
     #   resources:
     #     memory_gb: 2
     #     runtime: "01:00:00"
