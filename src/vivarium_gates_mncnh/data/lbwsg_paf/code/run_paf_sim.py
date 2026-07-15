@@ -47,14 +47,29 @@ def generate_artifact():
         dest="artifact_name",
         help="Name of the artifact directory. Will write to /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/{artifact_name}",
     )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        type=str,
+        default=None,
+        dest="output_dir",
+        help="Full path to the artifact directory where {location}.hdf is written "
+        "(supports ~). Overrides the default team-mount /artifacts/{artifact_name} "
+        "location -- e.g. a personal scratch dir for isolated test runs.",
+    )
 
     args = parser.parse_args()
 
     location = args.location.lower()
     artifact_name = args.artifact_name
 
-    # Define artifact path
-    artifact_path = f"/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/{artifact_name}"
+    # Define artifact path. --output-dir overrides the default team-mount location
+    # (e.g. a personal scratch dir) so test runs don't touch shared team artifacts.
+    if args.output_dir:
+        artifact_path = str(Path(args.output_dir).expanduser())
+    else:
+        artifact_path = f"/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/{artifact_name}"
+    Path(artifact_path).mkdir(parents=True, exist_ok=True)
 
     # Create timestamped working directory on shared filesystem
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
