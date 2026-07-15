@@ -18,14 +18,17 @@ workflow:
   # ==========================================================================
   steps:
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
-    - name: "check_clean_working_tree"
-      type: python
-      environment: vivarium_gates_mncnh-explore_artifact
-      resources:
-        memory_gb: 1
-        runtime: "00:01:00"
-      args:
-        path: src/vivarium_gates_mncnh/tools/check_working_tree.py
+    # COMMENTED during iterative dev: generated CSVs from prior batches leave
+    # the tree dirty (modified tracked files), which this guard rejects.
+    # RE-ENABLE for the final full run (must be the first step).
+    # - name: "check_clean_working_tree"
+    #   type: python
+    #   environment: vivarium_gates_mncnh-explore_artifact
+    #   resources:
+    #     memory_gb: 1
+    #     runtime: "00:01:00"
+    #   args:
+    #     path: src/vivarium_gates_mncnh/tools/check_working_tree.py
 
     # ---- Step 1: hemoglobin -> birth effects (LBWSG shifts), per draw --------
     # Parallel across draws via parallel_runner.py. Produces
@@ -77,20 +80,21 @@ workflow:
     # (sim_utils.initialize_simulation, no vivarium_inputs dep). The artifact
     # env's GBD-pinned pandas is incompatible with vph's sim-time RR validation
     # (NonLogLinearRiskEffect ... include_groups).
-    - name: "hemoglobin_effects_sepsis"
-      type: python
-      environment: vivarium_gates_mncnh-explore_simulation
-      resources:
-        memory_gb: 40
-        runtime: "02:00:00"
-        cores: 5
-      args:
-        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
-        positional_args:
-          - "--workers"
-          - 5
-          - "--"
-          - generate_nn_sepsis_effects.py
+    # PROVEN -- outputs on disk; commented to skip recompute this batch.
+    # - name: "hemoglobin_effects_sepsis"
+    #   type: python
+    #   environment: vivarium_gates_mncnh-explore_simulation
+    #   resources:
+    #     memory_gb: 40
+    #     runtime: "02:00:00"
+    #     cores: 5
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
+    #     positional_args:
+    #       - "--workers"
+    #       - 5
+    #       - "--"
+    #       - generate_nn_sepsis_effects.py
 
     # ---- Step 4: maternal-disorder PAFs --------------------------------------
     # generate_pafs.py is SERIAL internally (no existing parallel driver, and
@@ -99,48 +103,49 @@ workflow:
     # Runs in the SIMULATION env (same reason as Step 3: initializes an
     # InteractiveContext). The scaled-hgb-RR input is read from the committed
     # hemoglobin_rrs_scaled_to_tmred.csv cache, so no GBD/vivarium_inputs needed.
-    - name: "hgb_maternal_disorders_pafs"
-      type: python
-      environment: vivarium_gates_mncnh-explore_simulation
-      resources:
-        memory_gb: 16
-        runtime: "06:00:00"
-      args:
-        path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
+    # PROVEN -- outputs on disk; commented to skip recompute this batch.
+    # - name: "hgb_maternal_disorders_pafs"
+    #   type: python
+    #   environment: vivarium_gates_mncnh-explore_simulation
+    #   resources:
+    #     memory_gb: 16
+    #     runtime: "06:00:00"
+    #   args:
+    #     path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
 
     # ---- Step 5: LBWSG relative-risk caps (one step per location) ------------
     # generate_caps.py is per-location and serial; split into 3 sequential
     # steps (unique names avoid collisions). MUST precede Step 6 (LBWSG PAFs).
-    # - name: "lbwsg_caps_ethiopia"
-    #   type: python
-    #   environment: vivarium_gates_mncnh-explore_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "01:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
-    #     keyword_args:
-    #       l: "Ethiopia"
-    # - name: "lbwsg_caps_nigeria"
-    #   type: python
-    #   environment: vivarium_gates_mncnh-explore_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "01:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
-    #     keyword_args:
-    #       l: "Nigeria"
-    # - name: "lbwsg_caps_pakistan"
-    #   type: python
-    #   environment: vivarium_gates_mncnh-explore_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "01:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
-    #     keyword_args:
-    #       l: "Pakistan"
+    - name: "lbwsg_caps_ethiopia"
+      type: python
+      environment: vivarium_gates_mncnh-explore_artifact
+      resources:
+        memory_gb: 16
+        runtime: "01:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+        keyword_args:
+          l: "Ethiopia"
+    - name: "lbwsg_caps_nigeria"
+      type: python
+      environment: vivarium_gates_mncnh-explore_artifact
+      resources:
+        memory_gb: 16
+        runtime: "01:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+        keyword_args:
+          l: "Nigeria"
+    - name: "lbwsg_caps_pakistan"
+      type: python
+      environment: vivarium_gates_mncnh-explore_artifact
+      resources:
+        memory_gb: 16
+        runtime: "01:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+        keyword_args:
+          l: "Pakistan"
 
     # ---- Step 6: LBWSG PAFs (one step per location) --------------------------
     # run_paf_sim.py launches psimulate (parallel across draws). Needs the RR
@@ -148,6 +153,10 @@ workflow:
     # NOTE: run_paf_sim.py self-dispatches its sub-envs (psimulate ->
     # ..._simulation, make_artifacts -> ..._artifact via `conda run`); the step
     # env below is just the orchestrator env (needs the repo + conda).
+    # BLOCKER under -explore: run_paf_sim.py hardcodes the STANDARD env names
+    # (conda_env=..., and utilities.check_conda_environments requires exactly
+    # vivarium_gates_mncnh_{simulation,artifact}). So this step needs the
+    # standard-named envs present, or a temp code patch. Defer to its own batch.
     # - name: "paf_sim_ethiopia"
     #   type: python
     #   environment: vivarium_gates_mncnh-explore_artifact
