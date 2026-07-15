@@ -45,7 +45,7 @@ if __name__ == "__main__":
         "vivarium_dependencies<2.0.0",
         "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
         "vivarium_build_utils>=4.0.0,<5.0.0",
-        "vivarium_gbd_mapping>=5.0.0,<6.0.0",
+        "vivarium_gbd_mapping>=6.0.0,<7.0.0",
         "vivarium_engine>=5.3.0, <6.0.0",
         "vivarium_public_health>=6.3.1, <7.0.0",
         "click",
