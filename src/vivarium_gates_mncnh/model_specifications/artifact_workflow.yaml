@@ -2,7 +2,7 @@ workflow:
   name: "test_pipeline"
   project: "proj_simscience"
   queue: "all.q"
-  output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/test_workflow
+  output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/albrja_test
   # ==========================================================================
   # Pre-simulation data generation pipeline.
   #
@@ -167,7 +167,7 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          a: test_workflow
+          a: albrja_test
           l: "Ethiopia"
     - name: "paf_sim_nigeria"
       type: python
@@ -179,7 +179,7 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          a: test_workflow
+          a: albrja_test
           l: "Nigeria"
     - name: "paf_sim_pakistan"
       type: python
@@ -191,7 +191,7 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          a: test_workflow
+          a: albrja_test
           l: "Pakistan"
 
     # ---- Step 7: build artifacts for all locations -------------------
@@ -200,7 +200,7 @@ workflow:
     # location. (Running the test suites is out of scope for this workflow.)
     - name: "make_artifacts"
       environment: vivarium_gates_mncnh_artifact
-      command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/"'
+      command: 'bash -lc "yes y | make_artifacts -l all -o /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/albrja_test/"'
       resources:
         memory_gb: 1
         runtime: "01:00:00"
