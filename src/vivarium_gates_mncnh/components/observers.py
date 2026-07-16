@@ -26,14 +26,14 @@ from vivarium_gates_mncnh.constants.data_values import (
     DAYS_PER_WEEK,
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
-    EARLY_NEONATAL_DURATION_WEEKS,
+    EARLY_POSTPARTUM_END_DAYS,
     HEMORRHAGE_CAUSES,
     HEMORRHAGE_SEVERITY,
     INTERVENTIONS,
+    LATE_POSTPARTUM_END_DAYS,
     LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
     PIPELINES,
-    POSTPARTUM_NINE_MONTH_DURATION_WEEKS,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
     TIME_OF_FIRST_ANC_VISIT_PLACEHOLDER,
@@ -323,10 +323,10 @@ class ResultsStratifier(ResultsStratifier_):
     def map_anemia_status(self, pop: pd.DataFrame) -> pd.Series:
         """Map hemoglobin values to anemia status categories.
 
-        Use non-pregnancy thresholds during the postpartum nine-month step
+        Use non-pregnancy thresholds during the late postpartum (6w-9m) step
         to match the thresholds used in disability weight calculations.
         """
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH:
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
             thresholds = ANEMIA_THRESHOLDS_NON_PREGNANCY
         else:
             thresholds = None
@@ -636,8 +636,8 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
         SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
         SIMULATION_EVENT_NAMES.ULTRASOUND,
-        SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
-        SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
+        SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+        SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
     ]
 
     @property
@@ -716,10 +716,10 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         For the 6w-9m postpartum period, non-pregnancy-specific anemia
         thresholds are used to determine disability weights.
         """
-        # Use non-pregnancy thresholds for the 6w-9m postpartum period.
+        # Use non-pregnancy thresholds for the late postpartum (6w-9m) period.
         # The same disability weights are used regardless of threshold set - only the
         # anemia status categorization changes between pregnancy and non-pregnancy periods.
-        if self._sim_step_name() == SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH:
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
             thresholds = ANEMIA_THRESHOLDS_NON_PREGNANCY
         else:
             thresholds = ANEMIA_THRESHOLDS
@@ -749,11 +749,11 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
-                EARLY_NEONATAL_DURATION_WEEKS * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
+            SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM: lambda df: pd.Series(
+                EARLY_POSTPARTUM_END_DAYS / DAYS_PER_YEAR, index=df.index
             ),
-            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH: lambda df: pd.Series(
-                POSTPARTUM_NINE_MONTH_DURATION_WEEKS * DAYS_PER_WEEK / DAYS_PER_YEAR,
+            SIMULATION_EVENT_NAMES.LATE_POSTPARTUM: lambda df: pd.Series(
+                (LATE_POSTPARTUM_END_DAYS - EARLY_POSTPARTUM_END_DAYS) / DAYS_PER_YEAR,
                 index=df.index,
             ),
         }

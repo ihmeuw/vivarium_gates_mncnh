@@ -24,9 +24,12 @@ DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
 MONTHS_PER_YEAR = 12
 
-# Duration constants for anemia YLD calculations
-EARLY_NEONATAL_DURATION_WEEKS = 6
-POSTPARTUM_NINE_MONTH_DURATION_WEEKS = 33  # 9 months (~39 weeks) postpartum minus the first 6 weeks (covered by the early-neonatal window)
+# Postpartum period boundaries (measured from the end of pregnancy) used for the
+# hemorrhage hemoglobin shifts and anemia YLD calculations. Early postpartum is
+# 0-6 weeks; late postpartum is 6-39 weeks (39 weeks being the point at which the
+# GBD 2023 postpartum-hemorrhage hemoglobin shift curve returns to ~0).
+EARLY_POSTPARTUM_END_DAYS = 6 * DAYS_PER_WEEK  # 6 weeks
+LATE_POSTPARTUM_END_DAYS = 39 * DAYS_PER_WEEK  # 39 weeks
 
 # GBD sequela IDs for maternal hemorrhage severity splits
 MODERATE_HEMORRHAGE_SEQUELA_ID = 180
@@ -92,9 +95,10 @@ class _SimulationEventNames(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
+    EARLY_POSTPARTUM = "early_postpartum"
+    LATE_POSTPARTUM = "late_postpartum"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
-    POSTPARTUM_HEMOGLOBIN_NINE_MONTH = "postpartum_hemoglobin_nine_month"
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
@@ -119,6 +123,8 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.RESIDUAL_MATERNAL_DISORDERS,
     SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     SIMULATION_EVENT_NAMES.MORTALITY,
+    SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+    SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
     SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
     SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
     SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION,

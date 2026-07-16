@@ -11,32 +11,6 @@ from vivarium import Artifact
 from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
-from vivarium_gates_mncnh.constants.data_values import SIMULATION_EVENT_NAMES
-
-SIMULATION_STEPS = [
-    SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
-    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING,
-    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
-    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
-    SIMULATION_EVENT_NAMES.ULTRASOUND,
-    SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE,
-    SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
-    SIMULATION_EVENT_NAMES.AZITHROMYCIN_ACCESS,
-    SIMULATION_EVENT_NAMES.MISOPROSTOL_ACCESS,
-    SIMULATION_EVENT_NAMES.CPAP_ACCESS,
-    SIMULATION_EVENT_NAMES.ACS_ACCESS,
-    SIMULATION_EVENT_NAMES.ANTIBIOTICS_ACCESS,
-    SIMULATION_EVENT_NAMES.PROBIOTICS_ACCESS,
-    SIMULATION_EVENT_NAMES.OBSTRUCTED_LABOR,
-    SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE,
-    SIMULATION_EVENT_NAMES.MATERNAL_SEPSIS,
-    SIMULATION_EVENT_NAMES.RESIDUAL_MATERNAL_DISORDERS,
-    SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
-    SIMULATION_EVENT_NAMES.MORTALITY,
-    SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
-    SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
-    SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION,
-]
 
 
 # Detect environment type by checking for vivarium_inputs package
@@ -83,11 +57,11 @@ def model_spec_path() -> Path:
 
 
 @pytest.fixture(scope="session")
-def sim_state_step_mapper() -> dict[str, int]:
-    step_mapper = {}
-    for i in range(len(SIMULATION_STEPS)):
-        step_mapper[SIMULATION_STEPS[i]] = i + 1
-    return step_mapper
+def sim_state_step_mapper(model_spec_path: Path) -> dict[str, int]:
+    # Derive the step -> take_steps count from the model spec's simulation_events
+    # (the single source of truth) so it can never drift from the real ordering.
+    events = list(LayeredConfigTree(model_spec_path).configuration.time.simulation_events)
+    return {event: i + 1 for i, event in enumerate(events)}
 
 
 @pytest.fixture(scope="session")
