@@ -2,7 +2,7 @@ workflow:
   name: "test_pipeline"
   project: "proj_simscience"
   queue: "all.q"
-  output_directory: /ihme/homes/albrja/scratch/artifact_workflow_results
+  output_directory: INSERT_VALID_DIRECTORY
   # ==========================================================================
   # Pre-simulation data generation pipeline.
   #
@@ -12,151 +12,125 @@ workflow:
   #   - run_paf_sim.py      -> fans draws via psimulate (jobmon)
   #   - generate_pafs.py / generate_caps.py -> serial internally
   #
-  # Steps are laid out below in dependency order. We uncomment them one batch
-  # at a time as each is proven out on the cluster (strict order 1, 2, 3, ...).
-  # Resource values on new steps are first-pass estimates -- tune after a run.
+  # Steps are ordered by dependency. Resource values are first-pass estimates
+  # -- tune as needed. Output paths are INSERT_VALID_DIRECTORY placeholders;
+  # set them to valid, writable directories before running.
   # ==========================================================================
   steps:
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
-    # COMMENTED during iterative dev: generated CSVs from prior batches leave
-    # the tree dirty (modified tracked files), which this guard rejects.
-    # RE-ENABLE for the final full run (must be the first step).
-    # - name: "check_clean_working_tree"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 1
-    #     runtime: "00:01:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/tools/check_working_tree.py
+    - name: "check_clean_working_tree"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 1
+        runtime: "00:01:00"
+      args:
+        path: src/vivarium_gates_mncnh/tools/check_working_tree.py
 
     # ---- Step 1: hemoglobin -> birth effects (LBWSG shifts), per draw --------
-    # Parallel across draws via parallel_runner.py. Produces
-    # lbwsg_shifts/draw_<N>.csv and iv_iron_lbwsg_shifts/draw_<N>.csv, which are
-    # read by Step 3 (sepsis) and by make_artifacts. MUST precede Step 3.
-    # PROVEN + committed -- commented to skip the ~4h recompute while testing
-    # later steps (Step 3 reads its committed outputs). Re-enable for the final
-    # full run.
-    # - name: "hemoglobin_effects_birth"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 40
-    #     runtime: "04:00:00"
-    #     cores: 5
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
-    #     positional_args:
-    #       - "--workers"
-    #       - 5
-    #       - "--"
-    #       - generate_birth_effects.py
+    # Parallel across draws via parallel_runner.py. Produces lbwsg_shifts/ and
+    # iv_iron_lbwsg_shifts/, read by Step 3 (sepsis) and by make_artifacts.
+    - name: "hemoglobin_effects_birth"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 40
+        runtime: "04:00:00"
+        cores: 5
+      args:
+        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
+        positional_args:
+          - "--workers"
+          - 5
+          - "--"
+          - generate_birth_effects.py
 
     # ---- Step 2: IV-iron stillbirth effects (single invocation) --------------
-    # calculate_iv_iron_stillbirth_effects() loops all draws internally (~7 min)
-    # and is NOT draw-parallel, so it runs as a single-task step. Invoked via
-    # the __main__ block in hgb_birth_effect_generation.py (no new script).
-    # Independent of Step 1's outputs (reads RR source files), so order relative
-    # to Step 1 is free.
-    # PROVEN + committed -- commented to skip recompute while testing later
-    # steps. Re-enable for the final full run.
-    # - name: "hemoglobin_iv_iron_stillbirth"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "00:30:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/hgb_birth_effect_generation.py
-
-    # ======================================================================
-    # BELOW: scaffolded, commented. Uncomment in dependency order as proven.
-    # ======================================================================
+    # calculate_iv_iron_stillbirth_effects() loops all draws internally and is
+    # NOT draw-parallel, so it runs as a single-task step via the __main__ block
+    # in hgb_birth_effect_generation.py. Independent of Step 1's outputs.
+    - name: "hemoglobin_iv_iron_stillbirth"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 16
+        runtime: "00:30:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/hgb_birth_effect_generation.py
 
     # ---- Step 3: hemoglobin -> neonatal sepsis effects, per draw -------------
     # Parallel across draws via parallel_runner.py. Reads lbwsg_shifts/ from
-    # Step 1 (committed), so Step 1's outputs must be present.
-    # Runs in the SIMULATION env: it initializes an InteractiveContext
-    # (sim_utils.initialize_simulation, no vivarium_inputs dep). The artifact
-    # env's GBD-pinned pandas is incompatible with vph's sim-time RR validation
-    # (NonLogLinearRiskEffect ... include_groups).
-    # PROVEN -- outputs on disk; commented to skip recompute this batch.
-    # - name: "hemoglobin_effects_sepsis"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_simulation
-    #   resources:
-    #     memory_gb: 40
-    #     runtime: "02:00:00"
-    #     cores: 5
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
-    #     positional_args:
-    #       - "--workers"
-    #       - 5
-    #       - "--"
-    #       - generate_nn_sepsis_effects.py
+    # Step 1, so Step 1 must complete first. Runs in the SIMULATION env because
+    # it initializes an InteractiveContext (the artifact env's GBD-pinned pandas
+    # is incompatible with vph's sim-time RR validation).
+    - name: "hemoglobin_effects_sepsis"
+      type: python
+      environment: vivarium_gates_mncnh_simulation
+      resources:
+        memory_gb: 40
+        runtime: "02:00:00"
+        cores: 5
+      args:
+        path: src/vivarium_gates_mncnh/data/hemoglobin_effects/parallel_runner.py
+        positional_args:
+          - "--workers"
+          - 5
+          - "--"
+          - generate_nn_sepsis_effects.py
 
     # ---- Step 4: maternal-disorder PAFs --------------------------------------
-    # generate_pafs.py is SERIAL internally (no existing parallel driver, and
-    # the single-draw script has no CLI). Reads neonatal sepsis RRs, so it MUST
-    # run after Step 3. Defaults to all locations + all available draws.
-    # Runs in the SIMULATION env (same reason as Step 3: initializes an
-    # InteractiveContext). The scaled-hgb-RR input is read from the committed
-    # hemoglobin_rrs_scaled_to_tmred.csv cache, so no GBD/vivarium_inputs needed.
-    # PROVEN -- outputs on disk; commented to skip recompute this batch.
-    # - name: "hgb_maternal_disorders_pafs"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_simulation
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "06:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
+    # Serial internally. Reads neonatal sepsis RRs, so it must run after Step 3.
+    # Runs in the SIMULATION env (initializes an InteractiveContext); reads the
+    # committed hemoglobin_rrs_scaled_to_tmred.csv cache, so no GBD access.
+    - name: "hgb_maternal_disorders_pafs"
+      type: python
+      environment: vivarium_gates_mncnh_simulation
+      resources:
+        memory_gb: 16
+        runtime: "06:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/hgb_pafs_maternal_disorders/code/generate_pafs.py
 
     # ---- Step 5: LBWSG relative-risk caps (one step per location) ------------
-    # generate_caps.py is per-location and serial; split into 3 sequential
-    # steps (unique names avoid collisions). MUST precede Step 6 (LBWSG PAFs).
-    # PROVEN -- outputs on disk (caps/{loc}.csv); commented to skip recompute.
-    # - name: "lbwsg_caps_ethiopia"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "01:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
-    #     keyword_args:
-    #       l: "Ethiopia"
-    # - name: "lbwsg_caps_nigeria"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "01:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
-    #     keyword_args:
-    #       l: "Nigeria"
-    # - name: "lbwsg_caps_pakistan"
-    #   type: python
-    #   environment: vivarium_gates_mncnh_artifact
-    #   resources:
-    #     memory_gb: 16
-    #     runtime: "01:00:00"
-    #   args:
-    #     path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
-    #     keyword_args:
-    #       l: "Pakistan"
+    # generate_caps.py is per-location and serial; split into 3 steps. Must
+    # precede Step 6 (the PAF sim's artifact bakes in these caps).
+    - name: "lbwsg_caps_ethiopia"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 16
+        runtime: "01:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+        keyword_args:
+          l: "Ethiopia"
+    - name: "lbwsg_caps_nigeria"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 16
+        runtime: "01:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+        keyword_args:
+          l: "Nigeria"
+    - name: "lbwsg_caps_pakistan"
+      type: python
+      environment: vivarium_gates_mncnh_artifact
+      resources:
+        memory_gb: 16
+        runtime: "01:00:00"
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py
+        keyword_args:
+          l: "Pakistan"
 
     # ---- Step 6: LBWSG PAFs (one step per location) --------------------------
-    # run_paf_sim.py launches psimulate (parallel across draws). Needs the RR
-    # caps from Step 5. (Preserved from the previous workflow config.)
-    # NOTE: run_paf_sim.py self-dispatches its sub-envs (psimulate ->
-    # ..._simulation, make_artifacts -> ..._artifact via `conda run`); the step
-    # env below is just the orchestrator env (needs the repo + conda).
-    # REQUIRES both standard-named envs (vivarium_gates_mncnh_{simulation,artifact})
-    # to exist -- run_paf_sim.py hardcodes them and check_conda_environments
-    # asserts their presence.
+    # run_paf_sim.py launches psimulate (parallel across draws) and needs the RR
+    # caps from Step 5. It self-dispatches its sub-envs (psimulate -> simulation,
+    # make_artifacts -> artifact via `conda run`) and requires BOTH standard-named
+    # envs (vivarium_gates_mncnh_{simulation,artifact}) to exist. `output-dir` is
+    # the artifact directory it builds/uses.
     - name: "paf_sim_ethiopia"
       type: python
       environment: vivarium_gates_mncnh_artifact
@@ -167,9 +141,9 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          a: albrja_test
+          a: test_workflow
           l: "Ethiopia"
-          output-dir: /ihme/homes/albrja/scratch/artifacts
+          output-dir: INSERT_VALID_DIRECTORY
     - name: "paf_sim_nigeria"
       type: python
       environment: vivarium_gates_mncnh_artifact
@@ -180,9 +154,9 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          a: albrja_test
+          a: test_workflow
           l: "Nigeria"
-          output-dir: /ihme/homes/albrja/scratch/artifacts
+          output-dir: INSERT_VALID_DIRECTORY
     - name: "paf_sim_pakistan"
       type: python
       environment: vivarium_gates_mncnh_artifact
@@ -193,17 +167,17 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          a: albrja_test
+          a: test_workflow
           l: "Pakistan"
-          output-dir: /ihme/homes/albrja/scratch/artifacts
+          output-dir: INSERT_VALID_DIRECTORY
 
-    # ---- Step 7: build artifacts for all locations -------------------
-    # Terminal step -- the workflow ends with artifact generation. make_artifacts
-    # reads the generated caps / hemoglobin / PAF outputs and builds the .hdf per
-    # location. (Running the test suites is out of scope for this workflow.)
+    # ---- Step 7: build artifacts for all locations (terminal step) -----------
+    # make_artifacts reads the generated caps / hemoglobin / PAF outputs and
+    # builds the .hdf per location.
+    # NOTE: -o must be the same INSERT_VALID_DIRECTORY the PAF sim (Step 6) built the artifact in.
     - name: "make_artifacts"
       environment: vivarium_gates_mncnh_artifact
-      command: 'bash -lc "yes y | make_artifacts -l all -o /ihme/homes/albrja/scratch/artifacts/"'
+      command: 'bash -lc "yes y | make_artifacts -l all -o INSERT_VALID_DIRECTORY/"'
       resources:
         memory_gb: 1
         runtime: "01:00:00"
