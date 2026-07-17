@@ -27,6 +27,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     INTERVENTIONS,
     LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
+    NEONATAL_CAUSES,
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -747,6 +748,21 @@ class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
                 excluded_stratifications=self.configuration.exclude,
                 to_observe=self.to_observe,
             )
+
+        # Neonatal sepsis is the only neonatal cause with a hemoglobin effect, so
+        # trace its hemoglobin RR alongside the LBWSG RR above (same stratification).
+        self.register_adding_observation(
+            builder=builder,
+            name=f"{NEONATAL_CAUSES.NEONATAL_SEPSIS}_hemoglobin_relative_risk",
+            pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
+            requires_attributes=[
+                COLUMNS.PREGNANCY_OUTCOME,
+                PIPELINES.HEMOGLOBIN_NEONATAL_SEPSIS_RR,
+            ],
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
+            to_observe=self.to_observe,
+        )
 
     def to_observe(self, event: Event) -> bool:
         return (self._sim_step_name() == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY) or (
