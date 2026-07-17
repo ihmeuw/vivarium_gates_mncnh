@@ -16,20 +16,9 @@ hemoglobin risk effects added by MIC-7289:
     ``data/hemoglobin_effects/direct_sepsis_effects/draw_60.csv`` (the model_spec
     pins ``input_draw_number: 60`` and the ethiopia artifact).
 
-Both effects have the form ``X_i = X * (1 - PAF) * RR_hgb_i``.
-
-ARTIFACT DEPENDENCY
--------------------
-The current artifact (model33.1/ethiopia.hdf) does NOT yet contain the
-depression PAF, the neonatal-sepsis direct RR, or the corrected sepsis PAF, and
-the two new effect components are not yet wired into the model_spec. Until the
-artifact is rebuilt and the spec updated, the hemoglobin RR / PAF pipelines for
-these two targets will be absent. Every check that needs the effect to be
-*active* is gated on discovering its RR (and, for calibration, PAF) pipeline at
-runtime and will ``skip`` -- with a message listing the candidate names -- rather
-than pass vacuously. The checks that describe pre-effect baseline behavior (the
-0.12 depression incidence baseline, the impossible-CSMR residual sanity) run on
-the current build.
+Both effects have the form ``X_i = X * (1 - PAF) * RR_hgb_i``. They require an
+artifact carrying the new hemoglobin keys (model40.0+); the per-check pipeline
+discovery skips gracefully if run against an older artifact that lacks them.
 """
 
 from pathlib import Path
@@ -262,7 +251,7 @@ def snapshots(model_spec_path: Path) -> _Snapshots:
     except Exception as exc:  # pragma: no cover - artifact-dependent build
         pytest.skip(
             "Could not build the InteractiveContext (likely a missing artifact "
-            f"key before the model33.x rebuild): {exc!r}"
+            f"key; needs the model40.0+ artifact): {exc!r}"
         )
 
     snaps = _Snapshots(sim)

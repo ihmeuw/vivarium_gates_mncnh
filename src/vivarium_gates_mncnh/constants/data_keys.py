@@ -595,9 +595,6 @@ class __Hemoglobin(NamedTuple):
     DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
     DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
-    # Direct (mediation-adjusted) RR on neonatal sepsis mortality; kept separate
-    # from RELATIVE_RISK because it varies by child sex/neonatal age and only
-    # exists for the scenario draws (see load_hemoglobin_neonatal_sepsis_relative_risk).
     NEONATAL_SEPSIS_RELATIVE_RISK: str = (
         "risk_factor.hemoglobin.neonatal_sepsis_relative_risk"
     )

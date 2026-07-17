@@ -1687,10 +1687,7 @@ def load_hemoglobin_relative_risk(
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = hemoglobin_data.drop(["exposure", "morbidity", "mortality"], axis=1)
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
-    # GBD names depression "depressive_disorders", but the postpartum depression
-    # component targets cause.postpartum_depression.incidence_risk, so its
-    # HemoglobinRiskEffect filters affected_entity == "postpartum_depression".
-    # Rename here so the effect finds these RR rows.
+    # Update from GBD name "depressive_disorders" to sim's "postpartum_depression".
     hemoglobin_data["affected_entity"] = hemoglobin_data["affected_entity"].replace(
         {"depressive_disorders": "postpartum_depression"}
     )
@@ -1709,28 +1706,9 @@ def load_hemoglobin_neonatal_sepsis_relative_risk(
 ):
     """Load the mediation-adjusted direct hemoglobin RR on neonatal sepsis mortality.
 
-    This is a dedicated artifact key, kept separate from the maternal hemoglobin
-    RR (``risk_factor.hemoglobin.relative_risk``) rather than merged into it,
-    because the two are structurally incompatible:
-
-    * the maternal RR is female-only and age-invariant with 500 GBD draws, while
-      these direct effects genuinely vary by child sex and neonatal age group and
-      only exist for the ~27 scenario draws generated offline;
-    * ``load_hemoglobin_rrs_on_maternal_disorders`` (PAF generation) calls
-      ``load_hemoglobin_relative_risk`` directly and asserts 500 draws with no
-      age variation, which merging would violate; and
-    * the measure differs (``cause_specific_mortality_risk`` vs ``incidence_risk``).
-
-    The source CSVs (``hemoglobin_effects/direct_sepsis_effects/draw_<N>.csv``,
-    one per scenario draw) have columns
-    ``outcome, draw, exposure, sex_of_child, age_group_id, location, value`` and
-    are already scaled to ``metadata.HEMOGLOBIN_TMRED``. They are keyed by child
-    sex x neonatal age group x exposure(parameter) so a CSMRisk
-    ``HemoglobinRiskEffect`` targeting
-    ``neonatal_sepsis_and_other_neonatal_infections`` can evaluate RR by child
-    demographics. Keying mirrors the neonatal PAF branch in
-    ``_load_generated_hemoglobin_paf`` (sex/age columns are not remapped to
-    child-specific names).
+    This is separate from the maternal hemoglobin RR because the two are 
+    structurally incompatible because the maternal RR is female-only and age-invariant while
+    these direct effects genuinely vary by child sex and neonatal age group
     """
     rr_dir = paths.HEMOGLOBIN_EFFECTS_DATA_DIR / "direct_sepsis_effects"
     loc = location.lower()
@@ -1789,11 +1767,9 @@ def _load_gbd_hemoglobin_paf(
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
     hemoglobin_data = hemoglobin_data.reset_index()
-    # Every GBD PAF row is tagged incidence_risk, including neonatal sepsis. This is
-    # intentionally left as-is even though the model consumes neonatal sepsis on
-    # cause_specific_mortality_risk: neonatal sepsis is a generated entity, so its
-    # mis-tagged GBD row is dropped and superseded by the generated row (correctly
-    # tagged cause_specific_mortality_risk) in load_hemoglobin_paf.
+    # This is always correct except for neonatal sepsis, in which case it gets
+    # overwritten to the correct measure cause_specific_mortality_risk after 
+    # calling this method in load_hemoglobin_paf.
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
     hemoglobin_data = hemoglobin_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
@@ -1827,9 +1803,6 @@ def _load_generated_hemoglobin_paf(location: str):
     paf_dir = paths.HEMOGLOBIN_PAF_OUTPUTS_DIR
     loc = location.lower()
 
-    # Maternal disorder column name -> affected_entity mapping.
-    # depressive_disorders_paf is mapped to "postpartum_depression" to match the
-    # component's target.name (GBD names it "depressive_disorders").
     maternal_cols = {
         "maternal_hemorrhage_paf": "maternal_hemorrhage",
         "maternal_sepsis_and_other_maternal_infections_paf": "maternal_sepsis_and_other_maternal_infections",
@@ -1898,9 +1871,6 @@ def _load_generated_hemoglobin_paf(location: str):
                         "year_start": metadata.ARTIFACT_YEAR_START,
                         "year_end": metadata.ARTIFACT_YEAR_END,
                         "affected_entity": "neonatal_sepsis_and_other_neonatal_infections",
-                        # neonatal sepsis is modeled on cause_specific_mortality_risk,
-                        # so the CSMRisk effect's get_filtered_data matches on this measure
-                        # (the GBD-sourced 4-row neonatal PAF was mis-tagged incidence_risk).
                         "affected_measure": "cause_specific_mortality_risk",
                         "draw": draw_num,
                         "value": row[col_name],

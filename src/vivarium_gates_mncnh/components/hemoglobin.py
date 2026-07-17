@@ -211,40 +211,20 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
 class NeonatalSepsisHemoglobinRiskEffect(HemoglobinRiskEffect):
     """Hemoglobin's direct (mediation-adjusted) effect on neonatal sepsis mortality.
 
-    Applies ``CSMRisk_i = CSMRisk * (1 - PAF) * RR_hgb_i`` on
-    ``cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk``.
-    This differs from the maternal ``HemoglobinRiskEffect`` in two ways, both driven
-    by the target being a *child* outcome evaluated on a mother/dyad state table:
+    Applies ``CSMRisk_i = CSMRisk * (1 - PAF) * RR_hgb_i`` on the neonatal-sepsis
+    ``cause_specific_mortality_risk``. Differs from the maternal ``HemoglobinRiskEffect``
+    because the target is a *child* outcome on a mother/dyad state table:
 
-    1. Dedicated RR source. The RR comes from
-       ``risk_factor.hemoglobin.neonatal_sepsis_relative_risk`` rather than the default
-       ``risk_factor.hemoglobin.relative_risk``. The direct effect varies by child sex
-       x neonatal age group and only exists for the scenario draws, so it is
-       structurally incompatible with the female-only, age-invariant maternal RR.
-    2. Child-demographic keying. The simulant's own ``sex``/``age`` are the mother's,
-       but the RR and PAF must be looked up by the child's sex and neonatal age group.
-       We rename the artifact's ``sex``/``age_*`` index columns to their child
-       equivalents (mirroring ``LBWSGRiskEffect`` / ``LBWSGMortality`` which use
-       ``CHILD_LOOKUP_COLUMN_MAPPER``) so the lookup tables key on ``sex_of_child`` and
-       ``child_age`` -- which vary across the early/late neonatal mortality steps --
-       instead of the maternal ``sex``/``age``.
+    1. RR comes from the dedicated ``risk_factor.hemoglobin.neonatal_sepsis_relative_risk``
+       key (child sex x neonatal age, scenario draws only), not the maternal
+       ``relative_risk``.
+    2. RR and PAF are keyed on child sex / neonatal age via ``CHILD_LOOKUP_COLUMN_MAPPER``
+       (as in ``LBWSGRiskEffect``), not the mother's ``sex``/``age``.
 
-    The exposure axis is inherited unchanged: RR is interpolated against the dyad's
-    hemoglobin (``hemoglobin_exposure_for_non_loglinear_riskeffect``, i.e. the
-    mother's/birth hemoglobin). The non-log-linear, may-be-<1 RR handling of
-    ``HemoglobinRiskEffect`` (protective at high hemoglobin, no clip-to-1) is also
-    inherited unchanged.
-
-    Wiring / no double count: the target is the intermediate CSMR
-    ``RiskAffectedPipeline`` registered by ``NeonatalCause``. The framework multiplies
-    this effect's RR onto that pipeline alongside the LBWSG RR, and routes this
-    effect's PAF to the pipeline's ``.calibration_constant`` so the source is scaled by
-    ``(1 - hgb_paf)``. This does not double-count the LBWSG normalization:
-    ``NeonatalCause.get_normalized_csmr`` bakes the LBWSG *ACMR* PAF into the source and
-    leaves the cause's own ``.calibration_constant`` at 0, while ``LBWSGRiskEffect``
-    contributes its PAF to a separate ``{target}.paf`` pipeline (a no-op here). So the
-    hemoglobin PAF is the only contributor to ``.calibration_constant`` and the LBWSG
-    effect is unaffected.
+    Exposure axis and the non-log-linear/may-be-<1 RR handling are inherited; only the
+    below-40 g/L endpoint clamp differs (see ``build_rr_lookup_table``). The PAF is the
+    sole contributor to the cause's ``.calibration_constant``, so ``(1 - PAF)`` is not
+    double-counted against the LBWSG ACMR PAF (baked into the CSMR source separately).
     """
 
     @property
@@ -252,11 +232,7 @@ class NeonatalSepsisHemoglobinRiskEffect(HemoglobinRiskEffect):
         return {
             self.name: {
                 "data_sources": {
-                    # Override the default ``{risk}.relative_risk`` with the dedicated
-                    # child sex/neonatal-age-keyed, scenario-draw-only direct RR key.
                     "relative_risk": data_keys.HEMOGLOBIN.NEONATAL_SEPSIS_RELATIVE_RISK,
-                    # PAF keeps the default key; its neonatal-sepsis rows are tagged
-                    # cause_specific_mortality_risk so get_filtered_data selects them.
                     "population_attributable_fraction": (
                         f"{self.causal_factor}.population_attributable_fraction"
                     ),
@@ -265,19 +241,7 @@ class NeonatalSepsisHemoglobinRiskEffect(HemoglobinRiskEffect):
         }
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
-        # Identical to ``HemoglobinRiskEffect.build_rr_lookup_table`` EXCEPT for the
-        # below-minimum-exposure bin's ``left_rr``. The parent fills that bin with the
-        # curve's GLOBAL MAX RR, which is correct only for the maternal curves: those are
-        # monotonically decreasing, so their max RR *is* the value at the minimum exposure.
-        # The direct neonatal-sepsis RR curve is NON-MONOTONIC (protective ~0.88 near
-        # 40 g/L, peaking ~1.16 around 100 g/L), so the global max is NOT the min-exposure
-        # value. The research doc (vivarium-research hemoglobin effects) requires exposures
-        # <40 g/L to be "assigned risk consistent with 40 g/L", i.e. RR at the minimum
-        # exposure -- mirroring the inherited >max-exposure clamp. So we fill the leftmost
-        # bin with the value at the minimum exposure instead of the global max.
-        # This override is a NO-OP for a monotonically-decreasing curve, where the
-        # min-exposure value equals the global max, so maternal/depression behavior is
-        # unchanged if this class were ever reused for those curves.
+        """As parent, but the below-40 g/L bin uses RR(40), not the curve's global max, since the direct sepsis curve is non-monotonic (no-op for the monotonic maternal curves)."""
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 

@@ -730,7 +730,6 @@ class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
 
     def register_observations(self, builder: Builder) -> None:
         for cause in self.neonatal_causes:
-            # VPH 5.1 relative_risk pipeline names include the target measure.
             measure = (
                 "all_cause_mortality_risk"
                 if cause == "all_causes"
@@ -749,8 +748,6 @@ class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
                 to_observe=self.to_observe,
             )
 
-        # Neonatal sepsis is the only neonatal cause with a hemoglobin effect, so
-        # trace its hemoglobin RR alongside the LBWSG RR above (same stratification).
         self.register_adding_observation(
             builder=builder,
             name=f"{NEONATAL_CAUSES.NEONATAL_SEPSIS}_hemoglobin_relative_risk",
