@@ -155,15 +155,15 @@ class Hemoglobin(Risk):
         event_name = self._sim_step_name()
         if event_name not in (
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
-            SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH,
+            SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+            SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
         ):
             return
         # At LATER_PREGNANCY_INTERVENTION: snapshot of pregnancy hemoglobin
         # (pre-partum, before any hemorrhage shifts).
-        # At EARLY_NEONATAL_MORTALITY (0-6w postpartum): hemoglobin after
+        # At EARLY_POSTPARTUM (0-6w postpartum): hemoglobin after
         # antepartum/postpartum hemorrhage shifts have been applied.
-        # At POSTPARTUM_HEMOGLOBIN_NINE_MONTH (6w-9m): hemoglobin drawn from
+        # At LATE_POSTPARTUM (6w-9m): hemoglobin drawn from
         # the non-pregnant distribution with hemorrhage shifts applied.
         exposure = self.population_view.get(event.index, self.exposure_name)
         exposure = exposure.rename(COLUMNS.HEMOGLOBIN_EXPOSURE)
@@ -191,10 +191,10 @@ class Hemoglobin(Risk):
     ) -> pd.Series:
         """Apply hemorrhage hemoglobin shifts at postpartum events.
 
-        At ``early_neonatal_mortality`` (0-6 week postpartum): apply PPH and APH
+        At ``early_postpartum`` (0-6 week postpartum): apply PPH and APH
         shifts to the existing pregnancy hemoglobin for hemorrhage cases.
 
-        At ``postpartum_hemoglobin_nine_month`` (6w-9m): replace pregnancy
+        At ``late_postpartum`` (6w-9m): replace pregnancy
         hemoglobin with a draw from the non-pregnant distribution and apply
         PPH/APH shifts for hemorrhage cases.
 
@@ -202,9 +202,9 @@ class Hemoglobin(Risk):
         """
         event_name = self._sim_step_name()
 
-        if event_name == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+        if event_name == SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM:
             return self._apply_0_6w_shifts(index, exposure)
-        elif event_name == SIMULATION_EVENT_NAMES.POSTPARTUM_HEMOGLOBIN_NINE_MONTH:
+        elif event_name == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
             return self._apply_6w_9m_shifts(index, exposure)
         else:
             return exposure

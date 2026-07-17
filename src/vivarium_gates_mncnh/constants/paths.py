@@ -36,5 +36,5 @@ HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV = HEMORRHAGE_HEMOGLOBIN_SHIFT_DIR / "p
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model34.0"
+MODEL_RESULTS_DIR = "model38.1"
 MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
