@@ -264,6 +264,63 @@ class NeonatalSepsisHemoglobinRiskEffect(HemoglobinRiskEffect):
             }
         }
 
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+        # Identical to ``HemoglobinRiskEffect.build_rr_lookup_table`` EXCEPT for the
+        # below-minimum-exposure bin's ``left_rr``. The parent fills that bin with the
+        # curve's GLOBAL MAX RR, which is correct only for the maternal curves: those are
+        # monotonically decreasing, so their max RR *is* the value at the minimum exposure.
+        # The direct neonatal-sepsis RR curve is NON-MONOTONIC (protective ~0.88 near
+        # 40 g/L, peaking ~1.16 around 100 g/L), so the global max is NOT the min-exposure
+        # value. The research doc (vivarium-research hemoglobin effects) requires exposures
+        # <40 g/L to be "assigned risk consistent with 40 g/L", i.e. RR at the minimum
+        # exposure -- mirroring the inherited >max-exposure clamp. So we fill the leftmost
+        # bin with the value at the minimum exposure instead of the global max.
+        # This override is a NO-OP for a monotonically-decreasing curve, where the
+        # min-exposure value equals the global max, so maternal/depression behavior is
+        # unchanged if this class were ever reused for those curves.
+        rr_data = self.load_relative_risk(builder)
+        self.validate_rr_data(rr_data)
+
+        def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
+            # create new row for right-most exposure bin (RR is same as max RR)
+            max_exposure_row = df.tail(1).copy()
+            max_exposure_row["parameter"] = np.inf
+            rr_data = pd.concat([df, max_exposure_row]).reset_index()
+
+            rr_data["left_exposure"] = [0] + rr_data["parameter"][:-1].tolist()
+            # use the RR at the minimum exposure (first/leftmost curve value) rather than
+            # the global max, since this curve is non-monotonic (see method docstring).
+            rr_data["left_rr"] = [rr_data["value"].iloc[0]] + rr_data["value"][:-1].tolist()
+            rr_data["right_exposure"] = rr_data["parameter"]
+            rr_data["right_rr"] = rr_data["value"]
+
+            return rr_data[
+                ["parameter", "left_exposure", "left_rr", "right_exposure", "right_rr"]
+            ]
+
+        # define exposure and rr interval columns
+        demographic_cols = [
+            col for col in rr_data.columns if col != "parameter" and col != "value"
+        ]
+        rr_data = (
+            rr_data.groupby(demographic_cols)
+            .apply(define_rr_intervals, include_groups=False)
+            .reset_index(level=-1, drop=True)
+            .reset_index()
+        )
+        rr_data = rr_data.drop("parameter", axis=1)
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_start"] = rr_data[
+            "left_exposure"
+        ]
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_end"] = rr_data[
+            "right_exposure"
+        ]
+        # build lookup table
+        rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
+        )
+
     def load_relative_risk(
         self,
         builder: Builder,

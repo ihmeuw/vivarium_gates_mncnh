@@ -1789,6 +1789,11 @@ def _load_gbd_hemoglobin_paf(
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
     hemoglobin_data = hemoglobin_data.reset_index()
+    # Every GBD PAF row is tagged incidence_risk, including neonatal sepsis. This is
+    # intentionally left as-is even though the model consumes neonatal sepsis on
+    # cause_specific_mortality_risk: neonatal sepsis is a generated entity, so its
+    # mis-tagged GBD row is dropped and superseded by the generated row (correctly
+    # tagged cause_specific_mortality_risk) in load_hemoglobin_paf.
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
     hemoglobin_data = hemoglobin_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
@@ -1919,14 +1924,15 @@ def load_hemoglobin_paf(
 
     Start with the full GBD-based PAF data (expanded to 500 draws), then
     replace entities for which simulation-generated PAFs exist (maternal
-    hemorrhage, maternal sepsis, neonatal sepsis). The result is subset to
+    hemorrhage, maternal sepsis, postpartum depression, neonatal sepsis). The result is subset to
     only the draws present in the generated data (the scenario draws),
     so the returned DataFrame has fewer draw columns than other artifact keys.
     """
     # Start with the full GBD-based PAF data
     gbd_data = _load_gbd_hemoglobin_paf(key, location, years)
 
-    # Load simulation-generated PAFs for hemorrhage, sepsis, and neonatal sepsis
+    # Load simulation-generated PAFs for hemorrhage, sepsis, postpartum depression,
+    # and neonatal sepsis
     generated_data = _load_generated_hemoglobin_paf(location)
 
     # Drop the GBD rows for entities we have generated data for, then combine
