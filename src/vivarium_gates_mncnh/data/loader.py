@@ -1706,7 +1706,7 @@ def load_hemoglobin_neonatal_sepsis_relative_risk(
 ):
     """Load the mediation-adjusted direct hemoglobin RR on neonatal sepsis mortality.
 
-    This is separate from the maternal hemoglobin RR because the two are 
+    This is separate from the maternal hemoglobin RR because the two are
     structurally incompatible because the maternal RR is female-only and age-invariant while
     these direct effects genuinely vary by child sex and neonatal age group
     """
@@ -1768,7 +1768,7 @@ def _load_gbd_hemoglobin_paf(
 
     hemoglobin_data = hemoglobin_data.reset_index()
     # This is always correct except for neonatal sepsis, in which case it gets
-    # overwritten to the correct measure cause_specific_mortality_risk after 
+    # overwritten to the correct measure cause_specific_mortality_risk after
     # calling this method in load_hemoglobin_paf.
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
