@@ -56,6 +56,8 @@ components:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_depression.incidence_risk')
+            - NeonatalSepsisHemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk')
             - CorrelatedPropensities()
             - AnemiaScreening()
             # Observers 

@@ -12,7 +12,11 @@ from vivarium.public_health.risks.base_risk import Risk
 from vivarium.public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_LOOKUP_COLUMN_MAPPER,
+    COLUMNS,
+    SIMULATION_EVENT_NAMES,
+)
 
 
 class Hemoglobin(Risk):
@@ -202,3 +206,79 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
         rr_data = rr_data.drop("rr_at_tmrel", axis=1)
 
         return rr_data
+
+
+class NeonatalSepsisHemoglobinRiskEffect(HemoglobinRiskEffect):
+    """Hemoglobin's direct (mediation-adjusted) effect on neonatal sepsis mortality.
+
+    Applies ``CSMRisk_i = CSMRisk * (1 - PAF) * RR_hgb_i`` on
+    ``cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk``.
+    This differs from the maternal ``HemoglobinRiskEffect`` in two ways, both driven
+    by the target being a *child* outcome evaluated on a mother/dyad state table:
+
+    1. Dedicated RR source. The RR comes from
+       ``risk_factor.hemoglobin.neonatal_sepsis_relative_risk`` rather than the default
+       ``risk_factor.hemoglobin.relative_risk``. The direct effect varies by child sex
+       x neonatal age group and only exists for the scenario draws, so it is
+       structurally incompatible with the female-only, age-invariant maternal RR.
+    2. Child-demographic keying. The simulant's own ``sex``/``age`` are the mother's,
+       but the RR and PAF must be looked up by the child's sex and neonatal age group.
+       We rename the artifact's ``sex``/``age_*`` index columns to their child
+       equivalents (mirroring ``LBWSGRiskEffect`` / ``LBWSGMortality`` which use
+       ``CHILD_LOOKUP_COLUMN_MAPPER``) so the lookup tables key on ``sex_of_child`` and
+       ``child_age`` -- which vary across the early/late neonatal mortality steps --
+       instead of the maternal ``sex``/``age``.
+
+    The exposure axis is inherited unchanged: RR is interpolated against the dyad's
+    hemoglobin (``hemoglobin_exposure_for_non_loglinear_riskeffect``, i.e. the
+    mother's/birth hemoglobin). The non-log-linear, may-be-<1 RR handling of
+    ``HemoglobinRiskEffect`` (protective at high hemoglobin, no clip-to-1) is also
+    inherited unchanged.
+
+    Wiring / no double count: the target is the intermediate CSMR
+    ``RiskAffectedPipeline`` registered by ``NeonatalCause``. The framework multiplies
+    this effect's RR onto that pipeline alongside the LBWSG RR, and routes this
+    effect's PAF to the pipeline's ``.calibration_constant`` so the source is scaled by
+    ``(1 - hgb_paf)``. This does not double-count the LBWSG normalization:
+    ``NeonatalCause.get_normalized_csmr`` bakes the LBWSG *ACMR* PAF into the source and
+    leaves the cause's own ``.calibration_constant`` at 0, while ``LBWSGRiskEffect``
+    contributes its PAF to a separate ``{target}.paf`` pipeline (a no-op here). So the
+    hemoglobin PAF is the only contributor to ``.calibration_constant`` and the LBWSG
+    effect is unaffected.
+    """
+
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    # Override the default ``{risk}.relative_risk`` with the dedicated
+                    # child sex/neonatal-age-keyed, scenario-draw-only direct RR key.
+                    "relative_risk": data_keys.HEMOGLOBIN.NEONATAL_SEPSIS_RELATIVE_RISK,
+                    # PAF keeps the default key; its neonatal-sepsis rows are tagged
+                    # cause_specific_mortality_risk so get_filtered_data selects them.
+                    "population_attributable_fraction": (
+                        f"{self.causal_factor}.population_attributable_fraction"
+                    ),
+                },
+            }
+        }
+
+    def load_relative_risk(
+        self,
+        builder: Builder,
+        configuration=None,
+    ) -> str | float | pd.DataFrame:
+        # Remap the RR demographic columns to child equivalents so the RR lookup keys
+        # on the child's sex/neonatal age group (which change across the neonatal
+        # mortality steps), not the mother's sex/age.
+        rr_data = super().load_relative_risk(builder, configuration)
+        return rr_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+
+    def get_calibration_constant_data(self, builder: Builder):
+        # Same child-demographic remap for the PAF so ``(1 - paf)`` is applied per
+        # child sex/neonatal age group rather than per mother.
+        paf_data = super().get_calibration_constant_data(builder)
+        if isinstance(paf_data, pd.DataFrame):
+            paf_data = paf_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return paf_data

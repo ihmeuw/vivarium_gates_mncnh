@@ -258,6 +258,10 @@ class __Pipelines(NamedTuple):
     PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.cause_specific_mortality_risk.relative_risk"
     PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.cause_specific_mortality_risk.relative_risk"
     NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
+    # Auto-created RR pipeline for the hemoglobin direct effect on neonatal sepsis
+    # mortality (NeonatalSepsisHemoglobinRiskEffect). Name follows the framework
+    # convention ``{risk}_on_{target.name}.{target.measure}.relative_risk``.
+    HEMOGLOBIN_NEONATAL_SEPSIS_RR = "hemoglobin_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
     NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk.relative_risk"
     ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.all_cause_mortality_risk.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
