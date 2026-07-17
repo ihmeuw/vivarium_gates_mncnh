@@ -42,13 +42,13 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium_dependencies<2.0.0",
-        "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
-        "vivarium_build_utils>=4.0.0,<5.0.0",
-        "vivarium_config_tree",
-        "vivarium_gbd_mapping>=6.0.0,<7.0.0",
-        "vivarium_engine>=5.3.0, <6.0.0",
-        "vivarium_public_health>=6.3.1, <7.0.0",
+        "vivarium-dependencies<2.0.0",
+        "vivarium-dependencies[pandas,numpy,scipy,click,tables,loguru]",
+        "vivarium-build-utils>=4.0.0,<5.0.0",
+        "vivarium-gbd-mapping>=6.0.0,<7.0.0",
+        "vivarium-config-tree",
+        "vivarium-engine>=5.3.0, <6.0.0",
+        "vivarium-public-health>=6.3.1, <7.0.0",
         "click",
         "jinja2",
         "pyyaml",
@@ -57,22 +57,22 @@ if __name__ == "__main__":
 
     setup_requires = ["setuptools_scm"]
 
-    data_requirements = ["vivarium_inputs>=8.0.0,<9.0.0"]
+    data_requirements = ["vivarium-inputs>=8.0.0,<9.0.0"]
     cluster_requirements = [
-        "vivarium_cluster_tools[cluster]>=4.0.0,<5.0.0",
+        "vivarium-cluster-tools[cluster]>=4.0.0,<5.0.0",
     ]
     test_requirements = [
-        "vivarium_dependencies[pytest]",
+        "vivarium-dependencies[pytest]",
         "papermill",
         "jupyterlab",
-        "vivarium_testing_utils>=0.7.4",
+        "vivarium-testing-utils>=0.7.4",
     ]
-    validation_requirements = ["vivarium_testing_utils[validation]"]
+    validation_requirements = ["vivarium-testing-utils[validation]"]
     lint_requirements = [
-        "vivarium_dependencies[lint]",
+        "vivarium-dependencies[lint]",
     ]
     interactive_requirements = [
-        "vivarium_dependencies[interactive]",
+        "vivarium-dependencies[interactive]",
         "nbdime",
     ]
 
