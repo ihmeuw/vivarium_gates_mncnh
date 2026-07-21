@@ -26,7 +26,7 @@ Help()
    echo
    echo "Script to automatically create and validate conda environments."
    echo
-   echo "Syntax: source environment.sh [-h|t|v|s|f|l]"
+   echo "Syntax: source environment.sh [-h|t|s|f|l]"
    echo "options:"
    echo "h     Print this Help."
    echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
@@ -74,7 +74,6 @@ fi
 # But also clear the trap when exiting to avoid affecting the parent shell
 trap 'trap - ERR && return' ERR
 set -E
-set set -o pipefail
 
 if [[ "$use_shared" == "yes" ]]; then
   # Deactivate any active conda environments so only the venv is active

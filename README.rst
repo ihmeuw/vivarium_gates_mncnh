@@ -56,15 +56,13 @@ Alternatively, users can manually create conda environments as follows::
   :~$ conda create --name=vivarium_gates_mncnh_simulation python=3.11 git git-lfs
   ...conda will download python and base dependencies...
   :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ pip install -r requirements.txt
   (vivarium_gates_mncnh_simulation) :~$ pip install -e .[dev]
   ...pip will install vivarium and other requirements...
   (vivarium_gates_mncnh_simulation) :~$ conda deactivate
   :~$ conda create --name=vivarium_gates_mncnh_artifact python=3.11 git git-lfs
   ...conda will download python and base dependencies...
   :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ pip install -r artifact_requirements.txt
-  (vivarium_gates_mncnh_artifact) :~$ pip install -e .[dev]
+  (vivarium_gates_mncnh_artifact) :~$ pip install -e .[data]
   ...pip will install vivarium and other requirements...
 
 Supported Python versions: 3.10, 3.11
