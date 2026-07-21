@@ -517,3 +517,7 @@ def calculate_iv_iron_stillbirth_effects():
     ).reset_index()
     effects.to_csv(_DIR / "iv_iron_stillbirth_rrs.csv")
     return effects
+
+
+if __name__ == "__main__":
+    calculate_iv_iron_stillbirth_effects()
