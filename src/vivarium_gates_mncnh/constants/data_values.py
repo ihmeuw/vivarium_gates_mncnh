@@ -283,13 +283,21 @@ PIPELINES = __Pipelines()
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/neonatal/preterm_birth.html#id5
 PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY = 0.85
 # NOTE: This is an arbitrary value that must be greater than 0 and less than LATE_NEONATAL_AGE_START.
-# It is used in a tricky-to-understand way to deal with stillbirths.
-# Basically, to record YLLs due to stillbirths, we make stillbirth an "age group" for Vivarium purposes,
-# which spans from EARLY_NEONATAL_AGE_START (zero) to CHILD_INITIALIZATION_AGE.
-# Then when simulants are initialized, we put them in this stillbirth age group; if they are stillborn,
-# we have them die in that age group.
-# If they are a live birth, their age is updated to be greater than CHILD_INITIALIZATION_AGE so that they formally enter
-# the early neonatal age group.
+# It is used in a tricky-to-understand way to deal with stillbirths. It is the boundary between
+# a "stillbirth" child_age_group bin [0, CHILD_INITIALIZATION_AGE) and the early_neonatal bin
+# (see get_child_age_bins). Every child is initialized at CHILD_INITIALIZATION_AGE / 2
+# (see NewChildren.initialize_children), i.e. into the stillbirth bin. On each neonatal mortality
+# step, NewChildren.on_time_step (priority 0, before mortality) ages *only live births* up to the
+# real age-group midpoint so their age-based lookups (ACMR, life expectancy, ...) resolve into the
+# correct neonatal bin. Stillbirths (child_alive == False) are never aged up and stay in the
+# stillbirth bin.
+# NOTE: The stillbirth bin is NOT used as a lookup input and we do NOT observe YLLs for stillbirths.
+# All mortality/lookup evaluation is gated on child_alive == True, so stillbirths never reach an
+# age-based lookup; their child_years_of_life_lost is initialized to 0 and never updated, and they
+# are additionally an excluded_cause in the NeonatalBurdenObserver. The stillbirth bin's only live
+# role is results stratification: child_age_group maps stillbirths (age ~0) into the "stillbirth"
+# category, which is an excluded_category (see ResultsStratifier), keeping stillbirths out of the
+# age-stratified outputs rather than contaminating the early_neonatal stratum.
 # It is a bit tricky to think through when we need to modify our approach to match this.
 # For example, we leave all early neonatal PAFs as starting at 0, which is fine because the early neonatal
 # period in GBD (0-7 days) is a superset of the early neonatal period in our sim (0.1 days-7 days) and
