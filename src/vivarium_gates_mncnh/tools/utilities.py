@@ -182,7 +182,7 @@ def check_conda_environments() -> None:
         if missing_envs:
             raise RuntimeError(
                 f"Missing required conda environments: {', '.join(missing_envs)}\n"
-                f"Please install them by running bash environment.sh before running this script."
+                f"Please install them by running 'source environment.sh' before running this script."
             )
 
         print("All required conda environments found.\n")
