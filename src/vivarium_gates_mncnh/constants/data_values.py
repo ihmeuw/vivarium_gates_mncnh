@@ -31,6 +31,18 @@ EARLY_NEONATAL_AGE_START = 0.0  # 0 days
 LATE_NEONATAL_AGE_START = 0.01917808  # 7 days
 LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
 
+# Neonatal age-group -> (age_start, age_end) bounds. Single source of truth
+# shared by the hemoglobin sepsis-effect generator and the artifact loaders.
+# Keyed both by GBD age_group_id (2 = early, 3 = late neonatal) and by label.
+NEONATAL_AGE_GROUP_ID_BOUNDS = {
+    2: (EARLY_NEONATAL_AGE_START, LATE_NEONATAL_AGE_START),
+    3: (LATE_NEONATAL_AGE_START, LATE_NEONATAL_AGE_END),
+}
+NEONATAL_AGE_MAP = {
+    "early_neonatal": (EARLY_NEONATAL_AGE_START, LATE_NEONATAL_AGE_START),
+    "late_neonatal": (LATE_NEONATAL_AGE_START, LATE_NEONATAL_AGE_END),
+}
+
 # Placeholder visit times for those who didn't attend ANC
 # The particular values don't matter in terms of the final results,
 # and are defined as the earliest possible time that the earliest
@@ -258,6 +270,7 @@ class __Pipelines(NamedTuple):
     PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.cause_specific_mortality_risk.relative_risk"
     PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.cause_specific_mortality_risk.relative_risk"
     NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
+    HEMOGLOBIN_NEONATAL_SEPSIS_RR = "hemoglobin_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
     NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk.relative_risk"
     ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.all_cause_mortality_risk.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"

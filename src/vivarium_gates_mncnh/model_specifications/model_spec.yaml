@@ -56,6 +56,8 @@ components:
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
+            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_depression.incidence_risk')
+            - NeonatalSepsisHemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk')
             - CorrelatedPropensities()
             - AnemiaScreening()
             # Observers 
@@ -79,7 +81,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model33.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model40.0/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -117,7 +119,7 @@ configuration:
             - 'postpartum_depression'
 
     population:
-        population_size: 200_000
+        population_size: 20_000
         initialization_age_min: 10
         initialization_age_max: 54
         include_sex: "Female"

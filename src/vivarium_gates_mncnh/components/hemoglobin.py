@@ -12,7 +12,11 @@ from vivarium.public_health.risks.base_risk import Risk
 from vivarium.public_health.risks.effect import NonLogLinearRiskEffect
 
 from vivarium_gates_mncnh.constants import data_keys
-from vivarium_gates_mncnh.constants.data_values import COLUMNS, SIMULATION_EVENT_NAMES
+from vivarium_gates_mncnh.constants.data_values import (
+    CHILD_LOOKUP_COLUMN_MAPPER,
+    COLUMNS,
+    SIMULATION_EVENT_NAMES,
+)
 
 
 class Hemoglobin(Risk):
@@ -202,3 +206,100 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
         rr_data = rr_data.drop("rr_at_tmrel", axis=1)
 
         return rr_data
+
+
+class NeonatalSepsisHemoglobinRiskEffect(HemoglobinRiskEffect):
+    """Hemoglobin's direct (mediation-adjusted) effect on neonatal sepsis mortality.
+
+    Applies ``CSMRisk_i = CSMRisk * (1 - PAF) * RR_hgb_i`` on the neonatal-sepsis
+    ``cause_specific_mortality_risk``. Differs from the maternal ``HemoglobinRiskEffect``
+    because the target is a *child* outcome on a mother/dyad state table:
+
+    1. RR comes from the dedicated ``risk_factor.hemoglobin.neonatal_sepsis_relative_risk``
+       key (child sex x neonatal age, scenario draws only), not the maternal
+       ``relative_risk``.
+    2. RR and PAF are keyed on child sex / neonatal age via ``CHILD_LOOKUP_COLUMN_MAPPER``
+       (as in ``LBWSGRiskEffect``), not the mother's ``sex``/``age``.
+
+    Exposure axis and the non-log-linear/may-be-<1 RR handling are inherited; only the
+    below-40 g/L endpoint clamp differs (see ``build_rr_lookup_table``). The PAF is the
+    sole contributor to the cause's ``.calibration_constant``, so ``(1 - PAF)`` is not
+    double-counted against the LBWSG ACMR PAF (baked into the CSMR source separately).
+    """
+
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    "relative_risk": data_keys.HEMOGLOBIN.NEONATAL_SEPSIS_RELATIVE_RISK,
+                    "population_attributable_fraction": (
+                        f"{self.causal_factor}.population_attributable_fraction"
+                    ),
+                },
+            }
+        }
+
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+        """As parent, but the below-40 g/L bin uses RR(40), not the curve's global max, since the direct sepsis curve is non-monotonic (no-op for the monotonic maternal curves)."""
+        rr_data = self.load_relative_risk(builder)
+        self.validate_rr_data(rr_data)
+
+        def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
+            # create new row for right-most exposure bin (RR is same as max RR)
+            max_exposure_row = df.tail(1).copy()
+            max_exposure_row["parameter"] = np.inf
+            rr_data = pd.concat([df, max_exposure_row]).reset_index()
+
+            rr_data["left_exposure"] = [0] + rr_data["parameter"][:-1].tolist()
+            # use the RR at the minimum exposure (first/leftmost curve value) rather than
+            # the global max, since this curve is non-monotonic (see method docstring).
+            rr_data["left_rr"] = [rr_data["value"].iloc[0]] + rr_data["value"][:-1].tolist()
+            rr_data["right_exposure"] = rr_data["parameter"]
+            rr_data["right_rr"] = rr_data["value"]
+
+            return rr_data[
+                ["parameter", "left_exposure", "left_rr", "right_exposure", "right_rr"]
+            ]
+
+        # define exposure and rr interval columns
+        demographic_cols = [
+            col for col in rr_data.columns if col != "parameter" and col != "value"
+        ]
+        rr_data = (
+            rr_data.groupby(demographic_cols)
+            .apply(define_rr_intervals, include_groups=False)
+            .reset_index(level=-1, drop=True)
+            .reset_index()
+        )
+        rr_data = rr_data.drop("parameter", axis=1)
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_start"] = rr_data[
+            "left_exposure"
+        ]
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_end"] = rr_data[
+            "right_exposure"
+        ]
+        # build lookup table
+        rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
+        )
+
+    def load_relative_risk(
+        self,
+        builder: Builder,
+        configuration=None,
+    ) -> str | float | pd.DataFrame:
+        # Remap the RR demographic columns to child equivalents so the RR lookup keys
+        # on the child's sex/neonatal age group (which change across the neonatal
+        # mortality steps), not the mother's sex/age.
+        rr_data = super().load_relative_risk(builder, configuration)
+        return rr_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+
+    def get_calibration_constant_data(self, builder: Builder):
+        # Same child-demographic remap for the PAF so ``(1 - paf)`` is applied per
+        # child sex/neonatal age group rather than per mother.
+        paf_data = super().get_calibration_constant_data(builder)
+        if isinstance(paf_data, pd.DataFrame):
+            paf_data = paf_data.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return paf_data
