@@ -31,6 +31,18 @@ EARLY_NEONATAL_AGE_START = 0.0  # 0 days
 LATE_NEONATAL_AGE_START = 0.01917808  # 7 days
 LATE_NEONATAL_AGE_END = 0.07671233  # 28 days
 
+# Neonatal age-group -> (age_start, age_end) bounds. Single source of truth
+# shared by the hemoglobin sepsis-effect generator and the artifact loaders.
+# Keyed both by GBD age_group_id (2 = early, 3 = late neonatal) and by label.
+NEONATAL_AGE_GROUP_ID_BOUNDS = {
+    2: (EARLY_NEONATAL_AGE_START, LATE_NEONATAL_AGE_START),
+    3: (LATE_NEONATAL_AGE_START, LATE_NEONATAL_AGE_END),
+}
+NEONATAL_AGE_MAP = {
+    "early_neonatal": (EARLY_NEONATAL_AGE_START, LATE_NEONATAL_AGE_START),
+    "late_neonatal": (LATE_NEONATAL_AGE_START, LATE_NEONATAL_AGE_END),
+}
+
 # Placeholder visit times for those who didn't attend ANC
 # The particular values don't matter in terms of the final results,
 # and are defined as the earliest possible time that the earliest
