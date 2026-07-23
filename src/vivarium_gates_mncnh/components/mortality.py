@@ -427,10 +427,18 @@ class NeonatalMortality(Component):
         LBWSG-affecting interventions (IFA/MMS, IV iron) move affected mortality but leave
         the unaffected fraction's LBWSG response unchanged. RR is applied here rather than
         via the risk-effect target modifier because it must be applied non-uniformly.
+
+        The "affected" fraction spans the 12 GBD LBWSG-affected causes
+        (``LBWSG_AFFECTED_CAUSE_IDS``), a broader set than the 4 explicitly-modeled
+        subcauses (``CAUSES_OF_NEONATAL_MORTALITY``), so the "unaffected" term here is NOT
+        the ``other_causes`` cause-of-death bucket computed in ``determine_cause_of_death``.
         """
         acmr = self.all_cause_mortality_risk(index)
         affected = self.affected_causes_mortality_risk(index)
-        unaffected = acmr - affected
+        # ``affected`` and ``acmr`` are independently-drawn GBD quantities, so in some cells
+        # affected > acmr; clamp the remainder at 0 to avoid negative mortality risk (same
+        # precedent as the negative ``other_causes`` clamp in determine_cause_of_death).
+        unaffected = (acmr - affected).clip(lower=0)
         paf = self.population_view.get(index, PIPELINES.ACMR_PAF)
         scenario_rr = self.population_view.get(index, PIPELINES.ACMR_RR)
         baseline_rr = self.population_view.get(index, PIPELINES.ACMR_BASELINE_RR)
