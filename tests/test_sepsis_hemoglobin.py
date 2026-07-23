@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
+from vivarium.engine import InteractiveContext
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
