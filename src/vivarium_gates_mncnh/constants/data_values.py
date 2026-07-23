@@ -60,6 +60,9 @@ DURATIONS = _Durations()
 
 NUM_DRAWS = 250
 
+# GBD 2021 LBWSG-affected cause_ids
+LBWSG_AFFECTED_CAUSE_IDS = [302, 322, 328, 329, 332, 337, 381, 382, 383, 384, 385, 686]
+
 
 class _SimulationEventNames(NamedTuple):
     # Constants for the simulation events. Used for string comparison in components.

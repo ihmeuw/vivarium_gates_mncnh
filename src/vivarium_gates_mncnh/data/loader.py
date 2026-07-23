@@ -61,6 +61,7 @@ def get_data(
         data_keys.POPULATION.SCALING_FACTOR: load_scaling_factor,
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.ALL_CAUSES_MORTALITY_RISK: load_mortality_risk,
+        data_keys.POPULATION.AFFECTED_CAUSES_MORTALITY_RISK: load_affected_causes_mortality_risk,
         data_keys.POPULATION.BIRTH_RATE: load_birth_rate,
         data_keys.POPULATION.ALL_CAUSE_ADJUSTED_BIRTH_COUNTS: load_adjusted_birth_counts,
         data_keys.PREGNANCY.ASFR: load_asfr,
@@ -1176,6 +1177,40 @@ def load_mortality_risk(
     deaths = pd.concat([enn_deaths, lnn_deaths])
     beginning_of_age_group_pop = get_data(
         f"{key.split('.')[0]}.{key.split('.')[1]}.adjusted_birth_counts",
+        location,
+        years,
+    )
+
+    mortality_risk = deaths / beginning_of_age_group_pop
+    return mortality_risk
+
+
+def load_affected_causes_mortality_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
+    # Get birth counts
+    births = extra_gbd.get_birth_counts(location)
+    births = vi_utils.scrub_gbd_conventions(births, location)
+    births = vi_utils.split_interval(
+        births, interval_column="year", split_column_prefix="year"
+    )
+    births.index = births.index.droplevel("location")
+
+    # Sum early and late neonatal deaths across all LBWSG-affected causes
+    deaths = None
+    for gbd_id in data_values.LBWSG_AFFECTED_CAUSE_IDS:
+        enn_deaths = get_deaths(
+            age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+        )
+        lnn_deaths = get_deaths(
+            age_group_id=3, location=location, draw_cols=draw_columns, gbd_id=gbd_id
+        )
+        cause_deaths = pd.concat([enn_deaths, lnn_deaths])
+        deaths = cause_deaths if deaths is None else deaths + cause_deaths
+
+    beginning_of_age_group_pop = get_data(
+        data_keys.POPULATION.ALL_CAUSE_ADJUSTED_BIRTH_COUNTS,
         location,
         years,
     )
