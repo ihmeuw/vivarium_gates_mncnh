@@ -158,6 +158,7 @@ class __Columns(NamedTuple):
     CHILD_AGE = "child_age"
     MOTHER_CAUSE_OF_DEATH = "cause_of_death"
     CHILD_CAUSE_OF_DEATH = "child_cause_of_death"
+    CHILD_EXIT_STEP = "child_exit_step"
     MOTHER_YEARS_OF_LIFE_LOST = "years_of_life_lost"
     CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"

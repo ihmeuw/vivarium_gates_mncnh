@@ -1,13 +1,16 @@
 """Run maternal disorders PAF generation for all scenario draws that have neonatal sepsis RRs.
 
 Usage:
-    python generate_pafs.py [--skip-existing] [--locations LOC [LOC ...]]
+    python generate_pafs.py [--skip-existing] [--locations LOC [LOC ...]] [draw_numbers...]
 
 Options:
     --skip-existing           Skip (location, draw) pairs that already have output files.
                               Default behavior is to regenerate and overwrite all outputs.
     --locations LOC [LOC ..]  Run only the specified locations (case-insensitive).
                               Defaults to all locations in metadata.LOCATIONS.
+
+If no draw numbers are provided, generates all available draws from SCENARIO_DRAWS
+that have corresponding neonatal sepsis RR files.
 """
 
 import sys
@@ -84,10 +87,15 @@ def main():
     args = sys.argv[1:]
     locations, args = _parse_locations(args)
     skip_existing = "--skip-existing" in args
+    if skip_existing:
+        args.remove("--skip-existing")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    draws = get_available_draws()
+    available_draws = get_available_draws()
+    draws = [int(d) for d in args] if args else available_draws
+    # Filter to only draws that have sepsis RR files
+    draws = [d for d in draws if d in available_draws]
     total_tasks = len(draws) * len(locations)
 
     print("=" * 60)
