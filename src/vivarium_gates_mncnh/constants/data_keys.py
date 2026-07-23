@@ -595,6 +595,9 @@ class __Hemoglobin(NamedTuple):
     DISTRIBUTION_WEIGHTS: str = "risk_factor.hemoglobin.exposure_distribution_weights"
     DISTRIBUTION: str = "risk_factor.hemoglobin.distribution"
     RELATIVE_RISK: str = "risk_factor.hemoglobin.relative_risk"
+    NEONATAL_SEPSIS_RELATIVE_RISK: str = (
+        "risk_factor.hemoglobin.neonatal_sepsis_relative_risk"
+    )
     PAF: str = "risk_factor.hemoglobin.population_attributable_fraction"
     TMRED: str = "risk_factor.hemoglobin.tmred"
     SCREENING_COVERAGE: str = "risk_factor.hemoglobin.screening_coverage"
