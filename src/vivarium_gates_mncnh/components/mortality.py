@@ -202,6 +202,7 @@ class NeonatalMortality(Component):
             self.name: {
                 "data_sources": {
                     "all_cause_mortality_risk": self.load_all_causes_mortality_data,
+                    "affected_causes_mortality_risk": self.load_affected_causes_mortality_data,
                     "life_expectancy": self.load_life_expectancy_data,
                 }
             }
@@ -218,6 +219,10 @@ class NeonatalMortality(Component):
 
         self.all_cause_mortality_risk = self.build_lookup_table(
             builder, "all_cause_mortality_risk", value_columns="value"
+        )
+        # Aggregate neonatal mortality risk summed over the LBWSG-affected GBD causes.
+        self.affected_causes_mortality_risk = self.build_lookup_table(
+            builder, "affected_causes_mortality_risk", value_columns="value"
         )
         self.life_expectancy = self.build_lookup_table(
             builder, "life_expectancy", value_columns="value"
@@ -236,14 +241,23 @@ class NeonatalMortality(Component):
         # Register pipelines
         self._register_acmr_paf(builder)
 
-        # RiskAffectedPipeline so LBWSGRiskEffect applies its relative risk via the
-        # multiplication combiner. The (1 - ACMR PAF) normalization stays in
-        # ``get_acmr_pipeline``; ACMR's own ``.calibration_constant`` stays 0.
+        # ACMR is registered as a RiskAffectedPipeline so its ``.calibration_constant``
+        # machinery is available (the LBWSG PAF is injected onto the separate
+        # ``{target}.paf`` pipeline, so the calibration constant stays 0). The LBWSG
+        # relative risk is NOT auto-multiplied onto ACMR here: LBWSGRiskEffect skips its
+        # target modifier for the all-cause target, and ``get_acmr_pipeline`` applies the
+        # scenario RR to the LBWSG-affected fraction and the baseline RR to the unaffected
+        # fraction itself (non-uniform application, so it cannot be a uniform combiner
+        # multiply).
         register_risk_affected_attribute_producer(
             builder,
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
-            required_resources=[PIPELINES.ACMR_PAF],
+            required_resources=[
+                PIPELINES.ACMR_PAF,
+                PIPELINES.ACMR_RR,
+                PIPELINES.ACMR_BASELINE_RR,
+            ],
         )
         builder.value.register_attribute_producer(
             PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
@@ -341,6 +355,12 @@ class NeonatalMortality(Component):
         child_acmrisk = acmrisk.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
         return child_acmrisk
 
+    def load_affected_causes_mortality_data(self, builder: Builder) -> pd.DataFrame:
+        """Load the aggregate mortality risk for the LBWSG-affected causes."""
+        affected = builder.data.load(POPULATION.AFFECTED_CAUSES_MORTALITY_RISK)
+        child_affected = affected.rename(columns=CHILD_LOOKUP_COLUMN_MAPPER)
+        return child_affected
+
     def load_life_expectancy_data(self, builder: Builder) -> pd.DataFrame:
         """Load life expectancy data."""
         life_expectancy = builder.data.load(POPULATION.TMRLE)
@@ -393,11 +413,28 @@ class NeonatalMortality(Component):
         return cause_of_death
 
     def get_acmr_pipeline(self, index: pd.Index) -> pd.Series:
-        """Calculate the all-cause mortality rate adjusted by the PAF."""
-        # NOTE: This will be modified by the LBWSGRiskEffect
+        """Decomposed all-cause neonatal mortality risk.
+
+        Split ACMR into the LBWSG-affected fraction (an artifact key summed over the
+        LBWSG-affected GBD causes) and the unaffected remainder, then apply the LBWSG
+        relative risk to each with a different exposure:
+
+          affected   * (1 - PAF) * RR(scenario exposure)
+        + unaffected * (1 - PAF) * RR(baseline exposure)
+
+        The affected fraction responds to the post-intervention (scenario) exposure; the
+        unaffected fraction responds only to the pre-intervention (baseline) exposure, so
+        LBWSG-affecting interventions (IFA/MMS, IV iron) move affected mortality but leave
+        the unaffected fraction's LBWSG response unchanged. RR is applied here rather than
+        via the risk-effect target modifier because it must be applied non-uniformly.
+        """
         acmr = self.all_cause_mortality_risk(index)
+        affected = self.affected_causes_mortality_risk(index)
+        unaffected = acmr - affected
         paf = self.population_view.get(index, PIPELINES.ACMR_PAF)
-        return acmr * (1 - paf)
+        scenario_rr = self.population_view.get(index, PIPELINES.ACMR_RR)
+        baseline_rr = self.population_view.get(index, PIPELINES.ACMR_BASELINE_RR)
+        return affected * (1 - paf) * scenario_rr + unaffected * (1 - paf) * baseline_rr
 
     def _register_acmr_paf(self, builder: Builder) -> None:
         """Register the ACMR PAF pipeline."""

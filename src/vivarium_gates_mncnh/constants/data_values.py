@@ -62,6 +62,23 @@ NUM_DRAWS = 250
 
 # GBD 2021 LBWSG-affected cause_ids
 LBWSG_AFFECTED_CAUSE_IDS = [302, 322, 328, 329, 332, 337, 381, 382, 383, 384, 385, 686]
+# Human-facing GBD 2021 LBWSG-affected cause names, aligned 1:1 (by position) with
+# LBWSG_AFFECTED_CAUSE_IDS above. Used by observers/tests; the loader that builds the
+# affected-causes mortality-risk artifact key sums deaths over LBWSG_AFFECTED_CAUSE_IDS.
+LBWSG_AFFECTED_CAUSES = [
+    "diarrheal_diseases",  # 302
+    "lower_respiratory_infections",  # 322
+    "upper_respiratory_infections",  # 328
+    "otitis_media",  # 329
+    "meningitis",  # 332
+    "encephalitis",  # 337
+    "neonatal_preterm_birth",  # 381
+    "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma",  # 382
+    "neonatal_sepsis_and_other_neonatal_infections",  # 383
+    "hemolytic_disease_and_other_neonatal_jaundice",  # 384
+    "other_neonatal_disorders",  # 385
+    "sudden_infant_death_syndrome",  # 686
+]
 
 
 class _SimulationEventNames(NamedTuple):
@@ -168,6 +185,12 @@ class __Columns(NamedTuple):
     SEX_OF_CHILD = "sex_of_child"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.exposure"
+    # Pre-intervention (unmodified) LBWSG exposure: the raw LBWSG-distribution draw
+    # WITHOUT the intervention modifiers (IFA/MMS, oral/IV iron) that shift the
+    # ``*.birth_exposure`` pipelines. Used to compute the baseline all-cause RR for the
+    # LBWSG-unaffected fraction of neonatal mortality (see NeonatalMortality decomposition).
+    BIRTH_WEIGHT_UNMODIFIED_EXPOSURE = "birth_weight.unmodified_exposure"
+    GESTATIONAL_AGE_UNMODIFIED_EXPOSURE = "gestational_age.unmodified_exposure"
     ANC_ATTENDANCE = "anc_attendance"
     TIME_OF_FIRST_ANC_VISIT = "time_of_first_anc_visit"
     TIME_OF_LATER_ANC_VISIT = "time_of_later_anc_visit"
@@ -263,6 +286,9 @@ class __Pipelines(NamedTuple):
     NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
     NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk.relative_risk"
     ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.all_cause_mortality_risk.relative_risk"
+    # Baseline (pre-intervention exposure) all-cause LBWSG relative risk. Parallel to
+    # ACMR_RR but computed from the unmodified birth weight / gestational age exposure.
+    ACMR_BASELINE_RR = "low_birth_weight_and_short_gestation_on_all_causes.all_cause_mortality_risk.baseline_relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
 

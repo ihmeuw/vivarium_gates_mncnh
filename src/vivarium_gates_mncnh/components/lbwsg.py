@@ -4,6 +4,7 @@ import itertools
 import math
 import pickle
 import re
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -205,6 +206,11 @@ class LBWSGRisk(LBWSGRisk_):
 
     AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
+    @staticmethod
+    def get_unmodified_exposure_name(axis: str) -> str:
+        """Return the pre-intervention (unmodified) exposure column name for an axis."""
+        return f"{axis}.unmodified_exposure"
+
     def __init__(self):
         super().__init__()
         self.continuous_propensity_column_name = {
@@ -226,6 +232,13 @@ class LBWSGRisk(LBWSGRisk_):
             initializer=self._initialize_continuous_propensities,
             columns=[self.continuous_propensity_column_name[axis] for axis in self.AXES],
             required_resources=[self.randomness],
+        )
+
+        # Pre-intervention (unmodified) exposure columns. Assigned at ultrasound alongside
+        # the modified ``*.exposure`` columns; initialized to NaN here.
+        builder.population.register_initializer(
+            initializer=self.initialize_unmodified_exposure,
+            columns=[self.get_unmodified_exposure_name(axis) for axis in self.AXES],
         )
 
     #################
@@ -255,6 +268,18 @@ class LBWSGRisk(LBWSGRisk_):
         exposures = pd.DataFrame(
             {
                 self.get_exposure_name(axis): pd.Series(np.nan, index=pop_data.index)
+                for axis in self.AXES
+            }
+        )
+        self.population_view.initialize(exposures)
+
+    def initialize_unmodified_exposure(self, pop_data: SimulantData) -> None:
+        """Initialize unmodified exposure columns to NaN; assigned at ultrasound."""
+        exposures = pd.DataFrame(
+            {
+                self.get_unmodified_exposure_name(axis): pd.Series(
+                    np.nan, index=pop_data.index
+                )
                 for axis in self.AXES
             }
         )
@@ -334,6 +359,23 @@ class LBWSGRisk(LBWSGRisk_):
 
         self.population_view.update(exposure_columns, _update_exposures)
 
+        # Pre-intervention (unmodified) exposure. We call the birth-exposure pipeline
+        # SOURCE (``get_birth_exposure``) directly rather than the pipeline itself so the
+        # intervention modifiers registered on ``{axis}.birth_exposure`` (IFA/MMS additive
+        # effects, oral/IV iron effects) are excluded. The LBWSG birth-exposure
+        # post-processor is a no-op (continuous risk, no category thresholds configured),
+        # so the raw source output equals the final unmodified exposure.
+        unmodified_columns = [self.get_unmodified_exposure_name(axis) for axis in self.AXES]
+
+        def _update_unmodified_exposures(pop: pd.DataFrame) -> pd.DataFrame:
+            raw_exposures = self.get_birth_exposure(event.index)
+            col_mapping = {
+                axis: self.get_unmodified_exposure_name(axis) for axis in self.AXES
+            }
+            return raw_exposures.rename(columns=col_mapping)
+
+        self.population_view.update(unmodified_columns, _update_unmodified_exposures)
+
 
 class LBWSGRiskEffect(LBWSGRiskEffect_):
     """Subclass of LBWSGRiskEffect to be compatible with the wide state table, meaning it
@@ -346,6 +388,28 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         return [
             LBWSGRisk_.get_exposure_name(axis) for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]
         ]
+
+    @property
+    def is_all_cause_target(self) -> bool:
+        """Whether this effect targets the aggregate all-cause mortality risk (ACMR)."""
+        return self.target_name == PIPELINES.ACMR
+
+    @property
+    def unmodified_lbwsg_exposure_column_names(self) -> list[str]:
+        return [
+            COLUMNS.BIRTH_WEIGHT_UNMODIFIED_EXPOSURE,
+            COLUMNS.GESTATIONAL_AGE_UNMODIFIED_EXPOSURE,
+        ]
+
+    @property
+    def baseline_rr_column_names(self) -> list[str]:
+        return [
+            self.get_baseline_relative_risk_column_name(age_group)
+            for age_group in self.age_intervals
+        ]
+
+    def get_baseline_relative_risk_column_name(self, age_group: str) -> str:
+        return f"baseline_{self.get_relative_risk_column_name(age_group)}"
 
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
@@ -364,6 +428,36 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             self.paf_pipeline_name,
             source=self.paf_table,
             required_resources=[self.paf_table],
+        )
+        # The all-cause effect additionally exposes a BASELINE relative risk computed from
+        # the pre-intervention (unmodified) exposure. NeonatalMortality applies the scenario
+        # RR to the LBWSG-affected fraction of ACMR and this baseline RR to the unaffected
+        # fraction (see get_acmr_pipeline). The four CSMR targets are unaffected by this.
+        if self.is_all_cause_target:
+            self._register_baseline_relative_risk(builder)
+
+    def register_target_modifier(self, builder: Builder) -> None:
+        # For the all-cause target the LBWSG relative risk must NOT be multiplied uniformly
+        # onto the whole ACMR pipeline. NeonatalMortality.get_acmr_pipeline applies the
+        # scenario RR to the LBWSG-affected fraction and the baseline RR to the unaffected
+        # fraction, so we skip the automatic target modifier here to avoid double-counting
+        # the RR. The four CSMR targets keep the standard uniform RR multiply.
+        if self.is_all_cause_target:
+            return
+        super().register_target_modifier(builder)
+
+    def _register_baseline_relative_risk(self, builder: Builder) -> None:
+        self.baseline_relative_risk_name = PIPELINES.ACMR_BASELINE_RR
+        builder.population.register_initializer(
+            initializer=self.initialize_baseline_relative_risk,
+            columns=self.baseline_rr_column_names,
+            required_resources=self.unmodified_lbwsg_exposure_column_names
+            + [COLUMNS.SEX_OF_CHILD],
+        )
+        builder.value.register_attribute_producer(
+            self.baseline_relative_risk_name,
+            source=self._get_baseline_relative_risk,
+            required_resources=[COLUMNS.CHILD_AGE] + self.baseline_rr_column_names,
         )
 
     def register_calibration_constant_modifier(self, builder: Builder) -> None:
@@ -448,6 +542,63 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             ]
         return relative_risk
 
+    def _get_baseline_relative_risk(self, index: pd.Index) -> pd.Series:
+        """Age-resolved baseline (pre-intervention exposure) all-cause relative risk."""
+        pop = self.population_view.get(
+            index, self.baseline_rr_column_names + [COLUMNS.CHILD_AGE]
+        )
+        relative_risk = pd.Series(1.0, index=index, name=self.baseline_relative_risk_name)
+
+        for age_group, interval in self.age_intervals.items():
+            age_group_mask = (interval.left <= pop[COLUMNS.CHILD_AGE]) & (
+                pop[COLUMNS.CHILD_AGE] < interval.right
+            )
+            relative_risk[age_group_mask] = pop.loc[
+                age_group_mask, self.get_baseline_relative_risk_column_name(age_group)
+            ]
+        return relative_risk
+
+    def _compute_relative_risk_columns(
+        self,
+        index: pd.Index,
+        is_male: pd.Series,
+        birth_weight: pd.Series,
+        gestational_age: pd.Series,
+        column_name_fn: Callable[[str], str],
+    ) -> pd.DataFrame:
+        """Interpolate per-age-group LBWSG relative risks from an exposure pair.
+
+        Mirrors the (modified-exposure) logic in ``initialize_relative_risk`` /
+        ``on_time_step`` but is parametrized by the exposure series and the RR column
+        naming, so it can build both the scenario and the baseline RR columns.
+        """
+        is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
+            self.TMREL_BIRTH_WEIGHT_INTERVAL.left <= birth_weight
+        )
+
+        def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
+            column_name = column_name_fn(age_group)
+            log_relative_risk = pd.Series(0.0, index=index, name=column_name)
+
+            male_interpolator = self.interpolator["Male", age_group]
+            log_relative_risk[is_male & ~is_tmrel] = male_interpolator(
+                gestational_age[is_male & ~is_tmrel],
+                birth_weight[is_male & ~is_tmrel],
+                grid=False,
+            )
+            female_interpolator = self.interpolator["Female", age_group]
+            log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
+                gestational_age[~is_male & ~is_tmrel],
+                birth_weight[~is_male & ~is_tmrel],
+                grid=False,
+            )
+            return np.exp(log_relative_risk)
+
+        return pd.concat(
+            [get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals],
+            axis=1,
+        )
+
     ########################
     # Event-driven methods #
     ########################
@@ -489,6 +640,29 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         ]
         self.population_view.initialize(pd.concat(relative_risk_columns, axis=1))
 
+    def initialize_baseline_relative_risk(self, pop_data: SimulantData) -> None:
+        """Initialize the baseline (pre-intervention exposure) all-cause RR columns.
+
+        Parallel to ``initialize_relative_risk`` but reads the unmodified exposure
+        columns. Like the scenario RR, these are (re)computed at ultrasound once the
+        exposures are assigned (see on_time_step); the initializer just creates the
+        columns from the NaN placeholder exposures.
+        """
+        pop = self.population_view.get(
+            pop_data.index,
+            [COLUMNS.SEX_OF_CHILD] + self.unmodified_lbwsg_exposure_column_names,
+        )
+        is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
+        self.population_view.initialize(
+            self._compute_relative_risk_columns(
+                pop_data.index,
+                is_male,
+                pop[COLUMNS.BIRTH_WEIGHT_UNMODIFIED_EXPOSURE],
+                pop[COLUMNS.GESTATIONAL_AGE_UNMODIFIED_EXPOSURE],
+                self.get_baseline_relative_risk_column_name,
+            )
+        )
+
     def on_time_step(self, event: Event) -> None:
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.ULTRASOUND:
             return
@@ -501,38 +675,41 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
         gestational_age = pop[LBWSGRisk_.get_exposure_name(GESTATIONAL_AGE)]
 
         is_male = pop[COLUMNS.SEX_OF_CHILD] == "Male"
-        is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
-            self.TMREL_BIRTH_WEIGHT_INTERVAL.left <= birth_weight
-        )
-
-        def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
-            column_name = self.get_relative_risk_column_name(age_group)
-            log_relative_risk = pd.Series(0.0, index=event.index, name=column_name)
-
-            male_interpolator = self.interpolator["Male", age_group]
-            log_relative_risk[is_male & ~is_tmrel] = male_interpolator(
-                gestational_age[is_male & ~is_tmrel],
-                birth_weight[is_male & ~is_tmrel],
-                grid=False,
-            )
-            female_interpolator = self.interpolator["Female", age_group]
-            log_relative_risk[~is_male & ~is_tmrel] = female_interpolator(
-                gestational_age[~is_male & ~is_tmrel],
-                birth_weight[~is_male & ~is_tmrel],
-                grid=False,
-            )
-
-            return np.exp(log_relative_risk)
 
         rr_columns = [self.get_relative_risk_column_name(ag) for ag in self.age_intervals]
 
         def _update_rr(pop: pd.DataFrame) -> pd.DataFrame:
-            return pd.concat(
-                [get_relative_risk_for_age_group(ag) for ag in self.age_intervals],
-                axis=1,
+            return self._compute_relative_risk_columns(
+                event.index,
+                is_male,
+                birth_weight,
+                gestational_age,
+                self.get_relative_risk_column_name,
             )
 
         self.population_view.update(rr_columns, _update_rr)
+
+        # Recompute the baseline all-cause RR from the unmodified exposure.
+        if not self.is_all_cause_target:
+            return
+        unmodified_pop = self.population_view.get(
+            event.index,
+            [COLUMNS.SEX_OF_CHILD] + self.unmodified_lbwsg_exposure_column_names,
+        )
+        baseline_is_male = unmodified_pop[COLUMNS.SEX_OF_CHILD] == "Male"
+        baseline_birth_weight = unmodified_pop[COLUMNS.BIRTH_WEIGHT_UNMODIFIED_EXPOSURE]
+        baseline_gestational_age = unmodified_pop[COLUMNS.GESTATIONAL_AGE_UNMODIFIED_EXPOSURE]
+
+        def _update_baseline_rr(pop: pd.DataFrame) -> pd.DataFrame:
+            return self._compute_relative_risk_columns(
+                event.index,
+                baseline_is_male,
+                baseline_birth_weight,
+                baseline_gestational_age,
+                self.get_baseline_relative_risk_column_name,
+            )
+
+        self.population_view.update(self.baseline_rr_column_names, _update_baseline_rr)
 
 
 ####################################
@@ -567,6 +744,13 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
             source=self.paf_table,
             required_resources=[self.paf_table],
         )
+
+    def register_target_modifier(self, builder: Builder) -> None:
+        # The PAF-calculation sim has its own ACMR pipeline (LBWSGMortality) that DOES rely
+        # on the uniform RR target modifier, and no affected/unaffected decomposition. Keep
+        # the standard target modifier here regardless of target, overriding the all-cause
+        # skip that LBWSGRiskEffect applies for the main simulation.
+        RiskEffect.register_target_modifier(self, builder)
 
     def register_relative_risk_pipeline(self, builder: Builder) -> None:
         """Override to avoid depending on the exposure pipeline."""
