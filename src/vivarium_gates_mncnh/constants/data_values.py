@@ -60,24 +60,22 @@ DURATIONS = _Durations()
 
 NUM_DRAWS = 250
 
-# GBD 2021 LBWSG-affected cause_ids
-LBWSG_AFFECTED_CAUSE_IDS = [302, 322, 328, 329, 332, 337, 381, 382, 383, 384, 385, 686]
-# Human-facing GBD 2021 LBWSG-affected cause names, aligned 1:1 (by position) with
-# LBWSG_AFFECTED_CAUSE_IDS above. Used by observers/tests; the loader that builds the
-# affected-causes mortality-risk artifact key sums deaths over LBWSG_AFFECTED_CAUSE_IDS.
-LBWSG_AFFECTED_CAUSES = [
-    "diarrheal_diseases",  # 302
-    "lower_respiratory_infections",  # 322
-    "upper_respiratory_infections",  # 328
-    "otitis_media",  # 329
-    "meningitis",  # 332
-    "encephalitis",  # 337
-    "neonatal_preterm_birth",  # 381
-    "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma",  # 382
-    "neonatal_sepsis_and_other_neonatal_infections",  # 383
-    "hemolytic_disease_and_other_neonatal_jaundice",  # 384
-    "other_neonatal_disorders",  # 385
-    "sudden_infant_death_syndrome",  # 686
+# GBD 2021 LBWSG-affected cause_ids (human-readable cause names in the inline comments).
+# Consumed by the loader that builds the affected-causes mortality-risk artifact key,
+# which sums deaths over these cause ids.
+LBWSG_AFFECTED_CAUSE_IDS = [
+    302,  # diarrheal_diseases
+    322,  # lower_respiratory_infections
+    328,  # upper_respiratory_infections
+    329,  # otitis_media
+    332,  # meningitis
+    337,  # encephalitis
+    381,  # neonatal_preterm_birth
+    382,  # neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma
+    383,  # neonatal_sepsis_and_other_neonatal_infections
+    384,  # hemolytic_disease_and_other_neonatal_jaundice
+    385,  # other_neonatal_disorders
+    686,  # sudden_infant_death_syndrome
 ]
 
 

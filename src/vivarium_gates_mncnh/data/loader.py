@@ -1189,25 +1189,25 @@ def load_affected_causes_mortality_risk(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     draw_columns = [f"draw_{i:d}" for i in range(data_values.NUM_DRAWS)]
-    # Get birth counts
-    births = extra_gbd.get_birth_counts(location)
-    births = vi_utils.scrub_gbd_conventions(births, location)
-    births = vi_utils.split_interval(
-        births, interval_column="year", split_column_prefix="year"
-    )
-    births.index = births.index.droplevel("location")
 
-    # Sum early and late neonatal deaths across all LBWSG-affected causes
-    deaths = None
-    for gbd_id in data_values.LBWSG_AFFECTED_CAUSE_IDS:
-        enn_deaths = get_deaths(
-            age_group_id=2, location=location, draw_cols=draw_columns, gbd_id=gbd_id
-        )
-        lnn_deaths = get_deaths(
-            age_group_id=3, location=location, draw_cols=draw_columns, gbd_id=gbd_id
-        )
-        cause_deaths = pd.concat([enn_deaths, lnn_deaths])
-        deaths = cause_deaths if deaths is None else deaths + cause_deaths
+    # Sum early and late neonatal deaths across all LBWSG-affected causes. get_draws
+    # (via get_mortality_death_counts) accepts the full cause-id list and returns one
+    # row per cause, so a single call per age group replaces the previous per-cause loop
+    # of slow GBD round-trips; summing the draws over the causes within each demographic
+    # cell reproduces what the per-cause loop + add produced.
+    enn_deaths = get_deaths_summed_over_causes(
+        age_group_id=2,
+        location=location,
+        draw_cols=draw_columns,
+        gbd_ids=data_values.LBWSG_AFFECTED_CAUSE_IDS,
+    )
+    lnn_deaths = get_deaths_summed_over_causes(
+        age_group_id=3,
+        location=location,
+        draw_cols=draw_columns,
+        gbd_ids=data_values.LBWSG_AFFECTED_CAUSE_IDS,
+    )
+    deaths = pd.concat([enn_deaths, lnn_deaths])
 
     beginning_of_age_group_pop = get_data(
         data_keys.POPULATION.ALL_CAUSE_ADJUSTED_BIRTH_COUNTS,
@@ -1975,5 +1975,26 @@ def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: i
         location=location, age_group_id=age_group_id, gbd_id=gbd_id
     )
     deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[draw_cols]
+    deaths = reshape_to_vivarium_format(deaths, location)
+    return deaths
+
+
+def get_deaths_summed_over_causes(
+    age_group_id: int, location: str, draw_cols: list[str], gbd_ids: list[int]
+):
+    """Death counts for a single age group summed over multiple GBD causes.
+
+    ``get_mortality_death_counts`` (get_draws) returns one row per cause (a ``cause_id``
+    column) when passed a list of cause ids, so a single call replaces a per-cause loop;
+    grouping on the demographic cell and summing the draws reproduces what summing the
+    per-cause ``get_deaths`` results would have produced (``reshape_to_vivarium_format``
+    is a per-cell relabel, so summing before vs. after reshaping is equivalent).
+    """
+    deaths = extra_gbd.get_mortality_death_counts(
+        location=location, age_group_id=age_group_id, gbd_id=gbd_ids
+    )
+    deaths = deaths.groupby(["location_id", "sex_id", "age_group_id", "year_id"])[
+        draw_cols
+    ].sum()
     deaths = reshape_to_vivarium_format(deaths, location)
     return deaths
