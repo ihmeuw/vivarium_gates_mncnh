@@ -68,7 +68,9 @@ def get_birth_counts(location: str) -> pd.DataFrame:
 
 
 @vi_utils.cache
-def get_mortality_death_counts(location: str, age_group_id: int, gbd_id: int) -> pd.DataFrame:
+def get_mortality_death_counts(
+    location: str, age_group_id: int, gbd_id: int | list[int]
+) -> pd.DataFrame:
     location_id = utility_data.get_location_id(location)
     data = base_data.get_draws(
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
