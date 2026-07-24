@@ -16,6 +16,7 @@ from vivarium_gates_mncnh.components.intervention import (
 )
 from vivarium_gates_mncnh.components.intrapartum import ACSAccess, InterventionAccess
 from vivarium_gates_mncnh.components.lbwsg import (
+    AllCauseLBWSGRiskEffect,
     LBWSGMortality,
     LBWSGPAFCalculationExposure,
     LBWSGPAFObserver,
