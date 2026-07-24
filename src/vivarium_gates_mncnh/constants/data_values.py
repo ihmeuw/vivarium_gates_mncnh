@@ -90,6 +90,8 @@ class _SimulationEventNames(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
+    EARLY_POSTPARTUM = "early_postpartum"
+    LATE_POSTPARTUM = "late_postpartum"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
 

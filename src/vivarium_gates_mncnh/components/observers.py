@@ -24,7 +24,9 @@ from vivarium_gates_mncnh.constants.data_values import (
     DAYS_PER_WEEK,
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
+    EARLY_POSTPARTUM_END_DAYS,
     INTERVENTIONS,
+    LATE_POSTPARTUM_END_DAYS,
     LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
     PIPELINES,
@@ -623,7 +625,8 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
             SIMULATION_EVENT_NAMES.ULTRASOUND,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+            SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+            SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
         ]
 
     def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
@@ -665,9 +668,13 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
-                6 * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
-            ),  # 6 weeks in years
+            SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM: lambda df: pd.Series(
+                EARLY_POSTPARTUM_END_DAYS / DAYS_PER_YEAR, index=df.index
+            ),
+            SIMULATION_EVENT_NAMES.LATE_POSTPARTUM: lambda df: pd.Series(
+                (LATE_POSTPARTUM_END_DAYS - EARLY_POSTPARTUM_END_DAYS) / DAYS_PER_YEAR,
+                index=df.index,
+            ),
         }
         return duration_calculators[self._sim_step_name()](data)
 
