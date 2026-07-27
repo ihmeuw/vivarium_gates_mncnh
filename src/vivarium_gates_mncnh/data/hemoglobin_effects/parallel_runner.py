@@ -5,7 +5,7 @@ Spawns one subprocess per draw, up to --workers at a time.
 Each subprocess runs: python <script> [script_args...] <draw>
 
 Usage:
-    python parallel_runner.py [--workers N] [--draws D ...] -- <script> [script_args...]
+    python parallel_runner.py [--workers N] [--draws D ...] [--log-dir DIR] -- <script> [script_args...]
 
 Examples:
     # Test parallelization: 1 sim step, 4 draws, 2 workers
@@ -14,8 +14,8 @@ Examples:
     # Full generation: 5 draws, 4 workers
     python parallel_runner.py --workers 4 --draws 0 1 2 3 4 -- generate_nn_sepsis_effects.py
 
-    # All scenario draws, 4 workers, skip existing
-    python parallel_runner.py --workers 4 -- generate_nn_sepsis_effects.py --skip-existing
+    # All scenario draws, 4 workers, skip existing, custom log dir
+    python parallel_runner.py --workers 4 --log-dir ~/my_logs -- generate_nn_sepsis_effects.py --skip-existing
 """
 
 import os
@@ -76,6 +76,7 @@ def parse_args():
     # Parse runner args manually for simplicity
     workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
     draws = None
+    log_dir = None
 
     i = 0
     while i < len(runner_args):
@@ -88,15 +89,18 @@ def parse_args():
             while i < len(runner_args) and not runner_args[i].startswith("--"):
                 draws.append(int(runner_args[i]))
                 i += 1
+        elif runner_args[i] == "--log-dir":
+            log_dir = Path(runner_args[i + 1]).expanduser()
+            i += 2
         else:
             print(f"Error: unknown runner argument '{runner_args[i]}'")
             sys.exit(1)
 
-    return workers, draws, script_cmd
+    return workers, draws, log_dir, script_cmd
 
 
 def main():
-    workers, draws, script_cmd = parse_args()
+    workers, draws, log_dir, script_cmd = parse_args()
 
     # If no draws specified, let the generation script decide (import metadata)
     if draws is None:
@@ -105,8 +109,9 @@ def main():
 
         draws = list(SCENARIO_DRAWS)
 
-    log_dir = Path(__file__).parent / "logs"
-    log_dir.mkdir(exist_ok=True)
+    if log_dir is None:
+        log_dir = Path.home() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Script:    {' '.join(script_cmd)}")
     print(f"Workers:   {workers}")

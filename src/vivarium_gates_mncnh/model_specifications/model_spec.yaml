@@ -79,7 +79,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model33.1/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model36.2/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -252,7 +252,7 @@ configuration:
 
     intervention:
         scenario:
-            # baseline
+            baseline
             # cpap_acs_scaleup
             # cpap_acs_ai_ultrasound_scaleup
             # neonatal_antibiotics_scaleup
@@ -260,7 +260,7 @@ configuration:
             # azithromycin_scaleup
             # ai_ultrasound_scaleup
             # standard_ultrasound_scaleup
-            full_product_scaleup
+            # full_product_scaleup
             # mms_total_scaleup
             # anemia_screening_and_iv_iron_scaleup
             # azithromycin_vv

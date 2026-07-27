@@ -11,146 +11,6 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
-import pyarrow.parquet as pq
-
-
-def tag_commit(tag: str) -> Optional[str]:
-    """Return the commit SHA a tag points to, or ``None`` if it doesn't exist."""
-    result = subprocess.run(
-        ["git", "rev-list", "-n1", tag],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip()
-
-
-def head_commit() -> str:
-    """Return the SHA of the current HEAD."""
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return result.stdout.strip()
-
-
-def commit_pending_changes(message: str) -> None:
-    """Commit any uncommitted tracked-file changes with ``message`` and push to origin.
-
-    No-op if the working tree has nothing to commit. Untracked files are ignored.
-    """
-    status = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    if not status.stdout.strip():
-        print("No pending changes to commit.")
-        return
-
-    try:
-        subprocess.run(["git", "add", "-u"], check=True, capture_output=True, text=True)
-        subprocess.run(
-            ["git", "commit", "-m", message], check=True, capture_output=True, text=True
-        )
-        print(f"Committed pending changes: {message!r}")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to commit pending changes.\n  stderr: {e.stderr.strip()}")
-
-    try:
-        subprocess.run(
-            ["git", "push", "origin", "HEAD"], check=True, capture_output=True, text=True
-        )
-        print("Pushed commit to origin.")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to push commit to origin.\n  stderr: {e.stderr.strip()}")
-
-
-def create_and_push_tag(model_number: str) -> None:
-    """Create a git tag ``v{model_number}`` for the current HEAD and push it to origin.
-
-    If the tag already exists on the current commit, it is left as-is. If it
-    exists on a *different* commit the user is prompted to force-update;
-    when stdin is not a TTY (e.g. running inside a jobmon task) the prompt
-    aborts cleanly instead of crashing.
-    """
-    tag = f"v{model_number}"
-    force = False
-
-    existing_commit = tag_commit(tag)
-    if existing_commit is not None:
-        head = head_commit()
-        if existing_commit == head:
-            print(f"\nGit tag '{tag}' already exists on the current commit. Skipping.")
-            return
-        print(f"\nWARNING: Git tag '{tag}' already exists (on commit {existing_commit[:8]}).")
-        try:
-            response = input(
-                f"Update tag '{tag}' to the current commit and force-push? [y/N] "
-            )
-        except EOFError:
-            raise RuntimeError(
-                f"Git tag '{tag}' already exists on a different commit "
-                f"({existing_commit[:8]}). Refusing to force-update non-interactively. "
-                "Resolve the tag conflict manually before re-running."
-            )
-        if response.strip().lower() != "y":
-            raise RuntimeError(f"Aborted: tag '{tag}' already exists.")
-        force = True
-
-    print(f"\n{'Updating' if force else 'Creating'} git tag '{tag}' and pushing to origin...")
-
-    try:
-        cmd = ["git", "tag", "-f", tag] if force else ["git", "tag", tag]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"  {'Updated' if force else 'Created'} tag '{tag}'")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
-
-    try:
-        cmd = (
-            ["git", "push", "--force", "origin", tag]
-            if force
-            else ["git", "push", "origin", tag]
-        )
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"  Pushed tag '{tag}' to origin")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Failed to push git tag '{tag}' to origin.\n  stderr: {e.stderr.strip()}"
-        )
-
-
-def check_clean_tree() -> None:
-    """Abort if there are uncommitted changes to tracked files in src/vivarium_gates_mncnh,
-    excluding the validation/ and tools/ subdirectories."""
-    result = subprocess.run(
-        [
-            "git",
-            "status",
-            "--porcelain",
-            "--untracked-files=no",
-            "--",
-            "src/vivarium_gates_mncnh",
-            ":!src/vivarium_gates_mncnh/validation",
-            ":!src/vivarium_gates_mncnh/tools",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    if result.stdout.strip():
-        raise RuntimeError(
-            "There are uncommitted changes to tracked files in src/vivarium_gates_mncnh "
-            "(excluding validation/ and tools/). "
-            "Please commit or stash them before running this script.\n"
-            f"{result.stdout.strip()}"
-        )
-
 
 def check_conda_environments() -> None:
     """
@@ -411,10 +271,11 @@ def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
     """
     Move result files to the destination directory.
 
-    Expects directories matching the pattern. Each directory contains one or more
-    partition parquet files written by psimulate. They are concatenated into a
-    single parquet file at ``{dest_dir}/{directory_name}.parquet`` and the source
-    directory is removed.
+    Handles two output formats:
+    1. Flat parquet files matching the pattern (e.g., {measure}.parquet)
+    2. Directories matching the pattern, each containing parquet file(s)
+
+    In both cases, the destination file is named {measure_name}.parquet.
 
     Parameters
     ----------
@@ -437,25 +298,48 @@ def move_results(source_pattern: str, dest_dir: str, description: str) -> None:
 
     if not matching_paths:
         raise RuntimeError(
-            f"Failed to move {description}. No directories matched pattern: {source_pattern}"
+            f"Failed to move {description}. No paths matched pattern: {source_pattern}"
         )
 
+    # Move files from matching paths
     moved_count = 0
     for source_path in matching_paths:
         source_path_obj = Path(source_path)
 
         try:
-            partition_files = sorted(source_path_obj.glob("*.parquet"))
-            if not partition_files:
-                raise RuntimeError(f"No parquet partition files found in {source_path}")
+            if source_path_obj.is_file() and source_path_obj.suffix == ".parquet":
+                # Flat parquet file: move directly
+                dest_file = Path(dest_dir) / source_path_obj.name
+                shutil.move(str(source_path_obj), dest_file)
+                moved_count += 1
+            elif source_path_obj.is_dir():
+                # Directory: find parquet files inside
+                parquet_files = sorted(source_path_obj.glob("*.parquet"))
+                if not parquet_files:
+                    raise RuntimeError(
+                        f"No parquet files found in directory {source_path}. "
+                        f"Contents: {[f.name for f in source_path_obj.iterdir()]}"
+                    )
+                elif len(parquet_files) == 1:
+                    # Single parquet file: move and rename to {directory_name}.parquet
+                    dest_filename = f"{source_path_obj.name}.parquet"
+                    dest_file = Path(dest_dir) / dest_filename
+                    shutil.move(str(parquet_files[0]), dest_file)
+                    moved_count += 1
+                else:
+                    # Multiple shards: concatenate into single file
+                    import pandas as pd
 
-            combined = pq.ParquetDataset([str(p) for p in partition_files]).read()
-
-            dest_file = Path(dest_dir) / f"{source_path_obj.name}.parquet"
-            pq.write_table(combined, dest_file)
-
-            shutil.rmtree(source_path_obj)
-            moved_count += 1
+                    dfs = [pd.read_parquet(f) for f in parquet_files]
+                    combined = pd.concat(dfs, ignore_index=True)
+                    dest_filename = f"{source_path_obj.name}.parquet"
+                    dest_file = Path(dest_dir) / dest_filename
+                    combined.to_parquet(dest_file, index=False)
+                    moved_count += 1
+            else:
+                raise RuntimeError(
+                    f"Unexpected path type for {source_path}: not a .parquet file or directory"
+                )
         except Exception as e:
             raise RuntimeError(f"Failed to move from {source_path} to {dest_dir}. Error: {e}")
 

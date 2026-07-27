@@ -1445,7 +1445,11 @@ def load_risk_specific_shift(
         )
 
         birth_weight_shift = (
-            load_excess_shift(key, location)[excess_shift.columns]
+            (
+                exposure
+                * load_excess_shift(key, location)[excess_shift.columns]
+                * anc_proportion
+            )
             .groupby(
                 metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
             )
