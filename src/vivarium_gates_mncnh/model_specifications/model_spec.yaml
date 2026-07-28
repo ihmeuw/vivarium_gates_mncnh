@@ -137,7 +137,6 @@ configuration:
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
-                - 'preterm_birth'
         anc_other:
             include:
                 - 'age_group'
