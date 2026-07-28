@@ -98,9 +98,6 @@ class _SimulationEventNames(NamedTuple):
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
 
-# The simulation events at which anemia YLDs and person-time are accrued. Each event
-# closes out one interval (see AnemiaYLDsObserver._get_duration_years), so this list
-# doubles as the category list of the 'timestep' stratification.
 ANEMIA_MEASUREMENT_EVENTS = [
     SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
     SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,

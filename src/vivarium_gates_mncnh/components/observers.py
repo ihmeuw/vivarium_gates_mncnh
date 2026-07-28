@@ -243,9 +243,6 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_attributes=[PIPELINES.HEMOGLOBIN_EXPOSURE],
         )
-        # Categories are limited to the events at which anemia is observed, so that the
-        # anemia results do not carry a row for every other simulation event. An observer
-        # firing on any other event would map to an unknown category and fail loudly.
         builder.results.register_stratification(
             "timestep",
             ANEMIA_MEASUREMENT_EVENTS,
