@@ -1447,7 +1447,11 @@ def load_risk_specific_shift(
         birth_weight_shift = (
             (
                 exposure
-                * load_excess_shift(key, location)[excess_shift.columns]
+                # Request the EXCESS_SHIFT key, not `key`: get_random_variable seeds on the
+                # artifact key name, so passing the risk_specific_shift key here would draw an
+                # independent value of the same effect-size distribution and the deletion shift
+                # would not cancel the effect it is calibrating away.
+                * load_excess_shift(key_group.EXCESS_SHIFT, location)[excess_shift.columns]
                 * anc_proportion
             )
             .groupby(
@@ -1468,11 +1472,6 @@ def load_excess_shift(
             data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
-            data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
-                data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-            ][
-                "birth_weight.birth_exposure"
-            ],
             data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
