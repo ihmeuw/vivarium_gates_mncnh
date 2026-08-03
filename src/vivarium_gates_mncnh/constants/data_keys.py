@@ -19,6 +19,7 @@ class __Population(NamedTuple):
     SCALING_FACTOR: str = "population.scaling_factor"
     ACMR: str = "cause.all_causes.cause_specific_mortality_rate"
     ALL_CAUSES_MORTALITY_RISK: str = "cause.all_causes.all_cause_mortality_risk"
+    AFFECTED_CAUSES_MORTALITY_RISK: str = "cause.all_causes.affected_causes_mortality_risk"
     BIRTH_RATE: str = "population.birth_rate"
     ALL_CAUSE_ADJUSTED_BIRTH_COUNTS: str = "cause.all_causes.adjusted_birth_counts"
 
