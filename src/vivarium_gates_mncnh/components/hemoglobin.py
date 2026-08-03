@@ -17,6 +17,7 @@ from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
     HEMORRHAGE_CAUSES,
+    PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
@@ -92,6 +93,7 @@ class Hemoglobin(Risk):
         builder.value.register_attribute_modifier(
             self.exposure_name,
             modifier=self._modify_exposure_for_postpartum,
+            required_resources=[PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE],
         )
 
     def _build_non_pregnant_distribution(self, builder: Builder) -> None:
@@ -132,6 +134,23 @@ class Hemoglobin(Risk):
 
         self._propensity_view = builder.population.get_view(
             [self.propensity_name, f"ensemble_propensity.{self.risk}"]
+        )
+
+        # Expose the unshifted non-pregnant draw. The 6w-9m shifts overwrite
+        # hemoglobin.exposure with a shifted (and clipped) version of this, so
+        # without a separate handle there is no way to recover the pre-shift
+        # values per simulant. (The 0-6w period needs no equivalent: there the
+        # shift is applied to the carried-forward pregnancy value, which can be
+        # read off the pipeline at the preceding event.) _apply_6w_9m_shifts
+        # consumes this attribute rather than calling the sampler directly, so
+        # the value V&V reads is the one the simulation shifted.
+        builder.value.register_attribute_producer(
+            PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE,
+            source=self.sample_non_pregnant_hemoglobin,
+            required_resources=[
+                self.propensity_name,
+                f"ensemble_propensity.{self.risk}",
+            ],
         )
 
     def _initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:
@@ -267,7 +286,11 @@ class Hemoglobin(Risk):
         if survived_pop.empty:
             return exposure
 
-        hgb = self._sample_non_pregnant_hemoglobin(survived_pop.index)
+        # Read the attribute rather than calling the sampler, so what V&V sees
+        # is by construction the same object the shifts are applied to.
+        hgb = self.population_view.get(
+            survived_pop.index, PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE
+        ).copy()
         hgb = self._apply_hemorrhage_shifts(
             hgb, survived_pop, self.pph_shift_6w_9m, self.aph_shift_6w_9m
         )
@@ -276,8 +299,15 @@ class Hemoglobin(Risk):
         result.loc[survived_pop.index] = hgb
         return result
 
-    def _sample_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
-        """Sample hemoglobin values from the non-pregnant ensemble distribution."""
+    def sample_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:
+        """Sample hemoglobin values from the non-pregnant ensemble distribution.
+
+        No hemorrhage shift and no clipping is applied here -- this is the raw
+        draw the 6w-9m shifts are layered on top of. It is a pure function of
+        the stored propensities, so it returns the same values on every call
+        and can be sampled for the whole population, not just the survivors the
+        simulation actually assigns it to.
+        """
         propensities = self._propensity_view.get(
             index, [self.propensity_name, f"ensemble_propensity.{self.risk}"]
         )
