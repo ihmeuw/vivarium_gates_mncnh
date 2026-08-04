@@ -929,7 +929,10 @@ class IVIronEffectOnHemoglobin(Component):
     def apply_iv_iron_to_hemoglobin(
         self, index: pd.Index, exposure: pd.Series[float]
     ) -> pd.Series[float]:
-        # See OralIronEffectOnHemoglobin.apply_oral_iron_to_hemoglobin.
+        # Pregnancy interventions stop mattering six weeks after the end of
+        # pregnancy, at which point hemoglobin is redrawn from the non-pregnant
+        # distribution. Without this gate the effect is re-added on top of that
+        # fresh draw.
         if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
             return exposure
 
