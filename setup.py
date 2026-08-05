@@ -49,6 +49,7 @@ if __name__ == "__main__":
         "layered_config_tree<5.0.0",
         "vivarium>=4.0.0, <4.1.0",
         "vivarium_public_health>=5.0.0, <5.1.0",
+        "risk_distributions>=2.0.11,<2.4.0",
         "click",
         "jinja2",
         "pyyaml",

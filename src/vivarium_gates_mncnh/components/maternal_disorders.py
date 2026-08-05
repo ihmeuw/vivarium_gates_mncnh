@@ -329,12 +329,15 @@ class SepsisEffectsOnHemoglobin(Component):
     ##################
 
     def _get_current_shift(self) -> float | None:
-        """Return the hemoglobin shift for the current simulation event, or None."""
+        """Return the hemoglobin shift for the current postpartum period, or None.
+
+        The shift is applied during the mother's postpartum-period steps: the
+        early-postpartum (0-6 week) value during EARLY_POSTPARTUM and the
+        late-postpartum (6-39 week) value during LATE_POSTPARTUM.
+        """
         current_event = self._sim_step_name()
-        # The early/late neonatal mortality steps correspond to the early/late
-        # postpartum periods for the mother.
-        if current_event == SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY:
+        if current_event == SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM:
             return self.early_postpartum_shift
-        elif current_event == SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY:
+        elif current_event == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
             return self.late_postpartum_shift
         return None
