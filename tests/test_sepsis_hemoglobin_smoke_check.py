@@ -14,6 +14,8 @@ These tests read the event ordering straight from the model spec (rather than a
 hardcoded step mapper) so they stay correct if the event list changes.
 """
 
+# TODO: delete this file
+
 from pathlib import Path
 
 import pytest
@@ -124,3 +126,5 @@ def test_early_and_late_postpartum_shifts_are_distinct(
         f"Early ({early:.4f}) and late ({late:.4f}) postpartum shifts should differ; "
         "the late-postpartum period is not being applied distinctly."
     )
+
+    # TODO check for age groups as well
