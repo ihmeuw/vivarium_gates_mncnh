@@ -9,6 +9,7 @@ components:
         components:
             - Hemoglobin()
             - AnemiaInterventionPropensity()
+            - RDSInterventionPropensity()
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
@@ -47,7 +48,7 @@ components:
             - IVIronEffectOnLBWSG()
             - IVIronEffectOnStillbirth()
             - DeliveryFacility()
-            - InterventionAccess('cpap')
+            - RDSInterventionAccess('cpap')
             - InterventionAccess('antibiotics')
             - InterventionAccess('probiotics')        
             - InterventionAccess('azithromycin')

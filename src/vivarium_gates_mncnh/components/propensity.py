@@ -79,3 +79,30 @@ class AnemiaInterventionPropensity(Component):
             name=COLUMNS.ANEMIA_INTERVENTION_PROPENSITY,
         )
         self.population_view.initialize(propensity)
+
+
+class RDSInterventionPropensity(Component):
+    """Single propensity shared by the RDS intervention bundle (CPAP and ACS).
+
+    The research spec requires that "if coverage of both CPAP and ACS is x%, then the
+    same x% of simulants will be getting each intervention", which one shared propensity
+    gives us. The spec does not speak to unequal coverage; there, thresholding both
+    against a single propensity means the smaller covered group falls inside the larger
+    within a delivery facility type (thresholds are facility-specific).
+    https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#baseline-coverage-data
+    """
+
+    def setup(self, builder: Builder):
+        self.randomness = builder.randomness.get_stream(self.name)
+        builder.population.register_initializer(
+            self.initialize_propensity,
+            columns=[COLUMNS.RDS_INTERVENTION_PROPENSITY],
+            required_resources=[self.randomness],
+        )
+
+    def initialize_propensity(self, pop_data: SimulantData) -> None:
+        propensity = pd.Series(
+            self.randomness.get_draw(pop_data.index),
+            name=COLUMNS.RDS_INTERVENTION_PROPENSITY,
+        )
+        self.population_view.initialize(propensity)

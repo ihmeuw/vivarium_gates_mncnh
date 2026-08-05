@@ -197,6 +197,7 @@ class __Columns(NamedTuple):
     FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE = "first_trimester_hemoglobin_exposure"
     ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
     ANEMIA_INTERVENTION_PROPENSITY = "anemia_intervention_propensity"
+    RDS_INTERVENTION_PROPENSITY = "rds_intervention_propensity"
 
 
 COLUMNS = __Columns()
@@ -342,6 +343,10 @@ CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
 
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#id22
 ACS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.84, 0.72, 0.97)
+# Only simulants believed to be delivering an early or moderate preterm infant are eligible
+# for ACS. The BMGF assumption is 26-33 weeks, narrower than the WHO 2022 24-34 weeks.
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#vivarium-modeling-strategy
+ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE = (26, 33)  # weeks, inclusive
 
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/antibiotics_intervention.html#id32
 # Model 8.3+ sets coverage values at location level and not birth facility/location level
@@ -371,6 +376,7 @@ class __Interventions(NamedTuple):
 INTERVENTIONS = __Interventions()
 INTERVENTION_TYPE_MAPPER = {
     INTERVENTIONS.CPAP: "neonatal",
+    INTERVENTIONS.ACS: "neonatal",
     INTERVENTIONS.ANTIBIOTICS: "neonatal",
     INTERVENTIONS.PROBIOTICS: "neonatal",
     INTERVENTIONS.AZITHROMYCIN: "maternal",
