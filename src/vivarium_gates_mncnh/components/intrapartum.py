@@ -222,8 +222,8 @@ class ACSAccess(RDSInterventionAccess):
 
     @property
     def coverage_intervention(self) -> str:
-        # ACS has no coverage data of its own; baseline coverage in each delivery facility
-        # is assumed equal to baseline CPAP coverage there.
+        # ACS doesn't have its own key for its baseline coverage in the artifact.
+        # Since its baseline coverage is the same as baseline CPAP coverage, we pull that data instead.
         # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/intrapartum_interventions/module_document.html#baseline-coverage
         return INTERVENTIONS.CPAP
 

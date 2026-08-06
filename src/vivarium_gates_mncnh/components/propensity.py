@@ -84,11 +84,6 @@ class AnemiaInterventionPropensity(Component):
 class RDSInterventionPropensity(Component):
     """Single propensity shared by the RDS intervention bundle (CPAP and ACS).
 
-    The research spec requires that "if coverage of both CPAP and ACS is x%, then the
-    same x% of simulants will be getting each intervention", which one shared propensity
-    gives us. The spec does not speak to unequal coverage; there, thresholding both
-    against a single propensity means the smaller covered group falls inside the larger
-    within a delivery facility type (thresholds are facility-specific).
     https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#baseline-coverage-data
     """
 
