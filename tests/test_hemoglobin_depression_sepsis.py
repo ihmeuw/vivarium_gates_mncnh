@@ -52,7 +52,9 @@ PPD_BASELINE_INCIDENCE_CI = (0.04, 0.20)
 SEPSIS_CSMRISK_PIPELINE = PIPELINES.NEONATAL_SEPSIS  # ".cause_specific_mortality_risk"
 SEPSIS_FINAL_CSMR_PIPELINE = PIPELINES.NEONATAL_SEPSIS_FINAL_CSMR  # ".csmr"
 
-# neonatal age group ids in the direct-sepsis CSV: 2 = early, 3 = late
+# GBD neonatal age group ids: 2 = early, 3 = late. The direct-sepsis CSV keys age
+# by age_start/age_end rather than age_group_id, so _load_direct_sepsis_rr derives
+# these from the age bands.
 NEONATAL_AGE_GROUP_ID = {
     SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: 2,
     SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY: 3,
@@ -130,16 +132,20 @@ def _hemoglobin_exposure(sim: InteractiveContext, index: pd.Index) -> pd.Series:
 def _load_direct_sepsis_rr() -> dict[tuple[str, int], tuple[np.ndarray, np.ndarray]]:
     """Read the draw-60 ethiopia direct sepsis RR curves.
 
-    Returns a dict keyed by (sex_of_child, age_group_id) -> (exposure_grid,
+    Returns a dict keyed by (child sex, neonatal age_group_id) -> (exposure_grid,
     rr_values), both sorted ascending by exposure.
     """
     df = pd.read_csv(DIRECT_SEPSIS_CSV)
     df = df[(df["location"] == DIRECT_SEPSIS_LOCATION) & (df["draw"] == DIRECT_SEPSIS_DRAW)]
+    # The direct CSVs are written in vivarium demographic shape (sex/age_start/
+    # age_end/parameter), not the (sex_of_child/age_group_id/exposure) shape the
+    # indirect ones use; translate to the age-group keying this test compares on.
+    df["age_group_id"] = np.where(df["age_start"] < LATE_NEONATAL_AGE_START, 2, 3)
     curves: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
-    for (sex, age_group_id), g in df.groupby(["sex_of_child", "age_group_id"]):
-        g = g.sort_values("exposure")
+    for (sex, age_group_id), g in df.groupby(["sex", "age_group_id"]):
+        g = g.sort_values("parameter")
         curves[(sex, int(age_group_id))] = (
-            g["exposure"].to_numpy(),
+            g["parameter"].to_numpy(),
             g["value"].to_numpy(),
         )
     return curves
