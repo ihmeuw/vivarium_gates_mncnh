@@ -156,7 +156,8 @@ class __InterventionScenarios(NamedTuple):
         bemonc_antibiotics_access="fifteen_percent",
         cemonc_antibiotics_access="fifteen_percent",
         home_antibiotics_access="fifteen_percent",
-        acs_access="eighty_five_percent",
+        bemonc_acs_access="eighty_five_percent",
+        cemonc_acs_access="eighty_five_percent",
         bemonc_azithromycin_access="eighty_percent",
         cemonc_azithromycin_access="eighty_percent",
     )
