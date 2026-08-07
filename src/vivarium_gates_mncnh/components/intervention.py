@@ -14,6 +14,7 @@ from vivarium.public_health.utilities import EntityString, TargetString
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, models
 from vivarium_gates_mncnh.constants.data_values import (
+    ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE,
     ANC_ATTENDANCE_TYPES,
     COLUMNS,
     HEMOGLOBIN_TEST_RESULTS,
@@ -136,13 +137,19 @@ class CPAPAndACSRiskEffect(Component):
         Returns the CPAP/ACS multiplier for the preterm-RDS CSMR pipeline (a
         RiskAffectedPipeline, so this returns a per-simulant multiplier).
 
+        CPAP and ACS coverage are configured independently. Their relative risks are
+        assumed causally separable - ACS acts on RDS incidence while CPAP acts on RDS
+        case fatality - so (RR_ACS | CPAP) == (RR_ACS | no CPAP) and where a simulant
+        lacks both the two relative risks apply multiplicatively.
+        https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html
+
         Logic:
-        - For simulants without CPAP and who are ACS-eligible (gestational age 26-33 weeks):
-            Apply both no_CPAP_RR and no_ACS_RR.
+        - For simulants without CPAP:
+            Apply no_CPAP_RR.
+        - For ACS-eligible simulants (believed gestational age 26-33 weeks) without ACS:
+            Apply no_ACS_RR.
         - For all ACS-eligible simulants:
             Apply no_ACS_PAF.
-        - For simulants without CPAP and not ACS-eligible:
-            Apply no_CPAP_RR.
         - For all simulants not ACS-eligible:
             Apply no_CPAP_PAF.
         """
@@ -150,25 +157,29 @@ class CPAPAndACSRiskEffect(Component):
             index,
             [COLUMNS.CPAP_AVAILABLE, COLUMNS.ACS_AVAILABLE, COLUMNS.STATED_GESTATIONAL_AGE],
         )
-        in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(
+            *ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE
+        )
         has_no_cpap = pop[COLUMNS.CPAP_AVAILABLE] == False
+        # Lacking ACS only carries risk for the simulants eligible to receive it
+        has_no_acs = in_acs_gestational_age_range & (pop[COLUMNS.ACS_AVAILABLE] == False)
 
-        no_acs_index = pop.index[has_no_cpap & in_acs_gestational_age_range]
-        no_cpap_index = pop.index[has_no_cpap & ~in_acs_gestational_age_range]
+        no_cpap_index = pop.index[has_no_cpap]
+        no_acs_index = pop.index[has_no_acs]
 
         # define RR
         no_intervention_rr = pd.Series(1.0, index=index)
-        no_intervention_rr.loc[no_cpap_index] = self.no_cpap_relative_risk_table(
+        no_intervention_rr.loc[no_cpap_index] = no_intervention_rr.loc[
             no_cpap_index
-        )
-        no_intervention_rr.loc[no_acs_index] = self.no_acs_relative_risk_table(
+        ] * self.no_cpap_relative_risk_table(no_cpap_index)
+        no_intervention_rr.loc[no_acs_index] = no_intervention_rr.loc[
             no_acs_index
-        ) * self.no_cpap_relative_risk_table(no_acs_index)
+        ] * self.no_acs_relative_risk_table(no_acs_index)
 
         # define PAF
         no_intervention_paf = self.no_cpap_paf_table(index)
         in_acs_ga_range_index = pop.index[in_acs_gestational_age_range]
-        no_intervention_paf.loc[in_acs_gestational_age_range] = self.no_acs_paf_table(
+        no_intervention_paf.loc[in_acs_ga_range_index] = self.no_acs_paf_table(
             in_acs_ga_range_index
         )
 
