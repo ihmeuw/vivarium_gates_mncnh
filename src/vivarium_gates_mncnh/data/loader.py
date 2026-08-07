@@ -1447,7 +1447,7 @@ def load_risk_specific_shift(
         birth_weight_shift = (
             (
                 exposure
-                * load_excess_shift(key, location)[excess_shift.columns]
+                * load_excess_shift(key_group.EXCESS_SHIFT, location)[excess_shift.columns]
                 * anc_proportion
             )
             .groupby(
@@ -1468,11 +1468,6 @@ def load_excess_shift(
             data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
-            data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
-                data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-            ][
-                "birth_weight.birth_exposure"
-            ],
             data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
