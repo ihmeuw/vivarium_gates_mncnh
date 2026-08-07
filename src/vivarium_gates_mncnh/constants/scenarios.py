@@ -149,6 +149,17 @@ class __InterventionScenarios(NamedTuple):
         hemoglobin_screening_coverage="full",
         ferritin_screening_coverage="full",
     )
+    BEGINNINGS_FUND: InterventionScenario = InterventionScenario(
+        "beginnings_fund",
+        bemonc_cpap_access="sixty_percent",
+        cemonc_cpap_access="sixty_percent",
+        bemonc_antibiotics_access="fifteen_percent",
+        cemonc_antibiotics_access="fifteen_percent",
+        home_antibiotics_access="fifteen_percent",
+        acs_access="eighty_five_percent",
+        bemonc_azithromycin_access="eighty_percent",
+        cemonc_azithromycin_access="eighty_percent",
+    )
 
     def __getitem__(self, item) -> InterventionScenario:
         for scenario in self:
