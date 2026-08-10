@@ -30,7 +30,11 @@ from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
+from vivarium_gates_mncnh.utilities import (
+    get_norm,
+    get_random_variable_draws,
+    get_truncnorm,
+)
 
 
 def get_data(
@@ -81,6 +85,7 @@ def get_data(
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
         data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT: load_maternal_sepsis_hemoglobin_shift,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.YLD_RATE: load_maternal_disorder_yld_rate,
@@ -1017,6 +1022,74 @@ def load_iv_iron_hemoglobin_effect_size(
     demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
     draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, effect_size_dist)
     data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)
+    return data
+
+
+def load_maternal_sepsis_hemoglobin_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load maternal sepsis hemoglobin shift draw data averaged over two postpartum periods.
+
+    For each draw, sample a single standard-normal z-score ``z`` and build the
+    shift curve as ``pred_mean + z * draw_se`` at each time point, so the shift
+    is correlated over time and each draw follows the shape of the mean curve.
+    Then average the draws over two time periods:
+      - "early_postpartum": 0 to ``EARLY_POSTPARTUM_END_DAYS`` days (first 6 weeks)
+      - "late_postpartum": ``EARLY_POSTPARTUM_END_DAYS`` to
+        ``LATE_POSTPARTUM_END_DAYS`` days (6 weeks to 39 weeks)
+
+    Parameters
+    ----------
+    key
+        The artifact data key for the hemoglobin shift data.
+    location
+        The location to get data for. Not used for this loader since the
+        source data is location-independent.
+    years
+        Not used. Accepted for interface compatibility with the loader dispatch.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame indexed by postpartum period with one column per draw,
+        containing the average hemoglobin shift for each period.
+    """
+    curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
+
+    z = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, get_norm(0.0, sd=1.0)
+    ).values  # one z-score per draw; shape: (num_draws,)
+    pred_mean = curve_data["pred_mean"].values
+    draw_se = curve_data["draw_se"].values
+    pointwise_draws = (
+        pred_mean[np.newaxis, :] + z[:, np.newaxis] * draw_se[np.newaxis, :]
+    )  # shape: (num_draws, num_time_points)
+
+    # Define time periods (in days). Days beyond LATE_POSTPARTUM_END_DAYS are
+    # discarded because the component only acts during early/late neonatal steps.
+    days = curve_data["postpartum_days"].values
+    early_mask = days < data_values.EARLY_POSTPARTUM_END_DAYS
+    late_mask = (days >= data_values.EARLY_POSTPARTUM_END_DAYS) & (
+        days < data_values.LATE_POSTPARTUM_END_DAYS
+    )
+
+    # Average draws over each time period
+    early_draws = pd.Series(
+        pointwise_draws[:, early_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
+    )
+    late_draws = pd.Series(
+        pointwise_draws[:, late_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
+    )
+
+    data = pd.DataFrame(
+        [early_draws, late_draws],
+        index=pd.Index(
+            [data_values.EARLY_POSTPARTUM_PERIOD, data_values.LATE_POSTPARTUM_PERIOD],
+            name="postpartum_period",
+        ),
+    )
     return data
 
 

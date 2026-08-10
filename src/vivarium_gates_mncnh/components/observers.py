@@ -19,13 +19,16 @@ from vivarium_gates_mncnh.constants.data_keys import (
 from vivarium_gates_mncnh.constants.data_values import (
     ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE,
     ANC_ATTENDANCE_TYPES,
+    ANEMIA_MEASUREMENT_EVENTS,
     ANEMIA_THRESHOLDS,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DAYS_PER_WEEK,
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
+    EARLY_POSTPARTUM_END_DAYS,
     INTERVENTIONS,
+    LATE_POSTPARTUM_END_DAYS,
     LOW_HEMOGLOBIN_THRESHOLD,
     MATERNAL_DISORDERS,
     PIPELINES,
@@ -59,6 +62,7 @@ def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
 
 class ResultsStratifier(ResultsStratifier_):
     def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
         self.age_bins = self.get_age_bins(builder)
         self.child_age_bins = get_child_age_bins(builder)
         self.delivery_facility_types = [
@@ -240,6 +244,13 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_attributes=[PIPELINES.HEMOGLOBIN_EXPOSURE],
         )
+        builder.results.register_stratification(
+            "timestep",
+            ANEMIA_MEASUREMENT_EVENTS,
+            mapper=self.map_timestep,
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.PREGNANCY_OUTCOME],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
@@ -294,6 +305,9 @@ class ResultsStratifier(ResultsStratifier_):
 
     def map_anemia_status(self, pop: pd.DataFrame) -> pd.Series:
         return get_anemia_status_from_hemoglobin(pop[PIPELINES.HEMOGLOBIN_EXPOSURE])
+
+    def map_timestep(self, pop: pd.DataFrame) -> pd.Series:
+        return pd.Series(self._sim_step_name(), index=pop.index)
 
 
 class PAFResultsStratifier(ResultsStratifier_):
@@ -575,7 +589,12 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             "stratification": {
                 self.get_configuration_name(): {
                     "exclude": [],
-                    "include": ["age_group", "anemia_status", "pregnancy_outcome"],
+                    "include": [
+                        "age_group",
+                        "anemia_status",
+                        "pregnancy_outcome",
+                        "timestep",
+                    ],
                 },
             },
         }
@@ -622,12 +641,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         )
 
     def to_observe(self, event: Event) -> bool:
-        return self._sim_step_name() in [
-            SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
-            SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
-            SIMULATION_EVENT_NAMES.ULTRASOUND,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
-        ]
+        return self._sim_step_name() in ANEMIA_MEASUREMENT_EVENTS
 
     def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
         """Calculate YLDs for anemia based on the current simulation event.
@@ -668,9 +682,13 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC: self._get_first_anc_interval,
             SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING: self._get_later_anc_interval,
             SIMULATION_EVENT_NAMES.ULTRASOUND: self._get_later_anc_to_delivery_interval,
-            SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY: lambda df: pd.Series(
-                6 * DAYS_PER_WEEK / DAYS_PER_YEAR, index=df.index
-            ),  # 6 weeks in years
+            SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM: lambda df: pd.Series(
+                EARLY_POSTPARTUM_END_DAYS / DAYS_PER_YEAR, index=df.index
+            ),
+            SIMULATION_EVENT_NAMES.LATE_POSTPARTUM: lambda df: pd.Series(
+                (LATE_POSTPARTUM_END_DAYS - EARLY_POSTPARTUM_END_DAYS) / DAYS_PER_YEAR,
+                index=df.index,
+            ),
         }
         return duration_calculators[self._sim_step_name()](data)
 
