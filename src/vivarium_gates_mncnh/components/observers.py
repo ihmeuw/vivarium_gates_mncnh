@@ -17,6 +17,7 @@ from vivarium_gates_mncnh.constants.data_keys import (
     POSTPARTUM_DEPRESSION,
 )
 from vivarium_gates_mncnh.constants.data_values import (
+    ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE,
     ANC_ATTENDANCE_TYPES,
     ANEMIA_THRESHOLDS,
     CAUSES_OF_NEONATAL_MORTALITY,
@@ -261,7 +262,9 @@ class ResultsStratifier(ResultsStratifier_):
         return preterm_births.rename("believed_preterm")
 
     def map_acs_eligibility(self, pop: pd.DataFrame) -> pd.Series:
-        is_eligible = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        is_eligible = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(
+            *ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE
+        )
         return is_eligible.rename("acs_eligibility")
 
     def map_true_hemoglobin(self, pop: pd.DataFrame) -> pd.Series:
