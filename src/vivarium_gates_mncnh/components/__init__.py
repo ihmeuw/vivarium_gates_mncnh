@@ -33,6 +33,7 @@ from vivarium_gates_mncnh.components.maternal_disorders import (
     MaternalDisorder,
     PostpartumDepression,
     ResidualMaternalDisorders,
+    SepsisEffectsOnHemoglobin,
 )
 from vivarium_gates_mncnh.components.mortality import (
     MaternalDisordersBurden,

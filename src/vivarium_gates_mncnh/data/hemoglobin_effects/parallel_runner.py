@@ -99,6 +99,24 @@ def parse_args():
     return workers, draws, log_dir, script_cmd
 
 
+def log_subdir_from_cmd(script_cmd):
+    """Derive a log subdirectory name from the script command's --locations value.
+
+    Returns the locations joined by '_' (e.g. "ethiopia" or "ethiopia_nigeria"),
+    or None if --locations is not present. Used to keep per-location runs from
+    clobbering each other's log files.
+    """
+    if "--locations" not in script_cmd:
+        return None
+    idx = script_cmd.index("--locations")
+    locs = []
+    for val in script_cmd[idx + 1 :]:
+        if val.startswith("--") or val.isdigit():
+            break
+        locs.append(val.lower())
+    return "_".join(locs) if locs else None
+
+
 def main():
     workers, draws, log_dir, script_cmd = parse_args()
 
@@ -111,6 +129,9 @@ def main():
 
     if log_dir is None:
         log_dir = Path.home() / "logs"
+    subdir = log_subdir_from_cmd(script_cmd)
+    if subdir:
+        log_dir = log_dir / subdir
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Script:    {' '.join(script_cmd)}")

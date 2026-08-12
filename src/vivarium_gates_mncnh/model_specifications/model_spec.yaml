@@ -47,6 +47,7 @@ components:
             - IVIronEffectOnHemoglobin()
             - IVIronEffectOnLBWSG()
             - IVIronEffectOnStillbirth()
+            - SepsisEffectsOnHemoglobin()
             - DeliveryFacility()
             - RDSInterventionAccess('cpap')
             - InterventionAccess('antibiotics')
@@ -80,7 +81,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model42.0/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model42.1/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -113,6 +114,8 @@ configuration:
             - 'residual_maternal_disorders'
             - 'abortion_miscarriage_ectopic_pregnancy'
             - 'mortality'
+            - 'early_postpartum'
+            - 'late_postpartum'
             - 'early_neonatal_mortality'
             - 'late_neonatal_mortality'
             - 'postpartum_depression'
@@ -135,7 +138,6 @@ configuration:
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
-                - 'preterm_birth'
         anc_other:
             include:
                 - 'age_group'

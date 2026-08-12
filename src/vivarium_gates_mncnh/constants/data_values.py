@@ -23,6 +23,14 @@ from vivarium_gates_mncnh.utilities import (
 DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
 
+# Postpartum period boundaries (in days)
+EARLY_POSTPARTUM_END_DAYS = 6 * DAYS_PER_WEEK  # 6 weeks
+LATE_POSTPARTUM_END_DAYS = 39 * DAYS_PER_WEEK  # 39 weeks
+
+# Postpartum period labels (shared between loader and component)
+EARLY_POSTPARTUM_PERIOD = "early_postpartum"
+LATE_POSTPARTUM_PERIOD = "late_postpartum"
+
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
@@ -82,11 +90,21 @@ class _SimulationEventNames(NamedTuple):
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
+    EARLY_POSTPARTUM = "early_postpartum"
+    LATE_POSTPARTUM = "late_postpartum"
     EARLY_NEONATAL_MORTALITY = "early_neonatal_mortality"
     LATE_NEONATAL_MORTALITY = "late_neonatal_mortality"
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
+
+ANEMIA_MEASUREMENT_EVENTS = [
+    SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
+    SIMULATION_EVENT_NAMES.ULTRASOUND,
+    SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+    SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
+]
 
 
 class __UltrasoundTypes(NamedTuple):

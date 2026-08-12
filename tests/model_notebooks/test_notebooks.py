@@ -14,7 +14,7 @@ import pytest
 from loguru import logger
 from vivarium.testing_utils.pytest_plugin import IS_ON_SLURM
 
-from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR, MODEL_RESULTS_DIR
+from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR
 
 
 def discover_notebook_paths(notebook_directory) -> List[Path]:
@@ -270,9 +270,6 @@ def test_results_notebook(notebook_path) -> None:
     runner = NotebookTestRunner(
         notebook_path=notebook_path,
         environment_type="artifact",
-        parameters={
-            "model_dir": str(MODEL_RESULTS_DIR),
-        },
     )
     runner.test_run_notebook()
 
