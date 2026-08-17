@@ -27,7 +27,9 @@ class EventClock(SimulationClock):
         return "event_clock"
 
     @property
-    def step_name(self):
+    def step_name(self) -> str | None:
+        if not 0 <= self.step_index < len(self.simulation_events):
+            return None
         return self.simulation_events[self.step_index]
 
     def setup(self, builder: Builder) -> None:
