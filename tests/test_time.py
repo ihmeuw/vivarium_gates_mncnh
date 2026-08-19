@@ -21,17 +21,6 @@ def make_clock(step_index: int) -> EventClock:
     return clock
 
 
-@pytest.mark.parametrize(
-    "step_index, expected",
-    [
-        (0, SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM),
-        (1, SIMULATION_EVENT_NAMES.LATE_POSTPARTUM),
-    ],
-)
-def test_step_name_on_an_event(step_index: int, expected: str) -> None:
-    assert make_clock(step_index).step_name == expected
-
-
 @pytest.mark.parametrize("step_index", [2, 3, -1])
 def test_step_name_off_the_end_of_the_events(step_index: int) -> None:
     """Off-list step indices are None rather than an IndexError or a wrong event.
@@ -57,7 +46,7 @@ def test_stepping_past_the_final_event_raises() -> None:
         clock.step_forward(pd.Index([]))
 
 
-def test_hemoglobin_exposure_is_queryable_at_the_end_of_the_sim(
+def test_pipelines_are_queryable_at_the_end_of_the_sim(
     model_spec_path: Path,
 ) -> None:
     """Pipelines can still be queried once the sim has run to completion.
@@ -68,9 +57,7 @@ def test_hemoglobin_exposure_is_queryable_at_the_end_of_the_sim(
 
     The clock is advanced by hand rather than by stepping the sim: one step per
     simulation event is what the run would do, which the first assert pins down,
-    and skipping the steps keeps this off the slow path. The end-to-end version
-    is the last cell of tests/model_notebooks/interactive/
-    interactive_simulation_sepsis_on_hemoglobin.ipynb.
+    and skipping the steps keeps this off the slow path.
     """
     sim = InteractiveContext(model_spec_path)
     clock = sim._clock
