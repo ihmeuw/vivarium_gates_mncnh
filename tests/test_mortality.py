@@ -64,7 +64,9 @@ def test_get_proportional_case_fatality_rates():
     # Get total case fatality rates
     choice_data["mortality_probability"] = choice_data.sum(axis=1)
 
-    proportional_cfr_data = mortality.get_proportional_case_fatality_rates(choice_data)
+    proportional_cfr_data = mortality.get_proportional_case_fatality_rates(
+        choice_data, mortality.maternal_disorders
+    )
 
     proportional_cfr_cols = [
         col for col in proportional_cfr_data.columns if "proportional_cfr" in col

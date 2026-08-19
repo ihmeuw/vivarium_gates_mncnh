@@ -52,6 +52,13 @@ if __name__ == "__main__":
         "layered_config_tree<5.0.0",
         "vivarium>=4.0.0, <4.1.0",
         "vivarium_public_health>=5.0.0, <5.1.0",
+        # TEMPORARY (remove at the monorepo migration): standalone vph 5.x imports
+        # the old top-level `risk_distributions`, but risk_distributions 2.4.0 is a
+        # contentless back-compat shim (real code moved to vivarium.risk_distributions)
+        # and vivarium-compat 0.7.0 no longer redirects the old name -> ImportError.
+        # Cap below 2.4.0 so the last real standalone release (2.3.x) is used. This
+        # pin disappears when we adopt vph 6.x / the namespaced imports. (MIC-7100)
+        "risk_distributions>=2.0.11,<2.4.0",
         "click",
         "jinja2",
         "pyyaml",

@@ -16,6 +16,23 @@ from vivarium_gates_mncnh.constants import metadata
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
 
+def load_births_net_of_aph_mortality(builder: Builder) -> pd.DataFrame:
+    """Return births net of antepartum-hemorrhage deaths: the per-surviving-birth denominator.
+
+    Intrapartum maternal disorders are conditional on surviving the antepartum
+    period, so they divide by ``birth_rate - antepartum_hemorrhage_csmr``.
+    """
+    from vivarium_gates_mncnh.constants.data_keys import MATERNAL_HEMORRHAGE, POPULATION
+
+    birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(
+        metadata.ARTIFACT_INDEX_COLUMNS
+    )
+    aph_csmr = builder.data.load(MATERNAL_HEMORRHAGE.APH_CSMR).set_index(
+        metadata.ARTIFACT_INDEX_COLUMNS
+    )
+    return birth_rate - aph_csmr
+
+
 def len_longest_location() -> int:
     """Returns the length of the longest location in the project.
 
