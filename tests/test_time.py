@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from vivarium.engine import InteractiveContext
 
@@ -43,6 +44,19 @@ def test_step_name_off_the_end_of_the_events(step_index: int) -> None:
     assert make_clock(step_index).step_name is None
 
 
+def test_stepping_past_the_final_event_raises() -> None:
+    """A finished sim refuses to step rather than stepping on as a no-op.
+
+    Code that hunts for an event with `while step_name != target: sim.step()`
+    used to die on the IndexError once it ran off the end. Now that step_name
+    is None there, such a loop would spin forever if the clock let it keep
+    stepping, so the refusal has to come from step_forward instead.
+    """
+    clock = make_clock(len(SIMULATION_EVENTS))
+    with pytest.raises(IndexError, match="already run through all"):
+        clock.step_forward(pd.Index([]))
+
+
 def test_hemoglobin_exposure_is_queryable_at_the_end_of_the_sim(
     model_spec_path: Path,
 ) -> None:
@@ -68,3 +82,6 @@ def test_hemoglobin_exposure_is_queryable_at_the_end_of_the_sim(
     exposure = sim.get_population(PIPELINES.HEMOGLOBIN_EXPOSURE)
     assert not exposure.empty
     assert exposure.notna().all()
+
+    with pytest.raises(IndexError, match="already run through all"):
+        sim.step()
