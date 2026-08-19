@@ -791,7 +791,6 @@ class LBWSGPAFObserver(Component):
         self.relative_risk_name = self.risk_effect.relative_risk_name
         self.config = builder.configuration.stratification.lbwsg_paf
         self.pop_size = builder.configuration.population.population_size
-        self.step_number = 1
 
         builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
@@ -813,22 +812,27 @@ class LBWSGPAFObserver(Component):
             when="time_step",
         )
 
-    def on_time_step_cleanup(self, event: Event) -> None:
-        """Increment step number at the end of each time step."""
-        self.step_number += 1
-
     def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
-        if self.step_number == 1:  # early neonatal time step
-            df = new
-        else:  # late neonatal time step
-            # use PAFs from first time step for ENN and second time step for LNN
-            df = pd.concat(
-                [
-                    old.query("child_age_group=='early_neonatal'"),
-                    new.query("child_age_group=='late_neonatal'"),
-                ],
-            )
-        return df
+        """Record each age group's PAF once it is available, and keep it thereafter.
+
+        We want the PAF from the first time step for early neonatal and from the second for
+        late neonatal. The aggregator can only compute a PAF for the age group the
+        population currently occupies, reporting 0.0 for the others, so each age group's
+        value has to be taken from the gather where it is non-zero.
+
+        Results are gathered more than once per time step -- the engine gathers
+        ``time_step`` observations during ``step()``, and callers such as the neonatal
+        mortality V&V notebook gather again explicitly -- so this must be idempotent and
+        independent of gather order. Keying it on a step counter was not: ``step_number``
+        was incremented in ``on_time_step_cleanup``, which runs *after* the engine's own
+        ``time_step`` gather, and on vivarium-engine >=5.4 that gather sees the population
+        already aged into the late neonatal group while the counter still reads 1. The
+        early-neonatal PAF was then overwritten with 0.0 before any caller could read it.
+        """
+        updated = old.copy()
+        observed = new.index[new["value"] != 0.0]
+        updated.loc[observed, "value"] = new.loc[observed, "value"]
+        return updated
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
         relative_risk = self.population_view.get(x.index, self.relative_risk_name)
