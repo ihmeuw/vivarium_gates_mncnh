@@ -93,7 +93,10 @@ class Hemoglobin(Risk):
         builder.value.register_attribute_modifier(
             self.exposure_name,
             modifier=self._modify_exposure_for_postpartum,
-            required_resources=[PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE],
+            required_resources=[
+                PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE,
+                COLUMNS.MOTHER_ALIVE,
+            ],
         )
 
     def _build_non_pregnant_distribution(self, builder: Builder) -> None:
@@ -271,22 +274,53 @@ class Hemoglobin(Risk):
         return result
 
     def _apply_6w_9m_shifts(self, index: pd.Index, exposure: pd.Series) -> pd.Series:
-        """Replace pregnancy hemoglobin with non-pregnant values and apply 6w-9m shifts."""
-        pop, survived_mask = self._get_postpartum_pop_and_mask(index)
-        survived_pop = pop.loc[survived_mask]
+        """Replace pregnancy hemoglobin with non-pregnant values and apply 6w-9m shifts.
 
-        if survived_pop.empty:
+        No one is pregnant any longer by 6w-9m, so every living simulant is redrawn
+        from the non-pregnant distribution -- partial-term pregnancies included.
+        This is the one place the postpartum treatment is not scoped to live births
+        and stillbirths: _apply_0_6w_shifts still holds partial-term simulants at
+        their pregnancy value, since that period represents the weeks immediately
+        after a birth they did not have.
+
+        The hemorrhage shifts stay scoped to live births and stillbirths, so a
+        partial-term simulant is redrawn but not shifted: hemorrhage is documented
+        as affecting still and live births only. Postpartum hemorrhage is already
+        assigned to full-term births alone, but antepartum hemorrhage is assigned
+        to every pregnancy, so this scoping is what keeps antepartum hemorrhage off
+        partial-term postpartum hemoglobin.
+        """
+        pop = self.population_view.get(
+            index,
+            [
+                COLUMNS.MOTHER_ALIVE,
+                COLUMNS.PREGNANCY_OUTCOME,
+                COLUMNS.POSTPARTUM_HEMORRHAGE,
+                COLUMNS.ANTEPARTUM_HEMORRHAGE,
+            ],
+        )
+        alive_pop = pop.loc[pop[COLUMNS.MOTHER_ALIVE]]
+
+        if alive_pop.empty:
             return exposure
 
         hgb = self.population_view.get(
-            survived_pop.index, PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE
+            alive_pop.index, PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE
         ).copy()
-        hgb = self._apply_hemorrhage_shifts(
-            hgb, survived_pop, self.pph_shift_6w_9m, self.aph_shift_6w_9m
+        full_term_pop = alive_pop.loc[
+            alive_pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME, PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME]
+            )
+        ]
+        hgb.loc[full_term_pop.index] = self._apply_hemorrhage_shifts(
+            hgb.loc[full_term_pop.index].copy(),
+            full_term_pop,
+            self.pph_shift_6w_9m,
+            self.aph_shift_6w_9m,
         )
 
         result = exposure.copy()
-        result.loc[survived_pop.index] = hgb
+        result.loc[alive_pop.index] = hgb
         return result
 
     def sample_non_pregnant_hemoglobin(self, index: pd.Index) -> pd.Series:

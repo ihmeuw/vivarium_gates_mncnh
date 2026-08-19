@@ -42,7 +42,9 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium_dependencies<2.0.0",
+        # Pin to <1.1.0 for the same reason as vivarium_build_utils below: 1.1.0+ carries the
+        # post-monorepo dependency set, while this repo is still on the standalone names.
+        "vivarium_dependencies<1.1.0",
         "vivarium_dependencies[pandas,numpy,scipy,click,tables,loguru]",
         # Pin to <=3.3.2 until this model repo's deps are migrated to the post-monorepo names
         # NOTE: v3.3.3 / v3.3.4 are post-archive sunset releases of the standalone vbu repo that
@@ -60,7 +62,10 @@ if __name__ == "__main__":
 
     setup_requires = ["setuptools_scm"]
 
-    data_requirements = ["vivarium_inputs>=7.1.4"]
+    # Floor at 7.2.2 / cap below 7.2.10 to stay inside the window that works with the
+    # vivarium_build_utils 3.x pin above: 7.1.x requires vbu <3.0.0, and 7.2.10+ (and all of
+    # 8.x, which depends on vivarium-engine outright) require vbu >=4.0.0.
+    data_requirements = ["vivarium_inputs>=7.2.2,<7.2.10"]
     cluster_requirements = [
         "vivarium_cluster_tools @ git+https://github.com/ihmeuw/vivarium_cluster_tools.git@epic/phase-3-automated-validation",
         "drmaa",
