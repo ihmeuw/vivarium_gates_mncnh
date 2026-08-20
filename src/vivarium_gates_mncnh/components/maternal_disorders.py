@@ -475,4 +475,3 @@ class SepsisEffectsOnHemoglobin(Component):
         elif current_event == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
             return self.late_postpartum_shift
         return None
-
