@@ -26,9 +26,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
-from vivarium.framework.configuration import build_model_specification
-from vivarium_testing_utils import FuzzyChecker
+from vivarium.engine import InteractiveContext
+from vivarium.engine.framework.configuration import build_model_specification
+from vivarium.testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,

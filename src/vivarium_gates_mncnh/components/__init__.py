@@ -14,7 +14,11 @@ from vivarium_gates_mncnh.components.intervention import (
     OralIronEffectsOnGestationalAge,
     OralIronInterventionExposure,
 )
-from vivarium_gates_mncnh.components.intrapartum import ACSAccess, InterventionAccess
+from vivarium_gates_mncnh.components.intrapartum import (
+    ACSAccess,
+    InterventionAccess,
+    RDSInterventionAccess,
+)
 from vivarium_gates_mncnh.components.lbwsg import (
     LBWSGMortality,
     LBWSGPAFCalculationExposure,
@@ -31,6 +35,7 @@ from vivarium_gates_mncnh.components.maternal_disorders import (
     PostpartumDepression,
     PostpartumHemorrhage,
     ResidualMaternalDisorders,
+    SepsisEffectsOnHemoglobin,
 )
 from vivarium_gates_mncnh.components.mortality import (
     MaternalDisordersBurden,
@@ -61,6 +66,7 @@ from vivarium_gates_mncnh.components.pregnancy import Pregnancy
 from vivarium_gates_mncnh.components.propensity import (
     AnemiaInterventionPropensity,
     CorrelatedPropensities,
+    RDSInterventionPropensity,
 )
 from vivarium_gates_mncnh.components.screening import AnemiaScreening
 from vivarium_gates_mncnh.plugins.time import EventClock, TimeInterface

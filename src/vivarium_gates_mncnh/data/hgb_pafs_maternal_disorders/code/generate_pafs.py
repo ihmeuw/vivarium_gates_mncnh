@@ -1,13 +1,18 @@
 """Run maternal disorders PAF generation for all scenario draws that have neonatal sepsis RRs.
 
 Usage:
-    python generate_pafs.py [--skip-existing] [--locations LOC [LOC ...]]
+    python generate_pafs.py [--skip-existing] [--locations LOC [LOC ...]] [draw_numbers...]
 
 Options:
     --skip-existing           Skip (location, draw) pairs that already have output files.
                               Default behavior is to regenerate and overwrite all outputs.
     --locations LOC [LOC ..]  Run only the specified locations (case-insensitive).
                               Defaults to all locations in metadata.LOCATIONS.
+
+If draw numbers are provided as positional arguments, only those draws are run
+(filtered to draws that have neonatal sepsis RRs). This lets parallel_runner.py
+fan generation out one draw per subprocess. If none are given, all available
+draws are run.
 """
 
 import sys
@@ -62,7 +67,7 @@ def _parse_locations(args):
     idx = args.index("--locations")
     locs = []
     for val in args[idx + 1 :]:
-        if val.startswith("--"):
+        if val.startswith("--") or val.isdigit():
             break
         locs.append(val.lower())
     if not locs:
@@ -80,14 +85,39 @@ def _parse_locations(args):
     return locs, remaining
 
 
+def _parse_draws(args):
+    """Extract positional draw numbers from *args* after flags are removed."""
+    explicit = []
+    for a in args:
+        if a.startswith("--"):
+            print(f"Error: unknown argument '{a}'.", file=sys.stderr)
+            sys.exit(1)
+        try:
+            explicit.append(int(a))
+        except ValueError:
+            print(f"Error: expected a draw number, got '{a}'.", file=sys.stderr)
+            sys.exit(1)
+    return explicit
+
+
 def main():
     args = sys.argv[1:]
     locations, args = _parse_locations(args)
     skip_existing = "--skip-existing" in args
+    if skip_existing:
+        args = [a for a in args if a != "--skip-existing"]
+    explicit_draws = _parse_draws(args)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    draws = get_available_draws()
+    available = get_available_draws()
+    if explicit_draws:
+        draws = [d for d in explicit_draws if d in available]
+        missing = [d for d in explicit_draws if d not in available]
+        if missing:
+            print(f"  Skipping draw(s) with no sepsis RR / not in scenario draws: {missing}")
+    else:
+        draws = available
     total_tasks = len(draws) * len(locations)
 
     print("=" * 60)

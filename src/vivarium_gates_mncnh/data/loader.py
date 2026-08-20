@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import vivarium_inputs.validation.sim as validation
 from scipy.interpolate import RectBivariateSpline, griddata
-from vivarium.framework.artifact import EntityKey
+from vivarium.artifact import EntityKey
 from vivarium_inputs import core as vi_core
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
@@ -92,6 +92,7 @@ def get_data(
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
         data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT: load_maternal_sepsis_hemoglobin_shift,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION: load_postpartum_fraction,
@@ -1048,6 +1049,74 @@ def load_iv_iron_hemoglobin_effect_size(
     return data
 
 
+def load_maternal_sepsis_hemoglobin_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load maternal sepsis hemoglobin shift draw data averaged over two postpartum periods.
+
+    For each draw, sample a single standard-normal z-score ``z`` and build the
+    shift curve as ``pred_mean + z * draw_se`` at each time point, so the shift
+    is correlated over time and each draw follows the shape of the mean curve.
+    Then average the draws over two time periods:
+      - "early_postpartum": 0 to ``EARLY_POSTPARTUM_END_DAYS`` days (first 6 weeks)
+      - "late_postpartum": ``EARLY_POSTPARTUM_END_DAYS`` to
+        ``LATE_POSTPARTUM_END_DAYS`` days (6 weeks to 39 weeks)
+
+    Parameters
+    ----------
+    key
+        The artifact data key for the hemoglobin shift data.
+    location
+        The location to get data for. Not used for this loader since the
+        source data is location-independent.
+    years
+        Not used. Accepted for interface compatibility with the loader dispatch.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame indexed by postpartum period with one column per draw,
+        containing the average hemoglobin shift for each period.
+    """
+    curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
+
+    z = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, get_norm(0.0, sd=1.0)
+    ).values  # one z-score per draw; shape: (num_draws,)
+    pred_mean = curve_data["pred_mean"].values
+    draw_se = curve_data["draw_se"].values
+    pointwise_draws = (
+        pred_mean[np.newaxis, :] + z[:, np.newaxis] * draw_se[np.newaxis, :]
+    )  # shape: (num_draws, num_time_points)
+
+    # Define time periods (in days). Days beyond LATE_POSTPARTUM_END_DAYS are
+    # discarded because the component only acts during early/late neonatal steps.
+    days = curve_data["postpartum_days"].values
+    early_mask = days < data_values.EARLY_POSTPARTUM_END_DAYS
+    late_mask = (days >= data_values.EARLY_POSTPARTUM_END_DAYS) & (
+        days < data_values.LATE_POSTPARTUM_END_DAYS
+    )
+
+    # Average draws over each time period
+    early_draws = pd.Series(
+        pointwise_draws[:, early_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
+    )
+    late_draws = pd.Series(
+        pointwise_draws[:, late_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
+    )
+
+    data = pd.DataFrame(
+        [early_draws, late_draws],
+        index=pd.Index(
+            [data_values.EARLY_POSTPARTUM_PERIOD, data_values.LATE_POSTPARTUM_PERIOD],
+            name="postpartum_period",
+        ),
+    )
+    return data
+
+
 def _add_hemoglobin_exposure_start_and_end(df: pd.DataFrame) -> pd.DataFrame:
     df["first_trimester_hemoglobin_exposure_start"] = df["exposure"]
     df["first_trimester_hemoglobin_exposure_end"] = df["exposure"][1:].tolist() + [np.inf]
@@ -1473,7 +1542,11 @@ def load_risk_specific_shift(
         )
 
         birth_weight_shift = (
-            load_excess_shift(key, location)[excess_shift.columns]
+            (
+                exposure
+                * load_excess_shift(key_group.EXCESS_SHIFT, location)[excess_shift.columns]
+                * anc_proportion
+            )
             .groupby(
                 metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
             )
@@ -1492,11 +1565,6 @@ def load_excess_shift(
             data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
-            data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
-                data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-            ][
-                "birth_weight.birth_exposure"
-            ],
             data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
