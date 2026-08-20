@@ -37,20 +37,10 @@ class EvenlyDistributedPopulation(BasePopulation):
 
     @property
     def time_step_priority(self) -> int:
-        # Age simulants only after every other component has priced the age group they are
-        # currently in. This population is initialized already inside the early neonatal
-        # group, so aging first skips that group entirely: LBWSGMortality would price early
-        # neonatal deaths at late neonatal risk (~44% of the intended deaths), and the PAF
-        # observer would record the late neonatal PAF weighted by a population that was
-        # never culled.
-        #
-        # This used to work by accident. Both this component's and LBWSGMortality's
-        # ``time_step`` listeners sat at DEFAULT_EVENT_PRIORITY, so their relative order was
-        # an unspecified within-bucket tie-break; it happened to put mortality first on
-        # vivarium-engine 5.3.4 and aging first on 5.6.0. The last bucket states the
-        # requirement explicitly instead. 9 is the last of the 10 priority buckets, which
-        # both engine versions have; it is not spelled NUM_EVENT_PRIORITIES - 1 because that
-        # constant does not exist on 5.3.4, which the model40-42 launch envs still use.
+        # Age simulants only after every other component has acted on the age group they
+        # are currently in; this population is initialized already inside the early
+        # neonatal group, so aging first would skip that group entirely. 9 is the last of
+        # the 10 priority buckets.
         return 9
 
     def __init__(self):
