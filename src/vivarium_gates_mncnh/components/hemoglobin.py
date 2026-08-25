@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import risk_distributions as rd
 import scipy
+from vivarium import risk_distributions as rd
 from vivarium.engine.framework.engine import Builder
 from vivarium.engine.framework.event import Event
 from vivarium.engine.framework.lookup import LookupTable
