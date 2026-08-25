@@ -1,9 +1,12 @@
 from functools import partial
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.public_health.causal_factor.calibration_constant import (
+    register_risk_affected_attribute_producer,
+)
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
@@ -43,14 +46,20 @@ class NeonatalCause(Component):
             [self.lbwsg_acmr_paf] if isinstance(self.lbwsg_acmr_paf, str) else []
         )
         # Register csmr pipeline
+        # RiskAffectedPipelines so LBWSGRiskEffect (intermediate) and InterventionRiskEffect
+        # (final) can apply their relative risks via the multiplication combiner. The PAF
+        # normalization is preserved in ``get_normalized_csmr`` (uses the LBWSG ACMR PAF),
+        # so each CSMR's own ``.calibration_constant`` stays 0 (no extra factor).
         self.intermediate_csmr_name = f"{self.neonatal_cause}.cause_specific_mortality_risk"
-        builder.value.register_attribute_producer(
+        register_risk_affected_attribute_producer(
+            builder,
             self.intermediate_csmr_name,
             source=self.get_normalized_csmr,
             required_resources=required_pipeline_resources,
         )
         self.final_csmr_name = f"{self.neonatal_cause}.csmr"
-        builder.value.register_attribute_producer(
+        register_risk_affected_attribute_producer(
+            builder,
             self.final_csmr_name,
             source=[self.intermediate_csmr_name],
         )

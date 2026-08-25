@@ -2,10 +2,10 @@ from asyncio import Event
 
 import numpy as np
 import pandas as pd
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import SimulantData
-from vivarium_public_health.population import BasePopulation, ScaledPopulation
-from vivarium_public_health.utilities import to_years
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.population import BasePopulation, ScaledPopulation
+from vivarium.public_health.utilities import to_years
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import CHILD_INITIALIZATION_AGE
@@ -34,6 +34,14 @@ class EvenlyDistributedPopulation(BasePopulation):
     evenly distributed between age start and age end, and evenly split between
     male and female.
     """
+
+    @property
+    def time_step_priority(self) -> int:
+        # Age simulants only after every other component has acted on the age group they
+        # are currently in; this population is initialized already inside the early
+        # neonatal group, so aging first would skip that group entirely. 9 is the last of
+        # the 10 priority buckets.
+        return 9
 
     def __init__(self):
         super().__init__()

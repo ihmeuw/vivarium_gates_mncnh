@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy
-from vivarium import Artifact
+from vivarium.artifact import Artifact
 
 from vivarium_gates_mncnh.constants import metadata
 
@@ -517,3 +517,7 @@ def calculate_iv_iron_stillbirth_effects():
     ).reset_index()
     effects.to_csv(_DIR / "iv_iron_stillbirth_rrs.csv")
     return effects
+
+
+if __name__ == "__main__":
+    calculate_iv_iron_stillbirth_effects()

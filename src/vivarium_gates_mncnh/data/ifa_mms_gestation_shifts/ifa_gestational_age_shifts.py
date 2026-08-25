@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats as stats
-from vivarium import Artifact
+from vivarium.artifact import Artifact
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-from vivarium import InteractiveContext
-from vivarium.framework.configuration import build_model_specification
+from vivarium.engine import InteractiveContext
+from vivarium.engine.framework.configuration import build_model_specification
 
 LOCATION_DATA = {"ethiopia": 179, "nigeria": 214, "pakistan": 165}
 ART_DIR = "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model29.0"

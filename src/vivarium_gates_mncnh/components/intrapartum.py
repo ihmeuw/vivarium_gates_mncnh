@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 from functools import partial
 
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import SimulantData
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.engine.framework.population import SimulantData
 
 from vivarium_gates_mncnh.constants.data_values import (
+    ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE,
     ANC_ATTENDANCE_TYPES,
     COLUMNS,
     DELIVERY_FACILITY_TYPES,
@@ -33,6 +36,7 @@ INTERVENTION_TYPE_COLUMN_MAP = {
 INTERVENTION_SCENARIO_ACCESS_MAP = {
     "full": 1.0,
     "scale_up": 0.5,
+    "none": 0.0,
 }
 
 
@@ -54,6 +58,16 @@ class InterventionAccess(Component):
                 }
             }
         }
+
+    @property
+    def access_columns(self) -> list[str]:
+        """State table columns needed to assign this intervention's coverage."""
+        return INTERVENTION_TYPE_COLUMN_MAP[self.intervention_type]
+
+    @property
+    def coverage_intervention(self) -> str:
+        """Intervention whose baseline coverage data this component loads."""
+        return self.intervention
 
     def __init__(self, intervention: str) -> None:
         super().__init__()
@@ -92,8 +106,7 @@ class InterventionAccess(Component):
         if self._sim_step_name() != self.time_step:
             return
 
-        required_cols = INTERVENTION_TYPE_COLUMN_MAP[self.intervention_type]
-        pop = self.population_view.get(event.index, required_cols)
+        pop = self.population_view.get(event.index, self.access_columns)
         pop = self.filter_pop_for_intervention(pop)
 
         has_intervention = pd.Series(False, index=pop.index, name=self.intervention_column)
@@ -104,10 +117,8 @@ class InterventionAccess(Component):
                 if isinstance(coverage_value, float)
                 else coverage_value(facility_idx)
             )
-            get_intervention_idx = self.randomness.filter_for_probability(
-                facility_idx,
-                effective_coverage,
-                f"{self.intervention}_access_{facility_type}",
+            get_intervention_idx = self.select_covered_simulants(
+                pop, facility_idx, effective_coverage, facility_type
             )
             has_intervention.loc[get_intervention_idx] = True
 
@@ -150,9 +161,24 @@ class InterventionAccess(Component):
             DELIVERY_FACILITY_TYPES.HOME: home_intervention_access,
         }
 
+    def select_covered_simulants(
+        self,
+        pop: pd.DataFrame,
+        facility_index: pd.Index,
+        coverage: float | pd.Series[float],
+        facility_type: str,
+    ) -> pd.Index:
+        """Simulants delivering at this facility type who receive the intervention."""
+        return self.randomness.filter_for_probability(
+            facility_index,
+            coverage,
+            f"{self.intervention}_access_{facility_type}",
+        )
+
     def load_coverage_data(self, builder: Builder, key: str) -> LookupTable:
+        intervention = self.coverage_intervention
         data = builder.data.load(
-            f"intervention.no_{self.intervention}_risk.probability_{self.intervention}_{key}"
+            f"intervention.no_{intervention}_risk.probability_{intervention}_{key}"
         )
         return data
 
@@ -171,51 +197,41 @@ class InterventionAccess(Component):
         return pop
 
 
-class ACSAccess(Component):
-    """Component for determining if a simulant has access to antenatal corticosteroids (ACS).
-    We do this by making ACS available to everyone who has access to CPAP and a predicted
-    gestational age between 26 and 33 weeks."""
+class RDSInterventionAccess(InterventionAccess):
+    @property
+    def access_columns(self) -> list[str]:
+        return super().access_columns + [COLUMNS.RDS_INTERVENTION_PROPENSITY]
+
+    def select_covered_simulants(
+        self,
+        pop: pd.DataFrame,
+        facility_index: pd.Index,
+        coverage: float | pd.Series[float],
+        facility_type: str,
+    ) -> pd.Index:
+        propensity = pop.loc[facility_index, COLUMNS.RDS_INTERVENTION_PROPENSITY]
+        return propensity.index[propensity < coverage]
+
+
+class ACSAccess(RDSInterventionAccess):
+    """Component for determining if a simulant has access to antenatal corticosteroids (ACS)."""
+
+    @property
+    def access_columns(self) -> list[str]:
+        return super().access_columns + [COLUMNS.STATED_GESTATIONAL_AGE]
+
+    @property
+    def coverage_intervention(self) -> str:
+        # ACS doesn't have its own key for its baseline coverage in the artifact.
+        # Since its baseline coverage is the same as baseline CPAP coverage, we pull that data instead.
+        # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/intrapartum_interventions/module_document.html#baseline-coverage
+        return INTERVENTIONS.CPAP
 
     def __init__(self) -> None:
-        super().__init__()
-        self.time_step = "acs_access"
+        super().__init__(INTERVENTIONS.ACS)
 
-    def setup(self, builder: Builder) -> None:
-        self._sim_step_name = builder.time.simulation_event_name()
-        self.scenario = INTERVENTION_SCENARIOS[builder.configuration.intervention.scenario]
-        builder.population.register_initializer(
-            self.initialize_acs_access,
-            columns=[COLUMNS.ACS_AVAILABLE],
-        )
-
-    def initialize_acs_access(self, pop_data: SimulantData) -> None:
-        simulants = pd.DataFrame(
-            {COLUMNS.ACS_AVAILABLE: False},
-            index=pop_data.index,
-        )
-        self.population_view.initialize(simulants)
-
-    def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != self.time_step:
-            return
-        if self.scenario.acs_access == "none":
-            return
-
-        pop = self.population_view.get(
-            event.index,
-            [
-                COLUMNS.PREGNANCY_OUTCOME,
-                COLUMNS.STATED_GESTATIONAL_AGE,
-                COLUMNS.CPAP_AVAILABLE,
-            ],
-        )
-        pop = pop.loc[pop[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
-        is_early_or_moderate_preterm = pop.loc[
-            pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+    def filter_pop_for_intervention(self, pop: pd.DataFrame) -> pd.DataFrame:
+        pop = super().filter_pop_for_intervention(pop)
+        return pop.loc[
+            pop[COLUMNS.STATED_GESTATIONAL_AGE].between(*ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE)
         ]
-        has_cpap = pop.loc[pop[COLUMNS.CPAP_AVAILABLE] == True]
-        has_acs = is_early_or_moderate_preterm.index.intersection(has_cpap.index)
-        self.population_view.update(
-            COLUMNS.ACS_AVAILABLE,
-            lambda _: pd.Series(True, index=has_acs, name=COLUMNS.ACS_AVAILABLE),
-        )

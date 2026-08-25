@@ -13,12 +13,12 @@ from typing import Any, Type, TypeAlias
 import numpy as np
 import pandas as pd
 import scipy
-import vivarium
 from correlation import extract_upper_3, generate_correlation_matrix
 from loss_functions import log_loss
 from numpy.random import SeedSequence
 from pandas.api.types import CategoricalDtype
 from statsmodels.distributions.copula.api import GaussianCopula
+from vivarium.artifact import Artifact
 from vivarium_helpers.lbwsg.lbwsg import (
     get_category_data,
     validate_exposure_matches_category_data,
@@ -600,7 +600,7 @@ class BirthFacilityChoiceData(CausalModelData):
             "risk_factor.low_birth_weight_and_short_gestation.sex_specific_ordered_categories"
         )
 
-        art = vivarium.Artifact(self.artifact_path)
+        art = Artifact(self.artifact_path)
         self.lbwsg_rr = art.load(rr_key)
         if birth_exposure_key in art.keys:
             self.lbwsg_birth_exposure = art.load(birth_exposure_key)
@@ -633,7 +633,7 @@ class BirthFacilityChoiceData(CausalModelData):
     def _set_demographic_parameters(self):
         """Set demographic parameters from GBD and other sources"""
         # Birth sex distribution
-        art = vivarium.Artifact(self.artifact_path)
+        art = Artifact(self.artifact_path)
         prob_male_birth = art.load("population.infant_male_percentage")
         self.male_female_birth_probabilities = pd.Series(
             {MALE: prob_male_birth, FEMALE: 1 - prob_male_birth},
