@@ -5,11 +5,6 @@ input_draw_count: 10
 random_seed_count: 10
 
 input_draws: [115, 60, 118, 197, 79, 244, 22, 167, 146, 71]
-# Pinned to the model39.0 run's seeds so model39.2 is a paired rerun of it. Left
-# unpinned, psimulate generates seeds, and the generator changed with the monorepo
-# migration -- which is why model39.1 drew different seeds than model39.0 despite
-# both asking for random_seed_count: 10.
-random_seeds: [2284, 2787, 3254, 3541, 4344, 4369, 5020, 5616, 6810, 7359]
 # Draws should NOT be equal to mod 100, meaning draws 115 and 215 should not be used together
 # due to the 2023 Hemoglobin exposure data only having 100 draws.
 # Other draws that have been generated available to use: 28, 156, 94, 170, 109, 26, 35, 114, 178, 127
@@ -37,6 +32,5 @@ branches:
         # - "total_acs_and_no_cpap_vv"
         # - "ultrasound_vv"
         - "anemia_screening_vv"
-    # No population override here: a branch-level population_size silently wins over
-    # model_spec.yaml, which is how the model39.1 run ended up at a tenth of model39.0's
-    # 200,000 and lost comparability with it. Let the model spec govern the size.
+    population:
+      population_size: 20_000
