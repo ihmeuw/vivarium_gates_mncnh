@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
-from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
-from vivarium.framework.randomness import get_hash
-from vivarium.types import NumberLike, NumericArray
-from vivarium_public_health.risks.data_transformations import pivot_categorical
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.lookup import DEFAULT_VALUE_COLUMN
+from vivarium.engine.framework.randomness import get_hash
+from vivarium.engine.types import NumberLike, NumericArray
+from vivarium.public_health.causal_factor.utilities import pivot_categorical
 
 from vivarium_gates_mncnh.constants import metadata
 
@@ -58,6 +58,23 @@ def get_risk_distribution_parameter(data: float | pd.DataFrame) -> float | pd.Se
 
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
+
+
+def load_births_net_of_aph_mortality(builder: Builder) -> pd.DataFrame:
+    """Return births net of antepartum-hemorrhage deaths: the per-surviving-birth denominator.
+
+    Intrapartum maternal disorders are conditional on surviving the antepartum
+    period, so they divide by ``birth_rate - antepartum_hemorrhage_csmr``.
+    """
+    from vivarium_gates_mncnh.constants.data_keys import MATERNAL_HEMORRHAGE, POPULATION
+
+    birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(
+        metadata.ARTIFACT_INDEX_COLUMNS
+    )
+    aph_csmr = builder.data.load(MATERNAL_HEMORRHAGE.APH_CSMR).set_index(
+        metadata.ARTIFACT_INDEX_COLUMNS
+    )
+    return birth_rate - aph_csmr
 
 
 def len_longest_location() -> int:

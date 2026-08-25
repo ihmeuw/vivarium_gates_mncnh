@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from typing import Callable
-
 import numpy as np
 import pandas as pd
-from layered_config_tree import ConfigurationError
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RESIDUAL_CHOICE
-from vivarium_public_health.risks import RiskEffect
+from vivarium.config_tree import ConfigurationError
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.lookup import LookupTable
+from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.randomness import RESIDUAL_CHOICE
+from vivarium.public_health.causal_factor.utilities import pivot_categorical
+from vivarium.public_health.utilities import EntityString, TargetString
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, models
 from vivarium_gates_mncnh.constants.data_values import (
+    ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE,
     ANC_ATTENDANCE_TYPES,
     COLUMNS,
     HEMOGLOBIN_TEST_RESULTS,
@@ -76,22 +76,18 @@ class InterventionRiskEffect(Component):
     # Helper nethods #
     ##################
 
-    def modify_target_pipeline(
-        self, index: pd.Index, target_pipeline: pd.Series[float]
-    ) -> pd.Series[float]:
-        # TODO: rename and update names
-        # No intervention access is like a dichotomous risk factor, meaning those that have access to CPAP will
-        # not have their CSMR modify by no intervention RR
+    def modify_target_pipeline(self, index: pd.Index) -> pd.Series[float]:
         pop = self.population_view.get(index, self.col_required)
         no_intervention_idx = pop.index[pop == False]
-        # NOTE: RR is relative risk for no intervention
-        no_intervention_rr = self.relative_risk_table(no_intervention_idx)
         # NOTE: PAF is for no intervention
         paf = self.paf_table(index)
-        # Modify the pipeline
-        modified_pipeline = target_pipeline * (1 - paf)
-        modified_pipeline.loc[no_intervention_idx] = modified_pipeline * no_intervention_rr
-        return modified_pipeline
+        multiplier = 1 - paf
+        # NOTE: RR is relative risk for no intervention
+        no_intervention_rr = self.relative_risk_table(no_intervention_idx)
+        multiplier.loc[no_intervention_idx] = (
+            multiplier.loc[no_intervention_idx] * no_intervention_rr
+        )
+        return multiplier
 
 
 class CPAPAndACSRiskEffect(Component):
@@ -134,19 +130,24 @@ class CPAPAndACSRiskEffect(Component):
             ],
         )
 
-    def modify_target_pipeline(
-        self, index: pd.Index, target_pipeline: pd.Series[float]
-    ) -> pd.Series[float]:
+    def modify_target_pipeline(self, index: pd.Index) -> pd.Series[float]:
         """
-        Modifies the preterm RDS CSMR pipeline based on CPAP and ACS access and ACS eligibility.
+        Returns the CPAP/ACS multiplier for the preterm-RDS CSMR pipeline (a
+        RiskAffectedPipeline, so this returns a per-simulant multiplier).
+
+        CPAP and ACS coverage are configured independently. Their relative risks are
+        assumed causally separable - ACS acts on RDS incidence while CPAP acts on RDS
+        case fatality - so (RR_ACS | CPAP) == (RR_ACS | no CPAP) and where a simulant
+        lacks both the two relative risks apply multiplicatively.
+        https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html
 
         Logic:
-        - For simulants without CPAP and who are ACS-eligible (gestational age 26-33 weeks):
-            Apply both no_CPAP_RR and no_ACS_RR.
+        - For simulants without CPAP:
+            Apply no_CPAP_RR.
+        - For ACS-eligible simulants (believed gestational age 26-33 weeks) without ACS:
+            Apply no_ACS_RR.
         - For all ACS-eligible simulants:
             Apply no_ACS_PAF.
-        - For simulants without CPAP and not ACS-eligible:
-            Apply no_CPAP_RR.
         - For all simulants not ACS-eligible:
             Apply no_CPAP_PAF.
         """
@@ -154,37 +155,34 @@ class CPAPAndACSRiskEffect(Component):
             index,
             [COLUMNS.CPAP_AVAILABLE, COLUMNS.ACS_AVAILABLE, COLUMNS.STATED_GESTATIONAL_AGE],
         )
-        in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        in_acs_gestational_age_range = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(
+            *ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE
+        )
         has_no_cpap = pop[COLUMNS.CPAP_AVAILABLE] == False
+        # Lacking ACS only carries risk for the simulants eligible to receive it
+        has_no_acs = in_acs_gestational_age_range & (pop[COLUMNS.ACS_AVAILABLE] == False)
 
-        no_intervention_index = has_no_cpap.index
-        no_acs_index = pop.index[has_no_cpap & in_acs_gestational_age_range]
-        no_cpap_index = pop.index[has_no_cpap & ~in_acs_gestational_age_range]
+        no_cpap_index = pop.index[has_no_cpap]
+        no_acs_index = pop.index[has_no_acs]
 
         # define RR
         no_intervention_rr = pd.Series(1.0, index=index)
-        no_intervention_rr.loc[no_cpap_index] = self.no_cpap_relative_risk_table(
+        no_intervention_rr.loc[no_cpap_index] = no_intervention_rr.loc[
             no_cpap_index
-        )
-        no_intervention_rr.loc[no_acs_index] = self.no_acs_relative_risk_table(
+        ] * self.no_cpap_relative_risk_table(no_cpap_index)
+        no_intervention_rr.loc[no_acs_index] = no_intervention_rr.loc[
             no_acs_index
-        ) * self.no_cpap_relative_risk_table(no_acs_index)
+        ] * self.no_acs_relative_risk_table(no_acs_index)
 
         # define PAF
         no_intervention_paf = self.no_cpap_paf_table(index)
         in_acs_ga_range_index = pop.index[in_acs_gestational_age_range]
-        no_intervention_paf.loc[in_acs_gestational_age_range] = self.no_acs_paf_table(
+        no_intervention_paf.loc[in_acs_ga_range_index] = self.no_acs_paf_table(
             in_acs_ga_range_index
         )
 
-        # update pipeline
-        target_pipeline.loc[no_intervention_index] = (
-            target_pipeline.loc[no_intervention_index]
-            * (1 - no_intervention_paf)
-            * no_intervention_rr
-        )
-
-        return target_pipeline
+        # Return the per-simulant multiplier (multiplication combiner applies it).
+        return (1 - no_intervention_paf) * no_intervention_rr
 
 
 class OralIronInterventionExposure(Component):
@@ -551,11 +549,21 @@ class IVIronEffectOnStillbirth(Component):
         return birth_outcome_probabilities
 
 
-class AdditiveRiskEffect(RiskEffect):
+class AdditiveRiskEffect(Component):
     BIRTH_EXPOSURE_PIPELINE = "low_birth_weight_and_short_gestation.birth_exposure"
 
+    @property
+    def name(self) -> str:
+        return f"risk_effect.{self.risk.name}_on_{self.target}"
+
     def __init__(self, risk: str, target: str):
-        super().__init__(risk, target)
+        # NOTE: VPH 5.1 reworked RiskEffect to assume multiplicative modifiers
+        # (relative risk + calibration constant). This additive effect therefore
+        # inherits from Component and registers its own additive modifier.
+        super().__init__()
+        self.risk = EntityString(risk)
+        self.target = TargetString(target)
+        self.exposure_name = f"{self.risk.name}.exposure"
         self.effect_pipeline_name = f"{self.risk.name}_on_{self.target.name}.effect"
 
     #################
@@ -564,20 +572,9 @@ class AdditiveRiskEffect(RiskEffect):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.get_effect_pipeline(builder)
         self.excess_shift_table = self.get_excess_shift(builder)
-
-    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
-        # NOTE: PAF and RR lookup tables do not get used in this class.
-        # This is to prevent us from having to configure a scalar for all
-        # AdditiveRiskEffect instances in this model
-        return self.build_lookup_table(builder, "relative_risk", data_source=1)
-
-    def build_paf_lookup_table(self, builder: Builder) -> LookupTable:
-        return self.build_lookup_table(
-            builder, "population_attributable_fraction", data_source=0
-        )
+        self.register_target_modifier(builder)
 
     def get_effect_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
@@ -599,9 +596,6 @@ class AdditiveRiskEffect(RiskEffect):
             builder, "excess_shift", data_source=excess_shift_data, value_columns=value_cols
         )
 
-    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return lambda index: pd.Series(1.0, index=index)
-
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         effect = self.population_view.get(index, self.effect_pipeline_name)
         affected_rates = target + effect
@@ -620,15 +614,29 @@ class AdditiveRiskEffect(RiskEffect):
             value_columns="value",
         )
 
-    def register_paf_modifier(self, builder: Builder) -> None:
-        pass
-
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
             self.BIRTH_EXPOSURE_PIPELINE,
             modifier=self._adjust_birth_exposure,
-            required_resources=[self.relative_risk_name],
+            required_resources=[self.effect_pipeline_name],
         )
+
+    def process_categorical_data(
+        self, builder: Builder, data: str | float | pd.DataFrame
+    ) -> tuple[pd.DataFrame, list[str]]:
+        if not isinstance(data, pd.DataFrame):
+            cat1 = builder.data.load("population.demographic_dimensions")
+            cat1["parameter"] = "cat1"
+            cat1["value"] = data
+            cat2 = cat1.copy()
+            cat2["parameter"] = "cat2"
+            cat2["value"] = 1
+            data = pd.concat([cat1, cat2], ignore_index=True)
+        if "parameter" in data.index.names:
+            data = data.reset_index("parameter")
+        value_cols = list(data["parameter"].unique())
+        data = pivot_categorical(data, "parameter")
+        return data, value_cols
 
     def _adjust_birth_exposure(self, index: pd.Index, target: pd.DataFrame) -> pd.DataFrame:
         target[self.target.name] = self.adjust_target(index, target[self.target.name])
@@ -676,21 +684,22 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super(AdditiveRiskEffect, self).setup(builder)
         self.get_ifa_effect_pipeline(builder)
         self.ifa_excess_shift_table = self.get_ifa_excess_shift(builder)
+        self.register_target_modifier(builder)
+
+    def register_target_modifier(self, builder: Builder) -> None:
+        # This effect's modifier reads the IFA effect pipeline (not the base
+        # ``effect`` pipeline, which this subclass does not register).
+        builder.value.register_attribute_modifier(
+            self.BIRTH_EXPOSURE_PIPELINE,
+            modifier=self._adjust_birth_exposure,
+            required_resources=[self.ifa_effect_pipeline_name],
+        )
 
     #######################
     # LookupTable methods #
     #######################
-
-    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
-        return self.build_lookup_table(builder, "relative_risk", data_source=1)
-
-    def build_paf_lookup_table(self, builder: Builder) -> LookupTable:
-        return self.build_lookup_table(
-            builder, "population_attributable_fraction", data_source=0
-        )
 
     def get_ifa_excess_shift_lookup_table(self, builder: Builder) -> LookupTable:
         excess_shift_data = builder.data.load(

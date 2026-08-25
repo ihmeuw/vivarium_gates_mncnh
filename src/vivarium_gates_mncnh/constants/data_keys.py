@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-from vivarium_public_health.utilities import TargetString
+from vivarium.public_health.utilities import TargetString
 
 #############
 # Data Keys #
@@ -112,6 +112,9 @@ class __MaternalSepsis(NamedTuple):
         "cause.maternal_sepsis_and_other_maternal_infections.cause_specific_mortality_rate"
     )
     YLD_RATE: str = "cause.maternal_sepsis_and_other_maternal_infections.yld_rate"
+    HEMOGLOBIN_SHIFT: str = (
+        "cause.maternal_sepsis_and_other_maternal_infections.hemoglobin_shift"
+    )
 
     @property
     def name(self):
@@ -141,6 +144,7 @@ class __MaternalHemorrhage(NamedTuple):
     CASE_FATALITY_RATE: str = "cause.maternal_hemorrhage.case_fatality_rate"
     APH_INCIDENCE_RISK: str = "cause.antepartum_hemorrhage.incidence_risk"
     PPH_INCIDENCE_RISK: str = "cause.postpartum_hemorrhage.incidence_risk"
+    APH_CSMR: str = "cause.antepartum_hemorrhage.cause_specific_mortality_rate"
 
     @property
     def name(self):

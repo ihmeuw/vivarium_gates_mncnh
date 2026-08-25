@@ -35,6 +35,10 @@ LATE_POSTPARTUM_END_DAYS = 39 * DAYS_PER_WEEK  # 39 weeks
 MODERATE_HEMORRHAGE_SEQUELA_ID = 180
 SEVERE_HEMORRHAGE_SEQUELA_ID = 181
 
+# Postpartum period labels (shared between loader and component)
+EARLY_POSTPARTUM_PERIOD = "early_postpartum"
+LATE_POSTPARTUM_PERIOD = "late_postpartum"
+
 # Threshold for children to be considered underweight (in grams)
 LOW_BIRTH_WEIGHT_THRESHOLD = 2500
 
@@ -92,6 +96,7 @@ class _SimulationEventNames(NamedTuple):
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
+    ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY = "antepartum_maternal_disorders_mortality"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
@@ -110,6 +115,8 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
     SIMULATION_EVENT_NAMES.ULTRASOUND,
     SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE,
+    SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
+    SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY,
     SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
     SIMULATION_EVENT_NAMES.AZITHROMYCIN_ACCESS,
     SIMULATION_EVENT_NAMES.MISOPROSTOL_ACCESS,
@@ -121,13 +128,21 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE,
     SIMULATION_EVENT_NAMES.MATERNAL_SEPSIS,
     SIMULATION_EVENT_NAMES.RESIDUAL_MATERNAL_DISORDERS,
-    SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     SIMULATION_EVENT_NAMES.MORTALITY,
     SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
     SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
     SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
     SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
     SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION,
+]
+
+
+ANEMIA_MEASUREMENT_EVENTS = [
+    SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
+    SIMULATION_EVENT_NAMES.ULTRASOUND,
+    SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+    SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
 ]
 
 
@@ -200,6 +215,7 @@ class __Columns(NamedTuple):
     CHILD_AGE = "child_age"
     MOTHER_CAUSE_OF_DEATH = "cause_of_death"
     CHILD_CAUSE_OF_DEATH = "child_cause_of_death"
+    CHILD_EXIT_STEP = "child_exit_step"
     MOTHER_YEARS_OF_LIFE_LOST = "years_of_life_lost"
     CHILD_YEARS_OF_LIFE_LOST = "child_years_of_life_lost"
     LOCATION = "location"
@@ -239,6 +255,7 @@ class __Columns(NamedTuple):
     FIRST_TRIMESTER_HEMOGLOBIN_EXPOSURE = "first_trimester_hemoglobin_exposure"
     ANEMIA_STATUS_DURING_PREGNANCY = "anemia_status_during_pregnancy"
     ANEMIA_INTERVENTION_PROPENSITY = "anemia_intervention_propensity"
+    RDS_INTERVENTION_PROPENSITY = "rds_intervention_propensity"
 
 
 COLUMNS = __Columns()
@@ -258,6 +275,33 @@ HEMORRHAGE_CAUSES = [
     COLUMNS.ANTEPARTUM_HEMORRHAGE,
     COLUMNS.POSTPARTUM_HEMORRHAGE,
 ]
+
+# Maternal disorders resolve in two mortality passes. Antepartum disorders resolve
+# (incidence + mortality) during the pregnancy band, before any intrapartum disorder
+# is assigned; intrapartum disorders are applied and killed only among antepartum
+# survivors. The single phase mapping makes the partition structural — a disorder
+# cannot land in both passes — while the observer still consumes the full union
+# (MATERNAL_DISORDERS).
+MATERNAL_DISORDER_PHASE = {
+    COLUMNS.ANTEPARTUM_HEMORRHAGE: "antepartum",
+    COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY: "antepartum",
+    COLUMNS.OBSTRUCTED_LABOR: "intrapartum",
+    COLUMNS.POSTPARTUM_HEMORRHAGE: "intrapartum",
+    COLUMNS.MATERNAL_SEPSIS: "intrapartum",
+    COLUMNS.RESIDUAL_MATERNAL_DISORDERS: "intrapartum",
+}
+
+ANTEPARTUM_MATERNAL_DISORDERS = [
+    disorder for disorder, phase in MATERNAL_DISORDER_PHASE.items() if phase == "antepartum"
+]
+INTRAPARTUM_MATERNAL_DISORDERS = [
+    disorder for disorder, phase in MATERNAL_DISORDER_PHASE.items() if phase == "intrapartum"
+]
+
+if set(MATERNAL_DISORDER_PHASE) != set(MATERNAL_DISORDERS):
+    raise ValueError(
+        "MATERNAL_DISORDER_PHASE must assign a phase to exactly the MATERNAL_DISORDERS causes."
+    )
 
 
 CHILD_LOOKUP_COLUMN_MAPPER = {
@@ -304,11 +348,11 @@ class __Pipelines(NamedTuple):
     NEONATAL_ENCEPHALOPATHY_FINAL_CSMR = (
         "neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.csmr"
     )
-    PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.relative_risk"
-    PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.relative_risk"
-    NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.relative_risk"
-    NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.relative_risk"
-    ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.relative_risk"
+    PRETERM_WITH_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_with_rds.cause_specific_mortality_risk.relative_risk"
+    PRETERM_WITHOUT_RDS_RR = "low_birth_weight_and_short_gestation_on_neonatal_preterm_birth_without_rds.cause_specific_mortality_risk.relative_risk"
+    NEONATAL_SEPSIS_RR = "low_birth_weight_and_short_gestation_on_neonatal_sepsis_and_other_neonatal_infections.cause_specific_mortality_risk.relative_risk"
+    NEONATAL_ENCEPHALOPATHY_RR = "low_birth_weight_and_short_gestation_on_neonatal_encephalopathy_due_to_birth_asphyxia_and_trauma.cause_specific_mortality_risk.relative_risk"
+    ACMR_RR = "low_birth_weight_and_short_gestation_on_all_causes.all_cause_mortality_risk.relative_risk"
     BIRTH_WEIGHT_EXPOSURE = "birth_weight.birth_exposure"
     GESTATIONAL_AGE_EXPOSURE = "gestational_age.birth_exposure"
 
@@ -334,13 +378,21 @@ PIPELINES = __Pipelines()
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/neonatal/preterm_birth.html#id5
 PRETERM_DEATHS_DUE_TO_RDS_PROBABILITY = 0.85
 # NOTE: This is an arbitrary value that must be greater than 0 and less than LATE_NEONATAL_AGE_START.
-# It is used in a tricky-to-understand way to deal with stillbirths.
-# Basically, to record YLLs due to stillbirths, we make stillbirth an "age group" for Vivarium purposes,
-# which spans from EARLY_NEONATAL_AGE_START (zero) to CHILD_INITIALIZATION_AGE.
-# Then when simulants are initialized, we put them in this stillbirth age group; if they are stillborn,
-# we have them die in that age group.
-# If they are a live birth, their age is updated to be greater than CHILD_INITIALIZATION_AGE so that they formally enter
-# the early neonatal age group.
+# It is used in a tricky-to-understand way to deal with stillbirths. It is the boundary between
+# a "stillbirth" child_age_group bin [0, CHILD_INITIALIZATION_AGE) and the early_neonatal bin
+# (see get_child_age_bins). Every child is initialized at CHILD_INITIALIZATION_AGE / 2
+# (see NewChildren.initialize_children), i.e. into the stillbirth bin. On each neonatal mortality
+# step, NewChildren.on_time_step (priority 0, before mortality) ages *only live births* up to the
+# real age-group midpoint so their age-based lookups (ACMR, life expectancy, ...) resolve into the
+# correct neonatal bin. Stillbirths (child_alive == False) are never aged up and stay in the
+# stillbirth bin.
+# NOTE: The stillbirth bin is NOT used as a lookup input and we do NOT observe YLLs for stillbirths.
+# All mortality/lookup evaluation is gated on child_alive == True, so stillbirths never reach an
+# age-based lookup; their child_years_of_life_lost is initialized to 0 and never updated, and they
+# are additionally an excluded_cause in the NeonatalBurdenObserver. The stillbirth bin's only live
+# role is results stratification: child_age_group maps stillbirths (age ~0) into the "stillbirth"
+# category, which is an excluded_category (see ResultsStratifier), keeping stillbirths out of the
+# age-stratified outputs rather than contaminating the early_neonatal stratum.
 # It is a bit tricky to think through when we need to modify our approach to match this.
 # For example, we leave all early neonatal PAFs as starting at 0, which is fine because the early neonatal
 # period in GBD (0-7 days) is a superset of the early neonatal period in our sim (0.1 days-7 days) and
@@ -384,6 +436,10 @@ CPAP_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.53, 0.34, 0.83)
 
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#id22
 ACS_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.84, 0.72, 0.97)
+# Only simulants believed to be delivering an early or moderate preterm infant are eligible
+# for ACS. The BMGF assumption is 26-33 weeks, narrower than the WHO 2022 24-34 weeks.
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/acs_intervention.html#vivarium-modeling-strategy
+ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE = (26, 33)  # weeks, inclusive
 
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/neonatal/antibiotics_intervention.html#id32
 # Model 8.3+ sets coverage values at location level and not birth facility/location level
@@ -413,6 +469,7 @@ class __Interventions(NamedTuple):
 INTERVENTIONS = __Interventions()
 INTERVENTION_TYPE_MAPPER = {
     INTERVENTIONS.CPAP: "neonatal",
+    INTERVENTIONS.ACS: "neonatal",
     INTERVENTIONS.ANTIBIOTICS: "neonatal",
     INTERVENTIONS.PROBIOTICS: "neonatal",
     INTERVENTIONS.AZITHROMYCIN: "maternal",

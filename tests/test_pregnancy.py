@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
-from vivarium.framework.configuration import build_model_specification
+from vivarium.engine import InteractiveContext
+from vivarium.engine.framework.configuration import build_model_specification
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,

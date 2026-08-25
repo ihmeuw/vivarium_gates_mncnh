@@ -9,6 +9,7 @@ components:
         components:
             - Hemoglobin()
             - AnemiaInterventionPropensity()
+            - RDSInterventionPropensity()
             - AgelessPopulation("population.scaling_factor")
             - Pregnancy()
             - ResultsStratifier()
@@ -47,8 +48,9 @@ components:
             - IVIronEffectOnHemoglobin()
             - IVIronEffectOnLBWSG()
             - IVIronEffectOnStillbirth()
+            - SepsisEffectsOnHemoglobin()
             - DeliveryFacility()
-            - InterventionAccess('cpap')
+            - RDSInterventionAccess('cpap')
             - InterventionAccess('antibiotics')
             - InterventionAccess('probiotics')        
             - InterventionAccess('azithromycin')
@@ -81,7 +83,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/aph/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model39.1/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -102,6 +104,8 @@ configuration:
             - 'later_pregnancy_visit_timing'
             - 'ultrasound'
             - 'antepartum_hemorrhage'
+            - 'abortion_miscarriage_ectopic_pregnancy'
+            - 'antepartum_maternal_disorders_mortality'
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'
@@ -113,7 +117,6 @@ configuration:
             - 'postpartum_hemorrhage'
             - 'maternal_sepsis_and_other_maternal_infections'
             - 'residual_maternal_disorders'
-            - 'abortion_miscarriage_ectopic_pregnancy'
             - 'mortality'
             - 'early_postpartum'
             - 'late_postpartum'
@@ -139,7 +142,6 @@ configuration:
                 - 'true_hemoglobin_exposure'
                 - 'tested_hemoglobin_exposure'
                 - 'ferritin_status'
-                - 'preterm_birth'
         anc_other:
             include:
                 - 'age_group'
@@ -257,7 +259,7 @@ configuration:
 
     intervention:
         scenario:
-            # baseline
+            baseline
             # cpap_acs_scaleup
             # cpap_acs_ai_ultrasound_scaleup
             # neonatal_antibiotics_scaleup
@@ -265,7 +267,7 @@ configuration:
             # azithromycin_scaleup
             # ai_ultrasound_scaleup
             # standard_ultrasound_scaleup
-            full_product_scaleup
+            # full_product_scaleup
             # mms_total_scaleup
             # anemia_screening_and_iv_iron_scaleup
             # azithromycin_vv

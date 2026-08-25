@@ -4,12 +4,12 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium_public_health.results import COLUMNS, PublicHealthObserver
-from vivarium_public_health.results import ResultsStratifier as ResultsStratifier_
+from vivarium.config_tree import ConfigTree
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.results import COLUMNS, PublicHealthObserver
+from vivarium.public_health.results import ResultsStratifier as ResultsStratifier_
 
 from vivarium_gates_mncnh.constants.data_keys import (
     IFA_SUPPLEMENTATION,
@@ -18,7 +18,9 @@ from vivarium_gates_mncnh.constants.data_keys import (
     POSTPARTUM_DEPRESSION,
 )
 from vivarium_gates_mncnh.constants.data_values import (
+    ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE,
     ANC_ATTENDANCE_TYPES,
+    ANEMIA_MEASUREMENT_EVENTS,
     ANEMIA_THRESHOLDS,
     ANEMIA_THRESHOLDS_NON_PREGNANCY,
     CAUSES_OF_NEONATAL_MORTALITY,
@@ -44,7 +46,10 @@ from vivarium_gates_mncnh.constants.metadata import (
     ARTIFACT_INDEX_COLUMNS,
     PRETERM_AGE_CUTOFF,
 )
-from vivarium_gates_mncnh.utilities import get_child_age_bins
+from vivarium_gates_mncnh.utilities import (
+    get_child_age_bins,
+    load_births_net_of_aph_mortality,
+)
 
 
 def get_anemia_status_from_hemoglobin(
@@ -88,6 +93,7 @@ def get_anemia_status_from_hemoglobin(
 
 class ResultsStratifier(ResultsStratifier_):
     def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
         self.age_bins = self.get_age_bins(builder)
         self.child_age_bins = get_child_age_bins(builder)
         self.delivery_facility_types = [
@@ -270,6 +276,13 @@ class ResultsStratifier(ResultsStratifier_):
             is_vectorized=True,
             requires_attributes=[PIPELINES.HEMOGLOBIN_EXPOSURE],
         )
+        builder.results.register_stratification(
+            "timestep",
+            ANEMIA_MEASUREMENT_EVENTS,
+            mapper=self.map_timestep,
+            is_vectorized=True,
+            requires_attributes=[COLUMNS.PREGNANCY_OUTCOME],
+        )
 
     def map_child_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         # Overwriting to use child_age_bins
@@ -292,7 +305,9 @@ class ResultsStratifier(ResultsStratifier_):
         return preterm_births.rename("believed_preterm")
 
     def map_acs_eligibility(self, pop: pd.DataFrame) -> pd.Series:
-        is_eligible = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(26, 33)
+        is_eligible = pop[COLUMNS.STATED_GESTATIONAL_AGE].between(
+            *ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE
+        )
         return is_eligible.rename("acs_eligibility")
 
     def map_true_hemoglobin(self, pop: pd.DataFrame) -> pd.Series:
@@ -333,6 +348,9 @@ class ResultsStratifier(ResultsStratifier_):
         return get_anemia_status_from_hemoglobin(
             pop[PIPELINES.HEMOGLOBIN_EXPOSURE], thresholds
         )
+
+    def map_timestep(self, pop: pd.DataFrame) -> pd.Series:
+        return pd.Series(self._sim_step_name(), index=pop.index)
 
 
 class PAFResultsStratifier(ResultsStratifier_):
@@ -581,13 +599,14 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         yld_rate = builder.data.load(f"cause.{cause}.yld_rate").set_index(
             ARTIFACT_INDEX_COLUMNS
         )
-        special_incidence_rates = {"residual_maternal_disorders": "population.birth_rate"}
-        incidence_rate_key = special_incidence_rates.get(
-            cause, f"cause.{cause}.incidence_rate"
-        )
-        incidence_rate = builder.data.load(incidence_rate_key).set_index(
-            ARTIFACT_INDEX_COLUMNS
-        )
+        if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
+            # Residual disorders apply only to antepartum survivors, so ylds_per_case
+            # divides by births net of antepartum hemorrhage deaths.
+            incidence_rate = load_births_net_of_aph_mortality(builder)
+        else:
+            incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
+                ARTIFACT_INDEX_COLUMNS
+            )
         ylds = (yld_rate / incidence_rate).fillna(0).reset_index()
 
         return ylds
@@ -632,14 +651,6 @@ class NeonatalBurdenObserver(BurdenObserver):
 
 
 class AnemiaYLDsObserver(PublicHealthObserver):
-    TIMESTEP_CATEGORIES = [
-        SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
-        SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
-        SIMULATION_EVENT_NAMES.ULTRASOUND,
-        SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
-        SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
-    ]
-
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
@@ -662,7 +673,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         self.gestational_age_name = COLUMNS.GESTATIONAL_AGE_EXPOSURE
         builder.results.register_stratification(
             "timestep",
-            self.TIMESTEP_CATEGORIES,
+            ANEMIA_MEASUREMENT_EVENTS,
             mapper=self._map_timestep,
             is_vectorized=True,
             # requires_attributes cannot be empty; "age" is used as a placeholder
@@ -698,7 +709,7 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         )
 
     def to_observe(self, event: Event) -> bool:
-        return self._sim_step_name() in self.TIMESTEP_CATEGORIES
+        return self._sim_step_name() in ANEMIA_MEASUREMENT_EVENTS
 
     def calculate_anemia_ylds(self, data: pd.DataFrame) -> float:
         """Calculate YLDs for anemia based on the current simulation event.
@@ -821,13 +832,19 @@ class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
 
     def register_observations(self, builder: Builder) -> None:
         for cause in self.neonatal_causes:
+            # VPH 5.1 relative_risk pipeline names include the target measure.
+            measure = (
+                "all_cause_mortality_risk"
+                if cause == "all_causes"
+                else "cause_specific_mortality_risk"
+            )
             self.register_adding_observation(
                 builder=builder,
                 name=f"{cause}_relative_risk",
                 pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
                 requires_attributes=[
                     COLUMNS.PREGNANCY_OUTCOME,
-                    f"low_birth_weight_and_short_gestation_on_{cause}.relative_risk",
+                    f"low_birth_weight_and_short_gestation_on_{cause}.{measure}.relative_risk",
                 ],
                 additional_stratifications=self.configuration.include,
                 excluded_stratifications=self.configuration.exclude,
@@ -861,7 +878,7 @@ class InterventionObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         self._sim_step_name = builder.time.simulation_event_name()
 
-    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+    def get_configuration(self, builder: Builder) -> ConfigTree:
         """Get the stratification configuration for this observer.
 
         Parameters
@@ -994,7 +1011,7 @@ def register_observations_of_continuous_quantity(
     """
 
     def count_values(data: pd.DataFrame) -> float:
-        return len(data)
+        return len(get_values(data))
 
     def count_nonzero_values(data: pd.DataFrame) -> float:
         return (get_values(data) != 0).sum()
@@ -1005,10 +1022,11 @@ def register_observations_of_continuous_quantity(
     def sum_squared_values(data: pd.DataFrame) -> float:
         return (get_values(data) ** 2).sum()
 
+    columns_required = columns_required + [COLUMNS.CHILD_ALIVE, COLUMNS.CHILD_EXIT_STEP]
+
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_count",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -1018,7 +1036,6 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_nonzero_count",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -1028,7 +1045,6 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_sum",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -1038,7 +1054,6 @@ def register_observations_of_continuous_quantity(
     observer.register_adding_observation(
         builder=builder,
         name=f"neonatal_{quantity_name}_sum_of_squares",
-        pop_filter=f"{COLUMNS.PREGNANCY_OUTCOME} == '{PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME}'",
         requires_attributes=columns_required + values_required,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -1061,6 +1076,16 @@ class NeonatalObserver(PublicHealthObserver, ABC):
             SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
         )
 
+    def alive_at_beginning_of_time_step(self, data: pd.DataFrame) -> pd.DataFrame:
+        current_step_name = self._sim_step_name()
+        return data[
+            (data[COLUMNS.PREGNANCY_OUTCOME] == PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME)
+            & (
+                data[COLUMNS.CHILD_ALIVE]
+                | (data[COLUMNS.CHILD_EXIT_STEP] == current_step_name)
+            )
+        ]
+
 
 class NeonatalACMRiskObserver(NeonatalObserver):
     def register_observations(self, builder: Builder):
@@ -1070,7 +1095,9 @@ class NeonatalACMRiskObserver(NeonatalObserver):
             columns_required=[COLUMNS.PREGNANCY_OUTCOME],
             values_required=[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
             quantity_name="acmrisk",
-            get_values=lambda data: data[PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY],
+            get_values=lambda data: self.alive_at_beginning_of_time_step(data)[
+                PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY
+            ],
         )
 
 
@@ -1087,7 +1114,9 @@ class NeonatalCSMRiskObserver(NeonatalObserver):
                 columns_required=[COLUMNS.PREGNANCY_OUTCOME],
                 values_required=[f"{cause}.csmr"],
                 quantity_name=f"{cause}_csmrisk",
-                get_values=lambda data, cause=cause: data[f"{cause}.csmr"],
+                get_values=lambda data, cause=cause: self.alive_at_beginning_of_time_step(
+                    data
+                )[f"{cause}.csmr"],
             )
 
 
@@ -1109,6 +1138,7 @@ class ImpossibleNeonatalCSMRiskObserver(NeonatalObserver):
         )
 
     def get_values(self, data: pd.DataFrame) -> pd.Series:
+        data = self.alive_at_beginning_of_time_step(data)
         total_csmrisk = data[
             [
                 PIPELINES.PRETERM_WITH_RDS_FINAL_CSMR,

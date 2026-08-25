@@ -1,7 +1,7 @@
 """Lightweight simulation helpers with no vivarium_inputs dependency."""
 
-from vivarium import InteractiveContext
-from vivarium.framework.configuration import build_model_specification
+from vivarium.engine import InteractiveContext
+from vivarium.engine.framework.configuration import build_model_specification
 
 from vivarium_gates_mncnh.constants.paths import MODEL_SPEC_PATH
 
