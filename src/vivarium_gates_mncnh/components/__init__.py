@@ -30,8 +30,10 @@ from vivarium_gates_mncnh.components.lbwsg import (
 )
 from vivarium_gates_mncnh.components.maternal_disorders import (
     AbortionMiscarriageEctopicPregnancy,
+    AntepartumHemorrhage,
     MaternalDisorder,
     PostpartumDepression,
+    PostpartumHemorrhage,
     ResidualMaternalDisorders,
     SepsisEffectsOnHemoglobin,
 )

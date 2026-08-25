@@ -22,6 +22,11 @@ from vivarium_gates_mncnh.utilities import (
 # Time conversion constants
 DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
+MONTHS_PER_YEAR = 12
+
+# GBD sequela IDs for maternal hemorrhage severity splits
+MODERATE_HEMORRHAGE_SEQUELA_ID = 180
+SEVERE_HEMORRHAGE_SEQUELA_ID = 181
 
 # Postpartum period boundaries (in days)
 EARLY_POSTPARTUM_END_DAYS = 6 * DAYS_PER_WEEK  # 6 weeks
@@ -83,10 +88,12 @@ class _SimulationEventNames(NamedTuple):
     ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
+    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
-    MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
+    ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY = "antepartum_maternal_disorders_mortality"
     POSTPARTUM_DEPRESSION = "postpartum_depression"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
     MORTALITY = "mortality"
@@ -97,6 +104,35 @@ class _SimulationEventNames(NamedTuple):
 
 
 SIMULATION_EVENT_NAMES = _SimulationEventNames()
+
+SIMULATION_STEPS = [
+    SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
+    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_SCREENING,
+    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
+    SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
+    SIMULATION_EVENT_NAMES.ULTRASOUND,
+    SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE,
+    SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
+    SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY,
+    SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
+    SIMULATION_EVENT_NAMES.AZITHROMYCIN_ACCESS,
+    SIMULATION_EVENT_NAMES.MISOPROSTOL_ACCESS,
+    SIMULATION_EVENT_NAMES.CPAP_ACCESS,
+    SIMULATION_EVENT_NAMES.ACS_ACCESS,
+    SIMULATION_EVENT_NAMES.ANTIBIOTICS_ACCESS,
+    SIMULATION_EVENT_NAMES.PROBIOTICS_ACCESS,
+    SIMULATION_EVENT_NAMES.OBSTRUCTED_LABOR,
+    SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE,
+    SIMULATION_EVENT_NAMES.MATERNAL_SEPSIS,
+    SIMULATION_EVENT_NAMES.RESIDUAL_MATERNAL_DISORDERS,
+    SIMULATION_EVENT_NAMES.MORTALITY,
+    SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM,
+    SIMULATION_EVENT_NAMES.LATE_POSTPARTUM,
+    SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY,
+    SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY,
+    SIMULATION_EVENT_NAMES.POSTPARTUM_DEPRESSION,
+]
+
 
 ANEMIA_MEASUREMENT_EVENTS = [
     SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC,
@@ -191,7 +227,8 @@ class __Columns(NamedTuple):
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
-    MATERNAL_HEMORRHAGE = "maternal_hemorrhage"
+    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
+    POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -224,11 +261,44 @@ COLUMNS = __Columns()
 # TODO: add other maternal disorders when implemented
 MATERNAL_DISORDERS = [
     COLUMNS.OBSTRUCTED_LABOR,
-    COLUMNS.MATERNAL_HEMORRHAGE,
+    COLUMNS.ANTEPARTUM_HEMORRHAGE,
+    COLUMNS.POSTPARTUM_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     COLUMNS.RESIDUAL_MATERNAL_DISORDERS,
 ]
+
+HEMORRHAGE_CAUSES = [
+    COLUMNS.ANTEPARTUM_HEMORRHAGE,
+    COLUMNS.POSTPARTUM_HEMORRHAGE,
+]
+
+# Maternal disorders resolve in two mortality passes. Antepartum disorders resolve
+# (incidence + mortality) during the pregnancy band, before any intrapartum disorder
+# is assigned; intrapartum disorders are applied and killed only among antepartum
+# survivors. The single phase mapping makes the partition structural — a disorder
+# cannot land in both passes — while the observer still consumes the full union
+# (MATERNAL_DISORDERS).
+MATERNAL_DISORDER_PHASE = {
+    COLUMNS.ANTEPARTUM_HEMORRHAGE: "antepartum",
+    COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY: "antepartum",
+    COLUMNS.OBSTRUCTED_LABOR: "intrapartum",
+    COLUMNS.POSTPARTUM_HEMORRHAGE: "intrapartum",
+    COLUMNS.MATERNAL_SEPSIS: "intrapartum",
+    COLUMNS.RESIDUAL_MATERNAL_DISORDERS: "intrapartum",
+}
+
+ANTEPARTUM_MATERNAL_DISORDERS = [
+    disorder for disorder, phase in MATERNAL_DISORDER_PHASE.items() if phase == "antepartum"
+]
+INTRAPARTUM_MATERNAL_DISORDERS = [
+    disorder for disorder, phase in MATERNAL_DISORDER_PHASE.items() if phase == "intrapartum"
+]
+
+if set(MATERNAL_DISORDER_PHASE) != set(MATERNAL_DISORDERS):
+    raise ValueError(
+        "MATERNAL_DISORDER_PHASE must assign a phase to exactly the MATERNAL_DISORDERS causes."
+    )
 
 
 CHILD_LOOKUP_COLUMN_MAPPER = {
@@ -288,7 +358,8 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
-    MATERNAL_HEMORRHAGE_INCIDENCE_RISK = "maternal_hemorrhage.incidence_risk"
+    ANTEPARTUM_HEMORRHAGE_INCIDENCE_RISK = "antepartum_hemorrhage.incidence_risk"
+    POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
@@ -487,6 +558,15 @@ class __PostpartumDepressionCaseTypes(NamedTuple):
 
 
 POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
+
+
+class __HemorrhageSeverity(NamedTuple):
+    NONE: str = "none"
+    MODERATE: str = "moderate"
+    SEVERE: str = "severe"
+
+
+HEMORRHAGE_SEVERITY = __HemorrhageSeverity()
 
 
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18
