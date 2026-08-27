@@ -210,12 +210,9 @@ class ANCAttendance(Component):
         high.loc[has_medium_pregnancy] = pregnancy_duration_in_weeks.loc[has_medium_pregnancy]
         # calculate visit timing
         draw = self.randomness.get_draw(index, additional_key="anc_first_visit_timing")
-        # pandas resolves a float Series times a Timedelta to us; the population
-        # table declares this column as ns, so cast back to keep the dtype stable.
-        time_of_first_visit = (
-            pd.Series((low + (high - low) * draw), name=COLUMNS.TIME_OF_FIRST_ANC_VISIT)
-            * pd.Timedelta(days=7)
-        ).astype("timedelta64[ns]")
+        time_of_first_visit = pd.Series(
+            (low + (high - low) * draw), name=COLUMNS.TIME_OF_FIRST_ANC_VISIT
+        ) * pd.Timedelta(days=7)
         time_of_first_visit.loc[~attends_first_trimester_anc] = pd.NaT
         return time_of_first_visit
 
@@ -237,11 +234,9 @@ class ANCAttendance(Component):
         # https://vivarium-research.readthedocs.io/en/latest/models/concept_models/vivarium_mncnh_portfolio/anemia_component/module_document.html#id6
         low = pd.Series(12, index=index)
         high = pd.Series(pregnancy_duration_in_weeks - 2, index=index)
-        # See the note in _calculate_first_visit_timing about the ns cast.
-        time_of_later_visit = (
-            pd.Series((low + (high - low) * draw), name=COLUMNS.TIME_OF_LATER_ANC_VISIT)
-            * pd.Timedelta(days=7)
-        ).astype("timedelta64[ns]")
+        time_of_later_visit = pd.Series(
+            (low + (high - low) * draw), name=COLUMNS.TIME_OF_LATER_ANC_VISIT
+        ) * pd.Timedelta(days=7)
         time_of_later_visit.loc[~attends_later_anc] = pd.NaT
         return time_of_later_visit
 
