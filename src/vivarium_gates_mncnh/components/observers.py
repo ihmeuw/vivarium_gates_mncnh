@@ -671,15 +671,8 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         self._sim_step_name = builder.time.simulation_event_name()
         self.hemoglobin_name = PIPELINES.HEMOGLOBIN_EXPOSURE
         self.gestational_age_name = COLUMNS.GESTATIONAL_AGE_EXPOSURE
-        builder.results.register_stratification(
-            "timestep",
-            ANEMIA_MEASUREMENT_EVENTS,
-            mapper=self._map_timestep,
-            is_vectorized=True,
-            # requires_attributes cannot be empty; "age" is used as a placeholder
-            # to satisfy the framework requirement for a population DataFrame column.
-            requires_attributes=["age"],
-        )
+        # The "timestep" stratification this observer's `include` list asks for is
+        # registered by ResultsStratifier, which is always in the model spec.
 
     def register_observations(self, builder: Builder) -> None:
         shared_kwargs = dict(
@@ -813,10 +806,6 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             "not_anemic": 0.0,
         }
         return anemia_status.map(anemia_status_to_dw)
-
-    def _map_timestep(self, pop: pd.DataFrame) -> pd.Series:
-        """Map all simulants to the current simulation event name for stratification."""
-        return pd.Series(self._sim_step_name(), index=pop.index)
 
 
 class NeonatalCauseRelativeRiskObserver(PublicHealthObserver):
