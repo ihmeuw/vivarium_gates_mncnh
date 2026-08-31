@@ -22,6 +22,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     ANC_ATTENDANCE_TYPES,
     ANEMIA_MEASUREMENT_EVENTS,
     ANEMIA_THRESHOLDS,
+    ANEMIA_THRESHOLDS_NON_PREGNANCY,
     CAUSES_OF_NEONATAL_MORTALITY,
     COLUMNS,
     DAYS_PER_WEEK,
@@ -51,12 +52,36 @@ from vivarium_gates_mncnh.utilities import (
 )
 
 
-def get_anemia_status_from_hemoglobin(hemoglobin: pd.Series) -> pd.Series:
-    """Use anemia thresholds to determine anemia status."""
+def get_anemia_status_from_hemoglobin(
+    hemoglobin: pd.Series, thresholds: list[float] | None = None
+) -> pd.Series:
+    """Determine anemia status from hemoglobin values using severity thresholds.
+
+    Bins hemoglobin values into anemia severity categories using ``pd.cut``
+    with left-closed intervals (``right=False``). Values at or above the highest
+    threshold are classified as "not_anemic".
+
+    Parameters
+    ----------
+    hemoglobin
+        Hemoglobin concentration values in g/L.
+    thresholds
+        Ascending list of three threshold values (g/L) defining the boundaries
+        between severe, moderate, and mild anemia. If None, uses the default
+        pregnancy-specific thresholds.
+
+    Returns
+    -------
+    pd.Series
+        Anemia status for each simulant, one of "severe", "moderate", "mild",
+        or "not_anemic".
+    """
+    if thresholds is None:
+        thresholds = ANEMIA_THRESHOLDS
     anemia_status = (
         pd.cut(
             hemoglobin,
-            bins=[-np.inf] + ANEMIA_THRESHOLDS,
+            bins=[-np.inf] + thresholds,
             labels=["severe", "moderate", "mild"],
             right=False,
         )
@@ -77,6 +102,7 @@ class ResultsStratifier(ResultsStratifier_):
             DELIVERY_FACILITY_TYPES.CEmONC,
             DELIVERY_FACILITY_TYPES.NONE,
         ]
+        self._sim_step_name = builder.time.simulation_event_name()
         self.register_stratifications(builder)
 
     def register_stratifications(self, builder: Builder) -> None:
@@ -310,7 +336,18 @@ class ResultsStratifier(ResultsStratifier_):
         return oral_iron_coverage
 
     def map_anemia_status(self, pop: pd.DataFrame) -> pd.Series:
-        return get_anemia_status_from_hemoglobin(pop[PIPELINES.HEMOGLOBIN_EXPOSURE])
+        """Map hemoglobin values to anemia status categories.
+
+        Use non-pregnancy thresholds during the late postpartum (6w-9m) step
+        to match the thresholds used in disability weight calculations.
+        """
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
+            thresholds = ANEMIA_THRESHOLDS_NON_PREGNANCY
+        else:
+            thresholds = None
+        return get_anemia_status_from_hemoglobin(
+            pop[PIPELINES.HEMOGLOBIN_EXPOSURE], thresholds
+        )
 
     def map_timestep(self, pop: pd.DataFrame) -> pd.Series:
         return pd.Series(self._sim_step_name(), index=pop.index)
@@ -634,11 +671,12 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         self._sim_step_name = builder.time.simulation_event_name()
         self.hemoglobin_name = PIPELINES.HEMOGLOBIN_EXPOSURE
         self.gestational_age_name = COLUMNS.GESTATIONAL_AGE_EXPOSURE
+        # The "timestep" stratification this observer's `include` list asks for is
+        # registered by ResultsStratifier, which is always in the model spec.
 
     def register_observations(self, builder: Builder) -> None:
-        self.register_adding_observation(
+        shared_kwargs = dict(
             builder=builder,
-            name="anemia_ylds",
             when="time_step__prepare",
             pop_filter="is_alive == True",
             requires_attributes=[
@@ -651,23 +689,15 @@ class AnemiaYLDsObserver(PublicHealthObserver):
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
             to_observe=self.to_observe,
+        )
+        self.register_adding_observation(
+            **shared_kwargs,
+            name="anemia_ylds",
             aggregator=self.calculate_anemia_ylds,
         )
         self.register_adding_observation(
-            builder=builder,
+            **shared_kwargs,
             name="anemia_person_time",
-            when="time_step__prepare",
-            pop_filter="is_alive == True",
-            requires_attributes=[
-                COLUMNS.TIME_OF_FIRST_ANC_VISIT,
-                COLUMNS.TIME_OF_LATER_ANC_VISIT,
-                COLUMNS.ANC_ATTENDANCE,
-                PIPELINES.HEMOGLOBIN_EXPOSURE,
-                COLUMNS.GESTATIONAL_AGE_EXPOSURE,
-            ],
-            additional_stratifications=self.configuration.include,
-            excluded_stratifications=self.configuration.exclude,
-            to_observe=self.to_observe,
             aggregator=self.calculate_anemia_person_time,
         )
 
@@ -686,9 +716,19 @@ class AnemiaYLDsObserver(PublicHealthObserver):
         defined for live births and stillbirths by that point. This gestational
         age exposure will be modified by any iron interventions received at a
         first trimester ANC visit.
+
+        For the 6w-9m postpartum period, non-pregnancy-specific anemia
+        thresholds are used to determine disability weights.
         """
+        # Use non-pregnancy thresholds for the late postpartum (6w-9m) period.
+        # The same disability weights are used regardless of threshold set - only the
+        # anemia status categorization changes between pregnancy and non-pregnancy periods.
+        if self._sim_step_name() == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
+            thresholds = ANEMIA_THRESHOLDS_NON_PREGNANCY
+        else:
+            thresholds = ANEMIA_THRESHOLDS
         anemia_status = get_anemia_status_from_hemoglobin(
-            self.population_view.get(data.index, self.hemoglobin_name)
+            self.population_view.get(data.index, self.hemoglobin_name), thresholds
         )
         dw = self.get_disability_weight_from_anemia_status(anemia_status)
         duration_years = self._get_duration_years(data)

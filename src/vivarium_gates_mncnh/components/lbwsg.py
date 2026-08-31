@@ -826,13 +826,22 @@ class LBWSGPAFObserver(Component):
         return updated
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
+        # Results are gathered over the whole stratification cross-product, so groups for
+        # combinations the population does not currently occupy arrive empty. results_updater
+        # keeps each age group's value from the gather where it is non-zero, so the 0.0
+        # returned here is discarded rather than recorded.
+        if x.empty:
+            return 0.0
+
         relative_risk = self.population_view.get(x.index, self.relative_risk_name)
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index, "lbwsg_category")
         unique_sexes = x["sex_of_child"].unique()
         if len(unique_sexes) != 1:
             raise ValueError(
-                "Stratified data contains more than one sex, but this observer (LBWSGPAFObserver) needs sex-stratified data."
+                f"Stratified data contains {len(unique_sexes)} sexes "
+                f"({list(unique_sexes)}), but this observer (LBWSGPAFObserver) needs "
+                "sex-stratified data."
             )
         sex = unique_sexes[0]
 
@@ -903,10 +912,16 @@ class PretermPrevalenceObserver(Component):
         # within a given LBWSG category
         # this fraction will be 1 at the first time step because no one has died yet, which is
         # what we want
+        # See calculate_paf: empty groups arrive for unoccupied stratification combinations.
+        if x.empty:
+            return 0.0
+
         unique_sexes = x["sex_of_child"].unique()
         if len(unique_sexes) != 1:
             raise ValueError(
-                "Stratified data contains more than one sex, but this observer (PretermPrevalenceObserver) needs sex-stratified data."
+                f"Stratified data contains {len(unique_sexes)} sexes "
+                f"({list(unique_sexes)}), but this observer (PretermPrevalenceObserver) "
+                "needs sex-stratified data."
             )
         sex = unique_sexes[0]
 

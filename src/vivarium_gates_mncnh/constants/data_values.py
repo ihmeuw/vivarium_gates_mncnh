@@ -24,13 +24,16 @@ DAYS_PER_YEAR = 365.25
 DAYS_PER_WEEK = 7
 MONTHS_PER_YEAR = 12
 
+# Postpartum period boundaries (measured from the end of pregnancy) used for the
+# hemorrhage hemoglobin shifts and anemia YLD calculations. Early postpartum is
+# 0-6 weeks; late postpartum is 6-39 weeks (39 weeks being the point at which the
+# GBD 2023 postpartum-hemorrhage hemoglobin shift curve returns to ~0).
+EARLY_POSTPARTUM_END_DAYS = 6 * DAYS_PER_WEEK  # 6 weeks
+LATE_POSTPARTUM_END_DAYS = 39 * DAYS_PER_WEEK  # 39 weeks
+
 # GBD sequela IDs for maternal hemorrhage severity splits
 MODERATE_HEMORRHAGE_SEQUELA_ID = 180
 SEVERE_HEMORRHAGE_SEQUELA_ID = 181
-
-# Postpartum period boundaries (in days)
-EARLY_POSTPARTUM_END_DAYS = 6 * DAYS_PER_WEEK  # 6 weeks
-LATE_POSTPARTUM_END_DAYS = 39 * DAYS_PER_WEEK  # 39 weeks
 
 # Postpartum period labels (shared between loader and component)
 EARLY_POSTPARTUM_PERIOD = "early_postpartum"
@@ -365,6 +368,7 @@ class __Pipelines(NamedTuple):
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
     FIRST_ANC_HEMOGLOBIN_EXPOSURE = "first_anc_hemoglobin.exposure"
     IFA_DELETED_HEMOGLOBIN_EXPOSURE = "ifa_deleted_hemoglobin.exposure"
+    NON_PREGNANT_HEMOGLOBIN_EXPOSURE = "non_pregnant_hemoglobin.exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention.exposure"
 
 
@@ -630,7 +634,8 @@ HEMOGLOBIN_TEST_SENSITIVITY = 0.85  # low hemoglobin that tests low
 HEMOGLOBIN_TEST_SPECIFICITY = 0.8  # adequate hemoglobin that tests adequate
 LOW_HEMOGLOBIN_THRESHOLD = 100
 
-ANEMIA_THRESHOLDS = [70, 100, 110]  # ordering is severe, moderate, mild
+ANEMIA_THRESHOLDS = [70, 100, 110]  # g/L, ascending: severe < moderate < mild
+ANEMIA_THRESHOLDS_NON_PREGNANCY = [80, 110, 120]  # g/L, ascending: severe < moderate < mild
 
 RESIDUAL_MATERNAL_DISORDER_CAUSE_NAMES = [
     "maternal_hypertensive_disorders",  # 369

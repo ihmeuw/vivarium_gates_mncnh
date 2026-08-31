@@ -2254,6 +2254,12 @@ HEMORRHAGE_SHIFT_DAY_RANGES = {
     data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: _SHIFT_6W_9M,
 }
 
+# All four shift keys are drawn off a single seed so that they share a propensity:
+# within a draw, each key sits at the same quantile of its own normal. Seeding per
+# key instead made the four shifts independent, which let the APH:PPH ratio differ
+# between the early and late postpartum windows (and even flip sign) draw to draw.
+_HEMORRHAGE_SHIFT_SEED = data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.name
+
 
 def load_hemorrhage_hemoglobin_shift(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
@@ -2261,7 +2267,11 @@ def load_hemorrhage_hemoglobin_shift(
     """Load hemorrhage hemoglobin shift averaged over the appropriate day range.
 
     Uses pred_data.csv shift curve and generates draw-level data using
-    the draw_se column for uncertainty.
+    the draw_se column for uncertainty. The shift is age-agnostic so the
+    returned DataFrame is a single row of draws with no demographic index.
+
+    All four keys share a single seed, so a given draw uses the same propensity
+    for APH and PPH and for both postpartum windows.
     """
     pred_data = pd.read_csv(paths.HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV)
     day_start, day_end = HEMORRHAGE_SHIFT_DAY_RANGES[key]
@@ -2272,13 +2282,6 @@ def load_hemorrhage_hemoglobin_shift(
     mean_shift = subset["pred_mean"].mean()
     mean_se = subset["draw_se"].mean()
     dist = get_norm(mean=mean_shift, sd=mean_se)
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, _HEMORRHAGE_SHIFT_SEED, dist)
 
-    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
-    demography = demography.droplevel("location")
-
-    result = pd.DataFrame(
-        [draws] * len(demography),
-        index=demography.index,
-    )
-    return result
+    return pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)

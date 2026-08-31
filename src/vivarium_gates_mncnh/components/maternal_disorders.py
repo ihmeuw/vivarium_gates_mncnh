@@ -447,7 +447,7 @@ class SepsisEffectsOnHemoglobin(Component):
         Returns
         -------
             The modified hemoglobin exposure values with the sepsis shift applied
-            to simulants who experienced maternal sepsis.
+            to simulants who experienced maternal sepsis, floored at zero.
         """
         shift = self._get_current_shift()
         if shift is None:
@@ -456,7 +456,10 @@ class SepsisEffectsOnHemoglobin(Component):
         has_sepsis = self.population_view.get(index, COLUMNS.MATERNAL_SEPSIS)
         exposure.loc[has_sepsis] += shift
 
-        return exposure
+        # This is the last modifier on the pipeline, and the hemorrhage shifts clip
+        # earlier in the chain, so a simulant already floored at zero would otherwise
+        # be carried negative by this shift.
+        return exposure.clip(lower=0)
 
     ##################
     # Helper methods #

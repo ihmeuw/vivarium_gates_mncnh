@@ -8,9 +8,10 @@ input_draws: [115, 60, 118, 197, 79, 244, 22, 167, 146, 71]
 # Draws should NOT be equal to mod 100, meaning draws 115 and 215 should not be used together
 # due to the 2023 Hemoglobin exposure data only having 100 draws.
 # Other draws that have been generated available to use: 28, 156, 94, 170, 109, 26, 35, 114, 178, 127
-# Standard V&V scenarios for the model 39.0 "PPH/APH split updates" run (MIC-7286).
-# Only the "Standard V&V scenarios list" from the concept model docs is active;
-# the remaining portfolio scenarios are commented out (not deleted) for this run.
+# Standard V&V scenarios for the APH/PPH-effects-on-hemoglobin run (MIC-7285).
+# Only the "Standard V&V scenarios list" from the concept model docs are active;
+# the remaining portfolio scenarios are commented out for this run. Misoprostol
+# scale-up is intentionally excluded (being removed from the documentation).
 branches:
   - intervention:
       scenario:
