@@ -2,22 +2,30 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from vivarium import Component
-from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-from vivarium.framework.values import list_combiner, union_post_processor
+from vivarium.engine import Component
+from vivarium.engine.framework.engine import Builder
+from vivarium.engine.framework.event import Event
+from vivarium.engine.framework.population import SimulantData
+from vivarium.public_health.causal_factor.calibration_constant import (
+    register_risk_affected_attribute_producer,
+)
 
 from vivarium_gates_mncnh.constants import data_keys
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
+    EARLY_POSTPARTUM_PERIOD,
     HEMORRHAGE_SEVERITY,
+    LATE_POSTPARTUM_PERIOD,
+    PIPELINES,
     POSTPARTUM_DEPRESSION_CASE_TYPES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
-from vivarium_gates_mncnh.utilities import get_location
+from vivarium_gates_mncnh.utilities import (
+    get_location,
+    load_births_net_of_aph_mortality,
+)
 
 
 class MaternalDisorder(Component):
@@ -38,18 +46,14 @@ class MaternalDisorder(Component):
         self.incidence_risk_table = self.build_lookup_table(builder, "incidence_risk_data")
 
         self.incidence_risk_pipeline_name = f"{self.maternal_disorder}.incidence_risk"
-        builder.value.register_attribute_producer(
+        # RiskAffectedPipeline: RiskEffects multiply their RR onto this pipeline and
+        # contribute their PAF to the auto-created
+        # ``{disorder}.incidence_risk.calibration_constant`` pipeline, which is applied
+        # as ``incidence_risk * (1 - joint_paf)``.
+        register_risk_affected_attribute_producer(
+            builder,
             self.incidence_risk_pipeline_name,
-            source=self.calculate_risk_deleted_incidence,
-        )
-
-        paf = builder.lookup.build_table(0)
-        self.joint_paf_pipeline_name = f"{self.maternal_disorder}.incidence_risk.paf"
-        builder.value.register_attribute_producer(
-            self.joint_paf_pipeline_name,
-            source=lambda index: [paf(index)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
+            source=self.get_incidence_risk,
         )
 
         builder.population.register_initializer(
@@ -70,11 +74,16 @@ class MaternalDisorder(Component):
         if self._sim_step_name() != self.maternal_disorder:
             return
 
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        pop = self.population_view.get(
+            event.index, [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.MOTHER_ALIVE]
+        )
+        # Only living, full-term mothers are eligible for an intrapartum disorder;
+        # mothers who died of an antepartum disorder are excluded.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
+            & pop[COLUMNS.MOTHER_ALIVE]
         ]
         incidence_risk = self.population_view.get(
             full_term.index, self.incidence_risk_pipeline_name
@@ -93,21 +102,18 @@ class MaternalDisorder(Component):
     def load_incidence_risk(self, builder: Builder) -> pd.DataFrame:
         artifact_key = "cause." + self.maternal_disorder + ".incidence_rate"
         raw_incidence = builder.data.load(artifact_key).set_index(ARTIFACT_INDEX_COLUMNS)
-        asfr = builder.data.load(data_keys.PREGNANCY.ASFR).set_index(ARTIFACT_INDEX_COLUMNS)
-        sbr = (
-            builder.data.load(data_keys.PREGNANCY.SBR)
-            .set_index("year_start")
-            .drop(columns=["year_end"])
-            .reindex(asfr.index, level="year_start")
-        )
-        birth_rate = (sbr + 1) * asfr
-        incidence_risk = (raw_incidence / birth_rate).fillna(0.0)
+        # This shared loader divides by births net of antepartum-hemorrhage deaths,
+        # correct for the intrapartum subclasses (sepsis, obstructed labor) that
+        # consume this pipeline. AbortionMiscarriageEctopicPregnancy also inherits it
+        # but assigns deterministically off pregnancy outcome and never reads the pipeline.
+        denominator = load_births_net_of_aph_mortality(builder)
+        incidence_risk = (raw_incidence / denominator).fillna(0.0)
         return incidence_risk.reset_index()
 
-    def calculate_risk_deleted_incidence(self, index: pd.Index) -> pd.Series:
-        incidence_risk = self.incidence_risk_table(index)
-        joint_paf = self.population_view.get(index, self.joint_paf_pipeline_name)
-        return incidence_risk * (1 - joint_paf)
+    def get_incidence_risk(self, index: pd.Index) -> pd.Series:
+        """Raw incidence risk. The RiskAffectedPipeline applies the joint-PAF
+        calibration (1 - calibration_constant) and any RiskEffect relative risks."""
+        return self.incidence_risk_table(index)
 
 
 class PostpartumDepression(MaternalDisorder):
@@ -245,11 +251,16 @@ class ResidualMaternalDisorders(MaternalDisorder):
         if self._sim_step_name() != self.maternal_disorder:
             return
 
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        pop = self.population_view.get(
+            event.index, [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.MOTHER_ALIVE]
+        )
+        # Residual disorders apply only to living, full-term mothers; those who
+        # died of an antepartum disorder are excluded.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
+            & pop[COLUMNS.MOTHER_ALIVE]
         ].index
 
         self.population_view.update(
@@ -332,7 +343,8 @@ class MaternalHemorrhageBase(MaternalDisorder):
 
 
 class AntepartumHemorrhage(MaternalHemorrhageBase):
-    """Applies pregnancy-scaled incidence risk to all pregnant people."""
+    """Applies per-birth incidence risk to full-term pregnancies (stillbirths and
+    live births); partial-term (abortion/miscarriage/ectopic) pregnancies are excluded."""
 
     INCIDENCE_RISK_KEY = data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK
 
@@ -344,12 +356,15 @@ class AntepartumHemorrhage(MaternalHemorrhageBase):
             return
 
         pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # All pregnant people (excluding invalid outcomes)
-        eligible = pop.loc[
-            pop[COLUMNS.PREGNANCY_OUTCOME] != PREGNANCY_OUTCOMES.INVALID_OUTCOME
+        # Full-term births only (stillbirths and live births); partial-term (AME)
+        # pregnancies are excluded so APH and AME are mutually exclusive.
+        full_term = pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            )
         ].index
 
-        self.assign_outcomes(eligible)
+        self.assign_outcomes(full_term)
 
 
 class PostpartumHemorrhage(MaternalHemorrhageBase):
@@ -364,12 +379,102 @@ class PostpartumHemorrhage(MaternalHemorrhageBase):
         if self._sim_step_name() != SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE:
             return
 
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # Full-term births only (stillbirths and live births)
+        pop = self.population_view.get(
+            event.index, [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.MOTHER_ALIVE]
+        )
+        # Full-term births only (stillbirths and live births) among living mothers;
+        # mothers who died of an antepartum disorder are excluded.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
             )
+            & pop[COLUMNS.MOTHER_ALIVE]
         ].index
 
         self.assign_outcomes(full_term)
+
+
+class SepsisEffectsOnHemoglobin(Component):
+    """Maternal sepsis effects on postpartum hemoglobin.
+
+    Applies a hemoglobin shift to simulants who experienced maternal sepsis,
+    with different shift magnitudes for the early postpartum (0-6 weeks) and
+    late postpartum (6-39 weeks) periods.
+    """
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self._sim_step_name = builder.time.simulation_event_name()
+        self.early_postpartum_shift, self.late_postpartum_shift = self._load_shift_values(
+            builder
+        )
+
+        builder.value.register_attribute_modifier(
+            PIPELINES.HEMOGLOBIN_EXPOSURE,
+            self.apply_sepsis_hemoglobin_shift,
+            required_resources=[COLUMNS.MATERNAL_SEPSIS],
+        )
+
+    def _load_shift_values(self, builder: Builder) -> tuple[float, float]:
+        """Load early and late postpartum hemoglobin shift values from the artifact."""
+        shift_data = builder.data.load(data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT).set_index(
+            "postpartum_period"
+        )
+        return (
+            shift_data.loc[EARLY_POSTPARTUM_PERIOD, "value"],
+            shift_data.loc[LATE_POSTPARTUM_PERIOD, "value"],
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def apply_sepsis_hemoglobin_shift(
+        self, index: pd.Index, exposure: pd.Series[float]
+    ) -> pd.Series[float]:
+        """Apply the sepsis hemoglobin shift to simulants who experienced sepsis.
+
+        Parameters
+        ----------
+        index
+            The index of the simulants to apply the shift to.
+        exposure
+            The current hemoglobin exposure values for the simulants.
+
+        Returns
+        -------
+            The modified hemoglobin exposure values with the sepsis shift applied
+            to simulants who experienced maternal sepsis, floored at zero.
+        """
+        shift = self._get_current_shift()
+        if shift is None:
+            return exposure
+
+        has_sepsis = self.population_view.get(index, COLUMNS.MATERNAL_SEPSIS)
+        exposure.loc[has_sepsis] += shift
+
+        # This is the last modifier on the pipeline, and the hemorrhage shifts clip
+        # earlier in the chain, so a simulant already floored at zero would otherwise
+        # be carried negative by this shift.
+        return exposure.clip(lower=0)
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _get_current_shift(self) -> float | None:
+        """Return the hemoglobin shift for the current postpartum period, or None.
+
+        The shift is applied during the mother's postpartum-period steps: the
+        early-postpartum (0-6 week) value during EARLY_POSTPARTUM and the
+        late-postpartum (6-39 week) value during LATE_POSTPARTUM.
+        """
+        current_event = self._sim_step_name()
+        if current_event == SIMULATION_EVENT_NAMES.EARLY_POSTPARTUM:
+            return self.early_postpartum_shift
+        elif current_event == SIMULATION_EVENT_NAMES.LATE_POSTPARTUM:
+            return self.late_postpartum_shift
+        return None

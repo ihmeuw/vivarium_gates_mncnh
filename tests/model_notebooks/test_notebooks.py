@@ -12,9 +12,37 @@ from typing import Any, Dict, List
 import papermill as pm
 import pytest
 from loguru import logger
-from vivarium_testing_utils.pytest_plugin import IS_ON_SLURM
+from vivarium.testing_utils.pytest_plugin import IS_ON_SLURM
 
-from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR, MODEL_RESULTS_DIR
+from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def resolve_environment_python(environment_type: str) -> Path:
+    """
+    Find the interpreter to run notebooks of a given environment type.
+
+    `make build-shared-env` builds each environment as a venv overlay at
+    `<repo>/.venv/<repo_dir_name>_<environment_type>`, so the interpreter is
+    discovered from the repo itself. Falling back to a conda environment named
+    after the package keeps older setups working.
+
+    Args:
+        environment_type: One of "simulation" or "artifact"
+
+    Returns:
+        Path to the environment's python, or None if no venv overlay is found
+    """
+    candidates = sorted((REPO_ROOT / ".venv").glob(f"*_{environment_type}/bin/python"))
+    if not candidates:
+        return None
+    if len(candidates) > 1:
+        logger.warning(
+            f"Found {len(candidates)} '{environment_type}' venvs under {REPO_ROOT / '.venv'}; "
+            f"using {candidates[0]}"
+        )
+    return candidates[0]
 
 
 def discover_notebook_paths(notebook_directory) -> List[Path]:
@@ -80,8 +108,15 @@ class NotebookTestRunner:
         self.parameters = parameters
         self.timeout = -1  # No timeout by default
         self.environment_type = environment_type
-        self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
-        self.kernel_name = f"conda-env-{self.conda_env_name}-py"
+        # Prefer this repo's venv overlay for the environment type; the kernel is
+        # named after it so worktrees don't collide on one another's kernelspecs.
+        self.environment_python = resolve_environment_python(environment_type)
+        if self.environment_python is not None:
+            self.conda_env_name = None
+            self.kernel_name = f"vgm-nb-{self.environment_python.parents[1].name}"
+        else:
+            self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
+            self.kernel_name = f"conda-env-{self.conda_env_name}-py"
 
         # Validate notebook directory exists
         if not self.notebook_path.exists():
@@ -122,23 +157,35 @@ class NotebookTestRunner:
 
     def _register_kernel(self) -> bool:
         """
-        Register the conda environment as a Jupyter kernel.
+        Register the environment as a Jupyter kernel.
 
         Returns:
             True if registration succeeded, False otherwise
         """
         try:
-            logger.info(
-                f"Registering kernel '{self.kernel_name}' for conda env '{self.conda_env_name}'"
-            )
+            source = self.environment_python or f"conda env '{self.conda_env_name}'"
+            logger.info(f"Registering kernel '{self.kernel_name}' for {source}")
 
-            # Use conda run to execute ipykernel install in the target environment
             display_name = f"Python (vivarium_gates_mncnh_{self.environment_type})"
-            cmd_str = (
-                f"conda run -n {self.conda_env_name} python -m ipykernel install "
-                f"--user --name {self.kernel_name} --display-name '{display_name}'"
-            )
-            cmd = shlex.split(cmd_str)
+            if self.environment_python is not None:
+                cmd = [
+                    str(self.environment_python),
+                    "-m",
+                    "ipykernel",
+                    "install",
+                    "--user",
+                    "--name",
+                    self.kernel_name,
+                    "--display-name",
+                    display_name,
+                ]
+            else:
+                # Use conda run to execute ipykernel install in the target environment
+                cmd_str = (
+                    f"conda run -n {self.conda_env_name} python -m ipykernel install "
+                    f"--user --name {self.kernel_name} --display-name '{display_name}'"
+                )
+                cmd = shlex.split(cmd_str)
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
             logger.success(f"Successfully registered kernel '{self.kernel_name}'")
@@ -163,10 +210,14 @@ class NotebookTestRunner:
             logger.info(f"Kernel '{self.kernel_name}' not found, attempting to register...")
 
             if not self._register_kernel():
+                source = (
+                    f"environment {self.environment_python}"
+                    if self.environment_python
+                    else f"conda environment '{self.conda_env_name}'"
+                )
                 raise RuntimeError(
                     f"Failed to register kernel '{self.kernel_name}'. "
-                    f"Ensure conda environment '{self.conda_env_name}' exists and "
-                    f"has ipykernel installed."
+                    f"Ensure {source} exists and has ipykernel installed."
                 )
 
     def _execute_notebook(self, notebook_path: Path) -> bool:
@@ -270,9 +321,6 @@ def test_results_notebook(notebook_path) -> None:
     runner = NotebookTestRunner(
         notebook_path=notebook_path,
         environment_type="artifact",
-        parameters={
-            "model_dir": str(MODEL_RESULTS_DIR),
-        },
     )
     runner.test_run_notebook()
 

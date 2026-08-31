@@ -28,5 +28,10 @@ branches:
         - "anemia_screening_and_iv_iron_scaleup"
         - "azithromycin_vv"
         - "misoprostol_vv"
+        # - "no_acs_and_total_cpap_vv"
+        # - "total_acs_and_cpap_vv"
+        # - "total_acs_and_no_cpap_vv"
         # - "ultrasound_vv"
         - "anemia_screening_vv"
+    population:
+      population_size: 20_000

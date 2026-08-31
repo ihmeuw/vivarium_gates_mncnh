@@ -5,10 +5,10 @@ from typing import Any, Generator
 import pandas as pd
 import pytest
 import yaml
-from layered_config_tree import LayeredConfigTree
 from pytest import TempPathFactory
-from vivarium import Artifact
-from vivarium_testing_utils import FuzzyChecker
+from vivarium.artifact import Artifact
+from vivarium.config_tree import ConfigTree
+from vivarium.testing_utils import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 
@@ -59,13 +59,13 @@ def model_spec_path() -> Path:
 def sim_state_step_mapper(model_spec_path: Path) -> dict[str, int]:
     # Derive the step -> take_steps count from the model spec's simulation_events
     # (the single source of truth) so it can never drift from the real ordering.
-    events = list(LayeredConfigTree(model_spec_path).configuration.time.simulation_events)
+    events = list(ConfigTree(model_spec_path).configuration.time.simulation_events)
     return {event: i + 1 for i, event in enumerate(events)}
 
 
 @pytest.fixture(scope="session")
 def artifact(model_spec_path) -> Artifact:
-    config = LayeredConfigTree(model_spec_path)
+    config = ConfigTree(model_spec_path)
     artifact = Artifact(config.configuration.input_data.artifact_path)
     return artifact
 

@@ -11,6 +11,7 @@ class InterventionScenario:
     name: str
     bemonc_cpap_access: str = "baseline"
     cemonc_cpap_access: str = "baseline"
+    home_cpap_access: str = "baseline"
     bemonc_antibiotics_access: str = "baseline"
     cemonc_antibiotics_access: str = "baseline"
     home_antibiotics_access: str = "baseline"
@@ -18,7 +19,9 @@ class InterventionScenario:
     cemonc_probiotics_access: str = "baseline"
     bemonc_azithromycin_access: str = "baseline"
     cemonc_azithromycin_access: str = "baseline"
-    acs_access: str = "baseline"
+    bemonc_acs_access: str = "baseline"
+    cemonc_acs_access: str = "baseline"
+    home_acs_access: str = "baseline"
     home_misoprostol_access: str = "baseline"
     ultrasound_coverage: str = "baseline"
     standard_ultrasound_coverage: str = "baseline"
@@ -34,6 +37,8 @@ class __InterventionScenarios(NamedTuple):
         "cpap_acs_scaleup",
         bemonc_cpap_access="full",
         cemonc_cpap_access="full",
+        bemonc_acs_access="full",
+        cemonc_acs_access="full",
     )
     CPAP_ACS_AI_ULTRASOUND_SCALEUP: InterventionScenario = InterventionScenario(
         "cpap_acs_ai_ultrasound_scaleup",
@@ -41,6 +46,8 @@ class __InterventionScenarios(NamedTuple):
         standard_ultrasound_coverage="none",
         bemonc_cpap_access="full",
         cemonc_cpap_access="full",
+        bemonc_acs_access="full",
+        cemonc_acs_access="full",
     )
     NEONATAL_ANTIBIOTICS_SCALEUP: InterventionScenario = InterventionScenario(
         "neonatal_antibiotics_scaleup",
@@ -74,6 +81,8 @@ class __InterventionScenarios(NamedTuple):
         standard_ultrasound_coverage="none",
         bemonc_cpap_access="full",
         cemonc_cpap_access="full",
+        bemonc_acs_access="full",
+        cemonc_acs_access="full",
         bemonc_probiotics_access="full",
         cemonc_probiotics_access="full",
         bemonc_antibiotics_access="full",
@@ -96,12 +105,39 @@ class __InterventionScenarios(NamedTuple):
         "azithromycin_vv",
         bemonc_azithromycin_access="scale_up",
         cemonc_azithromycin_access="scale_up",
-        acs_access="none",
+        bemonc_acs_access="none",
+        cemonc_acs_access="none",
+        home_acs_access="none",
     )
     MISOPROSTOL_VV: InterventionScenario = InterventionScenario(
         "misoprostol_vv",
         home_misoprostol_access="scale_up",
-        acs_access="none",
+        bemonc_acs_access="none",
+        cemonc_acs_access="none",
+        home_acs_access="none",
+    )
+    NO_ACS_AND_TOTAL_CPAP_VV: InterventionScenario = InterventionScenario(
+        "no_acs_and_total_cpap_vv",
+        bemonc_cpap_access="full",
+        cemonc_cpap_access="full",
+        bemonc_acs_access="none",
+        cemonc_acs_access="none",
+        home_acs_access="none",
+    )
+    TOTAL_ACS_AND_CPAP_VV: InterventionScenario = InterventionScenario(
+        "total_acs_and_cpap_vv",
+        bemonc_cpap_access="full",
+        cemonc_cpap_access="full",
+        bemonc_acs_access="full",
+        cemonc_acs_access="full",
+    )
+    TOTAL_ACS_AND_NO_CPAP_VV: InterventionScenario = InterventionScenario(
+        "total_acs_and_no_cpap_vv",
+        bemonc_cpap_access="none",
+        cemonc_cpap_access="none",
+        home_cpap_access="none",
+        bemonc_acs_access="full",
+        cemonc_acs_access="full",
     )
     ULTRASOUND_VV: InterventionScenario = InterventionScenario(
         "ultrasound_vv",
