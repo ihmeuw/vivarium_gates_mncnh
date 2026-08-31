@@ -791,7 +791,6 @@ class LBWSGPAFObserver(Component):
         self.relative_risk_name = self.risk_effect.relative_risk_name
         self.config = builder.configuration.stratification.lbwsg_paf
         self.pop_size = builder.configuration.population.population_size
-        self.step_number = 1
 
         builder.results.register_stratified_observation(
             name=f"calculated_lbwsg_paf_on_{self.target}",
@@ -813,31 +812,36 @@ class LBWSGPAFObserver(Component):
             when="time_step",
         )
 
-    def on_time_step_cleanup(self, event: Event) -> None:
-        """Increment step number at the end of each time step."""
-        self.step_number += 1
-
     def results_updater(self, old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
-        if self.step_number == 1:  # early neonatal time step
-            df = new
-        else:  # late neonatal time step
-            # use PAFs from first time step for ENN and second time step for LNN
-            df = pd.concat(
-                [
-                    old.query("child_age_group=='early_neonatal'"),
-                    new.query("child_age_group=='late_neonatal'"),
-                ],
-            )
-        return df
+        """Record each age group's PAF once it is available, and keep it thereafter.
+
+        The aggregator can only compute a PAF for the age group the population currently
+        occupies, reporting 0.0 for the others, so each age group's value has to come from
+        the gather where it is non-zero. Results are gathered more than once per time step,
+        so this must be idempotent and independent of gather order.
+        """
+        updated = old.copy()
+        observed = new.index[new["value"] != 0.0]
+        updated.loc[observed, "value"] = new.loc[observed, "value"]
+        return updated
 
     def calculate_paf(self, x: pd.DataFrame) -> float:
+        # Results are gathered over the whole stratification cross-product, so groups for
+        # combinations the population does not currently occupy arrive empty. results_updater
+        # keeps each age group's value from the gather where it is non-zero, so the 0.0
+        # returned here is discarded rather than recorded.
+        if x.empty:
+            return 0.0
+
         relative_risk = self.population_view.get(x.index, self.relative_risk_name)
         relative_risk.name = "relative_risk"
         lbwsg_category = self.population_view.get(x.index, "lbwsg_category")
         unique_sexes = x["sex_of_child"].unique()
         if len(unique_sexes) != 1:
             raise ValueError(
-                "Stratified data contains more than one sex, but this observer (LBWSGPAFObserver) needs sex-stratified data."
+                f"Stratified data contains {len(unique_sexes)} sexes "
+                f"({list(unique_sexes)}), but this observer (LBWSGPAFObserver) needs "
+                "sex-stratified data."
             )
         sex = unique_sexes[0]
 
@@ -908,10 +912,16 @@ class PretermPrevalenceObserver(Component):
         # within a given LBWSG category
         # this fraction will be 1 at the first time step because no one has died yet, which is
         # what we want
+        # See calculate_paf: empty groups arrive for unoccupied stratification combinations.
+        if x.empty:
+            return 0.0
+
         unique_sexes = x["sex_of_child"].unique()
         if len(unique_sexes) != 1:
             raise ValueError(
-                "Stratified data contains more than one sex, but this observer (PretermPrevalenceObserver) needs sex-stratified data."
+                f"Stratified data contains {len(unique_sexes)} sexes "
+                f"({list(unique_sexes)}), but this observer (PretermPrevalenceObserver) "
+                "needs sex-stratified data."
             )
         sex = unique_sexes[0]
 
