@@ -88,7 +88,7 @@ def test_birth_exposure_coverage(
             expected_exposure = sex_exposure.loc[sex_exposure["parameter"] == category][
                 draw
             ].iloc[0]
-            fuzzy_checker.fuzzy_assert_proportion(
+            fuzzy_checker.assert_proportion(
                 len(sex_subset.loc[sex_subset["category"] == category]),
                 len(sex_subset),
                 expected_exposure,

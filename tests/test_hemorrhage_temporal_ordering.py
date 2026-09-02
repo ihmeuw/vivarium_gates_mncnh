@@ -167,7 +167,7 @@ def test_aph_incidence_matches_applied_risk(
     n_cases = int(pop.loc[eligible_idx, COLUMNS.ANTEPARTUM_HEMORRHAGE].astype(bool).sum())
     target_proportion = float(risk.loc[eligible_idx].mean())
 
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         n_cases,
         len(eligible_idx),
         target_proportion,
