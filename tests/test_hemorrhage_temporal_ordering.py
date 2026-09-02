@@ -28,7 +28,7 @@ import pandas as pd
 import pytest
 from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
-from vivarium.testing_utils import FuzzyChecker
+from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
