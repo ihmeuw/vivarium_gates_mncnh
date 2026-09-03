@@ -137,3 +137,36 @@ def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
         measure_id=vi_globals.MEASURES["Deaths"],
     )
     return data
+
+
+@vi_utils.cache
+def get_sequela_data(sequela_id: int, location: str, measure: str) -> pd.DataFrame:
+    """Get sequela-level data from COMO for the given measure."""
+    location_id = utility_data.get_location_id(location)
+    data = base_data.get_draws(
+        gbd_id_type="sequela_id",
+        gbd_id=sequela_id,
+        source=gbd_constants.SOURCES.COMO,
+        location_id=location_id,
+        year_id=ARTIFACT_YEAR_START,
+        release_id=gbd_constants.RELEASE_IDS.GBD_2023,
+        measure_id=vi_globals.MEASURES[measure],
+        metric_id=vi_globals.METRICS["Rate"],
+    )
+    return data
+
+
+@vi_utils.cache
+def get_non_pregnant_hemoglobin_exposure_data(location: str) -> pd.DataFrame:
+    """Get non-pregnant hemoglobin exposure data (MEID 27596, GBD 2023)."""
+    location_id = utility_data.get_location_id(location)
+    data = base_data.get_draws(
+        gbd_id_type="modelable_entity_id",
+        gbd_id=27596,
+        source=gbd_constants.SOURCES.EXPOSURE,
+        location_id=location_id,
+        year_id=ARTIFACT_YEAR_START,
+        sex_id=gbd_constants.SEX.FEMALE,
+        release_id=gbd_constants.RELEASE_IDS.GBD_2023,
+    )
+    return data

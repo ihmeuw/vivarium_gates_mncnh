@@ -45,6 +45,7 @@ HGB_TMREL = 120.0
 HGB_MIN, HGB_MAX = 40.0, 150.0
 
 PPD_INCIDENCE_PIPELINE = "postpartum_depression.incidence_risk"
+HGB_RR_EXPOSURE_PIPELINE = "hemoglobin_exposure_for_non_loglinear_riskeffect"
 # Research target for the *baseline* (no-effect) mean incidence and its 95% CI.
 PPD_BASELINE_INCIDENCE = 0.12
 PPD_BASELINE_INCIDENCE_CI = (0.04, 0.20)
@@ -120,13 +121,8 @@ def _pipeline_values(sim: InteractiveContext, name: str, index: pd.Index) -> pd.
 
 
 def _hemoglobin_exposure(sim: InteractiveContext, index: pd.Index) -> pd.Series:
-    """Read hemoglobin exposure from the STATE COLUMN.
-
-    ``hemoglobin.exposure`` is not a value pipeline; the realized exposure lives
-    in the ``COLUMNS.HEMOGLOBIN_EXPOSURE`` state-table column.
-    """
-    col = sim.get_population([COLUMNS.HEMOGLOBIN_EXPOSURE])[COLUMNS.HEMOGLOBIN_EXPOSURE]
-    return col.loc[index]
+    """Read the hemoglobin exposure the non-log-linear risk effects are keyed on."""
+    return _pipeline_values(sim, HGB_RR_EXPOSURE_PIPELINE, index)
 
 
 def _load_direct_sepsis_rr() -> dict[tuple[str, int], tuple[np.ndarray, np.ndarray]]:
