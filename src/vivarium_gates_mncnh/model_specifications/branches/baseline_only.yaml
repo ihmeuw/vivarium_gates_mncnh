@@ -13,3 +13,5 @@ branches:
   - intervention:
       scenario: 
         - 'baseline' 
+    population:
+      population_size: 20_000

@@ -29,8 +29,19 @@ from vivarium_inputs import utilities as vi_utils
 from vivarium_inputs import utility_data
 
 from vivarium_gates_mncnh.constants import data_keys, data_values, metadata, paths
+from vivarium_gates_mncnh.constants.data_values import (
+    DAYS_PER_WEEK,
+    DAYS_PER_YEAR,
+    MODERATE_HEMORRHAGE_SEQUELA_ID,
+    MONTHS_PER_YEAR,
+    SEVERE_HEMORRHAGE_SEQUELA_ID,
+)
 from vivarium_gates_mncnh.data import extra_gbd, sampling, utilities
-from vivarium_gates_mncnh.utilities import get_random_variable_draws, get_truncnorm
+from vivarium_gates_mncnh.utilities import (
+    get_norm,
+    get_random_variable_draws,
+    get_truncnorm,
+)
 
 
 def get_data(
@@ -81,9 +92,26 @@ def get_data(
         data_keys.MATERNAL_SEPSIS.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_SEPSIS.CSMR: load_standard_data,
         data_keys.MATERNAL_SEPSIS.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_SEPSIS.HEMOGLOBIN_SHIFT: load_maternal_sepsis_hemoglobin_shift,
         data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.MATERNAL_HEMORRHAGE.CSMR: load_standard_data,
+        data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION: load_postpartum_fraction,
+        data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE: load_sequela_data,
+        data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE: load_sequela_data,
         data_keys.MATERNAL_HEMORRHAGE.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE: load_sequela_data,
+        data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: load_sequela_data,
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE: load_hemorrhage_ylds_per_case,
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE: load_hemorrhage_ylds_per_case,
+        data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION: load_hemorrhage_severe_fraction,
+        data_keys.MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE: load_hemorrhage_case_fatality_rate,
+        data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK: load_antepartum_hemorrhage_incidence,
+        data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK: load_postpartum_hemorrhage_incidence,
+        data_keys.MATERNAL_HEMORRHAGE.APH_CSMR: load_antepartum_hemorrhage_csmr,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
+        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.RAW_INCIDENCE_RATE: load_abortion_miscarriage_ectopic_incidence,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.CSMR: load_abortion_miscarriage_ectopic_csmr,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.YLD_RATE: load_abortion_miscarriage_ectopic_yld_rate,
@@ -161,6 +189,7 @@ def get_data(
         data_keys.HEMOGLOBIN.PAF: load_hemoglobin_paf,
         data_keys.HEMOGLOBIN.TMRED: load_hemoglobin_tmred,
         data_keys.HEMOGLOBIN.SCREENING_COVERAGE: load_hemoglobin_screening_coverage,
+        data_keys.HEMOGLOBIN.NON_PREGNANT_EXPOSURE: load_non_pregnant_hemoglobin_exposure,
         data_keys.IV_IRON.HEMOGLOBIN_EFFECT_SIZE: load_iv_iron_hemoglobin_effect_size,
         data_keys.IV_IRON.LBWSG_EFFECT_SIZE: load_iv_iron_lbwsg_effect_size,
         data_keys.IV_IRON.STILLBIRTH_RR: load_iv_iron_stillbirth_rr,
@@ -1021,6 +1050,74 @@ def load_iv_iron_hemoglobin_effect_size(
     return data
 
 
+def load_maternal_sepsis_hemoglobin_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load maternal sepsis hemoglobin shift draw data averaged over two postpartum periods.
+
+    For each draw, sample a single standard-normal z-score ``z`` and build the
+    shift curve as ``pred_mean + z * draw_se`` at each time point, so the shift
+    is correlated over time and each draw follows the shape of the mean curve.
+    Then average the draws over two time periods:
+      - "early_postpartum": 0 to ``EARLY_POSTPARTUM_END_DAYS`` days (first 6 weeks)
+      - "late_postpartum": ``EARLY_POSTPARTUM_END_DAYS`` to
+        ``LATE_POSTPARTUM_END_DAYS`` days (6 weeks to 39 weeks)
+
+    Parameters
+    ----------
+    key
+        The artifact data key for the hemoglobin shift data.
+    location
+        The location to get data for. Not used for this loader since the
+        source data is location-independent.
+    years
+        Not used. Accepted for interface compatibility with the loader dispatch.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame indexed by postpartum period with one column per draw,
+        containing the average hemoglobin shift for each period.
+    """
+    curve_data = pd.read_csv(paths.MATERNAL_SEPSIS_HEMOGLOBIN_SHIFT_CSV)
+
+    z = get_random_variable_draws(
+        metadata.ARTIFACT_COLUMNS, key, get_norm(0.0, sd=1.0)
+    ).values  # one z-score per draw; shape: (num_draws,)
+    pred_mean = curve_data["pred_mean"].values
+    draw_se = curve_data["draw_se"].values
+    pointwise_draws = (
+        pred_mean[np.newaxis, :] + z[:, np.newaxis] * draw_se[np.newaxis, :]
+    )  # shape: (num_draws, num_time_points)
+
+    # Define time periods (in days). Days beyond LATE_POSTPARTUM_END_DAYS are
+    # discarded because the component only acts during early/late neonatal steps.
+    days = curve_data["postpartum_days"].values
+    early_mask = days < data_values.EARLY_POSTPARTUM_END_DAYS
+    late_mask = (days >= data_values.EARLY_POSTPARTUM_END_DAYS) & (
+        days < data_values.LATE_POSTPARTUM_END_DAYS
+    )
+
+    # Average draws over each time period
+    early_draws = pd.Series(
+        pointwise_draws[:, early_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
+    )
+    late_draws = pd.Series(
+        pointwise_draws[:, late_mask].mean(axis=1),
+        index=metadata.ARTIFACT_COLUMNS,
+    )
+
+    data = pd.DataFrame(
+        [early_draws, late_draws],
+        index=pd.Index(
+            [data_values.EARLY_POSTPARTUM_PERIOD, data_values.LATE_POSTPARTUM_PERIOD],
+            name="postpartum_period",
+        ),
+    )
+    return data
+
+
 def _add_hemoglobin_exposure_start_and_end(df: pd.DataFrame) -> pd.DataFrame:
     df["first_trimester_hemoglobin_exposure_start"] = df["exposure"]
     df["first_trimester_hemoglobin_exposure_end"] = df["exposure"][1:].tolist() + [np.inf]
@@ -1446,7 +1543,11 @@ def load_risk_specific_shift(
         )
 
         birth_weight_shift = (
-            load_excess_shift(key, location)[excess_shift.columns]
+            (
+                exposure
+                * load_excess_shift(key_group.EXCESS_SHIFT, location)[excess_shift.columns]
+                * anc_proportion
+            )
             .groupby(
                 metadata.ARTIFACT_INDEX_COLUMNS + ["affected_entity", "affected_measure"]
             )
@@ -1465,11 +1566,6 @@ def load_excess_shift(
             data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
-            data_keys.IFA_SUPPLEMENTATION.RISK_SPECIFIC_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
-                data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE
-            ][
-                "birth_weight.birth_exposure"
-            ],
             data_keys.MMN_SUPPLEMENTATION.EXCESS_SHIFT: data_values.ORAL_IRON_EFFECT_SIZES[
                 data_keys.MMN_SUPPLEMENTATION.EFFECT_SIZE
             ]["birth_weight.birth_exposure"],
@@ -1636,15 +1732,7 @@ def load_hemoglobin_exposure_data(
         levels_to_drop.append("parameter")
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
-    # Expand draw columns from 0-99 to 0-249 by repeating 2.5 times
-    expanded_draws_df_1 = utilities.expand_draw_columns(
-        hemoglobin_data, num_draws=100, num_repeats=2
-    )
-    expanded_draws_df_2 = hemoglobin_data[[f"draw_{i}" for i in range(50)]].rename(
-        {f"draw_{i}": f"draw_{i+200}" for i in range(50)}, axis=1
-    )
-    expanded_draws_df = pd.concat([expanded_draws_df_1, expanded_draws_df_2], axis=1)
-    return expanded_draws_df
+    return utilities.expand_100_draws_to_250(hemoglobin_data)
 
 
 def load_hemoglobin_distribution_weights(
@@ -1691,6 +1779,7 @@ def load_hemoglobin_relative_risk(
     hemoglobin_data["affected_entity"] = hemoglobin_data["affected_entity"].replace(
         {"depressive_disorders": "postpartum_depression"}
     )
+
     index_cols = metadata.ARTIFACT_INDEX_COLUMNS + [
         "affected_entity",
         "affected_measure",
@@ -1759,6 +1848,7 @@ def _load_gbd_hemoglobin_paf(
     # calling this method in load_hemoglobin_paf.
     hemoglobin_data["affected_measure"] = "incidence_risk"
     hemoglobin_data = vi_utils.convert_affected_entity(hemoglobin_data, "cause_id")
+
     hemoglobin_data = hemoglobin_data.set_index(metadata.HEMOGLOBIN_PAF_INDEX_COLUMNS)
 
     expanded_draws_df = utilities.expand_draw_columns(
@@ -1994,3 +2084,256 @@ def get_deaths(age_group_id: int, location: str, draw_cols: list[str], gbd_id: i
     deaths = deaths.set_index(["location_id", "sex_id", "age_group_id", "year_id"])[draw_cols]
     deaths = reshape_to_vivarium_format(deaths, location)
     return deaths
+
+
+###########################
+# Hemorrhage split loaders
+###########################
+
+SEQUELA_DATA_MAP = {
+    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE: (
+        MODERATE_HEMORRHAGE_SEQUELA_ID,
+        "Incidence rate",
+    ),
+    data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE: (
+        SEVERE_HEMORRHAGE_SEQUELA_ID,
+        "Incidence rate",
+    ),
+    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE: (MODERATE_HEMORRHAGE_SEQUELA_ID, "YLDs"),
+    data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: (SEVERE_HEMORRHAGE_SEQUELA_ID, "YLDs"),
+}
+
+
+def load_postpartum_fraction(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load postpartum fraction of maternal hemorrhage from crosswalk parameters."""
+    params = pd.read_csv(paths.PPH_CROSSWALK_PARAMETERS_CSV)
+    age_bins = list(zip(params["age_start"], params["age_end"]))
+    if len(age_bins) != len(set(age_bins)):
+        raise ValueError("Crosswalk parameters CSV contains duplicate age bins.")
+
+    draw_data = {}
+    # Sample from a distribution for each age bin across draws
+    for age_start, age_end, mean, sd in zip(
+        params["age_start"],
+        params["age_end"],
+        params["pred_diff_mean"],
+        params["pred_diff_sd"],
+    ):
+        dist = get_norm(mean=mean, sd=sd)
+        age_seed = f"{key}_{age_start}"
+        log_ratio = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, age_seed, dist)
+        draw_data[(age_start, age_end)] = np.clip(np.exp(log_ratio), 0, 1)
+
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location).query("sex=='Female'")
+    demography = demography.droplevel("location")
+    reproductive_ages = metadata.MATERNAL_AGE_MAP.values()
+    min_age = min(a for a, _ in reproductive_ages)
+    max_age = max(b for _, b in reproductive_ages)
+    demography = demography.loc[
+        (demography.index.get_level_values("age_start") >= min_age)
+        & (demography.index.get_level_values("age_end") <= max_age)
+    ]
+
+    result = pd.DataFrame(0.0, index=demography.index, columns=vi_globals.DRAW_COLUMNS)
+    for (age_start, age_end), draws in draw_data.items():
+        mask = (result.index.get_level_values("age_start") >= age_start) & (
+            result.index.get_level_values("age_start") < age_end
+        )
+        result.loc[mask] = draws.values
+
+    unmatched = (result == 0.0).all(axis=1)
+    if unmatched.any():
+        unmatched_ages = result.index[unmatched].tolist()
+        raise ValueError(
+            f"Postpartum fraction has unmatched demography rows (all draws are 0.0), "
+            f"which would silently shift all hemorrhage to APH: {unmatched_ages}"
+        )
+
+    return result
+
+
+def load_sequela_data(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load sequela-level data from COMO."""
+    sequela_id, measure = SEQUELA_DATA_MAP[key]
+    data = extra_gbd.get_sequela_data(sequela_id, location, measure)
+    groupby_cols = ["age_group_id", "sex_id", "year_id"]
+    draw_cols = vi_globals.DRAW_COLUMNS
+    data = data[groupby_cols + draw_cols]
+    return reshape_to_vivarium_format(data, location)
+
+
+def load_hemorrhage_severe_fraction(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute severe fraction as incidence_severe / (incidence_moderate + incidence_severe)."""
+    inc_moderate = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE, location)
+    inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
+    total = inc_moderate + inc_severe
+    # Returns 0 for age groups outside reproductive age where incidence is 0
+    return (inc_severe / total).fillna(0)
+
+
+def load_hemorrhage_case_fatality_rate(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute CFR as CSMR_c367 / incidence_severe, clipped to [0, 1]."""
+    csmr = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
+    # fatalities only in severe cases
+    inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
+    # Returns 0 for age groups outside reproductive age where incidence is 0
+    cfr = (csmr / inc_severe).fillna(0)
+    return cfr.clip(upper=1.0)
+
+
+def _load_hemorrhage_incidence(location: str, antepartum: bool) -> pd.DataFrame:
+    """Compute hemorrhage per-birth incidence risk.
+
+    Splits the c367 population-level incidence rate by the APH/PPH fraction and
+    divides by the appropriate per-birth denominator to convert to per-event
+    risk. APH divides by the birth rate; PPH divides by the birth rate net of
+    the antepartum hemorrhage cause-specific mortality rate, since PPH is
+    conditional on surviving the antepartum period.
+    """
+    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
+    inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
+    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location)
+    if antepartum:
+        incidence = (1 - pp_fraction) * inc_c367
+        denominator = birth_rate
+    else:
+        incidence = pp_fraction * inc_c367
+        antepartum_hemorrhage_csmr = get_data(
+            data_keys.MATERNAL_HEMORRHAGE.APH_CSMR, location
+        )
+        denominator = birth_rate - antepartum_hemorrhage_csmr
+    return (incidence / denominator).fillna(0.0)
+
+
+def load_antepartum_hemorrhage_incidence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute APH per-birth incidence risk."""
+    return _load_hemorrhage_incidence(location, antepartum=True)
+
+
+def load_postpartum_hemorrhage_incidence(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute PPH per-birth incidence risk net of antepartum hemorrhage mortality."""
+    return _load_hemorrhage_incidence(location, antepartum=False)
+
+
+def load_antepartum_hemorrhage_csmr(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute APH cause-specific mortality rate as the antepartum fraction of c367 CSMR."""
+    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
+    csmr_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
+    return ((1 - pp_fraction) * csmr_c367).fillna(0.0)
+
+
+def load_hemorrhage_ylds_per_case(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute YLDs per case as sequela YLD rate / sequela incidence."""
+    key_to_sequela = {
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE: (
+            data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_MODERATE,
+            data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE,
+        ),
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE: (
+            data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE,
+            data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE,
+        ),
+    }
+    yld_key, inc_key = key_to_sequela[key]
+    yld_rate = get_data(yld_key, location)
+    incidence = get_data(inc_key, location)
+    # Returns 0 for age groups outside reproductive age where incidence is 0
+    return (yld_rate / incidence).fillna(0)
+
+
+###################################
+# Non-pregnant hemoglobin loaders
+###################################
+
+
+def load_non_pregnant_hemoglobin_exposure(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load non-pregnant hemoglobin exposure data (MEID 27596)."""
+    data = extra_gbd.get_non_pregnant_hemoglobin_exposure_data(location)
+    # The GBD source returns 1000 draws + stgpr_model_version_id. Keep only the
+    # columns needed for reshape_to_vivarium_format to avoid extras landing in
+    # the index.
+    keep_cols = [
+        c for c in data.columns if not c.startswith("draw_") or c in vi_globals.DRAW_COLUMNS
+    ]
+    keep_cols = [c for c in keep_cols if c != "stgpr_model_version_id"]
+    data = data[keep_cols]
+    data = reshape_to_vivarium_format(data, location)
+    levels_to_drop = [
+        "measure_id",
+        "metric_id",
+        "model_version_id",
+        "modelable_entity_id",
+        "parameter",
+    ]
+    existing_levels = [l for l in levels_to_drop if l in data.index.names]
+    data.index = data.index.droplevel(existing_levels)
+
+    return utilities.expand_100_draws_to_250(data)
+
+
+#######################################
+# Hemorrhage hemoglobin shift loaders
+#######################################
+
+_SHIFT_0_6W = (0, 6 * DAYS_PER_WEEK)  # 6 weeks * 7 days/week = 42 days
+_SHIFT_6W_9M = (
+    6 * DAYS_PER_WEEK,
+    9 * (1 / MONTHS_PER_YEAR) * DAYS_PER_YEAR,  # ~274 days
+)
+
+HEMORRHAGE_SHIFT_DAY_RANGES = {
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: _SHIFT_0_6W,
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: _SHIFT_6W_9M,
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: _SHIFT_0_6W,
+    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: _SHIFT_6W_9M,
+}
+
+# All four shift keys are drawn off a single seed so that they share a propensity:
+# within a draw, each key sits at the same quantile of its own normal. Seeding per
+# key instead made the four shifts independent, which let the APH:PPH ratio differ
+# between the early and late postpartum windows (and even flip sign) draw to draw.
+_HEMORRHAGE_SHIFT_SEED = data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.name
+
+
+def load_hemorrhage_hemoglobin_shift(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Load hemorrhage hemoglobin shift averaged over the appropriate day range.
+
+    Uses pred_data.csv shift curve and generates draw-level data using
+    the draw_se column for uncertainty. The shift is age-agnostic so the
+    returned DataFrame is a single row of draws with no demographic index.
+
+    All four keys share a single seed, so a given draw uses the same propensity
+    for APH and PPH and for both postpartum windows.
+    """
+    pred_data = pd.read_csv(paths.HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV)
+    day_start, day_end = HEMORRHAGE_SHIFT_DAY_RANGES[key]
+
+    subset = pred_data[
+        (pred_data["postpartum_days"] >= day_start) & (pred_data["postpartum_days"] < day_end)
+    ]
+    mean_shift = subset["pred_mean"].mean()
+    mean_se = subset["draw_se"].mean()
+    dist = get_norm(mean=mean_shift, sd=mean_se)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, _HEMORRHAGE_SHIFT_SEED, dist)
+
+    return pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS)

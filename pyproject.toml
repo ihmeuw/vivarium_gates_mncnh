@@ -1,27 +1,63 @@
 [build-system]
-requires = ["packaging", "setuptools"]
+requires = ["setuptools>=61.0", "setuptools_scm[toml]>=8.0"]
+build-backend = "setuptools.build_meta"
 
-# Minimal [project] block so vivarium_build_utils' base.mk can parse the
-# distribution name from pyproject.toml instead of falling back to
-# ``$(notdir $(CURDIR))`` (which is unsafe under Jenkins's parallel
-# workspaces — directories like ``<repo>@2`` contain ``@``, which uv
-# rejects in ``--config-settings-package`` values). Everything except
-# ``name`` continues to come from setup.py via the dynamic declaration.
 [project]
 name = "vivarium_gates_mncnh"
-# Every other PEP 621 field is still set in setup.py; setuptools requires
-# anything outside [project] but set via setup() to be declared dynamic.
-dynamic = [
-    "version",
-    "description",
-    "readme",
-    "license",
-    "authors",
-    "urls",
-    "dependencies",
-    "optional-dependencies",
-    "scripts",
+description = "Research repository for the vivarium_gates_mncnh project."
+readme = "README.rst"
+requires-python = ">=3.10"
+license = {text = "BSD-3-Clause"}
+authors = [{name = "The vivarium developers", email = "vivarium.dev@gmail.com"}]
+dynamic = ["version"]
+dependencies = [
+    "vivarium-dependencies<2.0.0",
+    "vivarium-dependencies[pandas,numpy,scipy,click,tables,loguru]",
+    "vivarium-build-utils>=4.0.0,<5.0.0",
+    "vivarium-gbd-mapping>=6.0.0,<7.0.0",
+    "vivarium-config-tree",
+    "vivarium-engine>=5.8.1,<6.0.0",
+    "vivarium-public-health>=6.3.1,<7.0.0",
+    "click",
+    "jinja2",
+    "pyyaml",
+    "statsmodels",
 ]
+
+[project.optional-dependencies]
+test = [
+    "vivarium-dependencies[pytest]",
+    "papermill",
+    "jupyterlab",
+    "vivarium-testing-utils>=0.7.4",
+]
+cluster = ["vivarium-cluster-tools[cluster]>=4.0.0,<5.0.0"]
+validation = ["vivarium-testing-utils[validation]"]
+interactive = [
+    "vivarium-dependencies[interactive]",
+    "nbdime",
+]
+lint = ["vivarium-dependencies[lint]"]
+data = [
+    "vivarium-inputs>=8.0.0,<9.0.0",
+    "vivarium_gates_mncnh[cluster,lint,test,validation]",
+]
+dev = ["vivarium_gates_mncnh[test,cluster,lint,interactive]"]
+
+[project.urls]
+Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
+
+[project.scripts]
+make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+version_file = "src/vivarium_gates_mncnh/_version.py"
+version_file_template = "__version__ = \"{version}\"\n"
+tag_regex = '^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$'
+fallback_version = "0.0.0+no-git-tag"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

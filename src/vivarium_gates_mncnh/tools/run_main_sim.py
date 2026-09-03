@@ -142,7 +142,7 @@ def run_sim(
                 "-m",
                 "1",
                 "-r",
-                "15:00",
+                "00:15:00",
                 "-o",
                 str(output_path),
                 str(MODEL_SPEC_PATH),
