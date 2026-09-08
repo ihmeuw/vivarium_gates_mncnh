@@ -8,7 +8,7 @@ import yaml
 from pytest import TempPathFactory
 from vivarium.artifact import Artifact
 from vivarium.config_tree import ConfigTree
-from vivarium.testing_utils import FuzzyChecker
+from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 
