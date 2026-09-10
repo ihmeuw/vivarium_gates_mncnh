@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from vivarium.artifact import Artifact
 from vivarium.engine import InteractiveContext
-from vivarium.testing_utils import FuzzyChecker
+from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.components.mortality import MaternalDisordersBurden
 from vivarium_gates_mncnh.constants.data_keys import POPULATION
@@ -153,13 +153,13 @@ def test_neonatal_acmr(
     lnn_acmr = acmr.query(anc_filter["late_neonatal"]).iloc[0][draw] * (21 / 365)
 
     # acmr = neonatal deaths / live_births
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         len(enn_death_idx),
         len(enn_live_birth_idx),
         enn_acmr,
         name=f"early_neonatal_{sex}_neonatal_acmr",
     )
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         len(lnn_death_idx),
         len(lnn_live_birth_idx),
         lnn_acmr,
@@ -225,13 +225,13 @@ def test_neonatal_csmr(
     lnn_csmr = csmr.query(data_filter["late_neonatal"]).iloc[0][draw] * (21 / 365)
 
     # csmr = neonatal deaths / live_births
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         len(enn_death_idx),
         len(enn_live_birth_idx),
         enn_csmr,
         name=f"early_neonatal_{sex}_neonatal_{cause_of_death}",
     )
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         len(lnn_death_idx),
         len(lnn_live_birth_idx),
         lnn_csmr,

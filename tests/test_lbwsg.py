@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from vivarium.artifact import Artifact
 from vivarium.engine import InteractiveContext
-from vivarium.testing_utils import FuzzyChecker
+from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.components.lbwsg import parse_short_gestation_description
 from vivarium_gates_mncnh.constants import data_keys, metadata
@@ -88,7 +88,7 @@ def test_birth_exposure_coverage(
             expected_exposure = sex_exposure.loc[sex_exposure["parameter"] == category][
                 draw
             ].iloc[0]
-            fuzzy_checker.fuzzy_assert_proportion(
+            fuzzy_checker.assert_proportion(
                 len(sex_subset.loc[sex_subset["category"] == category]),
                 len(sex_subset),
                 expected_exposure,
