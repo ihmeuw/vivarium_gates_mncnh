@@ -16,6 +16,7 @@ env_type="simulation"
 make_new="no"
 use_shared="no"
 install_git_lfs="no"
+skip_pull="no"
 days_until_stale=7 # Number of days until environment is considered stale
 
 # Reset OPTIND so help can be invoked multiple times per shell session.
@@ -26,17 +27,18 @@ Help()
    echo
    echo "Script to automatically create and validate conda environments."
    echo
-   echo "Syntax: source environment.sh [-h|t|s|f|l]"
+   echo "Syntax: source environment.sh [-h|t|s|f|l|n]"
    echo "options:"
    echo "h     Print this Help."
    echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
    echo "s     Use shared environment (venv overlay). Recommended for cluster development."
    echo "f     Force creation of a new environment."
    echo "l     Install git lfs (only applies when creating a new conda environment)."
+   echo "n     Do not fetch and pull the current branch before building the environment."
 }
 
 # Process input options
-while getopts ":hsflt:" option; do
+while getopts ":hsflnt:" option; do
    case $option in
       h) # display help
          Help
@@ -49,6 +51,8 @@ while getopts ":hsflt:" option; do
          make_new="yes";;
       l) # Install git lfs
          install_git_lfs="yes";;
+      n) # Skip the git fetch/pull
+         skip_pull="yes";;
      \?) # Invalid option
          echo
          echo "ERROR: Invalid option"
@@ -60,14 +64,20 @@ env_name=$(basename "`pwd`")
 env_name+="_$env_type"
 branch_name=$(git rev-parse --abbrev-ref HEAD)
 
-# Pull repo to get latest changes from remote if remote exists
-git ls-remote --exit-code --heads origin $branch_name >/dev/null 2>&1
-exit_code=$?
-if [[ "$exit_code" == "0" ]]; then
-  git fetch --all
+# Pull repo to get latest changes from remote if remote exists.
+# This mutates the working tree, so -n skips it.
+if [[ "$skip_pull" == "yes" ]]; then
   echo
-  echo "Git branch '$branch_name' exists in the remote repository; pulling latest changes"
-  git pull origin $branch_name
+  echo "Skipping git fetch/pull (-n)"
+else
+  git ls-remote --exit-code --heads origin $branch_name >/dev/null 2>&1
+  exit_code=$?
+  if [[ "$exit_code" == "0" ]]; then
+    git fetch --all
+    echo
+    echo "Git branch '$branch_name' exists in the remote repository; pulling latest changes"
+    git pull origin $branch_name
+  fi
 fi
 
 # Capture error and exit script when sourced
