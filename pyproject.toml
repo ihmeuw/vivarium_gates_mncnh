@@ -32,7 +32,9 @@ test = [
     "pytest-vivarium>=0.2.0",
     "vivarium-fuzzy-checker>=0.5.0",
 ]
-cluster = ["vivarium-cluster-tools[cluster]>=4.0.0,<5.0.0"]
+# >=4.5.0: resolve_env_prefix/resolve_env_bin_path accept venvs, not just conda
+# envs, which is what tools/utilities.py dispatches environments with.
+cluster = ["vivarium-cluster-tools[cluster]>=4.5.0,<5.0.0"]
 validation = ["vivarium-validation[gbd]>=0.4.0"]
 interactive = [
     "vivarium-dependencies[interactive]",
