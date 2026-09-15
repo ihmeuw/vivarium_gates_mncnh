@@ -7,6 +7,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import List, Optional
@@ -70,13 +71,22 @@ def commit_pending_changes(message: str) -> None:
         raise RuntimeError(f"Failed to push commit to origin.\n  stderr: {e.stderr.strip()}")
 
 
-def create_and_push_tag(model_number: str) -> None:
-    """Create a git tag ``v{model_number}`` for the current HEAD and push it to origin.
+def create_and_push_tag(model_number: str, push: bool = True) -> None:
+    """Create a git tag ``v{model_number}`` for the current HEAD, optionally pushing it.
 
     If the tag already exists on the current commit, it is left as-is. If it
     exists on a *different* commit the user is prompted to force-update;
     when stdin is not a TTY (e.g. running inside a jobmon task) the prompt
     aborts cleanly instead of crashing.
+
+    Parameters
+    ----------
+    model_number
+        The model version number (e.g. "29.0.2"); the tag is ``v{model_number}``.
+    push
+        If False, the tag is created locally only and never pushed to origin.
+        Pushing a tag on an unpushed branch publishes every commit on it, which
+        is not always wanted.
     """
     tag = f"v{model_number}"
     force = False
@@ -102,7 +112,10 @@ def create_and_push_tag(model_number: str) -> None:
             raise RuntimeError(f"Aborted: tag '{tag}' already exists.")
         force = True
 
-    print(f"\n{'Updating' if force else 'Creating'} git tag '{tag}' and pushing to origin...")
+    action = "Updating" if force else "Creating"
+    print(
+        f"\n{action} git tag '{tag}'{' and pushing to origin' if push else ' (local only)'}..."
+    )
 
     try:
         cmd = ["git", "tag", "-f", tag] if force else ["git", "tag", tag]
@@ -110,6 +123,10 @@ def create_and_push_tag(model_number: str) -> None:
         print(f"  {'Updated' if force else 'Created'} tag '{tag}'")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
+
+    if not push:
+        print(f"  Skipping push of tag '{tag}' to origin (--no-push)")
+        return
 
     try:
         cmd = (
@@ -208,6 +225,222 @@ def check_clean_tree() -> None:
         )
 
 
+ENV_TYPES = ("simulation", "artifact")
+CANONICAL_ENV_NAMES = {t: f"vivarium_gates_mncnh_{t}" for t in ENV_TYPES}
+_SCM_REVISION = re.compile(r"\+g([0-9a-f]+)")
+
+
+def _env_resolvers():
+    """Return vivarium-cluster-tools' ``(prefix, bin_path)`` env resolvers.
+
+    Every environment decision -- which prefix a target names, which ``bin/``
+    directories go on PATH -- depends on these, and guessing at either is how a run
+    ends up in the wrong environment: ``<prefix>/bin`` alone drops a venv overlay's
+    base conda env, where the console scripts live, so psimulate silently resolves
+    to whatever conda base is first on PATH. So a missing resolver raises here with
+    the real cause rather than being worked around downstream.
+
+    The import is deferred to call time because reaching these costs far more than
+    they do. ``env.py`` itself imports nothing heavy, but importing it runs its
+    parent package's ``__init__``, which reaches the real jobmon client:
+    ``core/jobmon/__init__`` -> ``artifact`` -> ``client`` -> ``jobmon.client.api``.
+    This module is imported by ``check_working_tree.py`` (workflow step 0), whose
+    entire job is three git calls; a guard that protects the pipeline should not
+    pay for jobmon, nor be stopped by one that is merely slow or misconfigured --
+    hence also the broad ``except``, which covers an installed-but-broken jobmon
+    and not only an absent one.
+
+    Note the deferral is *not* about supporting an environment without the
+    ``[cluster]`` extra. Every environment the Makefile builds has it (simulation
+    via ``ENV_REQS=dev``, artifact via ``ENV_REQS=data``, and overlays inherit from
+    those), so the absent case is a bare ``pip install .`` that nothing here
+    produces. Venv support requires vivarium-cluster-tools >= 4.5.0.
+
+    Raises
+    ------
+    RuntimeError
+        If the resolvers cannot be imported. Importing *this* module stays possible
+        without the cluster stack; only resolving or dispatching to an environment
+        needs them.
+    """
+    try:
+        from vivarium.cluster_tools.core.jobmon.env import (
+            resolve_env_bin_path,
+            resolve_env_prefix,
+        )
+    except Exception as e:
+        raise RuntimeError(
+            "vivarium-cluster-tools >= 4.5.0 could not be imported, and it provides "
+            "the environment resolver this tooling dispatches with.\n"
+            "This environment is missing the '[cluster]' extra, has too old a "
+            "vivarium-cluster-tools, or has a jobmon installation that fails to "
+            f"import. psimulate would not be available here either. ({e})\n"
+            "Install it with 'pip install -e \".[cluster]\"', or rebuild the "
+            "environment with 'source environment.sh -s'."
+        )
+    return resolve_env_prefix, resolve_env_bin_path
+
+
+def resolve_env(env: Optional[str]) -> Optional[str]:
+    """Resolve an environment target to an absolute prefix.
+
+    Parameters
+    ----------
+    env
+        A conda environment name, a venv name, or a path to either prefix.
+        ``None`` means the currently-active environment. Prefer a path: upstream
+        matches a venv name under ``Path.cwd()/.venv/<name>``, so a bare name
+        depends on where it is resolved from, and a conda name resolves per-user.
+
+    Returns
+    -------
+    str | None
+        The absolute environment prefix, or ``None`` for the active environment.
+
+    Raises
+    ------
+    RuntimeError
+        If the resolvers are unavailable, or *env* names no environment we can
+        inspect. An environment nobody can inspect is not one to dispatch to: it
+        is exactly the case where a run would silently execute unknown code.
+    """
+    if env is None:
+        return None
+    resolve_env_prefix, _ = _env_resolvers()
+    try:
+        return resolve_env_prefix(env)
+    except RuntimeError:
+        # Upstream's own failure: it names the target and says precisely what it
+        # looked for and where, so pass it through unembellished.
+        raise
+    except Exception as e:
+        # Anything else is incidental rather than a verdict on the target -- it
+        # resolves conda names by subprocess, so a missing conda arrives as an
+        # OSError naming only `conda`. Label it, and normalise the type so
+        # check_environment can collect it alongside the rest.
+        raise RuntimeError(f"{env}: {e}")
+
+
+def default_env_for_type(env_type: str) -> Optional[str]:
+    """Best guess at the environment of *env_type* to use, or ``None`` for active.
+
+    The simulation and artifact environments hold incompatible dependency sets and
+    cannot be merged into one. Any script that both builds artifact data and runs
+    simulations must therefore dispatch each command to the right environment, and
+    can never simply inherit the caller's -- it is guaranteed to be in the wrong one
+    for half of what it does. This resolves the *other* environment from the one in
+    hand, which is the common case for such a script.
+
+    Keyed off ``sys.prefix`` rather than ``$VIRTUAL_ENV``: dagger runs workflow
+    steps by prepending an environment's ``bin/`` to ``PATH`` and sets neither
+    ``VIRTUAL_ENV`` nor ``CONDA_DEFAULT_ENV``, but ``sys.prefix`` is always correct.
+
+    Resolution order: the sibling overlay of the active environment (e.g. from
+    ``.venv/<name>_simulation`` to ``.venv/<name>_artifact``), then the canonical
+    conda env name, which is what a setup not using overlays has. Falling back
+    from an overlay to a name prints how to build the missing sibling, since that
+    reason is not recoverable downstream. Deliberately nothing keyed off the
+    current working directory: cwd says nothing about which environment the caller
+    is in, and everything else here is careful not to ask it. Pass ``--env`` for
+    anything these two do not cover.
+    """
+    if env_type not in ENV_TYPES:
+        raise ValueError(
+            f"Unknown environment type '{env_type}'. Expected one of {ENV_TYPES}."
+        )
+
+    prefix = Path(sys.prefix)
+    if prefix.parent.name == ".venv":
+        stem = prefix.name
+        for suffix in ENV_TYPES:
+            stem = stem.removesuffix(f"_{suffix}")
+        sibling = prefix.parent / f"{stem}_{env_type}"
+        if sibling == prefix:
+            return None
+        if sibling.is_dir():
+            return str(sibling)
+        # An overlay user falling back to a conda name is rarely what they meant,
+        # and this is the only place that knows why it happened. Do not raise:
+        # someone may legitimately have both setups, and the canonical env may
+        # well exist. But say the actionable thing now, because by the time
+        # check_environment reports it, all that is left is "could not be
+        # resolved", which does not mention the missing sibling.
+        print(
+            f"\nNOTE: running in the venv overlay {prefix},\n"
+            f"      but there is no sibling {env_type} overlay at {sibling}.\n"
+            f"      Falling back to the conda env '{CANONICAL_ENV_NAMES[env_type]}'.\n"
+            f"      To build the overlay instead: make build-shared-env type={env_type}\n"
+        )
+
+    return CANONICAL_ENV_NAMES[env_type]
+
+
+def _revision_of(package_dir: str, installed_version: str) -> tuple[Optional[str], str, bool]:
+    """Return ``(revision, revision_source, dirty)`` for the package at *package_dir*.
+
+    The one place that decides what an install's revision *is*, used for both the
+    environments being checked and the code doing the checking -- they are the same
+    question and must not be allowed to answer it differently.
+
+    An editable install runs its working tree, so that tree's current HEAD is
+    authoritative and the recorded version may be stale: it is frozen at install
+    time while the tree can be rebased or edited afterwards. A built install has no
+    tree behind it, so the commit setuptools-scm embedded in its version is all
+    there is.
+
+    Whether the package directory is *tracked* tells the two apart: an editable
+    install points at a working tree (tracked), while a built copy merely sits in
+    a directory, such as a venv's site-packages, that may happen to be inside some
+    checkout (untracked).
+
+    ``dirty`` is reported for display only. It means *any* uncommitted change under
+    *package_dir*, including the paths :data:`CLEAN_TREE_EXCLUSIONS` deliberately
+    permits, so it must not be treated as a failure -- that would reject runs
+    :func:`check_clean_tree` is designed to allow.
+    """
+
+    def git(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", "-C", package_dir, *args], capture_output=True, text=True
+        )
+
+    runs_from_working_tree = git("ls-files", "--error-unmatch", "__init__.py").returncode == 0
+    tree_head = git("rev-parse", "HEAD") if runs_from_working_tree else None
+    if tree_head is not None and tree_head.returncode == 0:
+        uncommitted = git("status", "--porcelain", "--untracked-files=no", "--", ".")
+        return tree_head.stdout.strip(), "working tree", bool(uncommitted.stdout.strip())
+
+    revision_in_version = _SCM_REVISION.search(installed_version)
+    return (
+        (revision_in_version.group(1) if revision_in_version else None),
+        "installed build",
+        False,
+    )
+
+
+def _package_provenance(prefix: Optional[str]) -> tuple[str, str]:
+    """Return ``(version, package_dir)`` for vivarium_gates_mncnh as *prefix* sees it."""
+    code = (
+        "import importlib.metadata as md, pathlib, vivarium_gates_mncnh as p; "
+        "print(md.version('vivarium-gates-mncnh')); "
+        "print(pathlib.Path(p.__file__).resolve().parent)"
+    )
+    if prefix is None:
+        executable = sys.executable
+    else:
+        executable = str(Path(prefix) / "bin" / "python")
+        if not Path(executable).exists():
+            raise RuntimeError(f"No python interpreter at {executable}.")
+    result = subprocess.run([executable, "-c", code], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Could not import vivarium_gates_mncnh using {executable}.\n"
+            f"  {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else ''}"
+        )
+    installed_version, package_dir = result.stdout.strip().splitlines()[:2]
+    return installed_version, package_dir
+
+
 def warn_if_dirty(paths: List[str], written_by: str) -> bool:
     """Print a warning listing any *paths* with uncommitted changes.
 
@@ -236,57 +469,139 @@ def warn_if_dirty(paths: List[str], written_by: str) -> bool:
     return True
 
 
+def check_environment(
+    *envs: Optional[str],
+    allow_env_mismatch: bool = False,
+) -> None:
+    """Check that every environment a script will dispatch to runs *this* revision.
 
+    For each target, resolves the environment, confirms ``vivarium_gates_mncnh`` is
+    importable there, and compares the commit embedded in its installed version
+    (setuptools-scm's ``+g<sha>`` local segment) against ``HEAD``.
 
-def check_conda_environments() -> None:
-    """
-    Check that required conda environments are installed.
+    This is a provenance check, not a path-containment check. It is satisfied by an
+    editable venv overlay on this checkout, and equally by a non-editable install
+    built from this commit (as Jenkins produces), while still catching a shared
+    environment that resolves to some other checkout or an older revision.
+
+    Parameters
+    ----------
+    envs
+        The environment targets to validate -- conda env names, venv names, or
+        prefix paths. ``None`` means the currently-active environment. Every target
+        a script will actually dispatch to should be passed, so that validating one
+        environment never implies anything about another.
+    allow_env_mismatch
+        If True, an unverified revision -- a mismatch, or a revision that cannot be
+        determined on either side -- is reported as a warning rather than an error.
+        For deliberately running against an environment not built from this commit.
+        It does *not* cover an environment that cannot be resolved or cannot import
+        the package; those are always fatal, since nothing about what would run is
+        known.
 
     Raises
     ------
     RuntimeError
-        If required conda environments are not found
+        Always, if an environment cannot be resolved or cannot import the package.
+        Otherwise if its revision cannot be verified against this code's and
+        *allow_env_mismatch* is False.
     """
-    required_envs = ["vivarium_gates_mncnh_simulation", "vivarium_gates_mncnh_artifact"]
+    print("\nChecking environments...")
 
-    print("\nChecking for required conda environments...")
+    # Once, not per environment: a missing resolver is a fact about this process,
+    # not a finding about any target.
+    _env_resolvers()
 
+    # The reference side: what revision is the code doing the checking? Resolved
+    # from PACKAGE_DIR, not the cwd, and through the same _revision_of rule as the
+    # targets -- it is the same question and must not get a different answer.
     try:
-        result = subprocess.run(
-            ["conda", "env", "list"], capture_output=True, text=True, check=True
-        )
+        import importlib.metadata as importlib_metadata
 
-        installed_envs = result.stdout
-        missing_envs = []
+        our_version = importlib_metadata.version("vivarium-gates-mncnh")
+    except Exception:
+        our_version = ""
+    reference_revision, _, _ = _revision_of(str(PACKAGE_DIR), our_version)
 
-        for env in required_envs:
-            if env not in installed_envs:
-                missing_envs.append(env)
-            else:
-                print(f"  ✓ Found: {env}")
+    # Two kinds of finding, because they warrant different answers. A broken
+    # environment cannot run anything correctly, so it is always fatal. An
+    # unverified revision may be a deliberate choice, so it is what
+    # allow_env_mismatch covers -- and nothing else, or the flag becomes a way to
+    # wave through an environment nobody can account for.
+    broken = []
+    unverified = []
 
-        if missing_envs:
-            raise RuntimeError(
-                f"Missing required conda environments: {', '.join(missing_envs)}\n"
-                f"Please install them by running 'source environment.sh' before running this script."
+    for env in envs or (None,):
+        label = env if env is not None else "active environment"
+
+        # Collected rather than raised, so every target is reported in one go.
+        try:
+            prefix = resolve_env(env)
+        except RuntimeError as e:
+            broken.append(str(e))  # already names the target
+            continue
+        try:
+            installed_version, package_dir = _package_provenance(prefix)
+        except RuntimeError as e:
+            broken.append(f"{label}: {e}")
+            continue
+
+        print(f"  {label}")
+        print(f"    vivarium_gates_mncnh {installed_version}")
+        print(f"    {package_dir}")
+
+        target_revision, revision_source, dirty = _revision_of(package_dir, installed_version)
+        if dirty:
+            print("    ! that working tree has uncommitted changes")
+
+        if reference_revision is None:
+            unverified.append(
+                f"{label}: cannot determine the revision of the code running this "
+                "check, so there is nothing to compare against."
             )
+        elif target_revision is None:
+            unverified.append(
+                f"{label}: its {revision_source} carries no revision, so it cannot be "
+                f"compared against {reference_revision[:9]}."
+            )
+        elif not (
+            reference_revision.startswith(target_revision)
+            or target_revision.startswith(reference_revision)
+        ):
+            unverified.append(
+                f"{label}: {revision_source} is at revision {target_revision[:9]}, not "
+                f"{reference_revision[:9]}. It would run different code than this "
+                "checkout. Rebuild that environment (e.g. 'source environment.sh -s') "
+                "or point at the right one."
+            )
+        else:
+            print(f"    \u2713 {revision_source} matches {reference_revision[:9]}")
 
-        print("All required conda environments found.\n")
-
-    except FileNotFoundError:
+    if broken:
         raise RuntimeError(
-            "conda command not found. Please ensure conda is installed and in your PATH."
+            "Environment unusable:\n  - "
+            + "\n  - ".join(broken)
+            + "\n(--allow-env-mismatch does not cover this: the environment cannot run "
+            "this package at all.)"
         )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to check conda environments: {e}")
+
+    if unverified:
+        message = "Environment revision not verified:\n  - " + "\n  - ".join(unverified)
+        if allow_env_mismatch:
+            print(f"\nWARNING: {message}\n")
+        else:
+            raise RuntimeError(message + "\nPass --allow-env-mismatch to run anyway.")
+
+    print()
 
 
 def run_command(
     cmd: List[str],
     description: str,
-    conda_env: str,
+    env: Optional[str] = None,
     auto_confirm: bool = False,
     capture_full_output: bool = False,
+    log_prefix: str = "",
 ) -> str | None:
     """
     Run a shell command and handle errors.
@@ -297,116 +612,126 @@ def run_command(
         Command and arguments to execute
     description : str
         Description of what the command does (for error messages)
-    conda_env : str
-        Name of the conda environment to run the command in
+    env : str, optional
+        The environment to run the command in: a conda env name, a venv name, or
+        a path to either one's directory (its "prefix" -- the root holding bin/). If None, the command runs in the
+        currently-active environment. The target is dispatched by prepending its
+        ``bin/`` directories to ``PATH`` -- the same mechanism dagger uses -- which
+        works for venv overlays as well as conda envs
     auto_confirm : bool, optional
         If True, automatically answer 'y' to any prompts (useful for make_artifacts)
     capture_full_output : bool, optional
         If True, capture and return the full command output as a string
+    log_prefix : str, optional
+        String to prepend to every line printed by this command. Useful when
+        several commands are run concurrently and their output interleaves
 
     Returns
     -------
     str | None
         The full output if capture_full_output is True, otherwise None
+
+    Raises
+    ------
+    RuntimeError
+        If the environment cannot be resolved -- including because
+        vivarium-cluster-tools is not importable -- or if the command exits
+        non-zero.
     """
-    print(f"\n{'='*80}")
-    print(f"Running: {description}")
-    print(f"Environment: {conda_env}")
 
-    # Build the command
+    def emit(line: str, end: str = "\n") -> None:
+        print(f"{log_prefix}{line}", end=end)
+
+    emit(f"\n{'='*80}")
+    emit(f"Running: {description}")
+    emit(f"Environment: {env if env else 'active environment'}")
+
+    # Dispatch by prepending the environment's bin/ directories to PATH -- this is
+    # what dagger does, and unlike `conda run` it works for the venv overlays built
+    # by `make build-shared-env` as well as for conda envs, so it is the only
+    # mechanism here. An unresolvable target raises rather than falling back to
+    # something that would run in an environment nobody could inspect.
+    # An unspecified target means "the environment this process is running in" --
+    # which is sys.prefix, NOT the inherited PATH. Running `.venv/bin/python -m ...`
+    # without activating the venv leaves its bin/ off PATH entirely, so relying on
+    # inheritance silently resolves entry points from whatever conda base happens to
+    # be first on PATH.
+    _, resolve_env_bin_path = _env_resolvers()
+    prefix = sys.prefix if env is None else resolve_env(env)
+    bin_path = resolve_env_bin_path(prefix)
+    env_vars = {**os.environ, "PATH": f"{bin_path}:{os.environ.get('PATH', '')}"}
+
+    emit(f"Prefix: {prefix}")
+    emit(f"Command: {' '.join(cmd)}")
     if auto_confirm:
-        # Use shell with 'yes y' to continuously pipe 'y' to the command
-        cmd_str = " ".join(cmd)
-        full_cmd = f"yes y | conda run --no-capture-output -n {conda_env} {cmd_str}"
-        print(f"Command: {full_cmd}")
-        print("Auto-confirm: y (continuous)")
-    else:
-        cmd = ["conda", "run", "--no-capture-output", "-n", conda_env] + cmd
-        print(f"Command: {' '.join(cmd)}")
+        emit("Auto-confirm: y (continuous)")
 
-    print(f"{'='*80}\n")
+    emit(f"{'='*80}\n")
 
     full_output = []
 
-    if capture_full_output:
-        # Use Popen to capture output in real-time.
-        # Start in a new process group so we can kill the entire tree on interrupt.
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE if auto_confirm else None,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True,
-            start_new_session=True,
-        )
+    # Continuous 'y' for prompts, fed from a real `yes` process rather than a
+    # shell pipeline: the old `yes y | <joined cmd>` form ran with shell=True on a
+    # space-joined string, so any argument or environment path containing a space
+    # or shell metacharacter was silently re-split into separate arguments.
+    yes_process = (
+        subprocess.Popen(["yes", "y"], stdout=subprocess.PIPE) if auto_confirm else None
+    )
+    stdin = yes_process.stdout if yes_process else None
 
-        try:
-            # If auto_confirm, send a single 'y' response
-            if auto_confirm:
-                # Send in a separate thread to avoid blocking
-                import threading
+    try:
+        if capture_full_output:
+            # Use Popen to capture output in real-time.
+            # Start in a new process group so we can kill the entire tree on interrupt.
+            process = subprocess.Popen(
+                cmd,
+                stdin=stdin,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+                start_new_session=True,
+                env=env_vars,
+            )
 
-                def send_confirm():
-                    try:
-                        time.sleep(0.1)  # Brief delay to ensure prompt is ready
-                        process.stdin.write("y\n")
-                        process.stdin.flush()
-                        process.stdin.close()
-                    except:
-                        pass
-
-                confirm_thread = threading.Thread(target=send_confirm, daemon=True)
-                confirm_thread.start()
-
-            # Read output line by line
-            for line in process.stdout:
-                # Print the line to maintain visibility
-                print(line, end="")
-
-                # Capture output if requested
-                if capture_full_output:
+            try:
+                # Read output line by line
+                for line in process.stdout:
+                    # Print the line to maintain visibility
+                    emit(line, end="")
                     full_output.append(line)
 
-            # Wait for process to complete
-            return_code = process.wait()
-        except KeyboardInterrupt:
-            print(f"\nInterrupted. Terminating {description}...")
-            os.killpg(process.pid, signal.SIGTERM)
-            process.wait()
-            raise
+                # Wait for process to complete
+                return_code = process.wait()
+            except KeyboardInterrupt:
+                emit(f"\nInterrupted. Terminating {description}...")
+                os.killpg(process.pid, signal.SIGTERM)
+                process.wait()
+                raise
 
-        if return_code != 0:
-            raise RuntimeError(f"Failed {description}. Exit code: {return_code}")
+            if return_code != 0:
+                raise RuntimeError(f"Failed {description}. Exit code: {return_code}")
 
-        return "".join(full_output)
-    else:
-        # Print output to screen
-        try:
-            if auto_confirm:
-                # Use shell command with yes to pipe 'y'
+            return "".join(full_output)
+        else:
+            # Print output to screen
+            try:
                 result = subprocess.run(
-                    full_cmd,
-                    shell=True,
-                    start_new_session=True,
+                    cmd, stdin=stdin, start_new_session=True, env=env_vars
                 )
-
                 if result.returncode != 0:
                     raise RuntimeError(
                         f"Failed {description}. Exit code: {result.returncode}"
                     )
-            else:
-                # Normal execution with conda run
-                result = subprocess.run(cmd, start_new_session=True)
-
-                if result.returncode != 0:
-                    raise RuntimeError(
-                        f"Failed {description}. Exit code: {result.returncode}"
-                    )
-        except KeyboardInterrupt:
-            print(f"\nInterrupted. Terminating {description}...")
-            raise
+            except KeyboardInterrupt:
+                emit(f"\nInterrupted. Terminating {description}...")
+                raise
+    finally:
+        if yes_process is not None:
+            yes_process.stdout.close()
+            yes_process.terminate()
+            yes_process.wait()
 
 
 def check_psimulate_finished(psimulate_output: str) -> bool:

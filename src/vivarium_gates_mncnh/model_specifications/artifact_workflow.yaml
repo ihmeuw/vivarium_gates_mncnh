@@ -15,12 +15,26 @@ workflow:
   # Steps are ordered by dependency. Resource values are first-pass estimates
   # -- tune as needed. Output paths are INSERT_VALID_DIRECTORY placeholders;
   # set them to valid, writable directories before running.
+  #
+  # ENVIRONMENTS. Steps need one of two environments, whose dependency sets
+  # conflict and cannot be merged: most generate artifact data, while
+  # hemoglobin_effects_sepsis and hgb_maternal_disorders_pafs run simulations.
+  # Both are declared once as YAML anchors -- &artifact_env and &simulation_env,
+  # on their first use below -- and referenced everywhere else, so there are two
+  # values to set per run rather than nine.
+  #
+  # Set them to environment PREFIXES (e.g. .venv/<name>_artifact), not to bare
+  # conda env names. A name resolves against whoever is running, so the same
+  # workflow file means different code for different people -- and the Jenkins
+  # nightly shared envs cannot be used by name either: they install this package
+  # editable against the Jenkins build workspace and so cannot import it on a
+  # normal cluster node.
   # ==========================================================================
   steps:
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: &artifact_env INSERT_ENV_NAME_OR_PREFIX
       resources:
         memory_gb: 1
         runtime: "00:01:00"
@@ -32,7 +46,7 @@ workflow:
     # iv_iron_lbwsg_shifts/, read by Step 3 (sepsis) and by make_artifacts.
     - name: "hemoglobin_effects_birth"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 40
         runtime: "04:00:00"
@@ -51,7 +65,7 @@ workflow:
     # in hgb_birth_effect_generation.py. Independent of Step 1's outputs.
     - name: "hemoglobin_iv_iron_stillbirth"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -63,7 +77,7 @@ workflow:
     # Step 1, so Step 1 must complete first.
     - name: "hemoglobin_effects_sepsis"
       type: python
-      environment: vivarium_gates_mncnh_simulation
+      environment: &simulation_env INSERT_ENV_NAME_OR_PREFIX
       resources:
         memory_gb: 40
         runtime: "02:00:00"
@@ -79,7 +93,7 @@ workflow:
     # ---- Step 4: maternal-disorder PAFs --------------------------------------
     - name: "hgb_maternal_disorders_pafs"
       type: python
-      environment: vivarium_gates_mncnh_simulation
+      environment: *simulation_env
       resources:
         memory_gb: 16
         runtime: "06:00:00"
@@ -91,7 +105,7 @@ workflow:
     # precede Step 6 (the PAF sim's artifact bakes in these caps).
     - name: "lbwsg_caps_ethiopia"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"
@@ -101,7 +115,7 @@ workflow:
           l: "Ethiopia"
     - name: "lbwsg_caps_nigeria"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"
@@ -111,7 +125,7 @@ workflow:
           l: "Nigeria"
     - name: "lbwsg_caps_pakistan"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"
@@ -122,11 +136,24 @@ workflow:
 
     # ---- Step 6: LBWSG PAFs (one step per location) --------------------------
     # run_paf_sim.py launches psimulate (parallel across draws) and needs the RR
-    # caps from Step 5. It self-dispatches its sub-envs (psimulate -> simulation,
-    # make_artifacts -> artifact via `conda run`)
+    # caps from Step 5. It dispatches two sub-environments of its own (psimulate ->
+    # simulation, make_artifacts -> artifact), passed explicitly below.
+    #
+    # The simulation and artifact environments cannot be collapsed into one -- their
+    # dependencies conflict -- so run_paf_sim is handed both and switches between
+    # them; do not try to reduce this to a single environment.
+    #
+    # `environment` is left unset on purpose: dagger then falls back to the runner's
+    # active environment, so a script that builds data, launches models and runs
+    # tests in one go exercises the revision under test rather than whichever
+    # revision the shared environment happens to hold. run_paf_sim derives both of
+    # its sub-environments from that same environment, so the default needs nothing
+    # set here. To pin them instead, set `environment` and pass run_paf_sim's
+    # --simulation-env / --artifact-env as keyword_args below -- and pass paths, not
+    # the canonical conda names: the shared conda envs install this package editable
+    # against the Jenkins build workspace and cannot import it on a normal node.
     - name: "paf_sim_ethiopia"
       type: python
-      environment: vivarium_gates_mncnh_artifact
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -139,7 +166,6 @@ workflow:
           output-dir: INSERT_VALID_DIRECTORY
     - name: "paf_sim_nigeria"
       type: python
-      environment: vivarium_gates_mncnh_artifact
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -152,7 +178,6 @@ workflow:
           output-dir: INSERT_VALID_DIRECTORY
     - name: "paf_sim_pakistan"
       type: python
-      environment: vivarium_gates_mncnh_artifact
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -169,7 +194,7 @@ workflow:
     # builds the .hdf per location.
     # NOTE: -o must be the same INSERT_VALID_DIRECTORY the PAF sim (Step 6) built the artifact in.
     - name: "make_artifacts"
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       command: 'bash -lc "yes y | make_artifacts -l all -o INSERT_VALID_DIRECTORY/"'
       resources:
         memory_gb: 1
