@@ -125,31 +125,117 @@ def create_and_push_tag(model_number: str) -> None:
         )
 
 
-def check_clean_tree() -> None:
-    """Abort if there are uncommitted changes to tracked files in src/vivarium_gates_mncnh,
-    excluding the validation/ and tools/ subdirectories."""
+# Paths under src/vivarium_gates_mncnh that check_clean_tree() deliberately ignores.
+#
+# The guard exists to protect the provenance of a run: everything the simulation
+# actually executes must be committed, so results can be traced to a git revision.
+# It is not a tidiness check, so anything that cannot change simulation behavior is
+# excluded -- and anything the run tooling itself is expected to rewrite *while*
+# running must be excluded, or the tooling cannot be composed with itself.
+#
+#   validation/  -- post-hoc V&V analysis code. Imported by notebooks, never by a
+#                   component or the model spec, so it cannot alter results.
+#   tools/       -- the launch machinery itself (this file included). You have to be
+#                   able to edit a launcher while using it.
+#   constants/paths.py       -- run_main_sim._update_model_results_dir() rewrites
+#                   MODEL_RESULTS_DIR here as part of launching, so the guard would
+#                   otherwise reject the tree the launcher just modified. Only the
+#                   results V&V notebooks read it; no component does.
+#   data/lbwsg_paf/outputs/  -- run_paf_sim writes the calculated PAF parquet files
+#                   here (9 tracked files). They are inputs to an *artifact build*,
+#                   not to a simulation: a running sim reads PAFs from the artifact,
+#                   never from this directory. Excluding them is what lets one script
+#                   run the artifact workflow and then launch models.
+CLEAN_TREE_EXCLUSIONS = [
+    ":!validation",
+    ":!tools",
+    ":!constants/paths.py",
+    ":!data/lbwsg_paf/outputs",
+]
+
+# The installed package directory. Git commands that ask about *this code* run
+# here rather than in the current working directory: the working directory is
+# whatever the operator happened to cd into, and when an environment resolves to
+# a different checkout than the one you are standing in, cwd describes a tree
+# that contributes nothing to the run.
+PACKAGE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _git_status(paths: List[str]) -> Optional[str]:
+    """Return uncommitted changes to *paths*, or ``None`` outside a checkout.
+
+    Always asks about :data:`PACKAGE_DIR`, not the current working directory: the
+    question these guards exist to answer is whether *the code that will run* is
+    committed, and the directory the operator happens to be standing in has no
+    bearing on that. An empty string means a checkout with nothing changed.
+    """
     result = subprocess.run(
         [
             "git",
+            "-C",
+            str(PACKAGE_DIR),
             "status",
             "--porcelain",
             "--untracked-files=no",
             "--",
-            "src/vivarium_gates_mncnh",
-            ":!src/vivarium_gates_mncnh/validation",
-            ":!src/vivarium_gates_mncnh/tools",
+            *paths,
         ],
         capture_output=True,
         text=True,
-        check=True,
     )
-    if result.stdout.strip():
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def check_clean_tree() -> None:
+    """Abort if there are uncommitted changes to tracked files that affect results.
+
+    Scoped to ``src/vivarium_gates_mncnh`` minus :data:`CLEAN_TREE_EXCLUSIONS`; see
+    that constant for why each path is excluded.
+    """
+    changed = _git_status([".", *CLEAN_TREE_EXCLUSIONS])
+    if changed is None:
+        # Not a checkout at all -- a built install, which cannot carry
+        # uncommitted changes. There is nothing for this guard to protect.
+        print(f"\n{PACKAGE_DIR} is not a git checkout; skipping the clean-tree check.")
+        return
+    if changed:
+        excluded = ", ".join(e.removeprefix(":!") for e in CLEAN_TREE_EXCLUSIONS)
         raise RuntimeError(
             "There are uncommitted changes to tracked files in src/vivarium_gates_mncnh "
-            "(excluding validation/ and tools/). "
+            f"(excluding {excluded}). "
             "Please commit or stash them before running this script.\n"
-            f"{result.stdout.strip()}"
+            f"{changed}"
         )
+
+
+def warn_if_dirty(paths: List[str], written_by: str) -> bool:
+    """Print a warning listing any *paths* with uncommitted changes.
+
+    These paths are excluded from :func:`check_clean_tree` so that run tooling can
+    write them mid-workflow (see :data:`CLEAN_TREE_EXCLUSIONS`). That exclusion is
+    what makes the composition possible, but it also means the changes are easy to
+    miss, so say so loudly instead of failing.
+
+    Returns
+    -------
+    bool
+        True if any of *paths* has uncommitted changes.
+    """
+    changed = _git_status(paths)
+    if not changed:
+        return False
+    print("\n" + "!" * 80)
+    print(
+        f"WARNING: {written_by} left uncommitted changes to tracked files.\n"
+        "         They are excluded from the clean-tree check so this script could\n"
+        "         write them, but they are yours to commit -- a run is only\n"
+        "         reproducible once they are.\n"
+        f"{changed}"
+    )
+    print("!" * 80 + "\n")
+    return True
+
+
 
 
 def check_conda_environments() -> None:
