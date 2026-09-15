@@ -22,11 +22,13 @@ from pathlib import Path
 
 from vivarium_gates_mncnh.constants.paths import CLUSTER_DATA_DIR
 from vivarium_gates_mncnh.tools.utilities import (
-    check_conda_environments,
+    check_environment,
     check_psimulate_finished,
+    default_env_for_type,
     extract_results_dir,
     move_results,
     run_command,
+    warn_if_dirty,
 )
 
 
@@ -58,7 +60,52 @@ def generate_artifact():
         "location -- e.g. a personal scratch dir for isolated test runs.",
     )
 
+    parser.add_argument(
+        "--simulation-env",
+        type=str,
+        default=None,
+        dest="simulation_env",
+        help=(
+            "Environment to run psimulate in: a conda env name, a venv name, or a "
+            "path to either one's directory. Defaults to the sibling 'simulation' overlay "
+            "of the active environment, else the canonical shared conda env."
+        ),
+    )
+    parser.add_argument(
+        "--artifact-env",
+        type=str,
+        default=None,
+        dest="artifact_env",
+        help=(
+            "Environment to run make_artifacts in. Same forms as --simulation-env; "
+            "defaults to the sibling 'artifact' overlay of the active environment."
+        ),
+    )
+    parser.add_argument(
+        "--allow-env-mismatch",
+        action="store_true",
+        dest="allow_env_mismatch",
+        help=(
+            "Warn instead of failing when an environment's installed revision does "
+            "not match HEAD."
+        ),
+    )
+
     args = parser.parse_args()
+
+    # This script alternates between two environments -- psimulate runs in the
+    # simulation env, make_artifacts in the artifact env -- so neither can be left
+    # implicit in the active environment the way a single-environment script can.
+    simulation_env = (
+        args.simulation_env
+        if args.simulation_env is not None
+        else default_env_for_type("simulation")
+    )
+    artifact_env = (
+        args.artifact_env
+        if args.artifact_env is not None
+        else default_env_for_type("artifact")
+    )
 
     location = args.location.lower()
     artifact_name = args.artifact_name
@@ -105,8 +152,13 @@ def generate_artifact():
     print("=" * 80)
 
     try:
-        # Check for required conda environments
-        check_conda_environments()
+        # Validate *both* environments this script will dispatch to. Checking one
+        # implies nothing about the other, and a name alone implies nothing at all.
+        check_environment(
+            simulation_env,
+            artifact_env,
+            allow_env_mismatch=args.allow_env_mismatch,
+        )
 
         # Step 1: Initial artifact generation
         if skip_initial_artifact:
@@ -115,7 +167,7 @@ def generate_artifact():
             run_command(
                 ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", artifact_path],
                 f"initial artifact generation for {location.capitalize()}",
-                conda_env="vivarium_gates_mncnh_artifact",
+                env=artifact_env,
                 auto_confirm=True,
             )
 
@@ -135,7 +187,7 @@ def generate_artifact():
                 str(script_dir / "code" / "lbwsg_paf_branches.yaml"),
             ],
             "first psimulate run (early neonatal PAFs)",
-            conda_env="vivarium_gates_mncnh_simulation",
+            env=simulation_env,
             capture_full_output=True,
         )
 
@@ -166,7 +218,7 @@ def generate_artifact():
                 "cause.neonatal_preterm_birth.population_attributable_fraction",
             ],
             f"early neonatal artifact generation for {location.capitalize()}",
-            conda_env="vivarium_gates_mncnh_artifact",
+            env=artifact_env,
             auto_confirm=True,
         )
 
@@ -186,7 +238,7 @@ def generate_artifact():
                 str(script_dir / "code" / "lbwsg_paf_branches.yaml"),
             ],
             "second psimulate run (late neonatal PAFs and preterm prevalence)",
-            conda_env="vivarium_gates_mncnh_simulation",
+            env=simulation_env,
             capture_full_output=True,
         )
 
@@ -224,13 +276,18 @@ def generate_artifact():
                 "cause.neonatal_preterm_birth.population_attributable_fraction",
             ],
             f"final artifact generation for {location.capitalize()}",
-            conda_env="vivarium_gates_mncnh_artifact",
+            env=artifact_env,
             auto_confirm=True,
         )
 
         print("\n" + "=" * 80)
         print("PAF Simulation Workflow Completed Successfully!")
         print("=" * 80 + "\n")
+
+        warn_if_dirty(
+            ["data/lbwsg_paf/outputs"],
+            "The PAF simulation",
+        )
 
         # Clean up working directory only on success
         if working_dir.exists():
