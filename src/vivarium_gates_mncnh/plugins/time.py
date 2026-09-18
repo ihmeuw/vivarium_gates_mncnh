@@ -27,7 +27,9 @@ class EventClock(SimulationClock):
         return "event_clock"
 
     @property
-    def step_name(self):
+    def step_name(self) -> str | None:
+        if not 0 <= self.step_index < len(self.simulation_events):
+            return None
         return self.simulation_events[self.step_index]
 
     def setup(self, builder: Builder) -> None:
@@ -42,6 +44,11 @@ class EventClock(SimulationClock):
         self._stop_time = self.get_end_time(time)
 
     def step_forward(self, index: pd.Index) -> None:
+        if self.step_index >= len(self.simulation_events):
+            raise IndexError(
+                "Cannot step a simulation that has already run through all "
+                f"{len(self.simulation_events)} of its simulation events."
+            )
         super().step_forward(index)
         self.step_index += 1
 

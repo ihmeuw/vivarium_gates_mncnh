@@ -1,8 +1,6 @@
 import pandas as pd
-from vivarium.testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
-from vivarium.testing_utils.automated_validation.data_transformation.formatting import (
-    SimDataFormatter,
-)
+from vivarium.validation.constants import DRAW_INDEX, SEED_INDEX
+from vivarium.validation.data_transformation.formatting import SimDataFormatter
 
 from vivarium_gates_mncnh.validation.utils import map_child_index_levels
 
