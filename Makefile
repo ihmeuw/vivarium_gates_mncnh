@@ -25,6 +25,9 @@ PACKAGE_NAME = $(notdir $(CURDIR))
 # in a Jenkins PR workspace is the dir basename (e.g. "..._PR-327-head@2") and is
 # rejected by uv as an invalid package name. Remove once pyproject.toml declares
 # a [project] table with `name = "vivarium_gates_mncnh"`.
+# DIST_NAME is also the right name for anything that must match an artifact
+# published outside this checkout (e.g. the Jenkins shared environments), since
+# PACKAGE_NAME is whatever the checkout directory happens to be called.
 DIST_NAME := vivarium_gates_mncnh
 
 # Helper function for validating enum arguments
@@ -216,7 +219,10 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@$(eval force ?= no)
 	@$(call validate_arg,$(force),yes no,force)
 #	Construct shared environment path
-	@$(eval SHARED_ENV_NAME := $(PACKAGE_NAME)_$(type)_current)
+#	Uses DIST_NAME, not PACKAGE_NAME: the Jenkins nightly builds are named after the
+#	distribution, so a worktree in a differently-named directory (e.g. vgm_merge_model38)
+#	must still find vivarium_gates_mncnh_<type>_current.
+	@$(eval SHARED_ENV_NAME := $(DIST_NAME)_$(type)_current)
 	@$(eval SHARED_ENV_PATH := $(shared_env_dir)/$(SHARED_ENV_NAME))
 
 #	Verify shared environment exists
