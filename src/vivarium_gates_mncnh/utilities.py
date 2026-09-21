@@ -11,6 +11,7 @@ from vivarium.engine.framework.lookup import DEFAULT_VALUE_COLUMN
 from vivarium.engine.framework.randomness import get_hash
 from vivarium.engine.types import NumberLike, NumericArray
 from vivarium.public_health.causal_factor.utilities import pivot_categorical
+from vivarium.engine import InteractiveContext
 
 from vivarium_gates_mncnh.constants import metadata
 
@@ -299,3 +300,29 @@ def get_child_age_bins(_: Builder) -> pd.DataFrame:
         ],
     }
     return pd.DataFrame(age_bins_data)
+
+def _discover_pipeline(
+    sim: InteractiveContext,
+    must_contain: list[str],
+    must_not_contain: tuple[str, ...] = (),
+) -> str | None:
+    """Return the (single) attribute-pipeline name matching all substrings in
+    ``must_contain`` and none in ``must_not_contain``; None if not found.
+
+    Written defensively because the exact RR pipeline names for the new effects
+    are set by the implementation (to which this verification is blind). RR / PAF
+    / CSMR pipelines are *attribute* pipelines and do NOT appear in
+    ``sim.list_values()`` -- they are discoverable via ``sim.get_attribute_names()``.
+    """
+    hits = []
+    for name in sim.get_attribute_names():
+        low = name.lower()
+        if all(s in low for s in must_contain) and not any(
+            s in low for s in must_not_contain
+        ):
+            hits.append(name)
+    if not hits:
+        return None
+    # Prefer the shortest match if several qualify (defensive, avoids picking
+    # an unexpected super-string).
+    return sorted(hits, key=len)[0]
