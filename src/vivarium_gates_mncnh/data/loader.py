@@ -2089,6 +2089,7 @@ def get_deaths_summed_over_causes(
     deaths = reshape_to_vivarium_format(deaths, location)
     return deaths
 
+
 ###########################
 # Hemorrhage split loaders
 ###########################
