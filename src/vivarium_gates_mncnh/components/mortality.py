@@ -31,7 +31,7 @@ from vivarium_gates_mncnh.constants.data_values import (
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import (
     get_location,
-    load_births_net_of_aph_mortality,
+    load_per_birth_denominator,
     rate_to_probability,
 )
 
@@ -144,11 +144,14 @@ class MaternalDisordersBurden(Component):
         if step == SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY:
             self._resolve_mortality(ANTEPARTUM_MATERNAL_DISORDERS, event.index)
         elif step == SIMULATION_EVENT_NAMES.MORTALITY:
-            # Only mothers who survived the antepartum pass are eligible to die
-            # from an intrapartum disorder, making the two passes mutually exclusive.
-            alive = self.population_view.get(event.index, [COLUMNS.MOTHER_ALIVE])
-            survivors = alive.loc[alive[COLUMNS.MOTHER_ALIVE]]
-            self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, survivors.index)
+            # The two passes are mutually exclusive by pregnancy outcome alone:
+            # abortion/miscarriage/ectopic pregnancy is the only antepartum disorder
+            # and is assigned to partial-term pregnancies, while every intrapartum
+            # disorder is assigned to full-term births. No mother can therefore be
+            # dead when this pass runs, and filtering on is_alive here would be a
+            # no-op. If an antepartum cause that can kill a full-term mother is ever
+            # added, that gate has to come back -- see MATERNAL_DISORDER_PHASE.
+            self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, event.index)
         else:
             return
 
@@ -213,13 +216,9 @@ class MaternalDisordersBurden(Component):
 
     def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
-        # Both APH and PPH use the same CFR = CSMR_c367 / incidence_severe,
-        # derived from the total maternal hemorrhage cause. This means a simulant
-        # with both severe APH and severe PPH will have their hemorrhage mortality
-        # contribution counted twice. Per the research docs, this is an accepted
-        # simplification: APH and PPH are assumed uncorrelated (except through
-        # hemoglobin), so dual severe hemorrhage should be rare.
-        # See: antepartum_hemorrhage.rst and postpartum_hemorrhage.rst limitations.
+        # Postpartum hemorrhage uses the CFR derived from the total maternal
+        # hemorrhage cause: CFR = CSMR_c367 / incidence_severe.
+        # See: postpartum_hemorrhage.rst limitations.
         if cause in self.hemorrhage_causes:
             cfr = builder.data.load(MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE)
         else:
@@ -227,9 +226,9 @@ class MaternalDisordersBurden(Component):
                 f"cause.{cause}.cause_specific_mortality_rate"
             ).set_index(ARTIFACT_INDEX_COLUMNS)
             if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
-                # Residual disorders are conditional on surviving the antepartum period,
-                # so the denominator is births net of antepartum hemorrhage deaths.
-                incidence_rate = load_births_net_of_aph_mortality(builder)
+                # Residual disorders are assigned to every full-term birth, so the
+                # per-case denominator is the birth rate.
+                incidence_rate = load_per_birth_denominator(builder)
             else:
                 incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
                     ARTIFACT_INDEX_COLUMNS

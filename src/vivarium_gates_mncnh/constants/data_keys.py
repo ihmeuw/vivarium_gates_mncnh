@@ -41,6 +41,7 @@ class __Pregnancy(NamedTuple):
         "cause.maternal_abortion_and_miscarriage.raw_incidence_rate"
     )
     RAW_INCIDENCE_RATE_ECTOPIC: str = "cause.ectopic_pregnancy.raw_incidence_rate"
+    INCIDENCE_RATE: str = "covariate.pregnancy_incidence_rate.estimate"
 
     @property
     def name(self):
@@ -142,9 +143,7 @@ class __MaternalHemorrhage(NamedTuple):
     YLDS_PER_CASE_SEVERE: str = "cause.maternal_hemorrhage.ylds_per_case_severe"
     SEVERE_FRACTION: str = "cause.maternal_hemorrhage.severe_fraction"
     CASE_FATALITY_RATE: str = "cause.maternal_hemorrhage.case_fatality_rate"
-    APH_INCIDENCE_RISK: str = "cause.antepartum_hemorrhage.incidence_risk"
     PPH_INCIDENCE_RISK: str = "cause.postpartum_hemorrhage.incidence_risk"
-    APH_CSMR: str = "cause.antepartum_hemorrhage.cause_specific_mortality_rate"
 
     @property
     def name(self):
@@ -161,8 +160,6 @@ MATERNAL_HEMORRHAGE = __MaternalHemorrhage()
 class __HemorrhageHemoglobinShift(NamedTuple):
     PPH_SHIFT_0_6W: str = "risk_effect.hemorrhage_hemoglobin_shift.pph_shift_0_6w"
     PPH_SHIFT_6W_9M: str = "risk_effect.hemorrhage_hemoglobin_shift.pph_shift_6w_9m"
-    APH_SHIFT_0_6W: str = "risk_effect.hemorrhage_hemoglobin_shift.aph_shift_0_6w"
-    APH_SHIFT_6W_9M: str = "risk_effect.hemorrhage_hemoglobin_shift.aph_shift_6w_9m"
 
     @property
     def name(self):
@@ -250,6 +247,30 @@ class __ObstructedLabor(NamedTuple):
 
 
 OBSTRUCTED_LABOR = __ObstructedLabor()
+
+
+class __MaternalDisorders(NamedTuple):
+    """The GBD maternal disorders parent cause, carried for validation only.
+
+    Nothing in the simulation reads these keys. They are the aggregate the
+    modeled maternal causes are validated against, kept in the artifact so that
+    comparison does not require a separate GBD pull.
+    """
+
+    # Keys that will be loaded into the artifact. must have a colon type declaration
+    CSMR: str = "cause.maternal_disorders.cause_specific_mortality_rate"
+    YLD_RATE: str = "cause.maternal_disorders.yld_rate"
+
+    @property
+    def name(self):
+        return "maternal_disorders"
+
+    @property
+    def log_name(self):
+        return "maternal disorders"
+
+
+MATERNAL_DISORDERS = __MaternalDisorders()
 
 
 class __ResidualMaternalDisorders(NamedTuple):
@@ -653,6 +674,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     MATERNAL_SEPSIS,
     MATERNAL_HEMORRHAGE,
     OBSTRUCTED_LABOR,
+    MATERNAL_DISORDERS,
     RESIDUAL_MATERNAL_DISORDERS,
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     PRETERM_BIRTH,

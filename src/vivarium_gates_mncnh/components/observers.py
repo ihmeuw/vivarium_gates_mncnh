@@ -48,7 +48,7 @@ from vivarium_gates_mncnh.constants.metadata import (
 )
 from vivarium_gates_mncnh.utilities import (
     get_child_age_bins,
-    load_births_net_of_aph_mortality,
+    load_per_birth_denominator,
 )
 
 
@@ -600,9 +600,9 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
             ARTIFACT_INDEX_COLUMNS
         )
         if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
-            # Residual disorders apply only to antepartum survivors, so ylds_per_case
-            # divides by births net of antepartum hemorrhage deaths.
-            incidence_rate = load_births_net_of_aph_mortality(builder)
+            # Residual disorders are assigned to every full-term birth, so the
+            # per-case denominator is the birth rate.
+            incidence_rate = load_per_birth_denominator(builder)
         else:
             incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(
                 ARTIFACT_INDEX_COLUMNS

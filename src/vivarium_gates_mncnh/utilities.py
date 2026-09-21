@@ -60,21 +60,15 @@ def get_risk_distribution_parameter(data: float | pd.DataFrame) -> float | pd.Se
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
 
-def load_births_net_of_aph_mortality(builder: Builder) -> pd.DataFrame:
-    """Return births net of antepartum-hemorrhage deaths: the per-surviving-birth denominator.
+def load_per_birth_denominator(builder: Builder) -> pd.DataFrame:
+    """Return the birth rate -- live births plus stillbirths -- as a per-birth denominator.
 
-    Intrapartum maternal disorders are conditional on surviving the antepartum
-    period, so they divide by ``birth_rate - antepartum_hemorrhage_csmr``.
+    Maternal disorder incidence risks, case fatality rates and YLDs per case are all
+    expressed per birth, so they divide by this.
     """
-    from vivarium_gates_mncnh.constants.data_keys import MATERNAL_HEMORRHAGE, POPULATION
+    from vivarium_gates_mncnh.constants.data_keys import POPULATION
 
-    birth_rate = builder.data.load(POPULATION.BIRTH_RATE).set_index(
-        metadata.ARTIFACT_INDEX_COLUMNS
-    )
-    aph_csmr = builder.data.load(MATERNAL_HEMORRHAGE.APH_CSMR).set_index(
-        metadata.ARTIFACT_INDEX_COLUMNS
-    )
-    return birth_rate - aph_csmr
+    return builder.data.load(POPULATION.BIRTH_RATE).set_index(metadata.ARTIFACT_INDEX_COLUMNS)
 
 
 def len_longest_location() -> int:
