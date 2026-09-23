@@ -20,10 +20,12 @@ from vivarium_gates_mncnh.components.intrapartum import (
     RDSInterventionAccess,
 )
 from vivarium_gates_mncnh.components.lbwsg import (
+    BaselineLBWSGRelativeRiskProducer,
     LBWSGMortality,
     LBWSGPAFCalculationExposure,
     LBWSGPAFObserver,
     LBWSGPAFRiskEffect,
+    LBWSGRelativeRiskProducer,
     LBWSGRisk,
     LBWSGRiskEffect,
     PretermPrevalenceObserver,
