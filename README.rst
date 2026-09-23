@@ -65,7 +65,7 @@ Alternatively, users can manually create conda environments as follows::
   (vivarium_gates_mncnh_artifact) :~$ pip install -e .[data]
   ...pip will install vivarium and other requirements...
 
-Supported Python versions: 3.10, 3.11
+Supported Python versions: 3.11
 
 Note the ``-e`` flag that follows pip install. This will install the python
 package in-place, which is important for making the model specifications later.

@@ -1,14 +1,14 @@
 import pandas as pd
-from vivarium.testing_utils.automated_validation.data_transformation import utils
-from vivarium.testing_utils.automated_validation.data_transformation.data_schema import (
+from vivarium.validation.data_transformation import utils
+from vivarium.validation.data_transformation.data_schema import (
     SimOutputData,
     SingleNumericColumn,
 )
-from vivarium.testing_utils.automated_validation.data_transformation.measures import (
+from vivarium.validation.data_transformation.measures import (
     RatioMeasure,
     _align_indexes,
 )
-from vivarium.testing_utils.automated_validation.data_transformation.rate_aggregation import (
+from vivarium.validation.data_transformation.rate_aggregation import (
     RateAggregationWeights,
 )
 

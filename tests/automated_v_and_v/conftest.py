@@ -1,7 +1,7 @@
-"""Conftest for automated validation tests that require vivarium.testing_utils imports."""
+"""Conftest for automated validation tests that require vivarium.validation imports."""
 import pandas as pd
 import pytest
-from vivarium.testing_utils.automated_validation.constants import DRAW_INDEX, SEED_INDEX
+from vivarium.validation.constants import DRAW_INDEX, SEED_INDEX
 
 
 def _create_births_observer_data() -> pd.DataFrame:

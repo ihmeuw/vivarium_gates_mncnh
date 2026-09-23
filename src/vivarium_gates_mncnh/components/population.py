@@ -35,6 +35,14 @@ class EvenlyDistributedPopulation(BasePopulation):
     male and female.
     """
 
+    @property
+    def time_step_priority(self) -> int:
+        # Age simulants only after every other component has acted on the age group they
+        # are currently in; this population is initialized already inside the early
+        # neonatal group, so aging first would skip that group entirely. 9 is the last of
+        # the 10 priority buckets.
+        return 9
+
     def __init__(self):
         super().__init__()
         self._sub_components = []
