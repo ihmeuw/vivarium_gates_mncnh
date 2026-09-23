@@ -271,16 +271,6 @@ HEMORRHAGE_CAUSES = [
     COLUMNS.POSTPARTUM_HEMORRHAGE,
 ]
 
-# Maternal disorders resolve in two mortality passes, split by pregnancy outcome.
-# The antepartum pass covers abortion/miscarriage/ectopic pregnancy, which resolves
-# (incidence + mortality) during the pregnancy band and only for partial-term
-# pregnancies; the intrapartum pass covers the disorders assigned to full-term
-# births. The two populations are disjoint, so neither pass has to filter on who
-# survived the other. The single phase mapping makes the partition structural -- a
-# disorder cannot land in both passes -- while the observer consumes the full union
-# (MATERNAL_DISORDERS). Adding an antepartum disorder that can kill a full-term
-# mother would break the disjointness and require reinstating a survivor filter on
-# the intrapartum pass.
 MATERNAL_DISORDER_PHASE = {
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY: "antepartum",
     COLUMNS.OBSTRUCTED_LABOR: "intrapartum",

@@ -273,10 +273,7 @@ class Hemoglobin(Risk):
 
         The hemorrhage shift stays scoped to live births and stillbirths, so a
         partial-term simulant is redrawn but not shifted: hemorrhage is documented
-        as affecting still and live births only. Postpartum hemorrhage is itself
-        assigned to full-term births alone, so the scoping is redundant with the
-        incidence assignment; it is kept as a defensive restatement of the
-        documented scope.
+        as affecting still and live births only.
         """
         pop = self.population_view.get(
             index,

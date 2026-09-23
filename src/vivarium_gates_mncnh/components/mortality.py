@@ -144,13 +144,6 @@ class MaternalDisordersBurden(Component):
         if step == SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY:
             self._resolve_mortality(ANTEPARTUM_MATERNAL_DISORDERS, event.index)
         elif step == SIMULATION_EVENT_NAMES.MORTALITY:
-            # The two passes are mutually exclusive by pregnancy outcome alone:
-            # abortion/miscarriage/ectopic pregnancy is the only antepartum disorder
-            # and is assigned to partial-term pregnancies, while every intrapartum
-            # disorder is assigned to full-term births. No mother can therefore be
-            # dead when this pass runs, and filtering on is_alive here would be a
-            # no-op. If an antepartum cause that can kill a full-term mother is ever
-            # added, that gate has to come back -- see MATERNAL_DISORDER_PHASE.
             self._resolve_mortality(INTRAPARTUM_MATERNAL_DISORDERS, event.index)
         else:
             return
@@ -226,8 +219,6 @@ class MaternalDisordersBurden(Component):
                 f"cause.{cause}.cause_specific_mortality_rate"
             ).set_index(ARTIFACT_INDEX_COLUMNS)
             if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
-                # Residual disorders are assigned to every full-term birth, so the
-                # per-case denominator is the birth rate.
                 incidence_rate = load_per_birth_denominator(builder)
             else:
                 incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(

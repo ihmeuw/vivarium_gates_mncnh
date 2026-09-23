@@ -600,8 +600,6 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
             ARTIFACT_INDEX_COLUMNS
         )
         if cause == COLUMNS.RESIDUAL_MATERNAL_DISORDERS:
-            # Residual disorders are assigned to every full-term birth, so the
-            # per-case denominator is the birth rate.
             incidence_rate = load_per_birth_denominator(builder)
         else:
             incidence_rate = builder.data.load(f"cause.{cause}.incidence_rate").set_index(

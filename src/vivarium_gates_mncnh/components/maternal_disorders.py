@@ -72,9 +72,6 @@ class MaternalDisorder(Component):
             return
 
         pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # Full-term births are eligible for an intrapartum disorder. No is_alive
-        # filter is needed: the only antepartum disorder is assigned to partial-term
-        # pregnancies, so no full-term mother is dead by this step.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
@@ -97,10 +94,6 @@ class MaternalDisorder(Component):
     def load_incidence_risk(self, builder: Builder) -> pd.DataFrame:
         artifact_key = "cause." + self.maternal_disorder + ".incidence_rate"
         raw_incidence = builder.data.load(artifact_key).set_index(ARTIFACT_INDEX_COLUMNS)
-        # Per-birth risk: the denominator is the birth rate, i.e. live births plus
-        # stillbirths. AbortionMiscarriageEctopicPregnancy also inherits this loader
-        # but assigns deterministically off pregnancy outcome and never reads the
-        # pipeline.
         denominator = load_per_birth_denominator(builder)
         incidence_risk = (raw_incidence / denominator).fillna(0.0)
         return incidence_risk.reset_index()
@@ -247,9 +240,6 @@ class ResidualMaternalDisorders(MaternalDisorder):
             return
 
         pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # Residual disorders apply to full-term mothers. As above, no is_alive
-        # filter is needed while abortion/miscarriage/ectopic pregnancy is the only
-        # antepartum disorder.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
@@ -313,9 +303,6 @@ class PostpartumHemorrhage(MaternalDisorder):
             return
 
         pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # Full-term births only (stillbirths and live births). As above, no
-        # is_alive filter is needed while abortion/miscarriage/ectopic pregnancy is
-        # the only antepartum disorder.
         full_term = pop.loc[
             pop[COLUMNS.PREGNANCY_OUTCOME].isin(
                 [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
