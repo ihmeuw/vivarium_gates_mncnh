@@ -262,25 +262,34 @@ class ResidualMaternalDisorders(MaternalDisorder):
         )
 
 
-class MaternalHemorrhageBase(MaternalDisorder):
-    """Base class for maternal hemorrhage causes with severity logic."""
+class PostpartumHemorrhage(MaternalDisorder):
+    """Assigns postpartum hemorrhage, with a severity, to full-term births.
 
-    INCIDENCE_RISK_KEY: str = ""  # Overridden by subclasses
+    Severity matters downstream: only severe cases can die of hemorrhage, and
+    moderate and severe cases accrue different YLDs per case.
+    """
 
     @property
     def configuration_defaults(self) -> dict:
         return {
             self.name: {
                 "data_sources": {
-                    "incidence_risk_data": self.INCIDENCE_RISK_KEY,
+                    "incidence_risk_data": data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK,
                     "severe_fraction": data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION,
                 }
             }
         }
 
     @property
+    def severity_column(self) -> str:
+        return f"{self.maternal_disorder}_severity"
+
+    @property
     def columns_created(self) -> list:
-        return [self.maternal_disorder, f"{self.maternal_disorder}_severity"]
+        return [self.maternal_disorder, self.severity_column]
+
+    def __init__(self) -> None:
+        super().__init__(COLUMNS.POSTPARTUM_HEMORRHAGE)
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
@@ -288,19 +297,35 @@ class MaternalHemorrhageBase(MaternalDisorder):
 
         builder.population.register_initializer(
             self.initialize_severity_column,
-            columns=[f"{self.maternal_disorder}_severity"],
+            columns=[self.severity_column],
         )
 
     def initialize_severity_column(self, pop_data: SimulantData) -> None:
         self.population_view.initialize(
             pd.DataFrame(
-                {f"{self.maternal_disorder}_severity": HEMORRHAGE_SEVERITY.NONE},
+                {self.severity_column: HEMORRHAGE_SEVERITY.NONE},
                 index=pop_data.index,
             )
         )
 
-    def assign_outcomes(self, eligible_idx: pd.Index) -> None:
-        """Assign hemorrhage outcomes (incidence and severity) to eligible population."""
+    def on_time_step(self, event: Event) -> None:
+        if self._sim_step_name() != SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE:
+            return
+
+        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
+        # Full-term births only (stillbirths and live births). As above, no
+        # is_alive filter is needed while abortion/miscarriage/ectopic pregnancy is
+        # the only antepartum disorder.
+        full_term = pop.loc[
+            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
+                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
+            )
+        ].index
+
+        self._assign_outcomes(full_term)
+
+    def _assign_outcomes(self, eligible_idx: pd.Index) -> None:
+        """Assign hemorrhage incidence and, to the cases, a severity."""
         incidence_risk = self.population_view.get(
             eligible_idx, self.incidence_risk_pipeline_name
         )
@@ -332,32 +357,7 @@ class MaternalHemorrhageBase(MaternalDisorder):
             return result
 
         self.population_view.update(self.maternal_disorder, _set_disorder)
-        self.population_view.update(f"{self.maternal_disorder}_severity", _set_severity)
-
-
-class PostpartumHemorrhage(MaternalHemorrhageBase):
-    """Applies birth-scaled incidence risk to full-term births."""
-
-    INCIDENCE_RISK_KEY = data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK
-
-    def __init__(self) -> None:
-        super().__init__(COLUMNS.POSTPARTUM_HEMORRHAGE)
-
-    def on_time_step(self, event: Event) -> None:
-        if self._sim_step_name() != SIMULATION_EVENT_NAMES.POSTPARTUM_HEMORRHAGE:
-            return
-
-        pop = self.population_view.get(event.index, [COLUMNS.PREGNANCY_OUTCOME])
-        # Full-term births only (stillbirths and live births). As above, no
-        # is_alive filter is needed while abortion/miscarriage/ectopic pregnancy is
-        # the only antepartum disorder.
-        full_term = pop.loc[
-            pop[COLUMNS.PREGNANCY_OUTCOME].isin(
-                [PREGNANCY_OUTCOMES.STILLBIRTH_OUTCOME, PREGNANCY_OUTCOMES.LIVE_BIRTH_OUTCOME]
-            )
-        ].index
-
-        self.assign_outcomes(full_term)
+        self.population_view.update(self.severity_column, _set_severity)
 
 
 class SepsisEffectsOnHemoglobin(Component):
