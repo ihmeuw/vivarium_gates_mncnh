@@ -79,14 +79,8 @@ class Hemoglobin(Risk):
         self.pph_shift_0_6w = builder.data.load(
             data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W
         )["value"].item()
-        self.aph_shift_0_6w = builder.data.load(
-            data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W
-        )["value"].item()
         self.pph_shift_6w_9m = builder.data.load(
             data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M
-        )["value"].item()
-        self.aph_shift_6w_9m = builder.data.load(
-            data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M
         )["value"].item()
         self._build_non_pregnant_distribution(builder)
 
@@ -175,8 +169,8 @@ class Hemoglobin(Risk):
             return
         # At LATER_PREGNANCY_INTERVENTION: snapshot of pregnancy hemoglobin
         # (pre-partum, before any hemorrhage shifts).
-        # At EARLY_POSTPARTUM (0-6w postpartum): hemoglobin after
-        # antepartum/postpartum hemorrhage shifts have been applied.
+        # At EARLY_POSTPARTUM (0-6w postpartum): hemoglobin after the
+        # postpartum hemorrhage shift has been applied.
         # At LATE_POSTPARTUM (6w-9m): hemoglobin drawn from
         # the non-pregnant distribution with hemorrhage shifts applied.
         exposure = self.population_view.get(event.index, self.exposure_name)
@@ -205,12 +199,12 @@ class Hemoglobin(Risk):
     ) -> pd.Series:
         """Apply hemorrhage hemoglobin shifts at postpartum events.
 
-        At ``early_postpartum`` (0-6 week postpartum): apply PPH and APH
-        shifts to the existing pregnancy hemoglobin for hemorrhage cases.
+        At ``early_postpartum`` (0-6 week postpartum): apply the PPH shift
+        to the existing pregnancy hemoglobin for hemorrhage cases.
 
         At ``late_postpartum`` (6w-9m): replace pregnancy
         hemoglobin with a draw from the non-pregnant distribution and apply
-        PPH/APH shifts for hemorrhage cases.
+        the PPH shift for hemorrhage cases.
 
         At all other events this is a no-op.
         """
@@ -230,7 +224,6 @@ class Hemoglobin(Risk):
             [
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.POSTPARTUM_HEMORRHAGE,
-                COLUMNS.ANTEPARTUM_HEMORRHAGE,
             ],
         )
         survived_mask = pop[COLUMNS.PREGNANCY_OUTCOME].isin(
@@ -239,20 +232,16 @@ class Hemoglobin(Risk):
         return pop, survived_mask
 
     def _apply_hemorrhage_shifts(
-        self, hgb: pd.Series, pop: pd.DataFrame, pph_shift: float, aph_shift: float
+        self, hgb: pd.Series, pop: pd.DataFrame, pph_shift: float
     ) -> pd.Series:
-        """Apply PPH and APH hemorrhage shifts to hemoglobin values.
+        """Apply the postpartum hemorrhage shift to hemoglobin values.
 
-        Shifts are applied additively; simulants with both conditions
-        receive both shifts.
+        The shift is applied additively to postpartum hemorrhage cases and the
+        result is floored at zero.
         """
         pph_mask = pop[COLUMNS.POSTPARTUM_HEMORRHAGE].fillna(False)
         if pph_mask.any():
             hgb.loc[pph_mask] += pph_shift
-
-        aph_mask = pop[COLUMNS.ANTEPARTUM_HEMORRHAGE].fillna(False)
-        if aph_mask.any():
-            hgb.loc[aph_mask] += aph_shift
 
         return hgb.clip(lower=0)
 
@@ -269,7 +258,6 @@ class Hemoglobin(Risk):
             result.loc[survived_pop.index].copy(),
             survived_pop,
             self.pph_shift_0_6w,
-            self.aph_shift_0_6w,
         )
         return result
 
@@ -283,12 +271,9 @@ class Hemoglobin(Risk):
         their pregnancy value, since that period represents the weeks immediately
         after a birth they did not have.
 
-        The hemorrhage shifts stay scoped to live births and stillbirths, so a
+        The hemorrhage shift stays scoped to live births and stillbirths, so a
         partial-term simulant is redrawn but not shifted: hemorrhage is documented
-        as affecting still and live births only. Postpartum hemorrhage is already
-        assigned to full-term births alone, but antepartum hemorrhage is assigned
-        to every pregnancy, so this scoping is what keeps antepartum hemorrhage off
-        partial-term postpartum hemoglobin.
+        as affecting still and live births only.
         """
         pop = self.population_view.get(
             index,
@@ -296,7 +281,6 @@ class Hemoglobin(Risk):
                 COLUMNS.MOTHER_ALIVE,
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.POSTPARTUM_HEMORRHAGE,
-                COLUMNS.ANTEPARTUM_HEMORRHAGE,
             ],
         )
         alive_pop = pop.loc[pop[COLUMNS.MOTHER_ALIVE]]
@@ -316,7 +300,6 @@ class Hemoglobin(Risk):
             hgb.loc[full_term_pop.index].copy(),
             full_term_pop,
             self.pph_shift_6w_9m,
-            self.aph_shift_6w_9m,
         )
 
         result = exposure.copy()
@@ -327,7 +310,7 @@ class Hemoglobin(Risk):
         """Sample hemoglobin values from the non-pregnant ensemble distribution.
 
         No hemorrhage shift and no clipping is applied here -- this is the raw
-        draw the 6w-9m shifts are layered on top of.
+        draw the 6w-9m shift is layered on top of.
         """
         propensities = self._propensity_view.get(
             index, [self.propensity_name, f"ensemble_propensity.{self.risk}"]
@@ -350,7 +333,7 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     These are 1) define the RR for the minimum exposure to be the maximum rather than minimum value
     (higher hemoglobin is protective at this level of exposure) and 2) allow RRs to be below 1."""
 
-    # APH and PPH share the same RR/PAF data keyed as "maternal_hemorrhage" in the artifact
+    # Hemorrhage causes use RR/PAF data keyed as "maternal_hemorrhage" in the artifact
     HEMORRHAGE_ENTITY_REMAP = {cause: "maternal_hemorrhage" for cause in HEMORRHAGE_CAUSES}
 
     def get_filtered_data(
@@ -358,10 +341,10 @@ class HemoglobinRiskEffect(NonLogLinearRiskEffect):
     ) -> float | pd.DataFrame:
         """Load and filter RR/PAF data for this target, with hemorrhage remapping.
 
-        APH and PPH are modeled as separate causes in the component configuration,
-        but hemoglobin RR/PAF artifact data is keyed under the shared
-        ``affected_entity == 'maternal_hemorrhage'``. For those two targets, we
-        remap ``self.target.name`` to the shared artifact entity before filtering.
+        Postpartum hemorrhage is modeled as its own cause in the component
+        configuration, but hemoglobin RR/PAF artifact data is keyed under
+        ``affected_entity == 'maternal_hemorrhage'``. For the hemorrhage targets we
+        remap ``self.target.name`` to that shared artifact entity before filtering.
 
         When present, both ``affected_entity`` and ``affected_measure`` columns are
         used to select only rows relevant to this target, and then dropped so the

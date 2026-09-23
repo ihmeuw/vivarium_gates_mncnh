@@ -91,7 +91,6 @@ class _SimulationEventNames(NamedTuple):
     ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
-    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -114,7 +113,6 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
     SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
     SIMULATION_EVENT_NAMES.ULTRASOUND,
-    SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE,
     SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY,
     SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
@@ -230,7 +228,6 @@ class __Columns(NamedTuple):
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
-    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -264,7 +261,6 @@ COLUMNS = __Columns()
 # TODO: add other maternal disorders when implemented
 MATERNAL_DISORDERS = [
     COLUMNS.OBSTRUCTED_LABOR,
-    COLUMNS.ANTEPARTUM_HEMORRHAGE,
     COLUMNS.POSTPARTUM_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
@@ -272,18 +268,10 @@ MATERNAL_DISORDERS = [
 ]
 
 HEMORRHAGE_CAUSES = [
-    COLUMNS.ANTEPARTUM_HEMORRHAGE,
     COLUMNS.POSTPARTUM_HEMORRHAGE,
 ]
 
-# Maternal disorders resolve in two mortality passes. Antepartum disorders resolve
-# (incidence + mortality) during the pregnancy band, before any intrapartum disorder
-# is assigned; intrapartum disorders are applied and killed only among antepartum
-# survivors. The single phase mapping makes the partition structural — a disorder
-# cannot land in both passes — while the observer still consumes the full union
-# (MATERNAL_DISORDERS).
 MATERNAL_DISORDER_PHASE = {
-    COLUMNS.ANTEPARTUM_HEMORRHAGE: "antepartum",
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY: "antepartum",
     COLUMNS.OBSTRUCTED_LABOR: "intrapartum",
     COLUMNS.POSTPARTUM_HEMORRHAGE: "intrapartum",
@@ -361,7 +349,6 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
-    ANTEPARTUM_HEMORRHAGE_INCIDENCE_RISK = "antepartum_hemorrhage.incidence_risk"
     POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
