@@ -44,13 +44,6 @@ def load_hemoglobin_rrs_on_maternal_disorders():
         rrs = load_hemoglobin_relative_risk(
             key="risk_factor.hemoglobin.relative_risk", location=location
         ).reset_index()
-        assert (
-            len([x for x in rrs.columns if "draw" in x]) == 500
-        ), "Hemoglobin RR data does not have 500 draws"
-        for i in list(range(0, 250)):
-            assert np.all(
-                rrs[f"draw_{i}"] == rrs[f"draw_{i + 250}"]
-            ), "Hemoglobin RR data does not have 250 unique draws"
         assert np.all(
             rrs.set_index(["parameter", "age_start", "affected_entity"])[
                 [x for x in rrs.columns if "draw" in x]

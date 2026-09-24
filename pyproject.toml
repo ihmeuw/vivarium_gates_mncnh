@@ -40,7 +40,7 @@ interactive = [
 ]
 lint = ["vivarium-dependencies[lint]"]
 data = [
-    "vivarium-inputs>=8.0.0,<9.0.0",
+    "vivarium-inputs @ git+https://github.com/ihme-internal/vivarium_inputs.git@pnast/feature/mic-6303-drop-get-draws",
     "vivarium_gates_mncnh[cluster,lint,test,validation]",
 ]
 dev = ["vivarium_gates_mncnh[test,cluster,lint,interactive]"]
@@ -50,6 +50,9 @@ Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
 
 [project.scripts]
 make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
+
+[tool.uv]
+override-dependencies = ["pandas<2.3.0", "numpy<2.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

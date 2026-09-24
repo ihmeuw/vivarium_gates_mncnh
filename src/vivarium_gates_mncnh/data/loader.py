@@ -20,8 +20,10 @@ from typing import List, Optional, Union
 import numpy as np
 import pandas as pd
 import vivarium_inputs.validation.sim as validation
+from loguru import logger
 from scipy.interpolate import RectBivariateSpline, griddata
 from vivarium.artifact import EntityKey
+from vivarium_gbd_access.exceptions import DataNotFoundError
 from vivarium_inputs import core as vi_core
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import interface
@@ -1139,7 +1141,7 @@ def load_iv_iron_lbwsg_effect_size(
     data = data.loc[data["location"] == location.lower()].drop("location", axis=1)
 
     data = data.sort_values(["draw", "outcome", "sex", "exposure"])
-    data = data.groupby(["draw", "outcome", "sex"]).apply(
+    data = data.groupby(["draw", "outcome", "sex"], group_keys=False).apply(
         _add_hemoglobin_exposure_start_and_end
     )
     data = data.drop("exposure", axis=1)
@@ -1792,6 +1794,7 @@ def _load_gbd_hemoglobin_paf(
     hemoglobin_data = extra_gbd.get_hemoglobin_paf_data(key, location)
     hemoglobin_data = reshape_to_vivarium_format(hemoglobin_data, location)
     levels_to_drop = ["metric_id", "measure_id", "rei_id", "version_id"]
+    levels_to_drop = [l for l in levels_to_drop if l in hemoglobin_data.index.names]
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
     hemoglobin_data = hemoglobin_data.reset_index()
@@ -2230,6 +2233,7 @@ def load_non_pregnant_hemoglobin_exposure(
         "model_version_id",
         "modelable_entity_id",
         "parameter",
+        "rei_id",
     ]
     existing_levels = [l for l in levels_to_drop if l in data.index.names]
     data.index = data.index.droplevel(existing_levels)
