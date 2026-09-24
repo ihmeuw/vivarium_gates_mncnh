@@ -10,6 +10,7 @@ ARTIFACT_ROOT = Path(
 )
 REPO_DATA_DIR = Path(__file__).parent.parent / "data"
 CLUSTER_DATA_DIR = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data")
+HEMOGLOBIN_RELEASE_33_DATA_DIR = CLUSTER_DATA_DIR / "hemoglobin_release33"
 ANC_DATA_DIR = CLUSTER_DATA_DIR / "antenatal_care"
 HEMOGLOBIN_SCREENING_DATA_DIR = CLUSTER_DATA_DIR / "hemoglobin_screening"
 
