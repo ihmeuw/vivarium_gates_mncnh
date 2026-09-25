@@ -56,7 +56,10 @@ while getopts ":hsflt:" option; do
    esac
 done
 # Parse environment name
-env_name=$(basename "`pwd`")
+# Fixed distribution name, not the checkout directory: a Jenkins PR
+# workspace and a git worktree are both named something else, and this
+# must agree with the Makefile's DIST_NAME.
+env_name="vivarium_gates_mncnh"
 env_name+="_$env_type"
 branch_name=$(git rev-parse --abbrev-ref HEAD)
 
@@ -77,7 +80,10 @@ set -E
 
 if [[ "$use_shared" == "yes" ]]; then
   # Deactivate any active conda environments so only the venv is active
-  for i in $(seq ${CONDA_SHLVL}); do
+  # CONDA_SHLVL is unset in a shell where conda was never initialised --
+  # a Jenkins agent, for instance. Unguarded, `seq` with no operand errors
+  # and the ERR trap returns with no environment activated and no message.
+  for i in $(seq "${CONDA_SHLVL:-0}"); do
     conda deactivate
   done
 

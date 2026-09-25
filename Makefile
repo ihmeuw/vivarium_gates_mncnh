@@ -207,7 +207,11 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 #	venv_dir
 	@$(eval venv_dir ?= .venv)
 #	venv_name
-	@$(eval venv_name ?= $(PACKAGE_NAME)_$(type))
+#	DIST_NAME, not PACKAGE_NAME: a Jenkins PR workspace directory is named
+#	e.g. vivarium_gates_mncnh_PR-327-head@2, and a worktree can be named
+#	anything. Both the overlay and the shared env it sits on must be named
+#	after the distribution or they will not be found.
+	@$(eval venv_name ?= $(DIST_NAME)_$(type))
 #	Construct full venv path
 	@$(eval venv_path := $(venv_dir)/$(venv_name))
 #	shared_env_dir
@@ -216,7 +220,7 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@$(eval force ?= no)
 	@$(call validate_arg,$(force),yes no,force)
 #	Construct shared environment path
-	@$(eval SHARED_ENV_NAME := $(PACKAGE_NAME)_$(type)_current)
+	@$(eval SHARED_ENV_NAME := $(DIST_NAME)_$(type)_current)
 	@$(eval SHARED_ENV_PATH := $(shared_env_dir)/$(SHARED_ENV_NAME))
 
 #	Verify shared environment exists
