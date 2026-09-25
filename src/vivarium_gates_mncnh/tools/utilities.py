@@ -476,6 +476,12 @@ def check_psimulate_finished(psimulate_output: str) -> bool:
 
     # Parse the second-to-last line for job completion status
     # Expected format: "(M of N total jobs completed successfully overall)"
+    if len(lines) < 2:
+        print(
+            "WARNING: psimulate produced too little output to contain a completion "
+            f"status ({len(lines)} non-empty line(s)). Treating the run as unfinished."
+        )
+        return False
     completion_line = lines[-2]
     completion_pattern = re.compile(
         r"\((\d+) of (\d+) total jobs completed successfully overall\)"
@@ -520,6 +526,9 @@ def extract_results_dir(psimulate_output: str) -> Optional[str]:
 
     # Parse the last line for results directory
     # Expected format: "Results written to: {results_dir}"
+    if not lines:
+        print("WARNING: psimulate produced no output to parse a results directory from.")
+        return None
     results_line = lines[-1]
     results_pattern = re.compile(r"Results written to:\s*(.+)")
     results_match = results_pattern.search(results_line)

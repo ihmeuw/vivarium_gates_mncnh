@@ -222,3 +222,83 @@ class TestCheckCleanTree:
             utilities.check_clean_tree(not_a_repo)
 
         assert "git" in str(excinfo.value).lower()
+
+
+def psimulate_output(completed: int, total: int, results_dir: str) -> str:
+    """A plausible tail of psimulate's output."""
+    return (
+        "Running jobs...\n"
+        f"({completed} of {total} total jobs completed successfully overall)\n"
+        f"Results written to: {results_dir}\n"
+    )
+
+
+class TestCheckPsimulateFinished:
+    """Adjacent parser, previously untested."""
+
+    def test_true_when_all_jobs_completed(self) -> None:
+        """``(N of N total jobs completed successfully overall)`` means success."""
+        assert utilities.check_psimulate_finished(psimulate_output(250, 250, "/out")) is True
+
+    def test_false_on_partial_completion(self) -> None:
+        """``(M of N ...)`` with M < N means failure."""
+        assert utilities.check_psimulate_finished(psimulate_output(249, 250, "/out")) is False
+
+    @pytest.mark.parametrize(
+        "output",
+        [
+            pytest.param("", id="empty"),
+            pytest.param("   \n\n  ", id="whitespace-only"),
+            pytest.param("psimulate died before it said anything useful", id="one-line"),
+        ],
+    )
+    def test_handles_output_too_short_to_index(self, output: str) -> None:
+        """Output with fewer than two lines must not raise IndexError."""
+        # A crashed psimulate is exactly when this gets called, so the parser
+        # has to survive a truncated tail and report the run as unfinished.
+        assert utilities.check_psimulate_finished(output) is False
+
+    def test_false_when_the_line_cannot_be_parsed(self) -> None:
+        """Unrecognised output is reported as failure rather than assumed success."""
+        unparseable = "some unrelated chatter\nand a bit more\nfinal line\n"
+
+        assert utilities.check_psimulate_finished(unparseable) is False
+
+
+class TestExtractResultsDir:
+    """Adjacent parser, previously untested."""
+
+    def test_parses_the_results_directory(self) -> None:
+        """``Results written to: <path>`` yields that path."""
+        output = psimulate_output(2, 2, "/mnt/team/results/model29.0.2/ethiopia")
+
+        assert (
+            utilities.extract_results_dir(output) == "/mnt/team/results/model29.0.2/ethiopia"
+        )
+
+    def test_strips_ansi_colour_codes(self) -> None:
+        """Colourised output does not leak escape sequences into the path."""
+        output = psimulate_output(2, 2, "\x1b[32m/mnt/team/results/model29.0.2\x1b[0m")
+
+        assert utilities.extract_results_dir(output) == "/mnt/team/results/model29.0.2"
+
+    def test_returns_none_when_absent(self) -> None:
+        """Output without the marker line yields ``None``."""
+        output = "Running jobs...\n(2 of 2 total jobs completed successfully overall)\n"
+
+        assert utilities.extract_results_dir(output) is None
+
+    @pytest.mark.parametrize(
+        "output",
+        [
+            pytest.param("", id="empty"),
+            pytest.param("   ", id="whitespace-only"),
+            pytest.param("\n\n", id="newlines-only"),
+        ],
+    )
+    def test_handles_empty_output(self, output: str) -> None:
+        """Wholly empty output returns None rather than raising IndexError."""
+        # Same shape as the completion parser: a psimulate that dies without
+        # printing is exactly when this runs, so it must not add its own crash
+        # on top of the one being reported.
+        assert utilities.extract_results_dir(output) is None
