@@ -17,10 +17,14 @@ workflow:
   # set them to valid, writable directories before running.
   # ==========================================================================
   steps:
+    # Fill in the two environments below, e.g. vivarium_gates_mncnh_artifact for
+    # a conda environment, or .venv/vivarium_gates_mncnh_artifact for a shared-env
+    # overlay. Every step references one of these two.
+
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: &artifact_env INSERT_ARTIFACT_ENV_PREFIX
       resources:
         memory_gb: 1
         runtime: "00:01:00"
@@ -32,7 +36,7 @@ workflow:
     # iv_iron_lbwsg_shifts/, read by Step 3 (sepsis) and by make_artifacts.
     - name: "hemoglobin_effects_birth"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 40
         runtime: "04:00:00"
@@ -51,7 +55,7 @@ workflow:
     # in hgb_birth_effect_generation.py. Independent of Step 1's outputs.
     - name: "hemoglobin_iv_iron_stillbirth"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -63,7 +67,7 @@ workflow:
     # Step 1, so Step 1 must complete first.
     - name: "hemoglobin_effects_sepsis"
       type: python
-      environment: vivarium_gates_mncnh_simulation
+      environment: &simulation_env INSERT_SIMULATION_ENV_PREFIX
       resources:
         memory_gb: 40
         runtime: "02:00:00"
@@ -79,7 +83,7 @@ workflow:
     # ---- Step 4: maternal-disorder PAFs --------------------------------------
     - name: "hgb_maternal_disorders_pafs"
       type: python
-      environment: vivarium_gates_mncnh_simulation
+      environment: *simulation_env
       resources:
         memory_gb: 16
         runtime: "06:00:00"
@@ -91,7 +95,7 @@ workflow:
     # precede Step 6 (the PAF sim's artifact bakes in these caps).
     - name: "lbwsg_caps_ethiopia"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"
@@ -101,7 +105,7 @@ workflow:
           l: "Ethiopia"
     - name: "lbwsg_caps_nigeria"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"
@@ -111,7 +115,7 @@ workflow:
           l: "Nigeria"
     - name: "lbwsg_caps_pakistan"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"
@@ -120,13 +124,12 @@ workflow:
         keyword_args:
           l: "Pakistan"
 
-    # ---- Step 6: LBWSG PAFs (one step per location) --------------------------
-    # run_paf_sim.py launches psimulate (parallel across draws) and needs the RR
-    # caps from Step 5. It self-dispatches its sub-envs (psimulate -> simulation,
-    # make_artifacts -> artifact via `conda run`)
-    - name: "paf_sim_ethiopia"
+    # ---- Step 6: LBWSG PAFs ---------------------------------------------------
+    # Needs the RR caps from Step 5. Run as five steps, in this order, because
+    # the phases alternate between the artifact and simulation environments.
+    - name: "paf_initial_artifact"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -134,12 +137,12 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
+          step: initial-artifact
           a: test_workflow
-          l: "Ethiopia"
           output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_sim_nigeria"
+    - name: "paf_enn_paf"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *simulation_env
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -147,12 +150,12 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
+          step: enn-paf
           a: test_workflow
-          l: "Nigeria"
           output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_sim_pakistan"
+    - name: "paf_enn_artifact"
       type: python
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       resources:
         memory_gb: 16
         runtime: "00:30:00"
@@ -160,8 +163,34 @@ workflow:
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
+          step: enn-artifact
           a: test_workflow
-          l: "Pakistan"
+          output-dir: INSERT_VALID_DIRECTORY
+    - name: "paf_lnn_paf"
+      type: python
+      environment: *simulation_env
+      resources:
+        memory_gb: 16
+        runtime: "00:30:00"
+        requires_archive_node: True
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+        keyword_args:
+          step: lnn-paf
+          a: test_workflow
+          output-dir: INSERT_VALID_DIRECTORY
+    - name: "paf_final_artifact"
+      type: python
+      environment: *artifact_env
+      resources:
+        memory_gb: 16
+        runtime: "00:30:00"
+        requires_archive_node: True
+      args:
+        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
+        keyword_args:
+          step: final-artifact
+          a: test_workflow
           output-dir: INSERT_VALID_DIRECTORY
 
     # ---- Step 7: build artifacts for all locations (terminal step) -----------
@@ -169,7 +198,7 @@ workflow:
     # builds the .hdf per location.
     # NOTE: -o must be the same INSERT_VALID_DIRECTORY the PAF sim (Step 6) built the artifact in.
     - name: "make_artifacts"
-      environment: vivarium_gates_mncnh_artifact
+      environment: *artifact_env
       command: 'bash -lc "yes y | make_artifacts -l all -o INSERT_VALID_DIRECTORY/"'
       resources:
         memory_gb: 1

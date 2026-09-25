@@ -1,17 +1,31 @@
 """
 Utility functions for PAF simulation workflow.
 """
+
 import glob
+import importlib
 import os
 import re
 import shutil
 import signal
 import subprocess
-import time
+import sys
+import threading
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional, Tuple
 
 import pyarrow.parquet as pq
+
+#: The two environment flavours this repository builds. Their dependency sets
+#: conflict and cannot be merged into one environment.
+EnvType = Literal["simulation", "artifact"]
+ENV_TYPES: Tuple[EnvType, ...] = ("simulation", "artifact")
+
+
+def _environment_sh_hint(env_type: Optional[EnvType] = None) -> str:
+    """Return the ``source environment.sh`` invocation that builds *env_type*."""
+    flags = "-s" if env_type in (None, "simulation") else f"-s -t {env_type}"
+    return f"source environment.sh {flags}"
 
 
 def tag_commit(tag: str) -> Optional[str]:
@@ -152,58 +166,88 @@ def check_clean_tree() -> None:
         )
 
 
-def check_conda_environments() -> None:
+def _env_satisfies(env_type: EnvType) -> bool:
+    """Return whether the *active* interpreter can do *env_type* work.
+
+    Decided by whether ``vivarium_inputs`` is importable: it is installed in the
+    artifact environment and not in the simulation one.
     """
-    Check that required conda environments are installed.
+    try:
+        importlib.import_module("vivarium_inputs")
+        artifact_capable = True
+    except ImportError:
+        artifact_capable = False
+
+    if env_type == "artifact":
+        return artifact_capable
+    if env_type == "simulation":
+        return shutil.which("psimulate") is not None and not artifact_capable
+    raise ValueError(f"Unknown environment type '{env_type}'. Expected one of {ENV_TYPES}.")
+
+
+def require_environment(env_type: EnvType) -> None:
+    """Abort unless the *active* environment can do *env_type* work.
+
+    Parameters
+    ----------
+    env_type
+        The flavour of work about to be done.
 
     Raises
     ------
+    ValueError
+        If *env_type* is not one of :data:`ENV_TYPES`.
     RuntimeError
-        If required conda environments are not found
+        If the active environment cannot do that work.
     """
-    required_envs = ["vivarium_gates_mncnh_simulation", "vivarium_gates_mncnh_artifact"]
+    if env_type not in ENV_TYPES:
+        raise ValueError(
+            f"Unknown environment type '{env_type}'. Expected one of {ENV_TYPES}."
+        )
 
-    print("\nChecking for required conda environments...")
+    if _env_satisfies(env_type):
+        print(f"  \u2713 active environment ({sys.prefix}) can do {env_type} work")
+        return
 
+    other = "artifact" if env_type == "simulation" else "simulation"
+    raise RuntimeError(
+        f"This is not a {env_type} environment: {sys.prefix}\n"
+        f"  It looks like a {other} environment instead.\n"
+        f"  Build or activate the right one with '{_environment_sh_hint(env_type)}'.\n"
+        "  If this is a workflow step, set its 'environment' key to the "
+        f"{env_type} environment."
+    )
+
+
+def _feed_confirmations(stream) -> None:
+    """Answer ``y`` to every prompt the child writes, until it closes stdin.
+
+    Answering once is not enough: a command that prompts a second time would
+    block forever on an empty pipe. This is the ``yes y |`` behaviour the
+    previous ``shell=True`` implementation bought at the cost of re-splitting
+    every argument containing a space.
+    """
     try:
-        result = subprocess.run(
-            ["conda", "env", "list"], capture_output=True, text=True, check=True
-        )
-
-        installed_envs = result.stdout
-        missing_envs = []
-
-        for env in required_envs:
-            if env not in installed_envs:
-                missing_envs.append(env)
-            else:
-                print(f"  ✓ Found: {env}")
-
-        if missing_envs:
-            raise RuntimeError(
-                f"Missing required conda environments: {', '.join(missing_envs)}\n"
-                f"Please install them by running 'source environment.sh' before running this script."
-            )
-
-        print("All required conda environments found.\n")
-
-    except FileNotFoundError:
-        raise RuntimeError(
-            "conda command not found. Please ensure conda is installed and in your PATH."
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to check conda environments: {e}")
+        while True:
+            stream.write("y\n")
+            stream.flush()
+    except (BrokenPipeError, OSError, ValueError):
+        pass
+    finally:
+        try:
+            stream.close()
+        except (BrokenPipeError, OSError, ValueError):
+            pass
 
 
 def run_command(
     cmd: List[str],
     description: str,
-    conda_env: str,
     auto_confirm: bool = False,
     capture_full_output: bool = False,
-) -> str | None:
+) -> Optional[str]:
     """
-    Run a shell command and handle errors.
+    Run a command in the active environment and handle errors.
 
     Parameters
     ----------
@@ -211,10 +255,8 @@ def run_command(
         Command and arguments to execute
     description : str
         Description of what the command does (for error messages)
-    conda_env : str
-        Name of the conda environment to run the command in
     auto_confirm : bool, optional
-        If True, automatically answer 'y' to any prompts (useful for make_artifacts)
+        If True, answer 'y' to any prompts (useful for make_artifacts)
     capture_full_output : bool, optional
         If True, capture and return the full command output as a string
 
@@ -222,105 +264,65 @@ def run_command(
     -------
     str | None
         The full output if capture_full_output is True, otherwise None
+
+    Raises
+    ------
+    RuntimeError
+        If the executable is not found, or if the command exits non-zero.
     """
+    argv = list(cmd)
+
     print(f"\n{'='*80}")
     print(f"Running: {description}")
-    print(f"Environment: {conda_env}")
-
-    # Build the command
+    print(f"Environment: {sys.prefix}")
+    print(f"Command: {' '.join(argv)}")
     if auto_confirm:
-        # Use shell with 'yes y' to continuously pipe 'y' to the command
-        cmd_str = " ".join(cmd)
-        full_cmd = f"yes y | conda run --no-capture-output -n {conda_env} {cmd_str}"
-        print(f"Command: {full_cmd}")
         print("Auto-confirm: y (continuous)")
-    else:
-        cmd = ["conda", "run", "--no-capture-output", "-n", conda_env] + cmd
-        print(f"Command: {' '.join(cmd)}")
-
     print(f"{'='*80}\n")
 
-    full_output = []
-
-    if capture_full_output:
-        # Use Popen to capture output in real-time.
-        # Start in a new process group so we can kill the entire tree on interrupt.
+    try:
+        # Start in a new process group so an interrupt can kill the whole tree.
         process = subprocess.Popen(
-            cmd,
+            argv,
             stdin=subprocess.PIPE if auto_confirm else None,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE if capture_full_output else None,
+            stderr=subprocess.STDOUT if capture_full_output else None,
             text=True,
             bufsize=1,
-            universal_newlines=True,
             start_new_session=True,
         )
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"Failed {description}: '{argv[0]}' was not found.\n"
+            f"Build the environment that provides it with "
+            f"'{_environment_sh_hint()}' (add '-t artifact' for artifact tooling)."
+        )
 
-        try:
-            # If auto_confirm, send a single 'y' response
-            if auto_confirm:
-                # Send in a separate thread to avoid blocking
-                import threading
+    if auto_confirm:
+        # Keep answering until the child closes the pipe. A single 'y' would
+        # hang a command that prompts more than once.
+        confirm_thread = threading.Thread(
+            target=_feed_confirmations, args=(process.stdin,), daemon=True
+        )
+        confirm_thread.start()
 
-                def send_confirm():
-                    try:
-                        time.sleep(0.1)  # Brief delay to ensure prompt is ready
-                        process.stdin.write("y\n")
-                        process.stdin.flush()
-                        process.stdin.close()
-                    except:
-                        pass
-
-                confirm_thread = threading.Thread(target=send_confirm, daemon=True)
-                confirm_thread.start()
-
-            # Read output line by line
+    full_output: List[str] = []
+    try:
+        if capture_full_output:
             for line in process.stdout:
-                # Print the line to maintain visibility
                 print(line, end="")
+                full_output.append(line)
+        return_code = process.wait()
+    except KeyboardInterrupt:
+        print(f"\nInterrupted. Terminating {description}...")
+        os.killpg(process.pid, signal.SIGTERM)
+        process.wait()
+        raise
 
-                # Capture output if requested
-                if capture_full_output:
-                    full_output.append(line)
+    if return_code != 0:
+        raise RuntimeError(f"Failed {description}. Exit code: {return_code}")
 
-            # Wait for process to complete
-            return_code = process.wait()
-        except KeyboardInterrupt:
-            print(f"\nInterrupted. Terminating {description}...")
-            os.killpg(process.pid, signal.SIGTERM)
-            process.wait()
-            raise
-
-        if return_code != 0:
-            raise RuntimeError(f"Failed {description}. Exit code: {return_code}")
-
-        return "".join(full_output)
-    else:
-        # Print output to screen
-        try:
-            if auto_confirm:
-                # Use shell command with yes to pipe 'y'
-                result = subprocess.run(
-                    full_cmd,
-                    shell=True,
-                    start_new_session=True,
-                )
-
-                if result.returncode != 0:
-                    raise RuntimeError(
-                        f"Failed {description}. Exit code: {result.returncode}"
-                    )
-            else:
-                # Normal execution with conda run
-                result = subprocess.run(cmd, start_new_session=True)
-
-                if result.returncode != 0:
-                    raise RuntimeError(
-                        f"Failed {description}. Exit code: {result.returncode}"
-                    )
-        except KeyboardInterrupt:
-            print(f"\nInterrupted. Terminating {description}...")
-            raise
+    return "".join(full_output) if capture_full_output else None
 
 
 def check_psimulate_finished(psimulate_output: str) -> bool:
