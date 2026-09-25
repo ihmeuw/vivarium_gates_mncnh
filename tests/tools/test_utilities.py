@@ -33,6 +33,11 @@ PACKAGE_DIR = Path(vivarium_gates_mncnh.__file__).resolve().parent
 #: step 2, and the name is the only thing they need to know about it.
 PACKAGE_DIR_ATTR = "PACKAGE_DIR"
 
+#: The real capability probe, captured before any test replaces it. The
+#: ``sibling_env`` sandbox stubs ``_env_satisfies`` wholesale, so the one test
+#: that has to exercise the real probe *through* ``sibling_env`` puts it back.
+REAL_ENV_SATISFIES = utilities._env_satisfies
+
 
 def write_executable(path: Path, body: str) -> Path:
     """Write *body* as an executable shell script at *path*."""
@@ -155,6 +160,159 @@ class TestRepoRoot:
             utilities.repo_root()
 
 
+class TestEnvSatisfies:
+    """``_env_satisfies`` probes capability rather than inspecting a name."""
+
+    def test_artifact_requires_importable_vivarium_inputs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The artifact flavour is defined by ``vivarium_inputs`` being importable."""
+        # ``None`` in sys.modules is the documented way to make an import fail
+        # without touching what is or is not installed on the machine.
+        monkeypatch.setitem(sys.modules, "vivarium_inputs", None)
+        assert utilities._env_satisfies("artifact") is False
+
+        spec = importlib.util.spec_from_loader("vivarium_inputs", loader=None)
+        monkeypatch.setitem(
+            sys.modules, "vivarium_inputs", importlib.util.module_from_spec(spec)
+        )
+        assert utilities._env_satisfies("artifact") is True
+
+    def test_simulation_requires_psimulate_and_no_vivarium_inputs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Simulation means psimulate is resolvable and vivarium_inputs is absent."""
+        # Pin the second clause, so this test is only about psimulate.
+        monkeypatch.setitem(sys.modules, "vivarium_inputs", None)
+        nothing = empty_path(monkeypatch, tmp_path)
+        assert utilities._env_satisfies("simulation") is False
+
+        write_executable(nothing / "psimulate", "exit 0\n")
+        assert utilities._env_satisfies("simulation") is True
+
+    def test_simulation_is_not_satisfied_when_vivarium_inputs_is_importable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """psimulate on PATH is not enough: the artifact environment has it too."""
+        # The artifact environment gets the ``cluster`` extra, so psimulate is
+        # installed there as well. A probe that stopped at psimulate would call
+        # this a simulation environment and dispatch a run into it.
+        nothing = empty_path(monkeypatch, tmp_path)
+        write_executable(nothing / "psimulate", "exit 0\n")
+        spec = importlib.util.spec_from_loader("vivarium_inputs", loader=None)
+        monkeypatch.setitem(
+            sys.modules, "vivarium_inputs", importlib.util.module_from_spec(spec)
+        )
+
+        assert utilities._env_satisfies("simulation") is False
+
+
+@pytest.fixture()
+def sibling_env_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Put every ``sibling_env`` candidate location under ``tmp_path``.
+
+    Leaves all of them absent and the active environment unsatisfying, so each
+    test can create exactly the candidate it is about and nothing else can
+    answer for it.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(utilities, "repo_root", lambda: repo)
+    monkeypatch.setattr(utilities, "SHARED_ENV_DIR", tmp_path / "shared_envs")
+    monkeypatch.setattr(utilities, "_env_satisfies", lambda env_type: False)
+    for variable in utilities.ENV_PIN_VARS.values():
+        monkeypatch.delenv(variable, raising=False)
+    empty_path(monkeypatch, tmp_path)
+    return tmp_path
+
+
+def overlay_path(sandbox: Path, env_type: str) -> Path:
+    """Where ``sibling_env`` looks for the in-repo venv overlay."""
+    return sandbox / "repo" / ".venv" / f"{utilities.DIST_NAME}_{env_type}"
+
+
+def shared_path(sandbox: Path, env_type: str) -> Path:
+    """Where ``sibling_env`` looks in the Jenkins shared environment directory."""
+    return sandbox / "shared_envs" / f"{utilities.DIST_NAME}_{env_type}_current"
+
+
+class TestRequireEnvironment:
+    """The only environment machinery left: assert the active one is right."""
+
+    def test_passes_when_the_active_environment_satisfies(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A matching environment returns without raising."""
+        monkeypatch.setattr(utilities, "_env_satisfies", lambda env_type: True)
+
+        assert utilities.require_environment("simulation") is None
+
+    def test_raises_when_the_active_environment_is_the_other_flavour(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Being in the artifact environment is not good enough for simulation work."""
+        monkeypatch.setattr(utilities, "_env_satisfies", lambda env_type: False)
+
+        with pytest.raises(RuntimeError) as excinfo:
+            utilities.require_environment("simulation")
+
+        message = str(excinfo.value)
+        # Has to say what is wrong, how to fix it by hand, and -- because this
+        # is normally reached from a workflow step -- what to fix in the YAML.
+        assert "simulation" in message
+        assert "environment.sh" in message
+        assert "environment" in message
+
+    def test_rejects_an_unknown_environment_type(self) -> None:
+        """A typo in a step's flavour is a programming error, not a bad environment."""
+        with pytest.raises(ValueError):
+            utilities.require_environment("simulaton")
+
+    def test_does_not_dispatch_or_resolve_anything(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """It only inspects the active interpreter -- no subprocess, no lookup."""
+        monkeypatch.setattr(utilities, "_env_satisfies", lambda env_type: True)
+
+        def explode(*args, **kwargs):
+            raise AssertionError("require_environment must not shell out")
+
+        monkeypatch.setattr(utilities.subprocess, "run", explode)
+        monkeypatch.setattr(utilities.subprocess, "Popen", explode)
+
+        utilities.require_environment("artifact")
+
+
+class TestWarnIfDirty:
+    """Paths excluded from the clean-tree guard are reported, not enforced."""
+
+    def test_returns_false_and_stays_quiet_on_a_clean_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Nothing uncommitted means nothing to say."""
+        repo = make_source_repo(tmp_path / "repo")
+        monkeypatch.setattr(utilities, "repo_root", lambda: repo)
+
+        assert utilities.warn_if_dirty(["src"], "The workflow") is False
+        assert "WARNING" not in capsys.readouterr().out
+
+    def test_reports_an_uncommitted_change(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """A dirty excluded path is named loudly, and the caller is told who wrote it."""
+        repo = make_source_repo(tmp_path / "repo")
+        target = repo / "src" / "vivarium_gates_mncnh" / "tools" / "cli.py"
+        target.write_text("CHANGED = 1\n")
+        monkeypatch.setattr(utilities, "repo_root", lambda: repo)
+
+        assert utilities.warn_if_dirty(["src"], "The PAF workflow") is True
+
+        out = capsys.readouterr().out
+        assert "WARNING" in out
+        assert "The PAF workflow" in out
+        assert "cli.py" in out
+
+
 class TestCheckCleanTree:
     """``check_clean_tree`` guards a run's provenance, independent of cwd."""
 
@@ -222,6 +380,135 @@ class TestCheckCleanTree:
             utilities.check_clean_tree(not_a_repo)
 
         assert "git" in str(excinfo.value).lower()
+
+
+class TestRunCommand:
+    """``run_command`` dispatches by PATH prefix and never shells out to conda."""
+
+    def test_runs_in_the_active_environment_by_default(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With no target, the command runs in this process's own environment."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        sentinel = tmp_path / "it-ran"
+        write_executable(nothing / "marker", f'echo ran > "{sentinel}"\n')
+
+        assert utilities.run_command(["marker"], "leave a marker") is None
+        assert sentinel.exists()
+
+    def test_returns_captured_output(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``capture_full_output`` returns everything the command printed."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        write_executable(nothing / "chatty", 'echo "FIRST-LINE"\necho "LAST-LINE"\n')
+
+        output = utilities.run_command(["chatty"], "say things", capture_full_output=True)
+
+        assert "FIRST-LINE" in output
+        assert "LAST-LINE" in output
+
+    def test_raises_on_nonzero_exit_when_capturing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failing command is an error on the capturing path."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        write_executable(nothing / "failing", "exit 3\n")
+
+        with pytest.raises(RuntimeError) as excinfo:
+            utilities.run_command(["failing"], "do the thing", capture_full_output=True)
+
+        assert "do the thing" in str(excinfo.value)
+
+    def test_raises_on_nonzero_exit_when_not_capturing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failing command is an error on the streaming path too."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        write_executable(nothing / "failing", "exit 3\n")
+
+        with pytest.raises(RuntimeError) as excinfo:
+            utilities.run_command(["failing"], "do the thing")
+
+        assert "do the thing" in str(excinfo.value)
+
+    def test_preserves_arguments_containing_spaces(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: the auto-confirm path joined argv into a shell string, which re-split any
+        argument containing a space."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        recorded = tmp_path / "argv.txt"
+        write_executable(
+            nothing / "recorder",
+            f'printf "%s\\n" "$#" > "{recorded}"\nprintf "%s\\n" "$1" >> "{recorded}"\n',
+        )
+
+        utilities.run_command(
+            ["recorder", "two words"],
+            "record what arrived",
+            auto_confirm=True,
+        )
+
+        assert recorded.read_text().splitlines() == ["1", "two words"]
+
+    def test_auto_confirm_answers_a_prompt(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A command that reads one confirmation gets it."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        answer = tmp_path / "answer.txt"
+        write_executable(
+            nothing / "prompting",
+            f'read reply || exit 7\nprintf "%s\\n" "$reply" > "{answer}"\n',
+        )
+
+        utilities.run_command(["prompting"], "answer a prompt", auto_confirm=True)
+
+        assert answer.read_text().strip() == "y"
+
+    def test_auto_confirm_answers_repeated_prompts(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A command that prompts more than once does not hang."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        answers = tmp_path / "answers.txt"
+        # Exits 7 on a short read rather than blocking, so a single-write
+        # implementation fails the test instead of hanging the suite.
+        write_executable(
+            nothing / "nagging",
+            f': > "{answers}"\n'
+            "i=0\n"
+            "while [ $i -lt 3 ]; do\n"
+            "  read reply || exit 7\n"
+            f'  printf "%s\\n" "$reply" >> "{answers}"\n'
+            "  i=$((i+1))\n"
+            "done\n",
+        )
+
+        utilities.run_command(["nagging"], "answer three prompts", auto_confirm=True)
+
+        assert answers.read_text().split() == ["y", "y", "y"]
+
+    def test_auto_confirm_with_capture_still_targets_the_requested_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: combining auto-confirm with capture used to run the unwrapped command,
+        silently discarding both the environment and the auto-confirm."""
+        nothing = empty_path(monkeypatch, tmp_path)
+        write_executable(
+            nothing / "make_artifacts",
+            'read reply || reply="NO-PROMPT-ANSWER"\necho "ANSWERED:$reply"\n',
+        )
+
+        output = utilities.run_command(
+            ["make_artifacts"],
+            "build the artifacts",
+            auto_confirm=True,
+            capture_full_output=True,
+        )
+
+        assert "ANSWERED:y" in output
 
 
 def psimulate_output(completed: int, total: int, results_dir: str) -> str:
