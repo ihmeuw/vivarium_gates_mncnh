@@ -1,3 +1,21 @@
+# ==========================================================================
+# Simulation + test half of the pipeline.
+#
+# NOT converted to the environment anchors used in artifact_workflow.yaml, and
+# deliberately so. The 'environment' key below still names a conda environment
+# directly, which does not resolve under the shared-environment setup -- but
+# fixing that is only worth doing alongside deciding what this pipeline should
+# run at all, and that decision belongs to MIC-7497 (epic MIC-7500), which
+# explicitly separates pipeline orchestration from the heavy checks.
+#
+# Two further things block this half today, both out of scope here:
+#   - tests/conftest.py skips every test when JENKINS_URL is set, so the pytest
+#     step below runs nothing on Jenkins. That skip is deliberate.
+#   - the step selects k="results", so the interactive notebook tests under
+#     tests/model_notebooks/interactive/ are not included.
+#
+# See MIC-7374 for the environment work that artifact_workflow.yaml received.
+# ==========================================================================
 workflow:
   name: "test_pipeline"
   project: "proj_simscience"
