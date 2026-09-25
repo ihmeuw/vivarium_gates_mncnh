@@ -1,6 +1,7 @@
 """
 Utility functions for PAF simulation workflow.
 """
+
 import glob
 import os
 import re
@@ -9,15 +10,105 @@ import signal
 import subprocess
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional, Tuple
 
 import pyarrow.parquet as pq
+
+#: The two environment flavours this repository builds. Their dependency sets
+#: conflict and cannot be merged into one environment.
+EnvType = Literal["simulation", "artifact"]
+
+ENV_TYPES: Tuple[EnvType, ...] = ("simulation", "artifact")
+
+#: The distribution name. Deliberately *not* derived from the checkout
+#: directory: a Jenkins PR workspace is named e.g.
+#: ``vivarium_gates_mncnh_PR-327-head@2``, and anything that must match an
+#: artifact published outside this checkout has to use the distribution name.
+DIST_NAME = "vivarium_gates_mncnh"
+
+#: The installed package's directory, i.e. ``<repo>/src/vivarium_gates_mncnh``.
+#: This is how :func:`repo_root` finds the checkout, because every supported
+#: environment installs the package editable and so the package directory lives
+#: inside it.
+PACKAGE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _environment_sh_hint(env_type: Optional[EnvType] = None) -> str:
+    """Return the ``source environment.sh`` invocation that builds *env_type*."""
+    flags = "-s" if env_type in (None, "simulation") else f"-s -t {env_type}"
+    return f"source environment.sh {flags}"
+
+
+def repo_root() -> Path:
+    """Return the absolute path to the repository root, independent of cwd.
+
+    Every git helper in this module asks git about *this* path rather than the
+    current working directory. The directory an operator happens to be standing
+    in has no bearing on which code is about to run, and a relative pathspec
+    resolved against the wrong cwd makes a guard pass vacuously rather than
+    fail -- a silent hole in exactly the check that is supposed to protect a
+    run's provenance.
+
+    Resolution order:
+
+    1. The installed package's location. Every supported environment installs
+       this package editable, so the package directory lives inside the
+       checkout.
+    2. ``git rev-parse --show-toplevel`` from the current working directory.
+
+    Returns
+    -------
+    Path
+        The directory containing ``.git``.
+
+    Raises
+    ------
+    RuntimeError
+        If neither strategy yields a directory containing ``.git``. This raises
+        rather than returning a best guess on purpose: a wrong root would make
+        :func:`check_clean_tree` inspect the wrong repository and pass
+        vacuously.
+    """
+    searched: List[Path] = []
+
+    # 1. The installed package's location. Every supported environment
+    #    installs this package editable, so the package directory lives inside
+    #    the checkout.
+    package_dir = Path(PACKAGE_DIR)
+    for candidate in (package_dir, *package_dir.parents):
+        searched.append(candidate)
+        # ``.exists()``, not ``.is_dir()``: in a git worktree -- which is how
+        # this repository is often checked out -- ``.git`` is a file.
+        if (candidate / ".git").exists():
+            return candidate
+
+    # 2. Ask git about the current working directory.
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        result = None
+    if result is not None and result.returncode == 0 and result.stdout.strip():
+        root = Path(result.stdout.strip()).resolve()
+        searched.append(root)
+        if (root / ".git").exists():
+            return root
+
+    raise RuntimeError(
+        f"Could not locate the repository root. Neither {PACKAGE_DIR} nor "
+        f"'git rev-parse --show-toplevel' from "
+        f"{Path.cwd()} pointed at a directory containing '.git'.\n"
+        "  Searched: " + ", ".join(str(path) for path in searched) + "\n"
+        "Install the package editable into the active environment -- "
+        f"'{_environment_sh_hint()}' does this -- and re-run from the checkout."
+    )
 
 
 def tag_commit(tag: str) -> Optional[str]:
     """Return the commit SHA a tag points to, or ``None`` if it doesn't exist."""
     result = subprocess.run(
-        ["git", "rev-list", "-n1", tag],
+        ["git", "-C", str(repo_root()), "rev-list", "-n1", tag],
         capture_output=True,
         text=True,
     )
@@ -29,7 +120,7 @@ def tag_commit(tag: str) -> Optional[str]:
 def head_commit() -> str:
     """Return the SHA of the current HEAD."""
     result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
+        ["git", "-C", str(repo_root()), "rev-parse", "HEAD"],
         capture_output=True,
         text=True,
         check=True,
@@ -42,8 +133,9 @@ def commit_pending_changes(message: str) -> None:
 
     No-op if the working tree has nothing to commit. Untracked files are ignored.
     """
+    git = ["git", "-C", str(repo_root())]
     status = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
+        git + ["status", "--porcelain", "--untracked-files=no"],
         capture_output=True,
         text=True,
         check=True,
@@ -53,9 +145,9 @@ def commit_pending_changes(message: str) -> None:
         return
 
     try:
-        subprocess.run(["git", "add", "-u"], check=True, capture_output=True, text=True)
+        subprocess.run(git + ["add", "-u"], check=True, capture_output=True, text=True)
         subprocess.run(
-            ["git", "commit", "-m", message], check=True, capture_output=True, text=True
+            git + ["commit", "-m", message], check=True, capture_output=True, text=True
         )
         print(f"Committed pending changes: {message!r}")
     except subprocess.CalledProcessError as e:
@@ -63,7 +155,7 @@ def commit_pending_changes(message: str) -> None:
 
     try:
         subprocess.run(
-            ["git", "push", "origin", "HEAD"], check=True, capture_output=True, text=True
+            git + ["push", "origin", "HEAD"], check=True, capture_output=True, text=True
         )
         print("Pushed commit to origin.")
     except subprocess.CalledProcessError as e:
@@ -104,19 +196,16 @@ def create_and_push_tag(model_number: str) -> None:
 
     print(f"\n{'Updating' if force else 'Creating'} git tag '{tag}' and pushing to origin...")
 
+    git = ["git", "-C", str(repo_root())]
     try:
-        cmd = ["git", "tag", "-f", tag] if force else ["git", "tag", tag]
+        cmd = git + (["tag", "-f", tag] if force else ["tag", tag])
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(f"  {'Updated' if force else 'Created'} tag '{tag}'")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to create git tag '{tag}'.\n  stderr: {e.stderr.strip()}")
 
     try:
-        cmd = (
-            ["git", "push", "--force", "origin", tag]
-            if force
-            else ["git", "push", "origin", tag]
-        )
+        cmd = git + (["push", "--force", "origin", tag] if force else ["push", "origin", tag])
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(f"  Pushed tag '{tag}' to origin")
     except subprocess.CalledProcessError as e:
@@ -125,31 +214,71 @@ def create_and_push_tag(model_number: str) -> None:
         )
 
 
-def check_clean_tree() -> None:
-    """Abort if there are uncommitted changes to tracked files in src/vivarium_gates_mncnh,
-    excluding the validation/ and tools/ subdirectories."""
-    result = subprocess.run(
-        [
-            "git",
-            "status",
-            "--porcelain",
-            "--untracked-files=no",
-            "--",
-            "src/vivarium_gates_mncnh",
-            ":!src/vivarium_gates_mncnh/validation",
-            ":!src/vivarium_gates_mncnh/tools",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+def check_clean_tree(repo: Optional[Path] = None) -> None:
+    """Abort if tracked files that affect results have uncommitted changes.
+
+    Scoped to ``src/vivarium_gates_mncnh``, excluding ``validation/`` (post-hoc
+    analysis code, imported only by notebooks) and ``tools/`` (the launch
+    machinery itself -- you have to be able to edit a launcher while using it).
+
+    Parameters
+    ----------
+    repo
+        The repository to inspect. Defaults to :func:`repo_root`. Present so
+        the guard can be exercised against a scratch repository in tests.
+
+    Raises
+    ------
+    RuntimeError
+        If any in-scope tracked file has uncommitted changes, or if git cannot
+        answer the question.
+
+    Notes
+    -----
+    The pathspec must be resolved against *repo*, not the current working
+    directory. Previously it was relative and resolved against cwd, so running
+    from any subdirectory of the checkout matched nothing and the guard passed
+    silently -- worse than failing, because a pipeline step whose cwd is chosen
+    by the runner then had no guard at all.
+    """
+    repo = Path(repo) if repo is not None else repo_root()
+
+    # ``:(top)`` anchors each pathspec at the repository root, so the guard
+    # inspects the same files no matter which directory the runner chose.
+    pathspecs = [
+        f":(top)src/{DIST_NAME}",
+        f":(top,exclude)src/{DIST_NAME}/validation",
+        f":(top,exclude)src/{DIST_NAME}/tools",
+    ]
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=no", "--"]
+            + pathspecs,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        raise RuntimeError(
+            "git is not available, so the working tree could not be checked. "
+            "Refusing to run without a provenance guard; pass --skip-tree-check "
+            "if that is genuinely what you want."
+        )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Failed to check the working tree in {repo}.\n"
+            f"  git exited {result.returncode}\n"
+            f"  stderr: {result.stderr.strip()}"
+        )
+
     if result.stdout.strip():
         raise RuntimeError(
-            "There are uncommitted changes to tracked files in src/vivarium_gates_mncnh "
+            f"There are uncommitted changes to tracked files in src/{DIST_NAME} "
             "(excluding validation/ and tools/). "
             "Please commit or stash them before running this script.\n"
             f"{result.stdout.strip()}"
         )
+
+    print(f"✓ Working tree is clean in src/{DIST_NAME} (excluding validation/ and tools/).")
 
 
 def check_conda_environments() -> None:

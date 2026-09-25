@@ -37,6 +37,10 @@ else:
     test_dir = Path(__file__).parent
     for test_file in test_dir.glob("test_*.py"):
         collect_ignore.append(test_file.name)
+    # ...and the unit tests for tools/, which exercise simulation-environment
+    # behaviour (psimulate on PATH, vivarium_inputs absent). The glob above is
+    # deliberately non-recursive, so subdirectories have to be named.
+    collect_ignore.append("tools")
 
 
 def pytest_collection_modifyitems(config, items):
