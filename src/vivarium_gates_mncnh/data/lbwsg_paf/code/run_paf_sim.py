@@ -38,6 +38,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from vivarium_gates_mncnh.constants.metadata import LOCATIONS
 from vivarium_gates_mncnh.constants.paths import CLUSTER_DATA_DIR
 from vivarium_gates_mncnh.tools.utilities import (
     check_psimulate_finished,
@@ -170,9 +171,15 @@ def main() -> None:
     parser.add_argument(
         "-l",
         "--location",
-        type=str,
-        default="Ethiopia",
-        help="Location for the simulation (default: 'Ethiopia')",
+        action="append",
+        dest="locations",
+        default=None,
+        metavar="LOCATION",
+        help=(
+            "Location to run, repeatable. Defaults to every location in "
+            "constants.metadata.LOCATIONS, which is where a new location should "
+            "be added -- the workflow does not name them."
+        ),
     )
     parser.add_argument(
         "-a",
@@ -200,13 +207,18 @@ def main() -> None:
     args = parser.parse_args()
 
     step = args.step
-    location = args.location.lower()
+    requested = list(args.locations) if args.locations else list(LOCATIONS)
+    unknown = [loc for loc in requested if loc not in LOCATIONS]
+    if unknown:
+        parser.error(
+            f"Unknown location(s): {', '.join(unknown)}. Expected some of {list(LOCATIONS)}."
+        )
     artifact_dir = _artifact_dir(args.artifact_name, args.output_dir)
 
     print("\n" + "=" * 80)
     print(f"LBWSG PAF workflow -- step '{step}'")
     print("=" * 80)
-    print(f"Location: {location}")
+    print(f"Locations: {', '.join(requested)}")
     print(f"Artifact: {artifact_dir}")
     print("=" * 80)
 
@@ -214,6 +226,22 @@ def main() -> None:
     # the wrong environment.
     require_environment(STEP_ENVIRONMENTS[step])
 
+    for location in (loc.lower() for loc in requested):
+        _run_one(step, location, artifact_dir)
+
+    print("\n" + "=" * 80)
+    print(f"Step '{step}' completed successfully for {len(requested)} location(s).")
+    print("=" * 80 + "\n")
+
+
+def _run_one(step: str, location: str, artifact_dir: Path) -> None:
+    """Run *step* for a single location.
+
+    Locations are independent of one another -- separate artifacts, separate
+    output directories -- so a step simply does each in turn. The workflow runs
+    steps strictly sequentially anyway, so there is nothing to gain by
+    splitting them into a task per location, and a good deal of YAML to lose.
+    """
     if step == "initial-artifact":
         artifact_file = artifact_dir / f"{location}.hdf"
         if artifact_file.exists():
@@ -265,10 +293,6 @@ def main() -> None:
             PAF_MEASURES,
         )
         warn_if_dirty(["data/lbwsg_paf/outputs"], "The PAF workflow")
-
-    print("\n" + "=" * 80)
-    print(f"Step '{step}' completed successfully.")
-    print("=" * 80 + "\n")
 
 
 if __name__ == "__main__":

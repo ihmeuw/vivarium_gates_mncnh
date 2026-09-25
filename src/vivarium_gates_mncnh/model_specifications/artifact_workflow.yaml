@@ -126,7 +126,7 @@ workflow:
         keyword_args:
           l: "Pakistan"
 
-    # ---- Step 6: LBWSG PAFs (five steps per location) ------------------------
+    # ---- Step 6: LBWSG PAFs ---------------------------------------------------
     # Needs the RR caps from Step 5. run_paf_sim.py alternates between the two
     # environments -- make_artifacts needs the artifact env, psimulate needs the
     # simulation env -- so rather than have the script dispatch commands into an
@@ -135,220 +135,81 @@ workflow:
     # seconds if not, so a wrong anchor below fails fast rather than deep inside
     # a job.
     #
-    # The five steps per location are strictly ordered and share state on disk:
-    # the artifact at <output-dir>/<location>.hdf, and the PAF parquet files
-    # under data/lbwsg_paf/outputs/. Each *-paf step harvests its own psimulate
-    # results before finishing, so no step depends on another's scratch
-    # directory. Do not reorder or parallelise them within a location.
-    - name: "paf_initial_artifact_ethiopia"
+    # The five phases are strictly ordered and share state on disk: the artifact
+    # at <output-dir>/<location>.hdf, and the PAF parquet files under
+    # data/lbwsg_paf/outputs/. Each *-paf phase harvests its own psimulate
+    # results before finishing, so no phase depends on another's scratch
+    # directory. Do not reorder them.
+    #
+    # LOCATIONS ARE NOT NAMED HERE ON PURPOSE. Each step runs every location in
+    # constants.metadata.LOCATIONS, which is the single place to add one -- and
+    # run_main_sim reads the same list. Dagger runs steps strictly sequentially,
+    # so a task per location would buy no parallelism, only YAML. Pass -l to
+    # restrict a run to a subset.
+    - name: "paf_initial_artifact"
       type: python
       environment: *artifact_env
       resources:
         memory_gb: 16
-        runtime: "00:30:00"
+        runtime: "01:30:00"
         requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
           step: initial-artifact
           a: test_workflow
-          l: "Ethiopia"
           output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_paf_ethiopia"
+    - name: "paf_enn_paf"
       type: python
       environment: *simulation_env
       resources:
         memory_gb: 16
-        runtime: "01:00:00"
+        runtime: "03:00:00"
         requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
           step: enn-paf
           a: test_workflow
-          l: "Ethiopia"
           output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_artifact_ethiopia"
+    - name: "paf_enn_artifact"
       type: python
       environment: *artifact_env
       resources:
         memory_gb: 16
-        runtime: "00:30:00"
+        runtime: "01:30:00"
         requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
           step: enn-artifact
           a: test_workflow
-          l: "Ethiopia"
           output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_lnn_paf_ethiopia"
+    - name: "paf_lnn_paf"
       type: python
       environment: *simulation_env
       resources:
         memory_gb: 16
-        runtime: "01:00:00"
+        runtime: "03:00:00"
         requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
           step: lnn-paf
           a: test_workflow
-          l: "Ethiopia"
           output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_final_artifact_ethiopia"
+    - name: "paf_final_artifact"
       type: python
       environment: *artifact_env
       resources:
         memory_gb: 16
-        runtime: "00:30:00"
+        runtime: "01:30:00"
         requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
           step: final-artifact
           a: test_workflow
-          l: "Ethiopia"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_initial_artifact_nigeria"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: initial-artifact
-          a: test_workflow
-          l: "Nigeria"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_paf_nigeria"
-      type: python
-      environment: *simulation_env
-      resources:
-        memory_gb: 16
-        runtime: "01:00:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: enn-paf
-          a: test_workflow
-          l: "Nigeria"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_artifact_nigeria"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: enn-artifact
-          a: test_workflow
-          l: "Nigeria"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_lnn_paf_nigeria"
-      type: python
-      environment: *simulation_env
-      resources:
-        memory_gb: 16
-        runtime: "01:00:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: lnn-paf
-          a: test_workflow
-          l: "Nigeria"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_final_artifact_nigeria"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: final-artifact
-          a: test_workflow
-          l: "Nigeria"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_initial_artifact_pakistan"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: initial-artifact
-          a: test_workflow
-          l: "Pakistan"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_paf_pakistan"
-      type: python
-      environment: *simulation_env
-      resources:
-        memory_gb: 16
-        runtime: "01:00:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: enn-paf
-          a: test_workflow
-          l: "Pakistan"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_artifact_pakistan"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: enn-artifact
-          a: test_workflow
-          l: "Pakistan"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_lnn_paf_pakistan"
-      type: python
-      environment: *simulation_env
-      resources:
-        memory_gb: 16
-        runtime: "01:00:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: lnn-paf
-          a: test_workflow
-          l: "Pakistan"
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_final_artifact_pakistan"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: final-artifact
-          a: test_workflow
-          l: "Pakistan"
           output-dir: INSERT_VALID_DIRECTORY
 
     # ---- Step 7: build artifacts for all locations (terminal step) -----------

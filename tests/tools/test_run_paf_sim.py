@@ -14,6 +14,8 @@ from typing import Any, List, Optional
 
 import pytest
 
+from vivarium_gates_mncnh.constants.metadata import LOCATIONS
+
 # The script lives under data/, not in an importable package path, so load it
 # by location the same way the workflow runner invokes it by path.
 _SCRIPT = (
@@ -61,19 +63,16 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     return state
 
 
-def run(step: str, state: SimpleNamespace, location: str = "Ethiopia") -> None:
-    """Invoke the script's entry point for one step."""
-    sys.argv = [
-        "run_paf_sim.py",
-        "--step",
-        step,
-        "-a",
-        "test",
-        "-l",
-        location,
-        "-o",
-        str(state.artifact_dir),
-    ]
+def run(step: str, state: SimpleNamespace, *locations: str) -> None:
+    """Invoke the script's entry point for one step.
+
+    With no *locations*, exercises the default: every location in
+    ``metadata.LOCATIONS``. Named locations are passed as repeated ``-l``.
+    """
+    sys.argv = ["run_paf_sim.py", "--step", step, "-a", "test"]
+    for location in locations or ("Ethiopia",):
+        sys.argv += ["-l", location]
+    sys.argv += ["-o", str(state.artifact_dir)]
     run_paf_sim.main()
 
 
@@ -116,6 +115,51 @@ class TestStepEnvironmentContract:
         """A typo in the workflow's step name fails immediately."""
         with pytest.raises(SystemExit):
             run("enn-pafs", harness)
+
+
+class TestLocationSelection:
+    """Locations come from metadata.LOCATIONS, and a subset can be requested."""
+
+    def test_defaults_to_every_known_location(self, harness: SimpleNamespace) -> None:
+        """Omitting -l runs the whole set, so the workflow never has to name them."""
+        sys.argv = [
+            "run_paf_sim.py",
+            "--step",
+            "enn-artifact",
+            "-a",
+            "test",
+            "-o",
+            str(harness.artifact_dir),
+        ]
+        run_paf_sim.main()
+
+        assert len(harness.commands) == len(LOCATIONS)
+        launched = " ".join(joined(c) for c in harness.commands).lower()
+        for location in LOCATIONS:
+            assert location.lower() in launched
+
+    def test_runs_a_single_requested_location(self, harness: SimpleNamespace) -> None:
+        """One -l restricts the run to that location."""
+        run("enn-artifact", harness, "Nigeria")
+
+        (cmd,) = harness.commands
+        assert "Nigeria" in joined(cmd)
+
+    def test_runs_a_requested_subset(self, harness: SimpleNamespace) -> None:
+        """-l is repeatable, for running two of the three."""
+        run("enn-artifact", harness, "Ethiopia", "Nigeria")
+
+        launched = " ".join(joined(c) for c in harness.commands).lower()
+        assert len(harness.commands) == 2
+        assert "ethiopia" in launched and "nigeria" in launched
+        assert "pakistan" not in launched
+
+    def test_rejects_an_unknown_location(self, harness: SimpleNamespace) -> None:
+        """A typo fails at parse time, not after a phase has already run."""
+        with pytest.raises(SystemExit):
+            run("enn-artifact", harness, "Atlantis")
+
+        assert harness.commands == []
 
 
 class TestStepBehaviour:
