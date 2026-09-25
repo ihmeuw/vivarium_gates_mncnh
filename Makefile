@@ -133,7 +133,9 @@ build-env: # Create a new environment with installed packages
 	@$(eval type ?= simulation)
 	@$(call validate_arg,$(type),simulation artifact,type)
 #	name
-	@$(eval name ?= $(PACKAGE_NAME)_$(type))
+#	DIST_NAME, not PACKAGE_NAME, to match build-shared-env: the checkout
+#	directory is a worktree or Jenkins workspace name as often as not.
+	@$(eval name ?= $(DIST_NAME)_$(type))
 #	timestamp
 	@$(eval include_timestamp ?= no)
 	@$(call validate_arg,$(include_timestamp),yes no,include_timestamp)
