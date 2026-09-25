@@ -10,6 +10,7 @@ Run from the repository root:
 
 Add ``--baseline_only`` to run only the baseline scenario.
 """
+
 import argparse
 import re
 import subprocess
@@ -20,10 +21,10 @@ import yaml
 from vivarium_gates_mncnh.constants.metadata import LOCATIONS
 from vivarium_gates_mncnh.tools.utilities import (
     check_clean_tree,
-    check_conda_environments,
     check_psimulate_finished,
     create_and_push_tag,
     extract_results_dir,
+    require_environment,
     run_command,
 )
 
@@ -31,7 +32,6 @@ RESULTS_ROOT = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncn
 MODEL_SPEC_DIR = Path(__file__).resolve().parent.parent / "model_specifications"
 MODEL_SPEC_PATH = MODEL_SPEC_DIR / "model_spec.yaml"
 PATHS_MODULE = Path(__file__).resolve().parent.parent / "constants" / "paths.py"
-CONDA_ENV = "vivarium_gates_mncnh_simulation"
 
 
 def _update_model_results_dir(model_number: str) -> None:
@@ -66,8 +66,9 @@ def run_sim(
 ) -> None:
     """Run the main simulation for all locations.
 
-    Checks that the tree is clean, creates a git tag ``v{model_number}``, pushes it to origin, updates the model results directory, then launches
-    psimulate for every location.
+    Checks that this is a simulation environment and that the tree is clean,
+    creates a git tag ``v{model_number}``, pushes it to origin, updates the
+    model results directory, then launches psimulate for every location.
 
     Parameters
     ----------
@@ -113,10 +114,10 @@ def run_sim(
     print(f"Baseline only: {baseline_only}")
     print("=" * 80)
 
+    require_environment("simulation")
     check_clean_tree()
     create_and_push_tag(model_number)
     _update_model_results_dir(model_number)
-    check_conda_environments()
 
     for location in LOCATIONS:
         print(f"\n{'='*80}")
@@ -149,7 +150,6 @@ def run_sim(
                 str(branches_file),
             ],
             f"psimulate run for {location}",
-            conda_env=CONDA_ENV,
             capture_full_output=True,
         )
 
