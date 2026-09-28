@@ -317,7 +317,7 @@ def test_ppd_baseline_incidence(snapshots: _Snapshots, fuzzy_checker) -> None:
         f"PPD incidence_risk pipeline mean {pipeline_mean:.4f} outside research "
         f"95% CI {PPD_BASELINE_INCIDENCE_CI} (point target {PPD_BASELINE_INCIDENCE})"
     )
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         cases,
         n,
         PPD_BASELINE_INCIDENCE_CI,
