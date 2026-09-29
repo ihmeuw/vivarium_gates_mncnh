@@ -80,6 +80,7 @@ FINAL_CSMR_PIPELINES = [
 # Helpers
 # --------------------------------------------------------------------------- #
 
+
 def _pipeline_values(sim: InteractiveContext, name: str, index: pd.Index) -> pd.Series:
     """Read an *attribute* pipeline (RR / CSMR / incidence-risk) aligned to
     ``index``.

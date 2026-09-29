@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.engine import Builder
 from vivarium.engine.framework.lookup import DEFAULT_VALUE_COLUMN
 from vivarium.engine.framework.randomness import get_hash
 from vivarium.engine.types import NumberLike, NumericArray
 from vivarium.public_health.causal_factor.utilities import pivot_categorical
-from vivarium.engine import InteractiveContext
 
 from vivarium_gates_mncnh.constants import metadata
 
@@ -300,6 +300,7 @@ def get_child_age_bins(_: Builder) -> pd.DataFrame:
         ],
     }
     return pd.DataFrame(age_bins_data)
+
 
 def _discover_pipeline(
     sim: InteractiveContext,
