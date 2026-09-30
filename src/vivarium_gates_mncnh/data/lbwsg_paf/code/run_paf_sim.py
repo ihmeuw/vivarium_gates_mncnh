@@ -1,309 +1,223 @@
 #!/usr/bin/env python
 """
-Run one step of the LBWSG PAF workflow.
+Run the whole LBWSG PAF workflow, in order.
 
-The workflow alternates between two environments whose dependency sets
-conflict and cannot be merged: ``make_artifacts`` needs the *artifact*
-environment, ``psimulate`` needs the *simulation* environment. Rather than
-have this script dispatch commands into whichever one it is not currently in,
-each step is a separate invocation that runs wholly inside the environment the
-caller activated. The workflow runner selects that environment per step; see
-``model_specifications/artifact_workflow.yaml``.
+The workflow alternates between the artifact and simulation environments,
+whose dependencies conflict and cannot be merged. ``run_paf_sim_step.py``
+runs ONE phase per invocation, wholly inside whichever environment is active,
+so something has to enter the right environment between phases. This script is
+that something, both by hand and on the cluster: it is the single `lbwsg_pafs`
+step of ``model_specifications/artifact_workflow.yaml``, so the pipeline and a
+by-hand run are the same code rather than two orchestrators to keep in step.
 
 Usage
 -----
-Run the five steps in order, each in the environment named beside it:
+Run it from either environment; it enters the right one for each phase::
 
-    python run_paf_sim.py --step initial-artifact -a NAME -l Ethiopia   # artifact
-    python run_paf_sim.py --step enn-paf          -a NAME -l Ethiopia   # simulation
-    python run_paf_sim.py --step enn-artifact     -a NAME -l Ethiopia   # artifact
-    python run_paf_sim.py --step lnn-paf          -a NAME -l Ethiopia   # simulation
-    python run_paf_sim.py --step final-artifact   -a NAME -l Ethiopia   # artifact
+    python run_paf_sim.py -a test_automation -l Ethiopia
+    python run_paf_sim.py -a test_automation --artifact-env my_artifact_env
 
-Each step checks up front that the active environment is the right kind and
-aborts with an actionable message if not, so a mis-set ``environment`` key in
-the workflow fails in seconds rather than partway through a job.
+Every other argument is passed through to ``run_paf_sim_step.py`` unchanged.
+After fixing whatever made a phase fail, continue from it rather than starting
+over::
 
-State passes between steps on disk, exactly as it did when this was a single
-script: the artifact at ``<artifact dir>/<location>.hdf``, and the PAF parquet
-files under ``data/lbwsg_paf/outputs/``. No step needs to be told where an
-earlier step's scratch output went -- each PAF step moves its own results into
-place before it finishes.
+    python run_paf_sim.py -a test_automation --from enn-artifact
+
+or run that one phase on its own, from an activated environment of the right
+kind::
+
+    python run_paf_sim_step.py --step enn-artifact -a test_automation
 """
 
+from __future__ import annotations
+
 import argparse
-import shutil
+import os
+import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from vivarium_gates_mncnh.constants.metadata import LOCATIONS
-from vivarium_gates_mncnh.constants.paths import CLUSTER_DATA_DIR
-from vivarium_gates_mncnh.tools.utilities import (
-    check_psimulate_finished,
-    extract_results_dir,
-    move_results,
-    require_environment,
-    run_command,
-)
+from vivarium_gates_mncnh.constants.metadata import PAF_PHASES
 
-#: The measures regenerated from the PAF outputs by every artifact step after
-#: the first. Named once because both later artifact steps request the same set.
-PAF_MEASURES = [
-    "risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction",
-    "cause.neonatal_preterm_birth.population_attributable_fraction",
-]
-
-#: Each step, and the environment flavour it must run in. The workflow's
-#: ``environment`` key for a step has to agree with this.
-STEP_ENVIRONMENTS = {
-    "initial-artifact": "artifact",
-    "enn-paf": "simulation",
-    "enn-artifact": "artifact",
-    "lnn-paf": "simulation",
-    "final-artifact": "artifact",
-}
-
-
-def _reuse_existing(artifact_file: Path) -> bool:
-    """Ask whether to reuse an artifact that already exists."""
-    print(f"\nArtifact already exists: {artifact_file}")
-    try:
-        response = input("Use existing artifact? [Y/n]: ").strip().lower()
-    except EOFError:
-        print("No interactive input available; defaulting to use existing artifact.")
-        return True
-    if response in ("", "y", "yes"):
-        return True
-    print("Will overwrite existing artifact.")
-    return False
-
-
-def _artifact_dir(artifact_name: str, output_dir: Optional[str]) -> Path:
-    """Resolve the directory holding ``<location>.hdf``, creating it if needed."""
-    if output_dir:
-        path = Path(output_dir).expanduser()
-    else:
-        path = (
-            Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts")
-            / artifact_name
-        )
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def _build_artifact(
-    location: str,
-    artifact_dir: Path,
-    description: str,
-    measures: Optional[List[str]] = None,
-) -> None:
-    """Run ``make_artifacts`` for *location*, optionally restricted to *measures*."""
-    cmd = ["make_artifacts", "-vvv", "-l", location.capitalize(), "-o", str(artifact_dir)]
-    for measure in measures or []:
-        cmd += ["-r", measure]
-    run_command(cmd, description, auto_confirm=True)
-
-
-def _run_paf_simulation(
-    location: str,
-    artifact_dir: Path,
-    model_spec: str,
-    description: str,
-    results_to_move: List[Tuple[str, str, str]],
-) -> None:
-    """Run psimulate, then move its outputs into the tracked ``outputs/`` tree.
-
-    *results_to_move* is a list of ``(source glob, destination subdirectory,
-    description)`` applied to the results directory psimulate reports. The move
-    happens here, in the same step, so no later step has to be told where this
-    run's scratch directory was. The scratch directory is removed on success
-    and preserved on failure, for debugging.
-    """
-    script_dir = Path(__file__).parent.parent
-    working_dir = (
-        Path(CLUSTER_DATA_DIR) / "paf_sim_results" / datetime.now().strftime("%Y%m%d_%H%M%S")
+try:
+    from vivarium.cluster_tools.core.jobmon.env import (
+        resolve_env_bin_path,
+        resolve_env_prefix,
     )
-    working_dir.mkdir(parents=True, exist_ok=True)
+except ImportError as e:  # pragma: no cover - depends on how the env was built
+    raise SystemExit(
+        f"Could not import the environment resolver from vivarium.cluster_tools ({e}).\n"
+        "Run this script from an environment built with the 'cluster' extra -- "
+        "either of the two this workflow uses will do."
+    )
 
-    try:
-        psimulate_output = run_command(
-            [
-                "psimulate",
-                "run",
-                "-vvv",
-                "-P",
-                "proj_simscience_prod",
-                "-i",
-                str(artifact_dir / f"{location}.hdf"),
-                "-o",
-                str(working_dir),
-                str(script_dir / "code" / model_spec),
-                str(script_dir / "code" / "lbwsg_paf_branches.yaml"),
-            ],
-            description,
-            capture_full_output=True,
-        )
+RUN_PAF_SIM_STEP = Path(__file__).resolve().parent / "run_paf_sim_step.py"
 
-        if not check_psimulate_finished(psimulate_output):
-            raise RuntimeError(f"{description}: not all jobs finished successfully")
+#: Names the child should not inherit: they describe the environment this
+#: script is running in, not the one each phase is launched into.
+STALE_ENV_MARKERS = ("VIRTUAL_ENV", "CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONHOME")
 
-        results_dir = extract_results_dir(psimulate_output)
-        if results_dir is None:
-            raise RuntimeError(
-                f"{description}: psimulate reported success but its results "
-                "directory could not be determined, so the outputs cannot be "
-                "collected."
+
+def _repo_root() -> Path:
+    """Return the repository root."""
+    result = subprocess.run(
+        ["git", "-C", str(RUN_PAF_SIM_STEP.parent), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip())
+
+
+def _dist_name(repo_root: Path) -> str:
+    """Return the distribution name, from the single copy of it in pyproject.toml."""
+    result = subprocess.run(
+        ["make", "-s", "-C", str(repo_root), "print-dist-name"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    name = result.stdout.strip()
+    if not name:
+        raise SystemExit("Could not determine the distribution name from pyproject.toml")
+    return name
+
+
+def _default_env(flavour: str, dist_name: str, repo_root: Path) -> str:
+    """Return the environment to use for *flavour* when none was given.
+
+    The overlay is named by path rather than by name because the resolver
+    matches a bare name against ``.venv`` under the *current* directory, and
+    this script should work from anywhere in the repository.
+    """
+    overlay = repo_root / ".venv" / f"{dist_name}_{flavour}"
+    return str(overlay) if overlay.is_dir() else f"{dist_name}_{flavour}"
+
+
+def _resolve_environments(args: argparse.Namespace) -> Dict[str, Tuple[str, str]]:
+    """Resolve every flavour to a ``(prefix, PATH additions)`` pair, up front.
+
+    Resolving all of them before running anything means a mistyped environment
+    fails immediately rather than partway through the sequence, after earlier
+    phases have already rebuilt the artifact.
+    """
+    # Finding these runs git and make, so only do it if we actually need a
+    # default. When both environments are named, we never do.
+    repo_root: Optional[Path] = None
+    dist_name: Optional[str] = None
+
+    resolved = {}
+    for flavour in sorted({flavour for _, flavour in PAF_PHASES}):
+        env_spec = getattr(args, f"{flavour}_env")
+        if not env_spec:
+            if repo_root is None:
+                repo_root = _repo_root()
+                dist_name = _dist_name(repo_root)
+            env_spec = _default_env(flavour, str(dist_name), repo_root)
+        try:
+            prefix = resolve_env_prefix(env_spec)
+        except RuntimeError as e:
+            raise SystemExit(
+                f"Could not use '{env_spec}' as the {flavour} environment.\n"
+                f"  {e}\n"
+                f"Name one with --{flavour}-env, or build this repository's "
+                f"with 'source environment.sh -s -t {flavour}'."
             )
+        resolved[flavour] = (prefix, resolve_env_bin_path(prefix))
+        print(f"  {flavour:10} environment: {env_spec} -> {prefix}")
+    return resolved
 
-        for pattern, destination, what in results_to_move:
-            move_results(
-                f"{results_dir}/{pattern}",
-                f"{script_dir}/outputs/{destination}/{location}",
-                what,
-            )
-    except Exception:
-        print(
-            f"\nWorking directory preserved for debugging: {working_dir}",
-            file=sys.stderr,
-        )
-        raise
 
-    shutil.rmtree(working_dir, ignore_errors=True)
+def _run_step(
+    step: str, flavour: str, prefix: str, bin_path: str, passthrough: List[str]
+) -> None:
+    """Run one phase in the environment at *prefix*."""
+    print()
+    print("#" * 80)
+    print(f"# step '{step}'  --  {flavour} environment: {prefix}")
+    print("#" * 80)
+
+    child_env = {k: v for k, v in os.environ.items() if k not in STALE_ENV_MARKERS}
+    child_env["PATH"] = f"{bin_path}:{child_env['PATH']}"
+
+    subprocess.run(
+        [f"{prefix}/bin/python", str(RUN_PAF_SIM_STEP), "--step", step, *passthrough],
+        env=child_env,
+        check=True,
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run one step of the LBWSG PAF workflow.")
-    parser.add_argument(
-        "--step",
-        required=True,
-        choices=sorted(STEP_ENVIRONMENTS),
-        help="Which step to run. It runs in the environment the caller activated.",
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run every phase of the LBWSG PAF workflow in order, entering the "
+            "right environment for each. Unrecognised arguments are passed "
+            "through to run_paf_sim_step.py."
+        )
     )
+    for flavour in sorted({flavour for _, flavour in PAF_PHASES}):
+        parser.add_argument(
+            f"--{flavour}-env",
+            default=None,
+            metavar="ENV",
+            help=(
+                f"The {flavour} environment: a conda environment name, a venv "
+                "name, or a path to either's prefix. Defaults to this "
+                "repository's overlay, or its conda environment."
+            ),
+        )
     parser.add_argument(
-        "-l",
-        "--location",
-        action="append",
-        dest="locations",
+        "--from",
+        dest="start_at",
         default=None,
-        metavar="LOCATION",
+        choices=[phase for phase, _ in PAF_PHASES],
         help=(
-            "Location to run, repeatable. Defaults to every location in "
-            "constants.metadata.LOCATIONS, which is where a new location should "
-            "be added -- the workflow does not name them."
+            "Start at this phase rather than the first, to continue a run after "
+            "fixing whatever made a phase fail."
         ),
     )
-    parser.add_argument(
-        "-a",
-        "--artifact_name",
-        type=str,
-        required=True,
-        dest="artifact_name",
-        help=(
-            "Name of the artifact directory, under the team artifacts mount "
-            "unless --output-dir is given."
-        ),
-    )
-    parser.add_argument(
-        "-o",
-        "--output-dir",
-        type=str,
-        default=None,
-        dest="output_dir",
-        help=(
-            "Full path to the artifact directory where {location}.hdf is written "
-            "(supports ~). Overrides the default team-mount location -- e.g. a "
-            "personal scratch dir for isolated test runs."
-        ),
-    )
-    args = parser.parse_args()
+    args, passthrough = parser.parse_known_args()
 
-    step = args.step
-    requested = list(args.locations) if args.locations else list(LOCATIONS)
-    unknown = [loc for loc in requested if loc not in LOCATIONS]
-    if unknown:
+    if "--step" in passthrough:
         parser.error(
-            f"Unknown location(s): {', '.join(unknown)}. Expected some of {list(LOCATIONS)}."
+            "--step is chosen per phase by this script. To run a single phase, "
+            "invoke run_paf_sim_step.py directly from an activated environment."
         )
-    artifact_dir = _artifact_dir(args.artifact_name, args.output_dir)
+
+    phases = list(PAF_PHASES)
+    if args.start_at:
+        skipped = [phase for phase, _ in phases].index(args.start_at)
+        phases = phases[skipped:]
 
     print("\n" + "=" * 80)
-    print(f"LBWSG PAF workflow -- step '{step}'")
+    print(f"LBWSG PAF workflow -- {len(phases)} of {len(PAF_PHASES)} phases")
+    if args.start_at:
+        print(f"Starting at '{args.start_at}'; {skipped} earlier phase(s) skipped")
     print("=" * 80)
-    print(f"Locations: {', '.join(requested)}")
-    print(f"Artifact: {artifact_dir}")
+    environments = _resolve_environments(args)
     print("=" * 80)
 
-    # Fail in seconds, not partway through a job, if this step was launched in
-    # the wrong environment.
-    require_environment(STEP_ENVIRONMENTS[step])
-
-    for location in (loc.lower() for loc in requested):
-        _run_one(step, location, artifact_dir)
-
-    print("\n" + "=" * 80)
-    print(f"Step '{step}' completed successfully for {len(requested)} location(s).")
-    print("=" * 80 + "\n")
-
-
-def _run_one(step: str, location: str, artifact_dir: Path) -> None:
-    """Run *step* for a single location.
-
-    Locations are independent of one another -- separate artifacts, separate
-    output directories -- so a step simply does each in turn. The workflow runs
-    steps strictly sequentially anyway, so there is nothing to gain by
-    splitting them into a task per location, and a good deal of YAML to lose.
-    """
-    if step == "initial-artifact":
-        artifact_file = artifact_dir / f"{location}.hdf"
-        if artifact_file.exists() and _reuse_existing(artifact_file):
-            print("Using existing artifact.")
-        else:
-            _build_artifact(
-                location, artifact_dir, f"initial artifact generation for {location}"
+    for step, flavour in phases:
+        prefix, bin_path = environments[flavour]
+        try:
+            _run_step(step, flavour, prefix, bin_path, passthrough)
+        except subprocess.CalledProcessError as e:
+            print(
+                f"\nStep '{step}' failed (exit code {e.returncode}). Earlier phases "
+                "have already run; once you have fixed the cause, re-run this phase "
+                f"on its own with:\n"
+                f"  python {RUN_PAF_SIM_STEP} --step {step} {' '.join(passthrough)}\n"
+                f"from the {flavour} environment. Or fix the cause and re-run "
+                f"this script with --from {step} to continue from here.",
+                file=sys.stderr,
             )
+            raise SystemExit(e.returncode)
 
-    elif step == "enn-paf":
-        _run_paf_simulation(
-            location,
-            artifact_dir,
-            "lbwsg_paf_enn.yaml",
-            "psimulate run (early neonatal PAFs)",
-            [("calculated_lbwsg_paf*", "paf_outputs", "early neonatal PAF output files")],
-        )
-
-    elif step == "enn-artifact":
-        _build_artifact(
-            location,
-            artifact_dir,
-            f"early neonatal artifact generation for {location}",
-            PAF_MEASURES,
-        )
-
-    elif step == "lnn-paf":
-        _run_paf_simulation(
-            location,
-            artifact_dir,
-            "lbwsg_paf.yaml",
-            "psimulate run (late neonatal PAFs and preterm prevalence)",
-            [
-                ("calculated_lbwsg_paf*", "paf_outputs", "late neonatal PAF output files"),
-                (
-                    "calculated_late_neonatal_preterm*",
-                    "preterm_prevalence_outputs",
-                    "preterm prevalence output files",
-                ),
-            ],
-        )
-
-    elif step == "final-artifact":
-        _build_artifact(
-            location,
-            artifact_dir,
-            f"final artifact generation for {location}",
-            PAF_MEASURES,
-        )
+    print()
+    print("#" * 80)
+    print(f"# All {len(phases)} phases completed.")
+    print("#" * 80)
 
 
 if __name__ == "__main__":

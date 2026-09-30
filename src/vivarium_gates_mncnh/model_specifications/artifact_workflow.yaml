@@ -9,7 +9,7 @@ workflow:
   # Dagger steps run STRICTLY SEQUENTIALLY (every task in a step depends on all
   # tasks of the previous step). Parallelism therefore lives INSIDE steps:
   #   - parallel_runner.py  -> fans draws across `cores` on one node
-  #   - run_paf_sim.py      -> fans draws via psimulate (jobmon)
+  #   - run_paf_sim.py      -> five phases, each fanning draws via psimulate
   #   - generate_pafs.py / generate_caps.py -> serial internally
   #
   # Steps are ordered by dependency. Resource values are first-pass estimates
@@ -125,72 +125,23 @@ workflow:
           l: "Pakistan"
 
     # ---- Step 6: LBWSG PAFs ---------------------------------------------------
-    # Needs the RR caps from Step 5. Run as five steps, in this order, because
-    # the phases alternate between the artifact and simulation environments.
-    - name: "paf_initial_artifact"
+    # Needs the RR caps from Step 5. The PAF workflow is five phases that
+    # alternate between the artifact and simulation environments, so it cannot
+    # run in any single one of them. run_paf_sim.py is the driver: it enters the
+    # right environment for each phase and runs them in the order given by
+    # constants.metadata.PAF_PHASES.
+    - name: "lbwsg_pafs"
       type: python
       environment: *artifact_env
       resources:
         memory_gb: 16
-        runtime: "00:30:00"
+        runtime: "01:00:00"
         requires_archive_node: True
       args:
         path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
         keyword_args:
-          step: initial-artifact
-          a: test_workflow
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_paf"
-      type: python
-      environment: *simulation_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: enn-paf
-          a: test_workflow
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_enn_artifact"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: enn-artifact
-          a: test_workflow
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_lnn_paf"
-      type: python
-      environment: *simulation_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: lnn-paf
-          a: test_workflow
-          output-dir: INSERT_VALID_DIRECTORY
-    - name: "paf_final_artifact"
-      type: python
-      environment: *artifact_env
-      resources:
-        memory_gb: 16
-        runtime: "00:30:00"
-        requires_archive_node: True
-      args:
-        path: src/vivarium_gates_mncnh/data/lbwsg_paf/code/run_paf_sim.py
-        keyword_args:
-          step: final-artifact
-          a: test_workflow
+          artifact-env: *artifact_env
+          simulation-env: *simulation_env
           output-dir: INSERT_VALID_DIRECTORY
 
     # ---- Step 7: build artifacts for all locations (terminal step) -----------
