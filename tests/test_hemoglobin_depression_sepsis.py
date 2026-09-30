@@ -37,6 +37,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
 )
+from vivarium_gates_mncnh.utilities import _discover_pipeline
 
 # --------------------------------------------------------------------------- #
 # Contract constants (from the research doc / iteration plan)
@@ -78,31 +79,6 @@ FINAL_CSMR_PIPELINES = [
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def _discover_pipeline(
-    sim: InteractiveContext,
-    must_contain: list[str],
-    must_not_contain: tuple[str, ...] = (),
-) -> str | None:
-    """Return the (single) attribute-pipeline name matching all substrings in
-    ``must_contain`` and none in ``must_not_contain``; None if not found.
-
-    Written defensively because the exact RR pipeline names for the new effects
-    are set by the implementation (to which this verification is blind). RR / PAF
-    / CSMR pipelines are *attribute* pipelines and do NOT appear in
-    ``sim.list_values()`` -- they are discoverable via ``sim.get_attribute_names()``.
-    """
-    hits = []
-    for name in sim.get_attribute_names():
-        low = name.lower()
-        if all(s in low for s in must_contain) and not any(
-            s in low for s in must_not_contain
-        ):
-            hits.append(name)
-    if not hits:
-        return None
-    # Prefer the shortest match if several qualify (defensive, avoids picking
-    # an unexpected super-string).
-    return sorted(hits, key=len)[0]
 
 
 def _pipeline_values(sim: InteractiveContext, name: str, index: pd.Index) -> pd.Series:
@@ -317,7 +293,7 @@ def test_ppd_baseline_incidence(snapshots: _Snapshots, fuzzy_checker) -> None:
         f"PPD incidence_risk pipeline mean {pipeline_mean:.4f} outside research "
         f"95% CI {PPD_BASELINE_INCIDENCE_CI} (point target {PPD_BASELINE_INCIDENCE})"
     )
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         cases,
         n,
         PPD_BASELINE_INCIDENCE_CI,

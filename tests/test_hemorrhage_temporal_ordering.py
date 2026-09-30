@@ -28,7 +28,7 @@ import pandas as pd
 import pytest
 from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
-from vivarium.testing_utils import FuzzyChecker
+from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
@@ -167,7 +167,7 @@ def test_aph_incidence_matches_applied_risk(
     n_cases = int(pop.loc[eligible_idx, COLUMNS.ANTEPARTUM_HEMORRHAGE].astype(bool).sum())
     target_proportion = float(risk.loc[eligible_idx].mean())
 
-    fuzzy_checker.fuzzy_assert_proportion(
+    fuzzy_checker.assert_proportion(
         n_cases,
         len(eligible_idx),
         target_proportion,
