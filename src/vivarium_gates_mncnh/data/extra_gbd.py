@@ -172,8 +172,9 @@ def get_sequela_data(sequela_id: int, location: str, measure: str) -> pd.DataFra
 def get_non_pregnant_hemoglobin_exposure_data(location: str) -> pd.DataFrame:
     """Get non-pregnant hemoglobin exposure (MEID 27596), from file.
 
-    Release 16 rather than 33, but stored with the release-33 data because it
-    supplies the mean paired with the release-33 exposure SD; pulling one side live
-    would draw the distribution's two parameters from different captures.
+    Release 16, not 33 -- there is no release-33 version of this modelable entity.
+    Stored with the release-33 data because it supplies the mean paired with the
+    release-33 exposure SD; pulling one side live would draw the distribution's two
+    parameters from different captures.
     """
-    return _release_33_data(f"non_pregnant_hemoglobin_exposure_{location.lower()}")
+    return _release_33_data(f"non_pregnant_hemoglobin_exposure_{location.lower()}_release16")
