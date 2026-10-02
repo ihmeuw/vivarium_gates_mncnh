@@ -19,13 +19,11 @@ endif
 # Set the package name as the last part of this file's parent directory path
 PACKAGE_NAME = $(notdir $(CURDIR))
 
-# TODO: remove after monorepo migration
-# Explicit PyPI distribution name. Without this, vivarium_build_utils' base.mk
-# falls back to PACKAGE_NAME for `--config-settings-package` (vbu>=3.3.0), which
-# in a Jenkins PR workspace is the dir basename (e.g. "..._PR-327-head@2") and is
-# rejected by uv as an invalid package name. Remove once pyproject.toml declares
-# a [project] table with `name = "vivarium_gates_mncnh"`.
-DIST_NAME := vivarium_gates_mncnh
+# The package's name, read from pyproject.toml so there is only one copy of it.
+# awk rather than Python, because environment.sh needs this before any
+# environment exists.
+DIST_NAME := $(shell awk -F'"' '/^\[project\]/{p=1} p && /^name[[:space:]]*=/{print $$2; exit}' $(CURDIR)/pyproject.toml)
+$(if $(DIST_NAME),,$(error Could not read the [project] name from pyproject.toml))
 
 # Helper function for validating enum arguments
 validate_arg = $(if $(filter-out $(2),$(1)),$(error Error: '$(3)' must be one of: $(2), got '$(1)'))
@@ -207,7 +205,7 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 #	venv_dir
 	@$(eval venv_dir ?= .venv)
 #	venv_name
-	@$(eval venv_name ?= $(PACKAGE_NAME)_$(type))
+	@$(eval venv_name ?= $(DIST_NAME)_$(type))
 #	Construct full venv path
 	@$(eval venv_path := $(venv_dir)/$(venv_name))
 #	shared_env_dir
@@ -216,7 +214,7 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@$(eval force ?= no)
 	@$(call validate_arg,$(force),yes no,force)
 #	Construct shared environment path
-	@$(eval SHARED_ENV_NAME := $(PACKAGE_NAME)_$(type)_current)
+	@$(eval SHARED_ENV_NAME := $(DIST_NAME)_$(type)_current)
 	@$(eval SHARED_ENV_PATH := $(shared_env_dir)/$(SHARED_ENV_NAME))
 
 #	Verify shared environment exists
@@ -282,3 +280,6 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@echo "  1. Activate it: 'source $(venv_path)/bin/activate'"
 	@echo "  2. Run 'make help' again to see all newly available targets"
 	@echo
+
+print-dist-name: # Print the distribution name (used by environment.sh)
+	@echo $(DIST_NAME)
