@@ -35,7 +35,11 @@ INTERVENTION_TYPE_COLUMN_MAP = {
 }
 INTERVENTION_SCENARIO_ACCESS_MAP = {
     "full": 1.0,
+    "eighty_five_percent": 0.85,
+    "eighty_percent": 0.8,
+    "sixty_percent": 0.6,
     "scale_up": 0.5,
+    "fifteen_percent": 0.15,
     "none": 0.0,
 }
 
