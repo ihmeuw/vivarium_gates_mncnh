@@ -132,7 +132,7 @@ workflow:
     # constants.metadata.PAF_PHASES.
     - name: "lbwsg_pafs"
       type: python
-      environment: *artifact_env
+      environment: *simulation_env
       resources:
         memory_gb: 16
         runtime: "01:00:00"

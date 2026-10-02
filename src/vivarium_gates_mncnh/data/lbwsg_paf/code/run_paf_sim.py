@@ -12,7 +12,7 @@ by-hand run are the same code rather than two orchestrators to keep in step.
 
 Usage
 -----
-Run it from either environment; it enters the right one for each phase::
+Run it from the simulation environment; it enters the right one for each phase::
 
     python run_paf_sim.py -a test_automation -l Ethiopia
     python run_paf_sim.py -a test_automation --artifact-env my_artifact_env
@@ -48,8 +48,9 @@ try:
 except ImportError as e:  # pragma: no cover - depends on how the env was built
     raise SystemExit(
         f"Could not import the environment resolver from vivarium.cluster_tools ({e}).\n"
-        "Run this script from an environment built with the 'cluster' extra -- "
-        "either of the two this workflow uses will do."
+        "Run this script from the simulation environment. The artifact "
+        "environment's jobmon cannot be imported where setuptools no longer "
+        "provides pkg_resources."
     )
 
 RUN_PAF_SIM_STEP = Path(__file__).resolve().parent / "run_paf_sim_step.py"
