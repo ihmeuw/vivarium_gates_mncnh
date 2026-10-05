@@ -244,6 +244,10 @@ class LBWSGRisk(LBWSGRisk_):
                 COLUMNS.PARTIAL_TERM_PREGNANCY_DURATION,
                 *[self.continuous_propensity_column_name[axis] for axis in self.AXES],
             ],
+            description=(
+                "The birth weight and gestational age at birth, or at pregnancy end if "
+                "partial term"
+            ),
         )
 
     ########################
@@ -341,6 +345,8 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
     accessible by the neonatal causes component. The ACMR PAF will be used to calculate a
     normalizing constant to modify CSMR pipelines for neonatal causes."""
 
+    PAF_PIPELINE_DESCRIPTION = "The LBWSG PAF on this target"
+
     @property
     def lbwsg_exposure_column_names(self) -> list[str]:
         return [
@@ -364,6 +370,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             self.paf_pipeline_name,
             source=self.paf_table,
             required_resources=[self.paf_table],
+            description=self.PAF_PIPELINE_DESCRIPTION,
         )
 
     def register_calibration_constant_modifier(self, builder: Builder) -> None:
@@ -378,6 +385,7 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
                 index, self.paf_pipeline_name
             ),
             required_resources=[self.paf_pipeline_name],
+            description="Supply the LBWSG PAF as this target's PAF",
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
@@ -405,6 +413,10 @@ class LBWSGRiskEffect(LBWSGRiskEffect_):
             self.relative_risk_name,
             source=self._relative_risk_source,
             required_resources=[COLUMNS.CHILD_AGE] + self.rr_column_names,
+            description=(
+                "The LBWSG relative risk on this target, selected by age from stored RR "
+                "columns"
+            ),
         )
 
     def get_interpolator(self, builder: Builder) -> pd.Series:
@@ -566,6 +578,7 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
             self.paf_pipeline_name,
             source=self.paf_table,
             required_resources=[self.paf_table],
+            description=self.PAF_PIPELINE_DESCRIPTION,
         )
 
     def register_relative_risk_pipeline(self, builder: Builder) -> None:
@@ -577,6 +590,10 @@ class LBWSGPAFRiskEffect(LBWSGRiskEffect):
             self.relative_risk_name,
             self._relative_risk_source,
             required_resources=exposure_columns,
+            description=(
+                "The LBWSG relative risk on this target, selected by age from stored RR "
+                "columns"
+            ),
         )
 
     def initialize_relative_risk(self, pop_data: SimulantData) -> None:
@@ -663,6 +680,10 @@ class LBWSGPAFCalculationExposure(LBWSGRisk):
             source=self.get_birth_exposure,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
             required_resources=["child_age", "sex_of_child", "lbwsg_category", "age_bin"],
+            description=(
+                "The birth weight and gestational age at birth, spread evenly on a grid "
+                "within each LBWSG category"
+            ),
         )
 
     ########################
@@ -1010,6 +1031,7 @@ class LBWSGMortality(Component):
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
             required_resources=[self.all_cause_mortality_risk, self.acmr_paf_pipeline_name],
+            description="The PAF-normalized all-cause mortality risk, with LBWSG effects",
         )
 
         builder.population.register_initializer(
@@ -1088,6 +1110,7 @@ class LBWSGMortality(Component):
         builder.value.register_attribute_producer(
             PIPELINES.ACMR_PAF,
             source=lambda index: acmr_paf(index),
+            description="The all-cause mortality PAF, set by the LBWSG risk effect",
         )
 
 

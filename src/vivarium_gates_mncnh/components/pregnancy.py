@@ -57,6 +57,7 @@ class Pregnancy(Component):
             PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             source=self.birth_outcome_probabilities_table,
             required_resources=[self.birth_outcome_probabilities_table],
+            description="The probability of each pregnancy outcome for each simulant",
         )
 
         self._birth_exposure_pipeline = "low_birth_weight_and_short_gestation.birth_exposure"
@@ -64,6 +65,7 @@ class Pregnancy(Component):
             PIPELINES.PREGNANCY_DURATION,
             self.get_pregnancy_durations,
             required_resources=[self._birth_exposure_pipeline],
+            description="The duration of each simulant's pregnancy",
         )
 
         builder.population.register_initializer(

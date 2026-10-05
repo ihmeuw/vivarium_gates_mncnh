@@ -1,8 +1,14 @@
+# ==========================================================================
+# Simulation + test half of the pipeline: run the models, then test the results.
+#
+# The 'environment' below is a conda environment name, so this pipeline only
+# runs with conda -- not with the shared environments from environment.sh -s.
+# ==========================================================================
 workflow:
   name: "test_pipeline"
   project: "proj_simscience"
   queue: "all.q"
-  output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/model33.1
+  output_directory: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/model40.1
   steps:
     - name: "check_clean_working_tree"
       type: python
