@@ -10,7 +10,7 @@ _CODE_DIR = Path(__file__).parent
 import numpy as np
 import pandas as pd
 
-from vivarium_gates_mncnh.constants import metadata
+from vivarium_gates_mncnh.constants import data_values, metadata
 from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 # This code relies on data specific to:
@@ -44,6 +44,14 @@ def load_hemoglobin_rrs_on_maternal_disorders():
         rrs = load_hemoglobin_relative_risk(
             key="risk_factor.hemoglobin.relative_risk", location=location
         ).reset_index()
+        # The loader renames the GBD entity "depressive_disorders" to the sim's
+        # "postpartum_depression" for the artifact. Normalize back to the GBD name
+        # here so the generated PAF columns stay depressive_disorders_paf, which is
+        # what _load_generated_hemoglobin_paf's column mapping (and the committed
+        # CSVs) expect regardless of the artifact-facing rename.
+        rrs["affected_entity"] = rrs["affected_entity"].replace(
+            {"postpartum_depression": "depressive_disorders"}
+        )
         assert (
             len([x for x in rrs.columns if "draw" in x]) == 500
         ), "Hemoglobin RR data does not have 500 draws"
@@ -101,10 +109,16 @@ def load_direct_nn_sepsis_rrs(location, draw):
     # Note: neonatal sepsis direct effects have already been scaled to the
     # TMRED (see metadata.HEMOGLOBIN_TMRED) during data generation.
     path = _CODE_DIR / "../../hemoglobin_effects/direct_sepsis_effects"
-    sepsis_rrs = pd.read_csv(path / f"draw_{draw}.csv")
+    # The CSVs are written in vivarium demographic shape (sex/age_start/parameter);
+    # rename back to this module's working column names.
+    sepsis_rrs = pd.read_csv(path / f"draw_{draw}.csv").rename(
+        columns={"sex": "sex_of_child", "parameter": "exposure"}
+    )
     sepsis_rrs = sepsis_rrs.loc[sepsis_rrs.location == location]
     sepsis_rrs["child_age_group"] = np.where(
-        sepsis_rrs.age_group_id == 2, "early_neonatal", "late_neonatal"
+        sepsis_rrs.age_start == data_values.EARLY_NEONATAL_AGE_START,
+        "early_neonatal",
+        "late_neonatal",
     )
     sepsis_rrs["outcome"] = (
         "neonatal_sepsis_"
