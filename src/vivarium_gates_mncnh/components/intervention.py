@@ -603,7 +603,7 @@ class AdditiveRiskEffect(Component):
             self.effect_pipeline_name,
             source=self.get_effect,
             required_resources=[self.exposure_name],
-            description="The additive shift this risk applies to its target",
+            description=f"The additive shift {self.risk} applies to {self.target}",
         )
 
     def get_excess_shift_lookup_table(self, builder: Builder) -> LookupTable:
