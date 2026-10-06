@@ -55,6 +55,17 @@ while getopts ":hsflt:" option; do
          return;;
    esac
 done
+
+# Define the merge/diff drivers referenced in .gitattributes.
+# We set the nbdime keys directly
+# rather than running 'nbdime config-git --enable', because that writes
+# '*.ipynb merge=jupyternotebook' to .git/info/attributes, which overrides
+# .gitattributes and would defeat the merge=ours rule for executed notebooks.
+git config merge.ours.driver true
+git config merge.jupyternotebook.name "jupyter notebook merge driver"
+git config merge.jupyternotebook.driver "git-nbmergedriver merge %O %A %B %L %P"
+git config diff.jupyternotebook.command "git-nbdiffdriver diff"
+
 # Parse environment name
 env_name=$(make -s print-dist-name)
 if [[ -z "$env_name" ]]; then
