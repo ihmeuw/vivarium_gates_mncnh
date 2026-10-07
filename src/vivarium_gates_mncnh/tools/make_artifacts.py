@@ -19,6 +19,9 @@ from vivarium_gates_mncnh.constants import data_keys, metadata
 from vivarium_gates_mncnh.tools.app_logging import add_logging_sink
 from vivarium_gates_mncnh.utilities import sanitize_location
 
+_ENVIRONMENT_RECORD = "requirements.txt"
+"""Lists the Python packages an artifact directory was built with."""
+
 
 def running_from_cluster() -> bool:
     import vivarium.cluster_tools as vct
@@ -28,7 +31,8 @@ def running_from_cluster() -> bool:
 
 def check_for_existing(
     output_dir: Path, location: str, append: bool, replace_keys: Tuple
-) -> None:
+) -> bool:
+    """Ask what to do with existing artifacts; return True if any were deleted."""
     existing_artifacts = set(
         [
             item.stem
@@ -53,6 +57,7 @@ def check_for_existing(
                 path = output_dir / f"{loc}.hdf"
                 logger.info(f"Deleting artifact at {str(path)}.")
                 path.unlink(missing_ok=True)
+            return True
         elif replace_keys:
             click.confirm(
                 f"Existing artifacts found for {existing}. If the listed keys {replace_keys} "
@@ -60,6 +65,18 @@ def check_for_existing(
                 "them?",
                 abort=True,
             )
+    return False
+
+
+def check_environment_record(output_dir: Path) -> None:
+    """Write or check ``requirements.txt`` in ``output_dir``, like psimulate does.
+
+    If it exists and lists different package versions, show the differences and
+    ask before continuing. Uses psimulate's internal ``pip_env`` (needs ``pip`` on PATH).
+    """
+    from vivarium.cluster_tools.psimulate import pip_env
+
+    pip_env.validate(Path(output_dir) / _ENVIRONMENT_RECORD)
 
 
 def build_single(
@@ -91,7 +108,9 @@ def build_artifacts(
         If not specified, make for most recent year.
     output_dir
         The path where the artifact files will be built. The directory
-        will be created if it doesn't exist
+        will be created if it doesn't exist. Its ``requirements.txt`` records the
+        packages used, and is checked before anything is deleted. A fresh ``all``
+        build that deletes every artifact starts a new record.
     append
         Whether we should append to existing artifacts at the given output
         directory.  Has no effect if artifacts are not found.
@@ -117,9 +136,16 @@ def build_artifacts(
             f"(got location={location!r}, on cluster={on_cluster})."
         )
 
-    # A resume keeps the finished artifacts, so skip the delete-and-rebuild prompt.
+    # Check the record first, so saying no to it never comes after a deletion.
+    check_environment_record(output_dir)
+    # A resume keeps the finished artifacts, so it skips the delete-and-rebuild prompt.
     if not resume:
-        check_for_existing(output_dir, location, append, replace_keys)
+        deleted = check_for_existing(output_dir, location, append, replace_keys)
+        fresh_all_build = location == "all" and not append
+        if fresh_all_build and deleted and not any(output_dir.glob("*.hdf")):
+            # Nothing from the old build is left, so start a new record.
+            (output_dir / _ENVIRONMENT_RECORD).unlink(missing_ok=True)
+            check_environment_record(output_dir)
 
     if location in metadata.LOCATIONS:
         build_single(location, years, output_dir, replace_keys)
