@@ -56,23 +56,39 @@ class NeonatalCause(Component):
             self.intermediate_csmr_name,
             source=self.get_normalized_csmr,
             required_resources=required_pipeline_resources,
+            description="The normalized mortality risk of this cause, with LBWSG effects",
         )
         self.final_csmr_name = f"{self.neonatal_cause}.csmr"
         register_risk_affected_attribute_producer(
             builder,
             self.final_csmr_name,
             source=[self.intermediate_csmr_name],
+            description=(
+                "The final mortality risk of this cause, after any intervention effects"
+            ),
         )
 
         builder.value.register_attribute_modifier(
             PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
             modifier=self.modify_death_in_age_group_probability,
             required_resources=required_pipeline_resources,
+            description=(
+                "Replace this cause's mortality risk in the death probability with its "
+                "intervention-adjusted risk"
+            ),
         )
-        # Create CSMR PAF pipeline which will do nothing but is needed for the LBWSGRiskEffect
+        # LBWSGRiskEffect registers its PAF modifier on ``{target}.paf`` (see
+        # ``LBWSGRiskEffect.register_calibration_constant_modifier``), so this pipeline
+        # gives it something to modify. Its value becomes this cause's LBWSG PAF, but
+        # nothing reads it: ``get_normalized_csmr`` normalizes by the ACMR PAF (or the
+        # preterm PAF for PretermBirth) instead.
         builder.value.register_attribute_producer(
             f"{self.neonatal_cause}.cause_specific_mortality_risk.paf",
             source=builder.lookup.build_table(0),
+            description=(
+                "This cause's LBWSG PAF, kept only as the LBWSG risk effect's modifier "
+                "target; unused in normalizing its mortality risk"
+            ),
         )
 
     ##################

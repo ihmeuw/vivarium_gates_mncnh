@@ -10,6 +10,8 @@ ARTIFACT_ROOT = Path(
 )
 REPO_DATA_DIR = Path(__file__).parent.parent / "data"
 CLUSTER_DATA_DIR = Path("/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/data")
+SHARED_DATA_DIR = Path("/mnt/team/simulation_science/pub/data")
+HEMOGLOBIN_RELEASE_33_DATA_DIR = SHARED_DATA_DIR / "hemoglobin_release33"
 ANC_DATA_DIR = CLUSTER_DATA_DIR / "antenatal_care"
 HEMOGLOBIN_SCREENING_DATA_DIR = CLUSTER_DATA_DIR / "hemoglobin_screening"
 
@@ -40,5 +42,5 @@ HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV = HEMORRHAGE_HEMOGLOBIN_SHIFT_DIR / "p
 
 # Update for new model results directory after model changes and runs
 # This should match the directory after /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/
-MODEL_RESULTS_DIR = "model41.1"
+MODEL_RESULTS_DIR = "get_draws_migration"
 MODEL_NOTEBOOKS_DIR = BASE_DIR.parent.parent / "tests" / "model_notebooks"
