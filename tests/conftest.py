@@ -12,6 +12,15 @@ from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 
+# Shared by the MIC-7495 version-file tests.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+"""The repository root."""
+# A line for a test overrides.txt. Nothing is ever installed from it, so the commit is made up.
+OVERRIDES = (
+    "vivarium-public-health @ "
+    "git+https://github.com/ihmeuw/vivarium-suite@abc1234#subdirectory=libs/public-health\n"
+)
+
 # Detect environment type by checking for vivarium_inputs package
 try:
     import vivarium_inputs

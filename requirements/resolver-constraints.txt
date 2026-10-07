@@ -1,0 +1,7 @@
+# Used only by `make lock-versions` and `make upgrade-versions`, not when installing.
+#
+# To fit the newer jobmon, uv has to downgrade either the IHME data packages or
+# opentelemetry/protobuf. We don't want it to pick the IHME data packages, so
+# these minimums rule that out.
+ihme-cc-aggregate>=1.5.2
+ihme-cc-get-estimates>=2.49.0

@@ -27,8 +27,9 @@ There are two environment options: a **local conda environment** (for personal m
 or a **shared environment on the cluster** with a lightweight venv wrapper.
 
 To create or update an environment, use ``source environment.sh``. This will
-automatically create the environment if it doesn't exist, or update it if it
-is stale.
+automatically create the environment if it doesn't exist, or rebuild it if its
+package versions no longer match the repository's version files (see
+`Pinned package versions`_ below).
 
 **Local conda environment** (default)::
 
@@ -51,24 +52,150 @@ To deactivate a shared cluster environment, run ``deactivate``.
 Additional options are available; pass the ``-h`` flag to see them
 (e.g. ``-f`` to force a rebuild, ``-l`` to install git lfs).
 
-Alternatively, users can manually create conda environments as follows::
+Pinned package versions
++++++++++++++++++++++++
+
+Every environment is built from committed, fully pinned version files:
+
+- ``requirements/simulation.txt`` pins every package in the simulation
+  environment (``pip install -e .[dev]``).
+- ``requirements/artifact.txt`` pins every package in the artifact
+  environment (``pip install -e .[data]``). The ``data`` extra also sets a
+  minimum version for ``jobmon_installer_ihme``, because older jobmon releases
+  break in fresh environments (no ``pkg_resources``, incompatible
+  ``slurm_rest``).
+- ``requirements/resolver-constraints.txt`` is not a version file and is not
+  installed from. It holds lower bounds that only the lock targets below pass to
+  the resolver (``-c``). At present it keeps the IHME data packages
+  (``ihme-cc-aggregate``, ``ihme-cc-get-estimates``) from being downgraded to
+  make room for the newer jobmon.
+
+``pyproject.toml`` still declares what the package is *compatible* with (version
+ranges); the version files record exactly what the environments *run*. ``make
+build-env``, the nightly shared environments, and the Jenkins PR builds all
+install under them. The two files are resolved independently, so they will
+disagree on some shared packages. That is on purpose and nothing reconciles them.
+
+To change the version files, use one of two ``make`` targets (each accepts
+``type=simulation``, ``type=artifact`` or ``type=all``, the default). Run them
+from an activated environment of this repository: they need ``uv`` on your
+``PATH``, and the ``vivarium_build_utils`` makefiles for the IHME package
+index::
+
+  :~$ make lock-versions
+  ...resolves what is not pinned yet, preferring every existing pin...
+  :~$ make upgrade-versions
+  ...re-resolves every package to the newest version pyproject.toml allows...
+
+- Use ``make lock-versions`` after adding or changing a dependency in
+  ``pyproject.toml``. uv prefers the existing pins but does not guarantee them:
+  if your change needs a pinned package to move, it moves. The target prints
+  every pin that moved, was added or was removed, so you can check the diff
+  shows only what your change needed.
+- Use ``make upgrade-versions`` for a deliberate upgrade. Every package can move
+  at once, so do this in its own PR and check the results.
+
+Both targets resolve for the newest Python version in ``python_versions.json``
+(``make build-env`` refuses any other ``py``), apply
+``requirements/resolver-constraints.txt``, and also pin ``uv``, ``pip`` and
+``setuptools``, the tools that build the environment. With ``type=all``, both
+files are updated only if both resolve. Commit the changed version files along
+with the change that needed them.
+
+**What happens on activation.** ``make build-env`` records the version file it
+was built from in the environment. Before recording it, ``make build-env``
+checks the installed package versions against that version file. If they don't
+match, the build fails and no record is written. Each ``source environment.sh``
+compares that record with your checkout:
+
+- For a local conda environment, if the version files changed (e.g. after a
+  pull or a branch switch), ``environment.sh`` lists the packages that changed
+  and the commit that changed them, then rebuilds. Environments are no longer
+  rebuilt because of their age. Conda-level packages (Python, redis, git-lfs)
+  are not covered by the version files; ``source environment.sh -f`` rebuilds
+  them. Two other cases also rebuild:
+
+  * an environment with no record of its versions, so every environment built
+    before version files were introduced is rebuilt once;
+  * a comparison that fails (e.g. a version file that does not parse), which
+    prints a WARNING and then rebuilds.
+- For a shared environment (``-s``), which cannot be rebuilt from your checkout,
+  ``environment.sh`` only warns. It names the packages that differ and says why:
+
+  * *your branch is behind main*: main has changed the version files since
+    your branch left it. Merge main into your branch.
+  * *your branch changed the version files* (or uses overrides): the shared
+    environment cannot provide them. Build your own environment with
+    ``source environment.sh -t <type>``.
+  * *the shared environment is behind main*: your checkout matches main, but
+    the shared environment has not yet been rebuilt. It will catch up after its
+    next nightly rebuild. Until then you can build your own environment.
+
+**Overrides.** To build against an unreleased framework change (e.g. a
+``vivarium-public-health`` commit), add ``requirements/overrides.txt`` to your
+branch. It uses uv's override format, one package per line. The framework
+packages live in the ``ihmeuw/vivarium-suite`` monorepo, and ``subdirectory`` is
+the package's directory under ``libs/``::
+
+  vivarium-public-health @ git+https://github.com/ihmeuw/vivarium-suite@<commit sha>#subdirectory=libs/public-health
+
+Overrides apply to both environment types and are recorded with the
+environment. They are applied by ``make install`` (and so by ``make build-env``
+and ``environment.sh``), which drops each overridden package's pin from the
+version file it installs under, because the pin and the git reference cannot
+both hold. Only the overridden package's own pin is dropped: its dependencies
+stay pinned, so a framework commit that needs newer dependencies fails to
+resolve until those pins are updated (edit ``pyproject.toml`` as needed and run
+``make lock-versions``). An environment built with overrides prints a "not a standard
+environment" banner listing them each time it is activated. Pin a commit SHA
+rather than a branch name: the overrides file does not change when a branch
+moves, so new commits on the branch do not trigger a rebuild. To pick them up,
+update the SHA or run ``source environment.sh -f``. Overrides never go on
+main. A GitHub workflow fails any pull request into main that contains
+``requirements/overrides.txt``. Direct pushes to main skip that workflow, so
+they rely on branch protection. Release the framework change, pin it in the
+version files, and delete the overrides file before merging.
+
+**Artifacts.** Like ``psimulate``, ``make_artifacts`` writes a
+``requirements.txt`` listing the environment's packages to its output
+directory. When a later build (a ``--resume``, or another location) writes into
+the same directory under different package versions, it lists the differences
+and asks before continuing. Declining aborts the build. Every build checks the
+record first, before anything is deleted. After a fresh ``-l all`` build (not
+``--append`` or ``--resume``) has deleted the existing artifacts (after asking),
+the record is rewritten for the current environment if no ``.hdf`` files remain
+in the directory, and left as is if any do.
+
+Alternatively, users can manually create conda environments. The supported way
+is to install the ``vivarium_build_utils`` version pinned in the type's version
+file (it provides ``make install``), then run ``make install ENV_REQS=dev`` (or
+``ENV_REQS=data``) from the activated environment. That applies the pins, any
+overrides and the IHME package index for you::
 
   :~$ conda create --name=vivarium_gates_mncnh_simulation python=3.11 git git-lfs
   ...conda will download python and base dependencies...
   :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ pip install -e .[dev]
-  ...pip will install vivarium and other requirements...
+  (vivarium_gates_mncnh_simulation) :~$ pip install "vivarium_build_utils==<version pinned in requirements/simulation.txt>"
+  (vivarium_gates_mncnh_simulation) :~$ make install ENV_REQS=dev
+  ...installs vivarium and other requirements at the pinned versions...
   (vivarium_gates_mncnh_simulation) :~$ conda deactivate
   :~$ conda create --name=vivarium_gates_mncnh_artifact python=3.11 git git-lfs
   ...conda will download python and base dependencies...
   :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ pip install -e .[data]
-  ...pip will install vivarium and other requirements...
+  (vivarium_gates_mncnh_artifact) :~$ pip install "vivarium_build_utils==<version pinned in requirements/artifact.txt>"
+  (vivarium_gates_mncnh_artifact) :~$ make install ENV_REQS=data
+  ...installs vivarium and other requirements at the pinned versions...
+
+A manually built environment writes no record of its versions, so if you give
+it one of the names ``environment.sh`` manages (as above), the next ``source
+environment.sh`` rebuilds it. A plain ``pip install -e .[dev]`` (or
+``.[data]``), or a ``uv pip install`` you run yourself, is **not** equivalent:
+it skips the pins, the overrides or the IHME index.
 
 Supported Python versions: 3.11
 
-Note the ``-e`` flag that follows pip install. This will install the python
-package in-place, which is important for making the model specifications later.
+``make install`` installs the package in editable mode (``-e``), in place, which
+is important for making the model specifications later.
 
 Vivarium uses the Hierarchical Data Format (HDF) as the backing storage
 for the data artifacts that supply data to the simulation. You may not have
