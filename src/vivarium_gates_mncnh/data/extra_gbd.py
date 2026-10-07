@@ -18,10 +18,6 @@ from vivarium_gates_mncnh.data import utilities
 
 _ALL_SEXES = gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE
 
-HEMOGLOBIN_PUBLICATION_RELEASE_ID = 33
-
-HEMOGLOBIN_PAF_COMPARE_VERSION_ID = 8303
-
 
 def _release_33_data(name: str) -> pd.DataFrame:
     """Read a stored release-33 hemoglobin dataset."""
@@ -142,7 +138,7 @@ def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
 def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
     """Get Burdenator PAFs for hemoglobin, from file.
 
-    Reachable live via ``HEMOGLOBIN_PAF_COMPARE_VERSION_ID``, and the stored copy is
+    Reachable live via ``compare_version_id=8303``, and the stored copy is
     bit-identical to that pull, but held with the rest of the release-33 set because
     the run-to-compare-version mapping survives only as free text.
     """
