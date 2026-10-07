@@ -37,6 +37,7 @@ class CorrelatedPropensities(Component):
             builder.value.register_attribute_producer(
                 f"{component}.correlated_propensity",
                 source=partial(self.get_component_propensity, component=component),
+                description="The correlated propensity for this component",
             )
 
     def get_all_propensities(self) -> pd.DataFrame:
