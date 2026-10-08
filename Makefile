@@ -47,6 +47,17 @@ define validate_make_args
 	done
 endef
 
+# Newest supported Python. The version files are resolved for it.
+NEWEST_PYTHON := $(shell cat $(CURDIR)/python_versions.json | tr -d '[]" ' | tr ',' '\n' | sort -t. -k1,1n -k2,2n | tail -1)
+
+# A comma that can go inside $(if ...) arguments.
+comma := ,
+
+# Environment types and the extra each installs. Keep in sync with ENV_TYPES in check_env_versions.py.
+ENV_TYPES := simulation artifact
+ENV_REQS_simulation := dev
+ENV_REQS_artifact := data
+
 ifneq ($(MAKE_INCLUDES),) # not empty
 # Include makefiles from vivarium_build_utils
 include $(MAKE_INCLUDES)/base.mk
@@ -69,6 +80,7 @@ help:
 	@echo "It is recommended to use this target only if you cannot use the 'build-shared-env' target,"
 	@echo "either because you are not on the cluster or because you need to customize the environment,"
 	@echo "particularly if you need non-python packages installed via conda."
+	@echo "Packages are installed at the versions pinned in requirements/<type>.txt."
 	@echo
 	@echo "USAGE:"
 	@echo "  make build-env [type=<environment type>] [name=<environment name>] [path=<environment path>] [py=<python version>] [include_timestamp=<yes|no>] [lfs=<yes|no>] [force=<yes|no>]"
@@ -85,7 +97,7 @@ help:
 	@echo "  lfs [optional]"
 	@echo "      Whether to install git-lfs in the environment. Either 'yes' or 'no' (default)"
 	@echo "  py [optional]"
-	@echo "      Python version (defaults to latest supported)"
+	@echo "      Python version (defaults to, and must match, the latest supported: $(NEWEST_PYTHON))"
 	@echo "  force [optional]"
 	@echo "      Whether to remove and recreate an existing environment. Either 'yes' or 'no' (default)"
 	@echo
@@ -129,7 +141,7 @@ build-env: # Create a new environment with installed packages
 #   Handle arguments and set defaults
 #   type
 	@$(eval type ?= simulation)
-	@$(call validate_arg,$(type),simulation artifact,type)
+	@$(call validate_arg,$(type),$(ENV_TYPES),type)
 #	name
 	@$(eval name ?= $(PACKAGE_NAME)_$(type))
 #	timestamp
@@ -145,7 +157,9 @@ build-env: # Create a new environment with installed packages
 	@$(eval force ?= no)
 	@$(call validate_arg,$(force),yes no,force)
 #	python version
-	@$(eval py ?= $(shell cat python_versions.json | tr -d '[]" ' | tr ',' '\n' | sort -t. -k1,1n -k2,2n | tail -1))
+	@$(eval py ?= $(NEWEST_PYTHON))
+#	The version files only work for NEWEST_PYTHON.
+	@$(if $(filter-out $(NEWEST_PYTHON),$(py)),$(error Error: py=$(py) is not supported; omit py (the version files are resolved for Python $(NEWEST_PYTHON)$(comma) the newest in python_versions.json)))
 #	Determine conda create flag: -p for path, -n for name
 	@$(eval CONDA_CREATE_FLAG := $(if $(path),-p $(path),-n $(name)))
 #	Determine conda run flag: -p for path, -n for name
@@ -164,19 +178,37 @@ build-env: # Create a new environment with installed packages
 	fi
 
 	conda create $(CONDA_CREATE_FLAG) python=$(py) --yes
-# 	Bootstrap vivarium_build_utils into the new environment.
-	conda run $(CONDA_RUN_FLAG) pip install "vivarium_build_utils>=4.0.0,<5.0.0"
-#	Install packages based on type
-	@if [ "$(type)" = "simulation" ]; then \
-		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=dev; \
+#	Install the pinned uv and vivarium_build_utils first, so base.mk doesn't install unpinned ones.
+	@versions_file="$(VERSIONS_DIR)/$(type).txt"; \
+	if [ ! -f "$$versions_file" ]; then \
+		echo "Error: version file $$versions_file not found" >&2; \
+		exit 1; \
+	fi; \
+	uv_version=$$($(call pinned_version,$$versions_file,uv)); \
+	vbu_version=$$($(call pinned_version,$$versions_file,vivarium-build-utils)); \
+	if [ -z "$$uv_version" ] || [ -z "$$vbu_version" ]; then \
+		echo "Error: $$versions_file must pin both uv and vivarium_build_utils with '=='" >&2; \
+		echo "  (found uv: '$$uv_version', vivarium_build_utils: '$$vbu_version')" >&2; \
+		exit 1; \
+	fi; \
+	echo "conda run $(CONDA_RUN_FLAG) pip install \"uv==$$uv_version\" \"vivarium_build_utils==$$vbu_version\""; \
+	conda run $(CONDA_RUN_FLAG) pip install "uv==$$uv_version" "vivarium_build_utils==$$vbu_version"
+#	Install the packages (pinned by the install target below). set -e so a failure stops here.
+	@set -e; \
+	conda run $(CONDA_RUN_FLAG) make install ENV_REQS=$(ENV_REQS_$(type)); \
+	if [ "$(type)" = "simulation" ]; then \
 		conda install $(CONDA_RUN_FLAG) redis -c anaconda -y; \
-	elif [ "$(type)" = "artifact" ]; then \
-		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=data; \
 	fi
-	@if [ "$(lfs)" = "yes" ]; then \
+	@set -e; \
+	if [ "$(lfs)" = "yes" ]; then \
 		conda run $(CONDA_RUN_FLAG) conda install -c conda-forge git-lfs --yes; \
 		conda run $(CONDA_RUN_FLAG) git lfs install; \
 	fi
+#	Stop if the installed versions don't match the version file.
+	conda run $(CONDA_RUN_FLAG) python $(CHECK_ENV_VERSIONS) installed-matches-version-file --repo $(CURDIR) --type $(type)
+#	Save a copy of the version files into the environment, so activation can tell if it's
+#	out of date. A failed build never gets here.
+	conda run $(CONDA_RUN_FLAG) python $(CHECK_ENV_VERSIONS) record --repo $(CURDIR) --type $(type)
 
 	@echo
 	@echo "Finished building environment"
@@ -283,3 +315,96 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 
 print-dist-name: # Print the distribution name (used by environment.sh)
 	@echo $(DIST_NAME)
+
+# ------------------------------------------------------------------------------
+# Pinned package versions
+#
+# requirements/<type>.txt pins exactly what each environment runs. The optional
+# requirements/overrides.txt installs framework packages from git (never on main).
+# ------------------------------------------------------------------------------
+VERSIONS_DIR := $(CURDIR)/requirements
+CHECK_ENV_VERSIONS := $(CURDIR)/src/vivarium_gates_mncnh/tools/check_env_versions.py
+
+# Print the version a file pins for a package: $(call pinned_version,<file>,<name>)
+pinned_version = awk -F'==' -v want='$(2)' '{ n = tolower($$1); gsub(/[ \t\r]/, "", n); gsub(/[-_.]+/, "-", n); if (n == want) { v = $$2; sub(/^[ \t]+/, "", v); sub(/[^0-9A-Za-z.+!].*/, "", v); print v; exit } }' "$(1)"
+
+# Pin base.mk's `install` (used by build-env, the shared env build and Jenkins) to the
+# version files. ENV_REQS=data means artifact; anything else means simulation.
+install_env_type = $(if $(filter $(ENV_REQS_artifact),$(strip $(ENV_REQS))),artifact,simulation)
+
+ifeq ($(wildcard $(VERSIONS_DIR)/overrides.txt),)
+install: export UV_CONSTRAINT = $(VERSIONS_DIR)/$(install_env_type).txt
+else
+# With overrides, drop the overridden packages' pins, or uv can't install their git versions.
+UV_CONSTRAINTS_FILE := $(CURDIR)/build/uv-constraints.txt
+install: export UV_CONSTRAINT = $(UV_CONSTRAINTS_FILE)
+install: export UV_OVERRIDE = $(VERSIONS_DIR)/overrides.txt
+install: uv-constraints
+
+# Write the version file minus the overridden packages. Runs before every install, with the
+# active environment's python.
+.PHONY: uv-constraints
+uv-constraints:
+	python $(CHECK_ENV_VERSIONS) write-install-constraints --repo $(CURDIR) --type $(install_env_type) --out $(UV_CONSTRAINTS_FILE)
+endif
+
+# Minimums used only when regenerating the version files.
+RESOLVER_CONSTRAINTS := $(VERSIONS_DIR)/resolver-constraints.txt
+
+# Shared by lock-versions and upgrade-versions: $(call compile_versions,<target>,<extra uv flags>)
+# Resolves each type into a temp dir and copies the results in only if all succeed.
+# uv, pip and setuptools are pinned too. Then prints the pins that moved.
+# Run from an activated environment (needs uv and python).
+define compile_versions
+	$(call validate_make_args,$(1),type)
+	@$(eval type ?= all)
+	@$(call validate_arg,$(type),$(ENV_TYPES) all,type)
+	@set -e; \
+	tmp_dir=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp_dir"' EXIT; \
+	mkdir "$$tmp_dir/old" "$$tmp_dir/new"; \
+	types=""; \
+	for pair in $(foreach t,$(if $(filter all,$(type)),$(ENV_TYPES),$(type)),$(t):$(ENV_REQS_$(t))); do \
+		t=$${pair%%:*}; \
+		extra=$${pair#*:}; \
+		types="$$types $$t"; \
+		if [ -f "$(VERSIONS_DIR)/$$t.txt" ]; then \
+			cp "$(VERSIONS_DIR)/$$t.txt" "$$tmp_dir/old/$$t.txt"; \
+			cp "$(VERSIONS_DIR)/$$t.txt" "$$tmp_dir/new/$$t.txt"; \
+		fi; \
+		echo "Resolving $$t.txt (extra '$$extra', Python $(NEWEST_PYTHON))"; \
+		printf 'uv\npip\nsetuptools\n' | uv pip compile $(CURDIR)/pyproject.toml - \
+			--extra $$extra \
+			--python-version $(NEWEST_PYTHON) \
+			$(if $(wildcard $(RESOLVER_CONSTRAINTS)),-c $(RESOLVER_CONSTRAINTS)) \
+			$(EXTRA_INDEX_FLAGS) \
+			--no-emit-package vivarium-gates-mncnh \
+			--custom-compile-command "make $(1) type=$$t" \
+			-o "$$tmp_dir/new/$$t.txt" \
+			$(2); \
+	done; \
+	for t in $$types; do \
+		cp "$$tmp_dir/new/$$t.txt" "$(VERSIONS_DIR)/$$t.txt"; \
+	done; \
+	for t in $$types; do \
+		if [ ! -f "$$tmp_dir/old/$$t.txt" ]; then \
+			echo "Created $$t.txt."; \
+			continue; \
+		fi; \
+		moved=$$(python $(CHECK_ENV_VERSIONS) show-changes "$$tmp_dir/old/$$t.txt" "$$tmp_dir/new/$$t.txt"); \
+		if [ -n "$$moved" ]; then \
+			echo "Pins that moved in $$t.txt:"; \
+			echo "$$moved" | sed 's/^/    /'; \
+		else \
+			echo "No existing pins moved in $$t.txt."; \
+		fi; \
+	done
+endef
+
+lock-versions: # Resolve packages not yet pinned; prefers existing pins and reports any it had to move
+#	type=simulation|artifact|all (default all). Use after changing a dependency.
+	$(call compile_versions,lock-versions,)
+
+upgrade-versions: # Re-resolve every package to the newest version pyproject.toml allows
+#	Like lock-versions but ignores existing pins, so every package can move.
+	$(call compile_versions,upgrade-versions,--upgrade)

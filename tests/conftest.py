@@ -12,6 +12,10 @@ from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 
+# Shared by the MIC-7495 tests.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+"""The repository root."""
+
 # Detect environment type by checking for vivarium_inputs package
 try:
     import vivarium_inputs
