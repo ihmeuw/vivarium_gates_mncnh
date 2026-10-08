@@ -18,7 +18,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     HEMORRHAGE_CAUSES,
-    HEMORRHAGE_SEVERITY,
+    HEMORRHAGE_SEVERITIES_500ML_PLUS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -246,7 +246,7 @@ class Hemoglobin(Risk):
         """
         pph_mask = pop[COLUMNS.POSTPARTUM_HEMORRHAGE].fillna(False).astype(bool) & pop[
             COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
-        ].isin([HEMORRHAGE_SEVERITY.MODERATE, HEMORRHAGE_SEVERITY.SEVERE])
+        ].isin(HEMORRHAGE_SEVERITIES_500ML_PLUS)
         if pph_mask.any():
             hgb.loc[pph_mask] += pph_shift
 

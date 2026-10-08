@@ -6,6 +6,7 @@ from vivarium.engine import Component
 from vivarium.engine.framework.engine import Builder
 from vivarium.engine.framework.event import Event
 from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.values import AttributePostProcessor, ValuesManager
 from vivarium.public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,
 )
@@ -25,7 +26,10 @@ from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location, load_per_birth_denominator
 
 
-def _clip_to_probability(index: pd.Index, value: pd.Series, manager) -> pd.Series:
+def _clip_to_probability(
+    index: pd.Index, value: pd.Series, manager: ValuesManager
+) -> pd.Series:
+    """Attribute post-processor that clips a pipeline's values to [0, 1]."""
     return value.clip(lower=0.0, upper=1.0)
 
 
@@ -65,7 +69,7 @@ class MaternalDisorder(Component):
         )
 
     @property
-    def incidence_risk_post_processors(self) -> list:
+    def incidence_risk_post_processors(self) -> list[AttributePostProcessor]:
         """Post-processors applied after the PAF and risk effects on incidence risk."""
         return []
 
@@ -297,7 +301,7 @@ class PostpartumHemorrhage(MaternalDisorder):
 
     @property
     def severity_column(self) -> str:
-        return f"{self.maternal_disorder}_severity"
+        return COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
 
     @property
     def columns_created(self) -> list:
@@ -307,7 +311,7 @@ class PostpartumHemorrhage(MaternalDisorder):
         super().__init__(COLUMNS.POSTPARTUM_HEMORRHAGE)
 
     @property
-    def incidence_risk_post_processors(self) -> list:
+    def incidence_risk_post_processors(self) -> list[AttributePostProcessor]:
         # The 300 mL+ risk is high enough that the hemoglobin relative risk can
         # push it above 1 for some simulants; clip so it remains a probability.
         return [_clip_to_probability]
@@ -316,14 +320,15 @@ class PostpartumHemorrhage(MaternalDisorder):
         super().setup(builder)
 
         # Conditional probabilities along the blood-loss cascade. Registered as
-        # pipelines (unmodified for now) so interventions can target them.
+        # pipelines (unmodified for now) so interventions can target them, and
+        # clipped so that modifiers cannot push them outside [0, 1].
         self.probability_500ml_given_300ml_table = self.build_lookup_table(
             builder, "probability_500ml_given_300ml_data"
         )
         builder.value.register_attribute_producer(
             PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML,
             source=self.probability_500ml_given_300ml_table,
-            required_resources=[self.probability_500ml_given_300ml_table],
+            preferred_post_processor=_clip_to_probability,
         )
         self.probability_1l_given_500ml_table = self.build_lookup_table(
             builder, "probability_1l_given_500ml_data"
@@ -331,7 +336,7 @@ class PostpartumHemorrhage(MaternalDisorder):
         builder.value.register_attribute_producer(
             PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML,
             source=self.probability_1l_given_500ml_table,
-            required_resources=[self.probability_1l_given_500ml_table],
+            preferred_post_processor=_clip_to_probability,
         )
 
         builder.population.register_initializer(

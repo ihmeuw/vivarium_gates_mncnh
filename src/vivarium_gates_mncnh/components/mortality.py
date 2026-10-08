@@ -157,7 +157,9 @@ class MaternalDisordersBurden(Component):
         for cause in [c for c in self.hemorrhage_causes if c in disorders]:
             affected = pop.index[pop[cause]]
             if not affected.empty:
-                severity = self.population_view.get(affected, f"{cause}_severity")
+                severity = self.population_view.get(
+                    affected, COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
+                )
                 pop.loc[affected, cause] = severity == HEMORRHAGE_SEVERITY.SEVERE
             else:
                 pop[cause] = False
