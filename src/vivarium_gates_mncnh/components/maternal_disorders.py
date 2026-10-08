@@ -330,6 +330,7 @@ class PostpartumHemorrhage(MaternalDisorder):
             PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML,
             source=self.probability_500ml_given_300ml_table,
             preferred_post_processor=_clip_to_probability,
+            description="The probability that a 300 mL+ postpartum hemorrhage reaches 500 mL+",
         )
         self.probability_1l_given_500ml_table = self.build_lookup_table(
             builder, "probability_1l_given_500ml_data"
@@ -338,6 +339,7 @@ class PostpartumHemorrhage(MaternalDisorder):
             PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML,
             source=self.probability_1l_given_500ml_table,
             preferred_post_processor=_clip_to_probability,
+            description="The probability that a 500 mL+ postpartum hemorrhage reaches 1 L+",
         )
 
         builder.population.register_initializer(
