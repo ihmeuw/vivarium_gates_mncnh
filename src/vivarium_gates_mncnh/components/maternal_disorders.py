@@ -60,6 +60,7 @@ class MaternalDisorder(Component):
             self.incidence_risk_pipeline_name,
             source=self.get_incidence_risk,
             additional_post_processors=self.incidence_risk_post_processors,
+            description="The incidence risk of this maternal disorder",
         )
 
         builder.population.register_initializer(
@@ -438,6 +439,7 @@ class SepsisEffectsOnHemoglobin(Component):
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.apply_sepsis_hemoglobin_shift,
             required_resources=[COLUMNS.MATERNAL_SEPSIS],
+            description="Apply the postpartum sepsis shift to hemoglobin exposure",
         )
 
     def _load_shift_values(self, builder: Builder) -> tuple[float, float]:

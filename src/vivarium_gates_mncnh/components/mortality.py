@@ -315,11 +315,13 @@ class NeonatalMortality(Component):
             PIPELINES.ACMR,
             source=self.get_acmr_pipeline,
             required_resources=[PIPELINES.ACMR_PAF],
+            description="The PAF-normalized all-cause mortality risk, with LBWSG effects",
         )
         builder.value.register_attribute_producer(
             PIPELINES.DEATH_IN_AGE_GROUP_PROBABILITY,
             source=[PIPELINES.ACMR],
             required_resources=[PIPELINES.ACMR],
+            description="The probability that each neonate dies in the current age group",
         )
 
     ########################
@@ -483,4 +485,5 @@ class NeonatalMortality(Component):
             source=lambda index: [acmr_paf_table(index)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
+            description="The all-cause mortality PAF, combined as a union of risk PAFs",
         )

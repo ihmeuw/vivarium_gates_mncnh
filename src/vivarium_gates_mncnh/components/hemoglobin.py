@@ -73,6 +73,7 @@ class Hemoglobin(Risk):
         builder.value.register_attribute_modifier(
             self.exposure_name,
             modifier=self._adjust_exposure_for_ifa,
+            description="Remove the baseline IFA effect from hemoglobin exposure",
         )
 
         # Postpartum hemoglobin: load hemorrhage shift data and non-pregnant
@@ -93,6 +94,7 @@ class Hemoglobin(Risk):
                 PIPELINES.NON_PREGNANT_HEMOGLOBIN_EXPOSURE,
                 COLUMNS.MOTHER_ALIVE,
             ],
+            description="Apply postpartum redraws and hemorrhage shifts to hemoglobin",
         )
 
     def _build_non_pregnant_distribution(self, builder: Builder) -> None:
@@ -142,6 +144,7 @@ class Hemoglobin(Risk):
                 self.propensity_name,
                 f"ensemble_propensity.{self.risk}",
             ],
+            description="The hemoglobin exposure drawn from the non-pregnant distribution",
         )
 
     def _initialize_hemoglobin_columns(self, pop_data: SimulantData) -> None:

@@ -1,3 +1,9 @@
+# ==========================================================================
+# Simulation + test half of the pipeline: run the models, then test the results.
+#
+# The 'environment' below is a conda environment name, so this pipeline only
+# runs with conda -- not with the shared environments from environment.sh -s.
+# ==========================================================================
 workflow:
   name: "test_pipeline"
   project: "proj_simscience"
