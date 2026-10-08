@@ -53,7 +53,7 @@ NEWEST_PYTHON := $(shell cat $(CURDIR)/python_versions.json | tr -d '[]" ' | tr 
 # A comma that can go inside $(if ...) arguments.
 comma := ,
 
-# Environment types and the extra each installs. Keep in sync with ENV_TYPES in env_versions.py.
+# Environment types and the extra each installs. Keep in sync with ENV_TYPES in check_env_versions.py.
 ENV_TYPES := simulation artifact
 ENV_REQS_simulation := dev
 ENV_REQS_artifact := data
@@ -205,10 +205,10 @@ build-env: # Create a new environment with installed packages
 		conda run $(CONDA_RUN_FLAG) git lfs install; \
 	fi
 #	Stop if the installed versions don't match the version file.
-	conda run $(CONDA_RUN_FLAG) python $(ENV_VERSIONS) installed-matches-version-file --repo $(CURDIR) --type $(type)
+	conda run $(CONDA_RUN_FLAG) python $(CHECK_ENV_VERSIONS) installed-matches-version-file --repo $(CURDIR) --type $(type)
 #	Save a copy of the version files into the environment, so activation can tell if it's
 #	out of date. A failed build never gets here.
-	conda run $(CONDA_RUN_FLAG) python $(ENV_VERSIONS) record --repo $(CURDIR) --type $(type)
+	conda run $(CONDA_RUN_FLAG) python $(CHECK_ENV_VERSIONS) record --repo $(CURDIR) --type $(type)
 
 	@echo
 	@echo "Finished building environment"
@@ -323,7 +323,7 @@ print-dist-name: # Print the distribution name (used by environment.sh)
 # requirements/overrides.txt installs framework packages from git (never on main).
 # ------------------------------------------------------------------------------
 VERSIONS_DIR := $(CURDIR)/requirements
-ENV_VERSIONS := $(CURDIR)/src/vivarium_gates_mncnh/tools/env_versions.py
+CHECK_ENV_VERSIONS := $(CURDIR)/src/vivarium_gates_mncnh/tools/check_env_versions.py
 
 # Print the version a file pins for a package: $(call pinned_version,<file>,<name>)
 pinned_version = awk -F'==' -v want='$(2)' '{ n = tolower($$1); gsub(/[ \t\r]/, "", n); gsub(/[-_.]+/, "-", n); if (n == want) { v = $$2; sub(/^[ \t]+/, "", v); sub(/[^0-9A-Za-z.+!].*/, "", v); print v; exit } }' "$(1)"
@@ -345,7 +345,7 @@ install: uv-constraints
 # active environment's python.
 .PHONY: uv-constraints
 uv-constraints:
-	python $(ENV_VERSIONS) write-install-constraints --repo $(CURDIR) --type $(install_env_type) --out $(UV_CONSTRAINTS_FILE)
+	python $(CHECK_ENV_VERSIONS) write-install-constraints --repo $(CURDIR) --type $(install_env_type) --out $(UV_CONSTRAINTS_FILE)
 endif
 
 # Minimums used only when regenerating the version files.
@@ -391,7 +391,7 @@ define compile_versions
 			echo "Created $$t.txt."; \
 			continue; \
 		fi; \
-		moved=$$(python $(ENV_VERSIONS) show-changes "$$tmp_dir/old/$$t.txt" "$$tmp_dir/new/$$t.txt"); \
+		moved=$$(python $(CHECK_ENV_VERSIONS) show-changes "$$tmp_dir/old/$$t.txt" "$$tmp_dir/new/$$t.txt"); \
 		if [ -n "$$moved" ]; then \
 			echo "Pins that moved in $$t.txt:"; \
 			echo "$$moved" | sed 's/^/    /'; \

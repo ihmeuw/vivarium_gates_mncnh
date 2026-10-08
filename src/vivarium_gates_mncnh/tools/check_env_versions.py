@@ -8,13 +8,13 @@ standard library.
 
 Usage::
 
-    python env_versions.py record --repo <repo> --type <type> [--dest <dir>]
-    python env_versions.py compare --repo <repo> --type <type> [--record-dir <dir>]
-    python env_versions.py explain-shared-mismatch --repo <repo> --type <type> --record-dir <dir>
-    python env_versions.py warn-if-overrides [--record-dir <dir>]
-    python env_versions.py show-changes <old file> <new file>
-    python env_versions.py write-install-constraints --repo <repo> --type <type> --out <file>
-    python env_versions.py installed-matches-version-file --repo <repo> --type <type>
+    python check_env_versions.py record --repo <repo> --type <type> [--dest <dir>]
+    python check_env_versions.py compare --repo <repo> --type <type> [--record-dir <dir>]
+    python check_env_versions.py explain-shared-mismatch --repo <repo> --type <type> --record-dir <dir>
+    python check_env_versions.py warn-if-overrides [--record-dir <dir>]
+    python check_env_versions.py show-changes <old file> <new file>
+    python check_env_versions.py write-install-constraints --repo <repo> --type <type> --out <file>
+    python check_env_versions.py installed-matches-version-file --repo <repo> --type <type>
 """
 
 from __future__ import annotations
@@ -231,14 +231,14 @@ def _explain_shared_mismatch(args: argparse.Namespace) -> int:
 
     # Checked in order; the first that applies explains the mismatch.
     if any(name.startswith("override ") for name in checkout):
-        advice = build_own  # a shared environment never has overrides
+        next_steps = build_own  # a shared environment never has overrides
     elif recorded is None or main is None:
-        advice = [
+        next_steps = [
             "Could not tell why (main's version files or the shared environment's "
             "record are unavailable)."
         ]
     elif checkout == main:
-        advice = [
+        next_steps = [
             "Your checkout matches main, but the shared environment is behind main:",
             "it has not yet been rebuilt from main's version files. It will catch up",
             "after its next nightly rebuild. Meanwhile, you can build your own",
@@ -246,13 +246,13 @@ def _explain_shared_mismatch(args: argparse.Namespace) -> int:
             "    source environment.sh -t {}".format(args.env_type),
         ]
     elif checkout == _read_versions_at(repo, merge_base, args.env_type):
-        advice = [
+        next_steps = [
             "Your branch has not changed its version files, but main has moved on",
             "and the shared environment follows main. Merge main into your branch",
             "(e.g. 'git merge {}') to pick up main's versions.".format(MAIN_REF),
         ]
     else:
-        advice = build_own
+        next_steps = build_own
 
     if recorded is None:
         changes = [
@@ -266,7 +266,7 @@ def _explain_shared_mismatch(args: argparse.Namespace) -> int:
         "WARNING: this checkout's {} package versions differ from the shared "
         "environment's:".format(args.env_type)
     )
-    print("\n".join(["    " + change for change in changes] + [""] + advice))
+    print("\n".join(["    " + change for change in changes] + [""] + next_steps))
     return 0
 
 

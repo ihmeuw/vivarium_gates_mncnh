@@ -16,7 +16,7 @@ env_type="simulation"
 make_new="no"
 use_shared="no"
 install_git_lfs="no"
-env_versions="src/vivarium_gates_mncnh/tools/env_versions.py"
+check_env_versions="src/vivarium_gates_mncnh/tools/check_env_versions.py"
 fetch_timeout_seconds=10 # Max wait for fetching origin/main
 
 # Reset OPTIND so help can be invoked multiple times per shell session.
@@ -99,16 +99,16 @@ if [[ "$use_shared" == "yes" ]]; then
   source ".venv/$env_name/bin/activate"
   # If the shared env's package versions differ from this checkout's, explain why;
   # we can't rebuild it from here. Nothing below can stop activation.
-  # Fetch main (the same ref as MAIN_REF in env_versions.py) without prompting or hanging.
+  # Fetch main (the same ref as MAIN_REF in check_env_versions.py) without prompting or hanging.
   GIT_TERMINAL_PROMPT=0 timeout "$fetch_timeout_seconds" git fetch --quiet origin main 2>/dev/null || true
   # The venv's base prefix is the shared env.
   shared_prefix="$(python -c 'import sys; print(sys.base_prefix)' 2>/dev/null)" || shared_prefix=""
   if [[ -n "$shared_prefix" ]]; then
     shared_record_dir="$shared_prefix/etc/vivarium_gates_mncnh"  # where the shared env's build recorded its versions
     # Say how this checkout's versions differ from the shared env's, and what to do.
-    python "$env_versions" explain-shared-mismatch --repo . --type "$env_type" --record-dir "$shared_record_dir" || true
+    python "$check_env_versions" explain-shared-mismatch --repo . --type "$env_type" --record-dir "$shared_record_dir" || true
     # Warn if the shared env was built with framework overrides.
-    python "$env_versions" warn-if-overrides --record-dir "$shared_record_dir" || true
+    python "$check_env_versions" warn-if-overrides --record-dir "$shared_record_dir" || true
   else
     echo "WARNING: could not locate the shared environment; skipping the package version check"
   fi
@@ -146,12 +146,12 @@ else
       # Compare the versions this env was built with against the checkout's version files.
       # Rebuild only if they differ.
       # `&& rc=0 || rc=$?` keeps a nonzero exit from tripping the ERR trap.
-      python "$env_versions" compare --repo . --type "$env_type" && rc=0 || rc=$?
+      python "$check_env_versions" compare --repo . --type "$env_type" && rc=0 || rc=$?
       if [[ "$rc" == "0" ]]; then
         need_to_build="no"
-      elif [[ "$rc" == "10" ]]; then  # env_versions.EXIT_DIFFERENT
+      elif [[ "$rc" == "10" ]]; then  # check_env_versions.EXIT_DIFFERENT
         echo "Package versions changed; rebuilding environment '$env_name'"
-      elif [[ "$rc" == "11" ]]; then  # env_versions.EXIT_NO_RECORD
+      elif [[ "$rc" == "11" ]]; then  # check_env_versions.EXIT_NO_RECORD
         echo "Environment '$env_name' has no record of its package versions; rebuilding"
       else
         echo "WARNING: could not compare '$env_name' with the version files (exit code $rc); rebuilding"
@@ -171,7 +171,7 @@ else
   echo "Activating conda environment '$env_name'"
   conda activate $env_name
   # Warn if this env was built with framework overrides.
-  python "$env_versions" warn-if-overrides || true
+  python "$check_env_versions" warn-if-overrides || true
 fi
 
 # Clear the ERR trap to avoid affecting subsequent commands in the parent shell

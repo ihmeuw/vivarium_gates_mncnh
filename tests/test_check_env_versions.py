@@ -1,4 +1,4 @@
-"""Tests for tools/env_versions.py, mostly through its command line."""
+"""Tests for tools/check_env_versions.py, mostly through its command line."""
 
 import os
 import re
@@ -9,12 +9,18 @@ from typing import Dict, List
 
 import pytest
 
-from vivarium_gates_mncnh.tools import env_versions
-from vivarium_gates_mncnh.tools.env_versions import parse_requirements
+from vivarium_gates_mncnh.tools import check_env_versions
+from vivarium_gates_mncnh.tools.check_env_versions import parse_requirements
 
-from .conftest import OVERRIDES, REPO_ROOT
+from .conftest import REPO_ROOT
 
-SCRIPT = REPO_ROOT / "src" / "vivarium_gates_mncnh" / "tools" / "env_versions.py"
+SCRIPT = REPO_ROOT / "src" / "vivarium_gates_mncnh" / "tools" / "check_env_versions.py"
+
+# A line for a test overrides.txt. Nothing is ever installed from it, so the commit is made up.
+OVERRIDES = (
+    "vivarium-public-health @ "
+    "git+https://github.com/ihmeuw/vivarium-suite@abc1234#subdirectory=libs/public-health\n"
+)
 
 SIM_V1 = "numpy==1.26.4\npandas==2.0.0\n"
 SIM_V2 = "numpy==1.26.4\npandas==2.1.0\n"
@@ -62,7 +68,7 @@ def _make_repo(path: Path, simulation: str = SIM_V1) -> Path:
 
 
 def _run(*args: str, cwd: Path, python: str = sys.executable) -> subprocess.CompletedProcess:
-    """Run env_versions.py by file path in an isolated interpreter, as environment.sh does."""
+    """Run check_env_versions.py by file path in an isolated interpreter, as environment.sh does."""
     env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "PYTHONHOME")}
     return subprocess.run(
         [python, "-I", str(SCRIPT), *args],
@@ -134,17 +140,27 @@ class TestCompare:
     @pytest.mark.parametrize(
         "setup, env_type, expected_code, expected_output",
         [
-            ("_matches", "simulation", env_versions.EXIT_MATCH, []),
+            ("_matches", "simulation", check_env_versions.EXIT_MATCH, []),
             (
                 "_version_changed",
                 "simulation",
-                env_versions.EXIT_DIFFERENT,
+                check_env_versions.EXIT_DIFFERENT,
                 ["pandas: 2.0.0 -> 2.1.0", "Bump pandas"],
             ),
-            ("_overrides_added", "simulation", env_versions.EXIT_DIFFERENT, ["override"]),
-            ("_no_record", "simulation", env_versions.EXIT_NO_RECORD, []),
-            ("_malformed_checkout", "simulation", env_versions.EXIT_ERROR, ["pandas>=2.0"]),
-            ("_matches", "bogus", env_versions.EXIT_ERROR, ["bogus"]),
+            (
+                "_overrides_added",
+                "simulation",
+                check_env_versions.EXIT_DIFFERENT,
+                ["override"],
+            ),
+            ("_no_record", "simulation", check_env_versions.EXIT_NO_RECORD, []),
+            (
+                "_malformed_checkout",
+                "simulation",
+                check_env_versions.EXIT_ERROR,
+                ["pandas>=2.0"],
+            ),
+            ("_matches", "bogus", check_env_versions.EXIT_ERROR, ["bogus"]),
         ],
     )
     def test_exit_code_and_report(
@@ -174,7 +190,7 @@ class TestCompare:
         assert result.returncode == expected_code, _out(result)
         for text in expected_output:
             assert text in _out(result)
-        if expected_code == env_versions.EXIT_MATCH:
+        if expected_code == check_env_versions.EXIT_MATCH:
             assert _out(result) == ""
 
 
@@ -275,7 +291,7 @@ def test_installed_versions_that_differ_are_reported(tmp_path: Path) -> None:
     assert _run(*args, cwd=repo, python=python).returncode == 0
 
 
-@pytest.mark.parametrize("env_type", env_versions.ENV_TYPES)
+@pytest.mark.parametrize("env_type", check_env_versions.ENV_TYPES)
 def test_version_files_pin_the_build_tools(env_type: str) -> None:
     """build-env installs uv and vivarium_build_utils from the version file first."""
     pins = parse_requirements((REPO_ROOT / "requirements" / f"{env_type}.txt").read_text())
