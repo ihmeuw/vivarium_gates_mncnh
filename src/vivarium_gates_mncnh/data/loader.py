@@ -2231,7 +2231,7 @@ def load_sequela_data(
 def load_hemorrhage_severe_fraction(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute severe fraction as incidence_severe / (incidence_moderate + incidence_severe)."""
+    """Compute p(1 L+ | 500 mL+) PPH as incidence_s181 / (incidence_s180 + incidence_s181)."""
     inc_moderate = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE, location)
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
     total = inc_moderate + inc_severe
@@ -2272,22 +2272,32 @@ def load_postpartum_hemorrhage_probability_500ml_given_300ml(
 def load_postpartum_hemorrhage_incidence_300ml(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute 300 mL+ PPH per-birth incidence risk as ir_500mL / p(500 mL | 300 mL)."""
+    """Compute 300 mL+ PPH per-birth incidence risk as ir_500mL / p(500 mL | 300 mL),
+    clipped to 1 (with a warning)."""
     ir_500ml = get_data(data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK, location)
     p_500ml_given_300ml = get_data(
         data_keys.MATERNAL_HEMORRHAGE.PPH_PROBABILITY_500ML_GIVEN_300ML, location
     )
+    # p(500 mL | 300 mL) is built over the full demography; align it to ir_500mL's rows
     p_500ml_given_300ml = p_500ml_given_300ml.reorder_levels(ir_500ml.index.names).reindex(
         ir_500ml.index
     )
+    if p_500ml_given_300ml.isna().any().any():
+        raise ValueError(f"{key}: p(500 mL | 300 mL) is missing rows of the 500 mL+ risk.")
     ir_300ml = ir_500ml / p_500ml_given_300ml
+    clipped = ir_300ml > 1.0
+    if clipped.any().any():
+        logger.warning(
+            f"{key}: clipping {int(clipped.sum().sum())} of {clipped.size} values "
+            f"({clipped.values.mean():.2%}) to 1 for {location}."
+        )
     return ir_300ml.clip(upper=1.0)
 
 
 def load_postpartum_hemorrhage_incidence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute PPH per-birth incidence risk.
+    """Compute 500 mL+ (GBD-defined) PPH per-birth incidence risk.
 
     Takes the postpartum share of the c367 population-level incidence rate and
     divides by the birth rate to convert it to a per-birth risk in [0, 1]. The
@@ -2323,11 +2333,11 @@ def load_hemorrhage_ylds_per_case(
 def load_hemorrhage_ylds_per_case_300_to_500ml(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """YLDs per 300-500 mL PPH case, set to half the 500 mL-1 L (s180) value."""
+    """YLDs per 300-500 mL PPH case, a fixed fraction of the 500 mL-1 L (s180) value."""
     ylds_per_case_moderate = get_data(
         data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE, location
     )
-    return 0.5 * ylds_per_case_moderate
+    return data_values.PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION * ylds_per_case_moderate
 
 
 ###################################

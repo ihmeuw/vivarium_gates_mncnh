@@ -518,6 +518,9 @@ MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 
 PPH_500ML_PER_300ML_DISTRIBUTION = get_norm(
     0.4533, ninety_five_pct_confidence_interval=(0.4461, 0.4605)
 )
+# YLDs per 300-500 mL PPH case as a fraction of the 500 mL-1 L (s180) value; an
+# assumption of the research spec (postpartum_hemorrhage.rst, "YLDs" section)
+PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION = 0.5
 
 # Effects of IV iron intervention
 IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
@@ -582,6 +585,8 @@ POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
 class __HemorrhageSeverity(NamedTuple):
     # Postpartum blood loss categories. MODERATE and SEVERE correspond to GBD
     # sequelae s180 (500 mL-1 L) and s181 (1 L+); only SEVERE cases can die.
+    # MILD (300-500 mL) has no GBD sequela; its YLDs per case are a fraction of
+    # the MODERATE value (PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION).
     NONE: str = "none"  # < 300 mL
     MILD: str = "300_to_500ml"
     MODERATE: str = "500ml_to_1l"
@@ -589,6 +594,13 @@ class __HemorrhageSeverity(NamedTuple):
 
 
 HEMORRHAGE_SEVERITY = __HemorrhageSeverity()
+# Severities of PPH cases (300 mL+), and of the GBD-defined 500 mL+ cases
+HEMORRHAGE_CASE_SEVERITIES = (
+    HEMORRHAGE_SEVERITY.MILD,
+    HEMORRHAGE_SEVERITY.MODERATE,
+    HEMORRHAGE_SEVERITY.SEVERE,
+)
+HEMORRHAGE_SEVERITIES_500ML_PLUS = (HEMORRHAGE_SEVERITY.MODERATE, HEMORRHAGE_SEVERITY.SEVERE)
 
 
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18
