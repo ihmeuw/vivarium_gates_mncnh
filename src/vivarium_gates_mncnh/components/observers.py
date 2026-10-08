@@ -29,6 +29,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     DAYS_PER_YEAR,
     DELIVERY_FACILITY_TYPES,
     EARLY_POSTPARTUM_END_DAYS,
+    HEMORRHAGE_CASE_SEVERITIES,
     HEMORRHAGE_CAUSES,
     HEMORRHAGE_SEVERITY,
     INTERVENTIONS,
@@ -508,8 +509,6 @@ class BurdenObserver(PublicHealthObserver):
 
 
 class MaternalDisordersBurdenObserver(BurdenObserver):
-    HEMORRHAGE_SEVERITY_STRATIFICATION = COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
-
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         non_hemorrhage_sources = {
@@ -567,20 +566,15 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
         # `postpartum_hemorrhage == True` filter, but is declared and excluded
         # so that every value of the column maps to a known category.
         builder.results.register_stratification(
-            name=self.HEMORRHAGE_SEVERITY_STRATIFICATION,
-            categories=[
-                HEMORRHAGE_SEVERITY.MILD,
-                HEMORRHAGE_SEVERITY.MODERATE,
-                HEMORRHAGE_SEVERITY.SEVERE,
-                HEMORRHAGE_SEVERITY.NONE,
-            ],
+            name=COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY,
+            categories=[*HEMORRHAGE_CASE_SEVERITIES, HEMORRHAGE_SEVERITY.NONE],
             excluded_categories=[HEMORRHAGE_SEVERITY.NONE],
             requires_attributes=[COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY],
         )
         for cause in self.burden_disorders:
             additional_stratifications = list(self.configuration.include)
-            if cause == COLUMNS.POSTPARTUM_HEMORRHAGE:
-                additional_stratifications.append(self.HEMORRHAGE_SEVERITY_STRATIFICATION)
+            if cause in HEMORRHAGE_CAUSES:
+                additional_stratifications.append(COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY)
             self.register_adding_observation(
                 builder=builder,
                 name=f"{cause}_counts",
@@ -606,7 +600,14 @@ class MaternalDisordersBurdenObserver(BurdenObserver):
 
     def calculate_ylds(self, data: pd.DataFrame, cause: str) -> float:
         if cause in HEMORRHAGE_CAUSES:
-            severity = self.population_view.get(data.index, f"{cause}_severity")
+            severity = self.population_view.get(
+                data.index, COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
+            )
+            unmapped = set(severity.unique()) - set(self.hemorrhage_yld_lookup_tables)
+            if unmapped:
+                raise ValueError(
+                    f"No YLDs per case defined for {cause} severities {unmapped}."
+                )
             ylds = 0.0
             for severity_level, lookup_table in self.hemorrhage_yld_lookup_tables.items():
                 idx = severity.index[severity == severity_level]
