@@ -152,7 +152,8 @@ class MaternalDisordersBurden(Component):
         """Resolve maternal mortality for a subset of disorders over eligible simulants."""
         pop = self.population_view.get(eligible_index, disorders)
 
-        # Only severe hemorrhage cases can die
+        # Only 1 L+ (HEMORRHAGE_SEVERITY.SEVERE, "1l_plus") hemorrhage cases can
+        # die; 300-500 mL and 500 mL-1 L cases are not at risk of hemorrhage death.
         for cause in [c for c in self.hemorrhage_causes if c in disorders]:
             affected = pop.index[pop[cause]]
             if not affected.empty:
@@ -210,7 +211,8 @@ class MaternalDisordersBurden(Component):
     def load_cfr_data(self, builder: Builder, cause: str) -> pd.DataFrame:
         """Load case fatality rate data for maternal disorders."""
         # Postpartum hemorrhage uses the CFR derived from the total maternal
-        # hemorrhage cause: CFR = CSMR_c367 / incidence_severe.
+        # hemorrhage cause, applied to 1 L+ cases only:
+        # cfr_1L = CSMR_c367 / incidence_s181 (1 L+ sequela).
         # See: postpartum_hemorrhage.rst limitations.
         if cause in self.hemorrhage_causes:
             cfr = builder.data.load(MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE)

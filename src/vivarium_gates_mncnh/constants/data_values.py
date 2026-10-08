@@ -241,6 +241,7 @@ class __Columns(NamedTuple):
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
+    POSTPARTUM_HEMORRHAGE_SEVERITY = "postpartum_hemorrhage_severity"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -362,7 +363,15 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
+    # Risk of a 300 mL+ postpartum hemorrhage per full-term birth
     POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
+    # Conditional probabilities of progressing along the blood-loss cascade
+    POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML = (
+        "postpartum_hemorrhage.probability_500ml_given_300ml"
+    )
+    POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML = (
+        "postpartum_hemorrhage.probability_1l_given_500ml"
+    )
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
