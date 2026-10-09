@@ -63,6 +63,7 @@ version_file = "src/vivarium_gates_mncnh/_version.py"
 version_file_template = "__version__ = \"{version}\"\n"
 tag_regex = '^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$'
 fallback_version = "0.0.0+no-git-tag"
+tag.strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

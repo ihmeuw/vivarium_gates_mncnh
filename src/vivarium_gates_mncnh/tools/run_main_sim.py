@@ -6,7 +6,7 @@ Usage
 Run from the repository root:
 
     python -m vivarium_gates_mncnh.tools.run_main_sim \\
-        --queue all.q --project proj_simscience_prod --model_number 29.0.2
+        --queue all.q --project proj_simscience_prod --model-name remove_aph
 
 Add ``--baseline_only`` to run only the baseline scenario.
 """
@@ -34,40 +34,39 @@ MODEL_SPEC_PATH = MODEL_SPEC_DIR / "model_spec.yaml"
 PATHS_MODULE = Path(__file__).resolve().parent.parent / "constants" / "paths.py"
 
 
-def _update_model_results_dir(model_number: str) -> None:
-    """Update ``MODEL_RESULTS_DIR`` in ``constants/paths.py`` to match *model_number*.
+def _update_model_results_dir(model_name: str) -> None:
+    """Update ``MODEL_RESULTS_DIR`` in ``constants/paths.py`` to match *model_name*.
 
     Parameters
     ----------
-    model_number
-        The model version number (e.g. "29.0.2").
+    model_name
+        The model version name (e.g. "remove_aph").
     """
-    new_value = f"model{model_number}"
     content = PATHS_MODULE.read_text()
 
     pattern = re.compile(r'^(MODEL_RESULTS_DIR\s*=\s*)"[^"]*"', re.MULTILINE)
     if not pattern.search(content):
         raise RuntimeError(f"Could not find MODEL_RESULTS_DIR assignment in {PATHS_MODULE}")
 
-    new_content = pattern.sub(rf'\1"{new_value}"', content)
+    new_content = pattern.sub(rf'\1"{model_name}"', content)
     if new_content == content:
-        print(f'MODEL_RESULTS_DIR already set to "{new_value}". No update needed.')
+        print(f'MODEL_RESULTS_DIR already set to "{model_name}". No update needed.')
         return
 
     PATHS_MODULE.write_text(new_content)
-    print(f'Updated MODEL_RESULTS_DIR to "{new_value}" in {PATHS_MODULE.name}')
+    print(f'Updated MODEL_RESULTS_DIR to "{model_name}" in {PATHS_MODULE.name}')
 
 
 def run_sim(
     queue: str,
     project: str,
-    model_number: str,
+    model_name: str,
     baseline_only: bool = False,
 ) -> None:
     """Run the main simulation for all locations.
 
     Checks that this is a simulation environment and that the tree is clean,
-    creates a git tag ``v{model_number}``, pushes it to origin, updates the
+    creates a git tag ``{model_name}``, pushes it to origin, updates the
     model results directory, then launches psimulate for every location.
 
     Parameters
@@ -76,13 +75,13 @@ def run_sim(
         The cluster queue to submit simulation jobs to.
     project
         The cluster project to submit simulation jobs to.
-    model_number
-        The model version number (e.g. "29.0.2").  Results are written to
-        ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/model{model_number}``.
+    model_name
+        The model version name (e.g. "remove_aph").  Results are written to
+        ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/{model_name}``.
     baseline_only
         If True, run only the baseline scenario.
     """
-    output_path = (RESULTS_ROOT / f"model{model_number}").resolve()
+    output_path = (RESULTS_ROOT / model_name).resolve()
 
     with open(MODEL_SPEC_PATH, "r") as f:
         model_spec = yaml.safe_load(f)
@@ -106,7 +105,7 @@ def run_sim(
     print("\n" + "=" * 80)
     print("Main Simulation Workflow")
     print("=" * 80)
-    print(f"Model number: {model_number}")
+    print(f"Model name: {model_name}")
     print(f"Locations: {', '.join(LOCATIONS)}")
     print(f"Queue: {queue}")
     print(f"Project: {project}")
@@ -116,8 +115,7 @@ def run_sim(
 
     require_environment("simulation")
     check_clean_tree()
-    create_and_push_tag(model_number)
-    _update_model_results_dir(model_number)
+    create_and_push_tag(model_name)
 
     for location in LOCATIONS:
         print(f"\n{'='*80}")
@@ -146,7 +144,9 @@ def run_sim(
                 "00:15:00",
                 "-o",
                 str(output_path),
+                "-M",
                 str(MODEL_SPEC_PATH),
+                "-B",
                 str(branches_file),
             ],
             f"psimulate run for {location}",
@@ -173,6 +173,8 @@ def run_sim(
     print(f"Results are located in: {output_path}")
     print("=" * 80)
 
+    _update_model_results_dir(model_name)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the main simulation for all locations.")
@@ -192,13 +194,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-m",
-        "--model-number",
+        "--model-name",
         type=str,
         required=True,
         help=(
-            "Model version number (e.g. '29.0.2'). "
-            "Results are written to /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/model{model_number} "
-            "and a git tag v{model_number} is created."
+            "Model version name (e.g. 'remove_aph'). "
+            "Results are written to /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/results/{model_name} "
+            "and a git tag {model_name} is created."
         ),
     )
     parser.add_argument(
@@ -211,6 +213,6 @@ if __name__ == "__main__":
     run_sim(
         queue=args.queue,
         project=args.project,
-        model_number=args.model_number,
+        model_name=args.model_name,
         baseline_only=args.baseline_only,
     )
