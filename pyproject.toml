@@ -42,7 +42,7 @@ lint = ["vivarium-dependencies[lint]"]
 data = [
     "vivarium-inputs>=9.0.0,<10.0.0",
     "vivarium-gbd-access>=7.0.0,<8.0.0",
-    "vivarium_gates_mncnh[cluster,lint,test,validation]",
+    "vivarium_gates_mncnh[cluster,lint,test,validation,interactive]",
 ]
 dev = ["vivarium_gates_mncnh[test,cluster,lint,interactive]"]
 
