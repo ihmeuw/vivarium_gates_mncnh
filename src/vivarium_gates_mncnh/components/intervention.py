@@ -70,6 +70,9 @@ class InterventionRiskEffect(Component):
             self.target_pipeline_name,
             self.modify_target_pipeline,
             required_resources=[self.col_required],
+            description=(
+                "Apply 1 - PAF to everyone and the RR to those without this intervention"
+            ),
         )
 
     ##################
@@ -77,6 +80,11 @@ class InterventionRiskEffect(Component):
     ##################
 
     def modify_target_pipeline(self, index: pd.Index) -> pd.Series[float]:
+        """Return the per-simulant multiplier for the target pipeline.
+
+        The PAF and RR are for lacking the intervention. Everyone gets (1 - PAF), which
+        gives the value for those with it; those without it also get the RR.
+        """
         pop = self.population_view.get(index, self.col_required)
         no_intervention_idx = pop.index[pop == False]
         # NOTE: PAF is for no intervention
@@ -128,6 +136,10 @@ class CPAPAndACSRiskEffect(Component):
                 COLUMNS.ACS_AVAILABLE,
                 COLUMNS.STATED_GESTATIONAL_AGE,
             ],
+            description=(
+                "Apply 1 - PAF to everyone and the no-CPAP and no-ACS RRs to those lacking "
+                "each"
+            ),
         )
 
     def modify_target_pipeline(self, index: pd.Index) -> pd.Series[float]:
@@ -147,9 +159,10 @@ class CPAPAndACSRiskEffect(Component):
         - For ACS-eligible simulants (believed gestational age 26-33 weeks) without ACS:
             Apply no_ACS_RR.
         - For all ACS-eligible simulants:
-            Apply no_ACS_PAF.
+            Apply (1 - no_ACS_PAF). Despite its name, this is the joint PAF of lacking
+            both CPAP and ACS (see ``load_no_acs_paf``).
         - For all simulants not ACS-eligible:
-            Apply no_CPAP_PAF.
+            Apply (1 - no_CPAP_PAF).
         """
         pop = self.population_view.get(
             index,
@@ -215,16 +228,19 @@ class OralIronInterventionExposure(Component):
             PIPELINES.ORAL_IRON_INTERVENTION,
             source=self._get_oral_iron_exposure,
             required_resources=[COLUMNS.ORAL_IRON_INTERVENTION],
+            description="The oral iron supplement each simulant receives (none, IFA or MMS)",
         )
         builder.value.register_attribute_producer(
             self.ifa_exposure_pipeline_name,
             source=self._get_ifa_exposure,
             required_resources=[COLUMNS.ORAL_IRON_INTERVENTION],
+            description="The IFA supplementation exposure category for each simulant",
         )
         builder.value.register_attribute_producer(
             self.mmn_exposure_pipeline_name,
             source=self._get_mmn_exposure,
             required_resources=[COLUMNS.ORAL_IRON_INTERVENTION],
+            description="The MMN supplementation exposure category for each simulant",
         )
 
         builder.population.register_initializer(
@@ -345,6 +361,9 @@ class OralIronEffectOnHemoglobin(Component):
                 COLUMNS.ANC_ATTENDANCE,
                 COLUMNS.IV_IRON_INTERVENTION,
             ],
+            description=(
+                "Add the oral iron effect to hemoglobin, except at the late postpartum step"
+            ),
         )
 
     ##################################
@@ -413,6 +432,7 @@ class OralIronEffectOnStillbirth(Component):
             PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             self.adjust_stillbirth_probability,
             required_resources=[COLUMNS.ORAL_IRON_INTERVENTION],
+            description="Shift stillbirth probability to live birth for MMS recipients",
         )
 
     ##################################
@@ -479,6 +499,7 @@ class IVIronEffectOnLBWSG(Component):
             self.BIRTH_EXPOSURE_PIPELINE,
             self.apply_iv_iron_to_lbwsg,
             required_resources=[COLUMNS.IV_IRON_INTERVENTION],
+            description="Add the IV iron effects to birth weight and gestational age",
         )
 
     ##################################
@@ -519,6 +540,7 @@ class IVIronEffectOnStillbirth(Component):
             PIPELINES.BIRTH_OUTCOME_PROBABILITIES,
             self.adjust_stillbirth_probability,
             required_resources=[COLUMNS.IV_IRON_INTERVENTION],
+            description="Shift stillbirth probability to live birth for IV iron recipients",
         )
 
     ##################################
@@ -581,6 +603,7 @@ class AdditiveRiskEffect(Component):
             self.effect_pipeline_name,
             source=self.get_effect,
             required_resources=[self.exposure_name],
+            description=f"The additive shift {self.risk} applies to {self.target}",
         )
 
     def get_excess_shift_lookup_table(self, builder: Builder) -> LookupTable:
@@ -619,6 +642,7 @@ class AdditiveRiskEffect(Component):
             self.BIRTH_EXPOSURE_PIPELINE,
             modifier=self._adjust_birth_exposure,
             required_resources=[self.effect_pipeline_name],
+            description="Add this risk's effect to its target in the birth exposure",
         )
 
     def process_categorical_data(
@@ -695,6 +719,9 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
             self.BIRTH_EXPOSURE_PIPELINE,
             modifier=self._adjust_birth_exposure,
             required_resources=[self.ifa_effect_pipeline_name],
+            description=(
+                "Add the IFA and MMS effects to gestational age for full-term pregnancies"
+            ),
         )
 
     #######################
@@ -764,6 +791,7 @@ class OralIronEffectsOnGestationalAge(AdditiveRiskEffect):
             self.ifa_effect_pipeline_name,
             source=self.get_ifa_effect,
             required_resources=[self.exposure_name],
+            description="The additive IFA shift to gestational age at birth",
         )
 
     def get_ifa_effect(self, index: pd.Index) -> pd.Series:
@@ -929,6 +957,9 @@ class IVIronEffectOnHemoglobin(Component):
             PIPELINES.HEMOGLOBIN_EXPOSURE,
             self.apply_iv_iron_to_hemoglobin,
             required_resources=[COLUMNS.IV_IRON_INTERVENTION],
+            description=(
+                "Add the IV iron effect to hemoglobin, except at the late postpartum step"
+            ),
         )
 
     ##################################

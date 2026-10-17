@@ -23,6 +23,22 @@ LOCATIONS = [
     "Pakistan",
 ]
 
+# The LBWSG PAF workflow's phases, in the order they must run, and the
+# environment each needs. The phases alternate between two environments whose
+# dependencies conflict, so each runs as its own invocation of
+# data/lbwsg_paf/code/run_paf_sim_step.py -- driven by run_paf_sim.py by hand,
+# or as the paf_* steps of model_specifications/artifact_workflow.yaml.
+# Adding or reordering a phase is a change here and nowhere else.
+PAF_PHASES: tuple[tuple[str, str], ...] = (
+    ("initial-artifact", "artifact"),
+    ("enn-paf", "simulation"),
+    ("enn-artifact", "artifact"),
+    ("lnn-paf", "simulation"),
+    ("final-artifact", "artifact"),
+)
+
+PAF_PHASE_ENVIRONMENTS: dict[str, str] = dict(PAF_PHASES)
+
 ARTIFACT_INDEX_COLUMNS = [
     "sex",
     "age_start",

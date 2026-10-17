@@ -15,6 +15,7 @@ from vivarium.public_health.risks.implementations.low_birth_weight_and_short_ges
     LBWSGRiskEffect as LBWSGRiskEffect_,
 )
 
+from vivarium_gates_mncnh.constants import data_values
 from vivarium_gates_mncnh.data.sim_utils import initialize_simulation
 
 # This code relies on data specific to:
@@ -185,6 +186,22 @@ def calculate_direct_effect(results_directory, draw, locations=None):
         total_effects_prepped.set_index(["outcome", "draw", "exposure"])
         / indirect_rrs.set_index([x for x in indirect_rrs.columns if x != "value"])
     ).reset_index()
+    # Write in vivarium demographic shape so the artifact loader
+    # (load_hemoglobin_neonatal_sepsis_relative_risk) is a thin read: map the GBD
+    # age_group_id to (age_start, age_end) and use the artifact column names.
+    age_bounds = pd.DataFrame(
+        [
+            (gid, start, end)
+            for gid, (start, end) in data_values.NEONATAL_AGE_GROUP_ID_BOUNDS.items()
+        ],
+        columns=["age_group_id", "age_start", "age_end"],
+    )
+    direct_rrs = direct_rrs.merge(age_bounds, on="age_group_id").rename(
+        columns={"sex_of_child": "sex", "exposure": "parameter"}
+    )
+    direct_rrs = direct_rrs[
+        ["location", "draw", "sex", "age_start", "age_end", "parameter", "value"]
+    ]
     direct_rrs.to_csv(
         f"{results_directory}/direct_sepsis_effects/draw_{draw}.csv", index=False
     )
