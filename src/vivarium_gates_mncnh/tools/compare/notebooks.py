@@ -15,6 +15,7 @@ from vivarium_gates_mncnh.tools.compare.core import (
     ComparisonResult,
     Difference,
     DifferenceKind,
+    ValueDiff,
     compare_values,
 )
 
@@ -36,7 +37,16 @@ Its data is a JSON object of the form::
 errorbar markers and caps; ``patches`` covers bars and histogram bins;
 ``collections`` covers scatter points (``offsets``) and errorbar whiskers
 (``segments``).
+
+The coordinates, and how many figures, axes, lines, patches and collections
+there are, are the plotted data that :func:`compare_notebooks` compares. The
+presentation fields (``title``, ``xlabel``, ``ylabel`` and each ``label``)
+are never compared; the axes ``title`` is used only to name a plot that
+moved in the report.
 """
+
+_PLOT_PRESENTATION_KEYS = frozenset({"title", "xlabel", "ylabel", "label"})
+"""Keys of :data:`PLOT_DATA_MIMETYPE` objects that are presentation, not data."""
 
 
 def discover_notebook_paths(notebook_directory: Path) -> list[Path]:
@@ -314,21 +324,34 @@ def compare_notebooks(
 ) -> ComparisonResult:
     """Compare the outputs of two directories of executed notebooks.
 
-    Notebooks are paired by file name and cells by position. For each code
-    cell, its outputs are compared: stdout, ``text/plain``, ``text/html`` and
-    error outputs must match exactly, and :data:`PLOT_DATA_MIMETYPE` outputs
-    are compared by value, numbers within tolerance and everything else
-    exactly. Stderr, execution counts, metadata, images and widget outputs are
-    ignored.
+    Notebooks are paired by file name and code cells by position, numbered
+    from 1 and ignoring markdown cells. For each code cell, its outputs are
+    compared: stdout, ``text/plain``, ``text/html`` and error outputs must
+    match exactly once memory addresses (``0x`` followed by six or more hex
+    digits), which change on every run, are masked; :data:`PLOT_DATA_MIMETYPE`
+    outputs are compared by their plotted data only, numbers within tolerance
+    and the number of figures, axes and plotted elements exactly. Plot
+    presentation (titles, axis labels, legend labels), stderr, execution
+    counts, metadata, images and widget outputs are ignored.
 
     Reported as differences:
 
     - a notebook present in only one directory;
-    - a notebook whose cell sources differ (schema change);
+    - a notebook whose code cell count or sources differ (schema change);
     - a notebook that raised an error on only one side, or a different error
-      (execution failed), naming the cell;
+      (execution failed), naming the cell; later cells of that notebook are
+      not compared, since the side that stopped has no outputs for them;
     - a cell whose text outputs changed (output changed);
-    - a cell whose plotted data changed (plot data changed).
+    - a cell whose plotted data changed: values beyond tolerance, or figures,
+      axes or plotted elements added or removed (plot data changed). There is
+      one such difference per cell; its detail names each set of axes that
+      moved by its title (the reference's, or the candidate's if the reference
+      has none), or as ``figure <i>, axes <j>`` (numbered from 1) when it is
+      untitled, with what changed in it. When the number of plot outputs,
+      figures, or axes in a figure differs, the detail gives both counts and
+      the plots at that level are not paired further, since pairing by
+      position would attribute changes to the wrong plots. Figures are
+      numbered across the cell, advancing by the larger side's count.
 
     When one side of a cell has plot data and the other has none, the plots
     are not compared and a note says so; this is the case when the reference
@@ -485,23 +508,124 @@ def _summarize_outputs(cell: Any) -> tuple[dict[str, Any], list[str], list[Any]]
 def _compare_plot_data(
     item: str, reference: Any, candidate: Any, rtol: float, atol: float
 ) -> Optional[Difference]:
-    """Compare plot data structurally, with numbers compared within tolerance."""
-    ref_numbers, cand_numbers = [], []
-    same_structure = _pair_plot_values(reference, candidate, ref_numbers, cand_numbers)
-    value_diff = compare_values(
+    """Compare a cell's plot data outputs, numbers within tolerance.
+
+    Plot outputs, their figures and each figure's axes are paired by position
+    only when their counts agree; a count that differs is reported with both
+    counts, and nothing at that level or below it is paired or compared.
+    Figures are numbered across the cell, advancing by the larger side's
+    count. Each set of axes whose plotted data moved is described under its
+    name (see :func:`_axes_name`).
+
+    Returns:
+        One difference for the cell, with the value differences of everything
+        that moved merged, or None if nothing moved.
+    """
+    ref_numbers, cand_numbers, details = [], [], []
+
+    def compare_part(label: str, ref_part: Any, cand_part: Any) -> None:
+        part_ref, part_cand = [], []
+        same = _pair_plot_values(ref_part, cand_part, part_ref, part_cand)
+        ref_numbers.extend(part_ref)
+        cand_numbers.extend(part_cand)
+        part_diff = _plot_value_diff(part_ref, part_cand, rtol, atol)
+        changes = []
+        if part_diff is not None:
+            changes.append(f"{part_diff.n_changed} plotted value(s) changed")
+        if not same:
+            changes.append("plot structure changed")
+        if changes:
+            details.append(f"{label}: {', '.join(changes)}")
+
+    if len(reference) != len(candidate):
+        # Pairing by position would attribute changes to the wrong plots.
+        details.append(
+            f"plot structure changed ({len(reference)} plot outputs in reference, "
+            f"{len(candidate)} in candidate)"
+        )
+        reference, candidate = [], []
+    multiple_outputs = len(reference) > 1 or len(candidate) > 1
+    n_figures = 0
+    for k, (ref_output, cand_output) in enumerate(zip(reference, candidate), start=1):
+        ref_figures = _plot_children(ref_output, "figures")
+        cand_figures = _plot_children(cand_output, "figures")
+        figures_start = n_figures + 1
+        n_figures += max(len(ref_figures or []), len(cand_figures or []))
+        if ref_figures is None or cand_figures is None:
+            compare_part(f"plot output {k}", ref_output, cand_output)
+            continue
+        compare_part(
+            f"plot output {k}",
+            _without(ref_output, "figures"),
+            _without(cand_output, "figures"),
+        )
+        if len(ref_figures) != len(cand_figures):
+            where = f" in plot output {k}" if multiple_outputs else ""
+            details.append(
+                f"plot structure changed ({len(ref_figures)} figures in reference, "
+                f"{len(cand_figures)} in candidate{where})"
+            )
+            continue
+        for i, (ref_figure, cand_figure) in enumerate(
+            zip(ref_figures, cand_figures), start=figures_start
+        ):
+            ref_axes = _plot_children(ref_figure, "axes")
+            cand_axes = _plot_children(cand_figure, "axes")
+            if ref_axes is None or cand_axes is None:
+                compare_part(f"figure {i}", ref_figure, cand_figure)
+                continue
+            compare_part(
+                f"figure {i}", _without(ref_figure, "axes"), _without(cand_figure, "axes")
+            )
+            if len(ref_axes) != len(cand_axes):
+                details.append(
+                    f"plot structure changed ({len(ref_axes)} axes in reference, "
+                    f"{len(cand_axes)} in candidate in figure {i})"
+                )
+                continue
+            for j, (ref_ax, cand_ax) in enumerate(zip(ref_axes, cand_axes), start=1):
+                compare_part(_axes_name(ref_ax, cand_ax, i, j), ref_ax, cand_ax)
+
+    value_diff = _plot_value_diff(ref_numbers, cand_numbers, rtol, atol)
+    if not details and value_diff is None:
+        return None
+    return Difference(item, DifferenceKind.PLOT, "; ".join(details), value_diff)
+
+
+def _plot_value_diff(
+    ref_numbers: list[float], cand_numbers: list[float], rtol: float, atol: float
+) -> Optional[ValueDiff]:
+    """Compare paired plotted numbers within tolerance."""
+    return compare_values(
         pd.Series(ref_numbers, dtype=float),
         pd.Series(cand_numbers, dtype=float),
         rtol=rtol,
         atol=atol,
     )
-    if same_structure and value_diff is None:
-        return None
-    details = []
-    if value_diff is not None:
-        details.append(f"{value_diff.n_changed} plotted value(s) changed")
-    if not same_structure:
-        details.append("plot structure or labels changed")
-    return Difference(item, DifferenceKind.PLOT, "; ".join(details), value_diff)
+
+
+def _plot_children(node: Any, key: str) -> Optional[list[Any]]:
+    """The list under ``key`` of a plot data object, or None if there is none."""
+    if isinstance(node, dict) and isinstance(node.get(key), list):
+        return node[key]
+    return None
+
+
+def _without(node: dict[str, Any], key: str) -> dict[str, Any]:
+    return {k: v for k, v in node.items() if k != key}
+
+
+def _axes_name(reference: Any, candidate: Any, figure: int, axes: int) -> str:
+    """Name a pair of axes by its title, or by its position if it is untitled.
+
+    The reference's title is used, or the candidate's if the reference has
+    none; ``figure`` and ``axes`` are 1-based positions within the cell.
+    """
+    for ax in (reference, candidate):
+        title = ax.get("title") if isinstance(ax, dict) else None
+        if title:
+            return f"'{title}'"
+    return f"figure {figure}, axes {axes}"
 
 
 def _pair_plot_values(
@@ -509,8 +633,12 @@ def _pair_plot_values(
 ) -> bool:
     """Collect paired numbers from two plot data trees.
 
+    Presentation fields (:data:`_PLOT_PRESENTATION_KEYS`) are skipped
+    entirely, so neither their values nor their presence is compared.
+
     Returns:
-        Whether everything other than the numbers matches exactly.
+        Whether everything other than the numbers and the presentation
+        fields matches exactly.
     """
     ref_number, cand_number = _plot_number(reference), _plot_number(candidate)
     if ref_number is not None and cand_number is not None:
@@ -518,8 +646,10 @@ def _pair_plot_values(
         cand_numbers.append(cand_number)
         return True
     if isinstance(reference, dict) and isinstance(candidate, dict):
-        same = reference.keys() == candidate.keys()
-        for key in reference.keys() & candidate.keys():
+        ref_keys = reference.keys() - _PLOT_PRESENTATION_KEYS
+        cand_keys = candidate.keys() - _PLOT_PRESENTATION_KEYS
+        same = ref_keys == cand_keys
+        for key in ref_keys & cand_keys:
             same &= _pair_plot_values(
                 reference[key], candidate[key], ref_numbers, cand_numbers
             )

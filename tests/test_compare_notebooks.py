@@ -690,3 +690,215 @@ def test_plot_capture_source_runs_without_a_kernel():
     assert payloads, f"no {PLOT_DATA_MIMETYPE} output was published: {published!r}"
     lines = _all(payloads, "lines")
     assert any(list(line["y"]) == pytest.approx([4.5, 5.5, 6.5]) for line in lines), lines
+
+
+def _first_axes(payload):
+    return payload["figures"][0]["axes"][0]
+
+
+def _set_axes_field(field, value):
+    def edit(payload):
+        _first_axes(payload)[field] = value
+
+    return edit
+
+
+def _set_element_label(collection, value):
+    def edit(payload):
+        _first_axes(payload)[collection][0]["label"] = value
+
+    return edit
+
+
+PRESENTATION_CHANGES = {
+    "title": _set_axes_field("title", "A renamed plot"),
+    "xlabel": _set_axes_field("xlabel", "age (days)"),
+    "ylabel": _set_axes_field("ylabel", "deaths per 1,000"),
+    "line_label": _set_element_label("lines", "renamed line"),
+    "patch_label": _set_element_label("patches", "renamed bars"),
+    "collection_label": _set_element_label("collections", "renamed points"),
+}
+
+
+def _edited_plot_data(edit, **plot_data_kwargs):
+    payload = copy.deepcopy(plot_data(**plot_data_kwargs))
+    edit(payload)
+    return payload
+
+
+@pytest.mark.parametrize("change", list(PRESENTATION_CHANGES))
+def test_plot_presentation_changes_are_ignored(tmp_path, change):
+    """Plot data differing only in title, axis labels or legend labels compares clean,
+    while the same presentation change alongside a changed value is still reported as
+    plot data changed."""
+    edit = PRESENTATION_CHANGES[change]
+
+    # Presentation alone: clean.
+    clean_dir = tmp_path / "presentation_only"
+    reference_dir, candidate_dir = _write_pair(
+        clean_dir, _plot_cell_with(plot_data()), _plot_cell_with(_edited_plot_data(edit))
+    )
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert result.differences == []
+    assert not result.moved
+
+    # Presentation plus one changed y value: exactly one PLOT difference counting
+    # only the moved value.
+    moved_dir = tmp_path / "presentation_and_value"
+    reference_dir, candidate_dir = _write_pair(
+        moved_dir,
+        _plot_cell_with(plot_data()),
+        _plot_cell_with(_edited_plot_data(edit, line_y=(1.0, 2.0, 3.5))),
+    )
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert len(result.differences) == 1
+    difference = result.differences[0]
+    assert difference.kind == DifferenceKind.PLOT
+    _assert_names_notebook_and_cell(difference)
+    assert difference.value_diff is not None
+    assert difference.value_diff.n_changed == 1
+
+
+def _add_line(payload):
+    _first_axes(payload)["lines"].append(
+        {"label": "second line", "x": [0.0, 1.0, 2.0], "y": [5.0, 6.0, 7.0]}
+    )
+
+
+def _remove_line(payload):
+    _first_axes(payload)["lines"].clear()
+
+
+def _add_patch(payload):
+    _first_axes(payload)["patches"].append(
+        {"label": "bars", "x": 0.6, "y": 0.0, "width": 0.8, "height": 1.5}
+    )
+
+
+def _remove_patch(payload):
+    _first_axes(payload)["patches"].clear()
+
+
+def _add_collection(payload):
+    _first_axes(payload)["collections"].append(
+        {"label": "more points", "offsets": [[2.0, 5.0]], "segments": []}
+    )
+
+
+def _remove_collection(payload):
+    _first_axes(payload)["collections"].clear()
+
+
+STRUCTURE_CHANGES = {
+    "line_added": _add_line,
+    "line_removed": _remove_line,
+    "bar_added": _add_patch,
+    "bar_removed": _remove_patch,
+    "scatter_added": _add_collection,
+    "scatter_removed": _remove_collection,
+}
+
+
+@pytest.mark.parametrize("change", list(STRUCTURE_CHANGES))
+def test_plot_structure_change_reported(tmp_path, change):
+    """Plot data with a line, bar or scatter series added or removed is reported as
+    plot data changed."""
+    candidate_payload = _edited_plot_data(STRUCTURE_CHANGES[change])
+    reference_dir, candidate_dir = _write_pair(
+        tmp_path, _plot_cell_with(plot_data()), _plot_cell_with(candidate_payload)
+    )
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert result.moved
+    assert len(result.differences) == 1
+    difference = result.differences[0]
+    assert difference.kind == DifferenceKind.PLOT
+    _assert_names_notebook_and_cell(difference)
+
+
+def _two_axes_plot_data(titles, second_line_y=(1.0, 2.0, 3.0)):
+    """Plot data with one figure holding two copies of the standard axes, titled
+    ``titles``; the second axes' line plots ``second_line_y``."""
+    payload = copy.deepcopy(plot_data())
+    first = _first_axes(payload)
+    second = copy.deepcopy(first)
+    first["title"], second["title"] = titles
+    second["lines"][0]["y"] = list(second_line_y)
+    payload["figures"][0]["axes"].append(second)
+    return payload
+
+
+def test_plot_difference_names_moved_axes_by_title(tmp_path):
+    """In a cell with two titled subplots where only one moved, the plot data changed
+    detail names that subplot's title and not the other's; an untitled subplot that
+    moved is named by figure and axes number."""
+    # Titled: only "Hemoglobin" moves.
+    titles = ("Anemia", "Hemoglobin")
+    reference_dir, candidate_dir = _write_pair(
+        tmp_path / "titled",
+        _plot_cell_with(_two_axes_plot_data(titles)),
+        _plot_cell_with(_two_axes_plot_data(titles, second_line_y=(1.0, 2.0, 3.5))),
+    )
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert len(result.differences) == 1
+    difference = result.differences[0]
+    assert difference.kind == DifferenceKind.PLOT
+    _assert_names_notebook_and_cell(difference)
+    assert "Hemoglobin" in difference.detail
+    assert "Anemia" not in difference.detail
+    assert difference.value_diff is not None
+    assert difference.value_diff.n_changed == 1
+
+    # Untitled: the moved second axes is named by figure and axes number.
+    untitled = ("", "")
+    reference_dir, candidate_dir = _write_pair(
+        tmp_path / "untitled",
+        _plot_cell_with(_two_axes_plot_data(untitled)),
+        _plot_cell_with(_two_axes_plot_data(untitled, second_line_y=(1.0, 2.0, 3.5))),
+    )
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert len(result.differences) == 1
+    difference = result.differences[0]
+    assert difference.kind == DifferenceKind.PLOT
+    _assert_names_notebook_and_cell(difference)
+    detail = difference.detail.lower()
+    assert "figure 1" in detail
+    assert "axes 2" in detail
+    assert "axes 1" not in detail
+    assert difference.value_diff is not None
+    assert difference.value_diff.n_changed == 1
+
+
+def test_axes_count_change_is_not_paired_by_position(tmp_path):
+    """When a subplot is inserted before others in a figure, the plot data changed
+    detail gives both axes counts and does not name the shifted subplots as moved."""
+    titles = ("Anemia", "Hemoglobin")
+    reference_payload = _two_axes_plot_data(titles)
+    candidate_payload = _two_axes_plot_data(titles)
+    inserted = copy.deepcopy(_first_axes(candidate_payload))
+    inserted["title"] = "New"
+    candidate_payload["figures"][0]["axes"].insert(0, inserted)
+    reference_dir, candidate_dir = _write_pair(
+        tmp_path, _plot_cell_with(reference_payload), _plot_cell_with(candidate_payload)
+    )
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert len(result.differences) == 1
+    difference = result.differences[0]
+    assert difference.kind == DifferenceKind.PLOT
+    _assert_names_notebook_and_cell(difference)
+    assert "2" in difference.detail
+    assert "3" in difference.detail
+    assert "axes" in difference.detail.lower()
+    assert "Anemia" not in difference.detail
+    assert "Hemoglobin" not in difference.detail
