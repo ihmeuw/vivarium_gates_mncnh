@@ -319,3 +319,27 @@ def test_directory_without_measures_raises(tmp_path, bad_side, contents):
 
     with pytest.raises(ComparisonInputError):
         compare_results(*paths)
+
+
+@pytest.mark.parametrize("float_side", ["reference", "candidate"])
+def test_int_and_float_key_columns_compare_clean(tmp_path, float_side):
+    """An identifying column stored as integers on one side and as floats on the other,
+    with the same values, compares clean rather than as rows on one side only."""
+    int_measures = standard_measures()
+    assert str(int_measures["deaths"]["input_draw"].dtype) == "int64"
+    float_measures = {
+        name: frame.astype({"input_draw": "float64", "random_seed": "float64"})
+        for name, frame in standard_measures().items()
+    }
+    if float_side == "reference":
+        reference_measures, candidate_measures = float_measures, int_measures
+    else:
+        reference_measures, candidate_measures = int_measures, float_measures
+    reference = make_results_dir(tmp_path / "reference", reference_measures)
+    candidate = make_results_dir(tmp_path / "candidate", candidate_measures)
+
+    result = compare_results(reference, candidate)
+
+    assert result.differences == []
+    assert not result.moved
+    assert result.n_compared == 2

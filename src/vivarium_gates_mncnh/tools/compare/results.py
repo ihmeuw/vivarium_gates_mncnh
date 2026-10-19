@@ -34,7 +34,9 @@ def compare_results(
     interchangeable, so the same data in either compares clean. Within a
     measure, ``value`` holds the values and every other column identifies a
     row, so row order, column order, compression and other file-level detail
-    never register as a change.
+    never register as a change. Identifying columns are matched by value, so a
+    column stored as integers on one side and floats on the other (``0`` and
+    ``0.0``) identifies the same rows.
 
     Reported as differences:
 

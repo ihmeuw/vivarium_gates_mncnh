@@ -210,20 +210,59 @@ def _merge_value_diffs(diffs: list[ValueDiff]) -> Optional[ValueDiff]:
 _OCCURRENCE = "__occurrence__"
 
 
+def _key_strings(column: pd.Series) -> np.ndarray:
+    """Render a key column as strings that match by value across dtypes.
+
+    Numeric columns render finite integral values (below 2**63) as integers,
+    so ``0`` and ``0.0`` give the same key; missing numeric values render as
+    ``"nan"``. Boolean, string, categorical and other columns are cast to str
+    unchanged.
+    """
+    dtype = column.dtype
+    if (
+        pd.api.types.is_bool_dtype(dtype)
+        or pd.api.types.is_complex_dtype(dtype)
+        or not pd.api.types.is_numeric_dtype(dtype)
+    ):
+        return column.astype(str).to_numpy()
+    if pd.api.types.is_integer_dtype(dtype) and not column.hasnans:
+        return column.astype(str).to_numpy()
+    values = column.to_numpy(dtype=float, na_value=np.nan)
+    strings = values.astype(str).astype(object)
+    with np.errstate(invalid="ignore"):
+        integral = (
+            np.isfinite(values) & (values == np.floor(values)) & (np.abs(values) < 2**63)
+        )
+    strings[integral] = values[integral].astype(np.int64).astype(str)
+    return strings
+
+
 def _keyed(
     frame: pd.DataFrame, key_columns: list[str], value_columns: list[str]
 ) -> pd.DataFrame:
-    """Index a table by its key columns, cast to str so dtype differences don't matter.
+    """Index a table by its key columns, rendered so dtype differences don't matter.
 
-    Rows sharing a key are told apart by their order after sorting on the values,
-    so duplicate keys align independently of row order.
+    The index is the key columns plus an occurrence level. When keys are
+    unique the occurrence is always 0; otherwise rows sharing a key are told
+    apart by their order after sorting on the values, so duplicate keys align
+    independently of row order. Either way the index is unique.
     """
-    frame = frame.reset_index(drop=True)
     data = pd.DataFrame(
-        {column: frame[column].astype(str) for column in key_columns}, index=frame.index
+        {
+            **{column: _key_strings(frame[column]) for column in key_columns},
+            **{column: frame[column].array for column in value_columns},
+        },
+        index=pd.RangeIndex(len(frame)),
+        copy=False,
     )
-    for column in value_columns:
-        data[column] = frame[column]
+    if key_columns:
+        has_duplicates = bool(data.duplicated(subset=key_columns).any())
+    else:
+        has_duplicates = len(data) > 1
+    if not has_duplicates:
+        data[_OCCURRENCE] = 0
+        return data.set_index(key_columns + [_OCCURRENCE])
+
     for sort_by in (key_columns + value_columns, key_columns):
         if not sort_by:
             break
@@ -264,27 +303,20 @@ def _compare_tables(
             differences.append(Difference(item, kind, f"{len(rows)} row(s) only in {side}"))
 
     shared = ref.index.intersection(cand.index)
-    ref, cand = ref.reindex(shared), cand.reindex(shared)
-    numeric = [
-        column
-        for column in value_columns
-        if pd.api.types.is_numeric_dtype(ref[column].dtype)
-        and pd.api.types.is_numeric_dtype(cand[column].dtype)
-    ]
+    # Both indexes are unique, so shared rows can be taken by position; comparing
+    # one column at a time keeps memory to a few columns' worth for wide tables.
+    ref_rows, cand_rows = ref.index.get_indexer(shared), cand.index.get_indexer(shared)
     diffs = []
-    if numeric:
-        diffs.append(
-            compare_values(
-                pd.Series(ref[numeric].to_numpy(dtype=float, na_value=np.nan).ravel()),
-                pd.Series(cand[numeric].to_numpy(dtype=float, na_value=np.nan).ravel()),
-                rtol=rtol,
-                atol=atol,
-            )
-        )
     for column in value_columns:
-        if column not in numeric:
-            diffs.append(compare_values(ref[column], cand[column], rtol=rtol, atol=atol))
-    value_diff = _merge_value_diffs([diff for diff in diffs if diff is not None])
+        diff = compare_values(
+            ref[column].iloc[ref_rows].reset_index(drop=True),
+            cand[column].iloc[cand_rows].reset_index(drop=True),
+            rtol=rtol,
+            atol=atol,
+        )
+        if diff is not None:
+            diffs.append(diff)
+    value_diff = _merge_value_diffs(diffs)
     if value_diff is not None:
         n_values = len(shared) * len(value_columns)
         differences.append(
