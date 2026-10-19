@@ -342,11 +342,9 @@ def compare_notebooks(
         The comparison, with one item compared per notebook on either side.
 
     Raises:
-        ComparisonInputError: If either path is not a directory, or either
-            directory contains no notebooks.
+        ComparisonInputError: If either path is not a directory, either
+            directory contains no notebooks, or a notebook cannot be read.
     """
-    import nbformat
-
     reference_dir, candidate_dir = Path(reference_dir), Path(candidate_dir)
     ref_notebooks = _find_notebooks(reference_dir, "reference")
     cand_notebooks = _find_notebooks(candidate_dir, "candidate")
@@ -369,14 +367,26 @@ def compare_notebooks(
         else:
             differences, notes = _compare_notebook(
                 name,
-                nbformat.read(ref_notebooks[name], as_version=4),
-                nbformat.read(cand_notebooks[name], as_version=4),
+                _read_notebook(ref_notebooks[name], "reference"),
+                _read_notebook(cand_notebooks[name], "candidate"),
                 rtol,
                 atol,
             )
             result.differences.extend(differences)
             result.notes.extend(notes)
     return result
+
+
+def _read_notebook(path: Path, side: str) -> Any:
+    """Read a notebook, raising ComparisonInputError if it is not a valid notebook."""
+    import nbformat
+
+    try:
+        return nbformat.read(path, as_version=4)
+    except Exception as e:
+        raise ComparisonInputError(
+            f"Could not read {side} notebook {path}: {type(e).__name__}: {e}"
+        ) from e
 
 
 def _compare_notebook(

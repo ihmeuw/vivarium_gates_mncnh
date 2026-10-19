@@ -12,9 +12,9 @@ import pandas as pd
 class ComparisonInputError(ValueError):
     """Raised when a comparison cannot be made from the inputs given.
 
-    For example, a path that does not exist or is the wrong kind of path. A
-    difference between two valid inputs is never an error; it is reported as a
-    :class:`Difference`.
+    For example, a path that does not exist or is the wrong kind of path, or a
+    file that cannot be read as the expected format. A difference between two
+    valid inputs is never an error; it is reported as a :class:`Difference`.
     """
 
 

@@ -111,7 +111,9 @@ def compare_outputs() -> None:
 
     Each comparison prints a Markdown report to stdout and exits 0 when the
     two sides compare clean, 1 when anything moved, and 2 when the inputs
-    cannot be compared (for example, a path that does not exist).
+    cannot be compared (for example, a path that does not exist or a file
+    that cannot be read) or the comparison fails for any other reason, with a
+    one-line ``Error: ...`` message on stderr.
     """
 
 
@@ -169,13 +171,13 @@ def execute_notebooks_command(output_dir: Path, notebook_dir: Path, kernel_name:
 
     Prints which notebooks failed, if any. Exits 0 when every notebook ran,
     1 when any failed (all are still written), and 2 when the notebook
-    directory has no notebooks.
+    directory is missing, has no notebooks, or is OUTPUT_DIR itself.
     """
     ctx = click.get_current_context()
     try:
         outcomes = execute_notebooks(notebook_dir, output_dir, kernel_name)
-    except ComparisonInputError as e:
-        click.echo(f"Error: {e}", err=True)
+    except Exception as e:
+        click.echo(_error_message(e), err=True)
         ctx.exit(2)
     failures = {name: error for name, error in outcomes.items() if error is not None}
     click.echo(
@@ -191,8 +193,22 @@ def _run_comparison(compare: Callable[..., ComparisonResult], *args, **kwargs) -
     ctx = click.get_current_context()
     try:
         result = compare(*args, **kwargs)
-    except ComparisonInputError as e:
-        click.echo(f"Error: {e}", err=True)
+        report = render_report([result])
+    except Exception as e:
+        click.echo(_error_message(e), err=True)
         ctx.exit(2)
-    click.echo(render_report([result]))
+    click.echo(report)
     ctx.exit(1 if result.moved else 0)
+
+
+def _error_message(error: Exception) -> str:
+    """A one-line ``Error: ...`` message for an exception, without a traceback.
+
+    Exit code 1 means "moved", so any failure to compare must exit 2 instead;
+    exceptions other than ComparisonInputError are named by type.
+    """
+    if isinstance(error, ComparisonInputError):
+        message = f"Error: {error}"
+    else:
+        message = f"Error: {type(error).__name__}: {error}"
+    return " ".join(message.split())

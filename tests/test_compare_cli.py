@@ -173,3 +173,21 @@ def test_execute_notebooks_command(tmp_path):
     assert (tmp_path / "out_failing" / "a_ok.ipynb").is_file()
     assert (tmp_path / "out_failing" / "b_fails.ipynb").is_file()
     assert "b_fails" in some_failed.output
+
+
+@pytest.mark.parametrize("bad_side", ["reference", "candidate"])
+def test_unreadable_input_exits_two(tmp_path, bad_side):
+    """A results measure that is not a readable parquet file exits 2 with a one-line
+    message, not 1 and not a traceback."""
+    good = make_results_dir(tmp_path / "good", standard_measures())
+    bad = make_results_dir(tmp_path / "bad", standard_measures())
+    (bad / "deaths.parquet").write_bytes(b"this is not a parquet file\n" * 8)
+    paths = (bad, good) if bad_side == "reference" else (good, bad)
+
+    result = _invoke("results", *paths)
+
+    assert result.exit_code == 2, result.output
+    assert isinstance(result.exception, SystemExit)
+    assert "Traceback" not in result.output
+    message_lines = [line for line in result.output.splitlines() if line.strip()]
+    assert len(message_lines) == 1, result.output

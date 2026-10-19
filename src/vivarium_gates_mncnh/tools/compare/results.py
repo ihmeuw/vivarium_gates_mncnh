@@ -60,8 +60,9 @@ def compare_results(
         The comparison, with one item compared per measure on either side.
 
     Raises:
-        ComparisonInputError: If either path is not a directory, or either
-            directory contains no measures.
+        ComparisonInputError: If either path is not a directory, either
+            directory contains no measures, or a measure cannot be read as
+            parquet.
     """
     reference_dir, candidate_dir = Path(reference_dir), Path(candidate_dir)
     ref_measures = _find_measures(reference_dir, "reference")
@@ -117,11 +118,20 @@ def _find_measures(results_dir: Path, side: str) -> dict[str, Path]:
 
 def _load_measure(path: Path) -> pd.DataFrame:
     if path.is_file():
-        return pd.read_parquet(path)
+        return _read_parquet(path)
     return pd.concat(
-        [pd.read_parquet(shard) for shard in sorted(path.glob("*.parquet"))],
+        [_read_parquet(shard) for shard in sorted(path.glob("*.parquet"))],
         ignore_index=True,
     )
+
+
+def _read_parquet(path: Path) -> pd.DataFrame:
+    try:
+        return pd.read_parquet(path)
+    except Exception as e:
+        raise ComparisonInputError(
+            f"Could not read {path} as parquet: {type(e).__name__}: {e}"
+        ) from e
 
 
 def _compare_measure(

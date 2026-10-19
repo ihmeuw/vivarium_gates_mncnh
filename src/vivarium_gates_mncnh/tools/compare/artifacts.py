@@ -52,16 +52,16 @@ def compare_artifacts(
         The comparison, with one item compared per key on either side.
 
     Raises:
-        ComparisonInputError: If either path is not an existing file.
+        ComparisonInputError: If either path is not an existing file, or
+            either artifact or one of its keys cannot be read.
     """
     reference_path, candidate_path = Path(reference_path), Path(candidate_path)
     # Check before constructing an Artifact, which creates a missing file.
     for side, path in (("reference", reference_path), ("candidate", candidate_path)):
         if not path.is_file():
             raise ComparisonInputError(f"{side} artifact is not an existing file: {path}")
-    reference, candidate = Artifact(reference_path), Artifact(candidate_path)
-    ref_keys = {str(key) for key in reference.keys}
-    cand_keys = {str(key) for key in candidate.keys}
+    reference, ref_keys = _open_artifact(reference_path, "reference")
+    candidate, cand_keys = _open_artifact(candidate_path, "candidate")
 
     result = ComparisonResult(
         title="Artifacts",
@@ -80,13 +80,33 @@ def compare_artifacts(
             )
         elif key != KEYSPACE_KEY:
             try:
-                result.differences.extend(
-                    _compare_data(key, reference.load(key), candidate.load(key), rtol, atol)
-                )
+                ref_data = _load_key(reference, key, reference_path, "reference")
+                cand_data = _load_key(candidate, key, candidate_path, "candidate")
+                result.differences.extend(_compare_data(key, ref_data, cand_data, rtol, atol))
             finally:
                 reference.clear_cache()
                 candidate.clear_cache()
     return result
+
+
+def _open_artifact(path: Path, side: str) -> tuple[Artifact, set[str]]:
+    """Open an existing artifact and list its keys."""
+    try:
+        artifact = Artifact(path)
+        return artifact, {str(key) for key in artifact.keys}
+    except Exception as e:
+        raise ComparisonInputError(
+            f"Could not read {side} artifact {path}: {type(e).__name__}: {e}"
+        ) from e
+
+
+def _load_key(artifact: Artifact, key: str, path: Path, side: str) -> Any:
+    try:
+        return artifact.load(key)
+    except Exception as e:
+        raise ComparisonInputError(
+            f"Could not load '{key}' from {side} artifact {path}: {type(e).__name__}: {e}"
+        ) from e
 
 
 def _compare_data(
