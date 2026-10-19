@@ -23,6 +23,9 @@ class InterventionScenario:
     cemonc_acs_access: str = "baseline"
     home_acs_access: str = "baseline"
     home_misoprostol_access: str = "baseline"
+    bemonc_emotive_access: str = "baseline"
+    cemonc_emotive_access: str = "baseline"
+    home_emotive_access: str = "baseline"
     ultrasound_coverage: str = "baseline"
     standard_ultrasound_coverage: str = "baseline"
     ifa_mms_coverage: str = "baseline"
@@ -148,6 +151,12 @@ class __InterventionScenarios(NamedTuple):
         "anemia_screening_vv",
         hemoglobin_screening_coverage="full",
         ferritin_screening_coverage="full",
+    )
+    EMOTIVE_TOTAL_SCALEUP: InterventionScenario = InterventionScenario(
+        "emotive_total_scaleup",
+        bemonc_emotive_access="full",
+        cemonc_emotive_access="full",
+        home_emotive_access="none",
     )
 
     def __getitem__(self, item) -> InterventionScenario:

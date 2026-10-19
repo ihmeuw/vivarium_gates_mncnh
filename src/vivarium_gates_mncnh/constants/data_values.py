@@ -99,6 +99,7 @@ class _SimulationEventNames(NamedTuple):
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
+    EMOTIVE_ACCESS = "emotive_access"
     CPAP_ACCESS = "cpap_access"
     ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
@@ -130,6 +131,7 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
     SIMULATION_EVENT_NAMES.AZITHROMYCIN_ACCESS,
     SIMULATION_EVENT_NAMES.MISOPROSTOL_ACCESS,
+    SIMULATION_EVENT_NAMES.EMOTIVE_ACCESS,
     SIMULATION_EVENT_NAMES.CPAP_ACCESS,
     SIMULATION_EVENT_NAMES.ACS_ACCESS,
     SIMULATION_EVENT_NAMES.ANTIBIOTICS_ACCESS,
@@ -252,6 +254,7 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    EMOTIVE_AVAILABLE = "emotive_available"
     HEMOGLOBIN_EXPOSURE = "hemoglobin_exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     IV_IRON_INTERVENTION = "iv_iron_intervention"

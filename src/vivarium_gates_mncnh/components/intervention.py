@@ -198,6 +198,91 @@ class CPAPAndACSRiskEffect(Component):
         return (1 - no_intervention_paf) * no_intervention_rr
 
 
+class EmotiveEffect(Component):
+    """E-MOTIVE effect on the postpartum hemorrhage severity cascade.
+
+    E-MOTIVE lowers the probability that a 300 mL+ hemorrhage reaches 500 mL+ and
+    that a 500 mL+ hemorrhage reaches 1 L+. It has no effect on the 300 mL+
+    incidence risk. The trial RRs are for vaginal deliveries, so they are diluted
+    by the fraction of facility births that are cesarean deliveries.
+    https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/emotive_intervention.html
+    """
+
+    @property
+    def configuration_defaults(self) -> dict:
+        return {
+            self.name: {
+                "data_sources": {
+                    "relative_risk_500ml_given_300ml": data_keys.EMOTIVE.RR_500ML_GIVEN_300ML,
+                    "relative_risk_1l_given_500ml": data_keys.EMOTIVE.RR_1L_GIVEN_500ML,
+                    "cesarean_fraction_ifd": data_keys.EMOTIVE.CESAREAN_FRACTION_IFD,
+                }
+            }
+        }
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        self.relative_risk_500ml_given_300ml_table = self.build_lookup_table(
+            builder, "relative_risk_500ml_given_300ml"
+        )
+        self.relative_risk_1l_given_500ml_table = self.build_lookup_table(
+            builder, "relative_risk_1l_given_500ml"
+        )
+        self.cesarean_fraction_ifd_table = self.build_lookup_table(
+            builder, "cesarean_fraction_ifd"
+        )
+
+        builder.value.register_attribute_modifier(
+            PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML,
+            self.adjust_probability_500ml_given_300ml,
+            required_resources=[COLUMNS.EMOTIVE_AVAILABLE],
+            description="Apply the E-MOTIVE population RR to those with E-MOTIVE",
+        )
+        builder.value.register_attribute_modifier(
+            PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML,
+            self.adjust_probability_1l_given_500ml,
+            required_resources=[COLUMNS.EMOTIVE_AVAILABLE],
+            description="Apply the E-MOTIVE population RR to those with E-MOTIVE",
+        )
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def adjust_probability_500ml_given_300ml(
+        self, index: pd.Index, probability: pd.Series[float]
+    ) -> pd.Series[float]:
+        return self._apply_emotive_effect(
+            index, probability, self.relative_risk_500ml_given_300ml_table
+        )
+
+    def adjust_probability_1l_given_500ml(
+        self, index: pd.Index, probability: pd.Series[float]
+    ) -> pd.Series[float]:
+        return self._apply_emotive_effect(
+            index, probability, self.relative_risk_1l_given_500ml_table
+        )
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _apply_emotive_effect(
+        self, index: pd.Index, probability: pd.Series[float], rr_table: LookupTable
+    ) -> pd.Series[float]:
+        has_emotive = self.population_view.get(index, COLUMNS.EMOTIVE_AVAILABLE)
+        emotive_index = has_emotive.index[has_emotive == True]
+        # The RR applies only to vaginal deliveries; cesarean deliveries get no effect
+        rr = rr_table(emotive_index)
+        cesarean_fraction = self.cesarean_fraction_ifd_table(emotive_index)
+        population_rr = 1 + (rr - 1) * (1 - cesarean_fraction)
+        probability.loc[emotive_index] = probability.loc[emotive_index] * population_rr
+        return probability
+
+
 class OralIronInterventionExposure(Component):
     CONFIGURATION_DEFAULTS = {
         "intervention": {
