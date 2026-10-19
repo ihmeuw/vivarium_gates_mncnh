@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import click
 from loguru import logger
@@ -8,6 +8,15 @@ from vivarium.engine.framework.utilities import handle_exceptions
 from vivarium_gates_mncnh.constants import metadata, paths
 from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR
 from vivarium_gates_mncnh.tools import build_artifacts, configure_logging_to_terminal
+from vivarium_gates_mncnh.tools.compare import (
+    ComparisonInputError,
+    ComparisonResult,
+    compare_artifacts,
+    compare_notebooks,
+    compare_results,
+    execute_notebooks,
+    render_report,
+)
 
 
 @click.command()
@@ -114,7 +123,7 @@ def compare_results_command(
     reference_dir: Path, candidate_dir: Path, rtol: float, atol: float
 ) -> None:
     """Compare two results directories (one location's results/ each)."""
-    raise NotImplementedError
+    _run_comparison(compare_results, reference_dir, candidate_dir, rtol=rtol, atol=atol)
 
 
 @compare_outputs.command("artifacts")
@@ -125,7 +134,7 @@ def compare_artifacts_command(
     reference_path: Path, candidate_path: Path, rtol: float, atol: float
 ) -> None:
     """Compare two artifacts key by key."""
-    raise NotImplementedError
+    _run_comparison(compare_artifacts, reference_path, candidate_path, rtol=rtol, atol=atol)
 
 
 @compare_outputs.command("notebooks")
@@ -136,7 +145,7 @@ def compare_notebooks_command(
     reference_dir: Path, candidate_dir: Path, rtol: float, atol: float
 ) -> None:
     """Compare two directories of executed notebooks."""
-    raise NotImplementedError
+    _run_comparison(compare_notebooks, reference_dir, candidate_dir, rtol=rtol, atol=atol)
 
 
 @compare_outputs.command("execute-notebooks")
@@ -162,4 +171,28 @@ def execute_notebooks_command(output_dir: Path, notebook_dir: Path, kernel_name:
     1 when any failed (all are still written), and 2 when the notebook
     directory has no notebooks.
     """
-    raise NotImplementedError
+    ctx = click.get_current_context()
+    try:
+        outcomes = execute_notebooks(notebook_dir, output_dir, kernel_name)
+    except ComparisonInputError as e:
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(2)
+    failures = {name: error for name, error in outcomes.items() if error is not None}
+    click.echo(
+        f"Executed {len(outcomes)} notebook(s) into {output_dir}; {len(failures)} failed."
+    )
+    for name, error in failures.items():
+        click.echo(f"  {name}: {error}")
+    ctx.exit(1 if failures else 0)
+
+
+def _run_comparison(compare: Callable[..., ComparisonResult], *args, **kwargs) -> None:
+    """Run a comparison, print its report, and exit with the status it implies."""
+    ctx = click.get_current_context()
+    try:
+        result = compare(*args, **kwargs)
+    except ComparisonInputError as e:
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(2)
+    click.echo(render_report([result]))
+    ctx.exit(1 if result.moved else 0)
