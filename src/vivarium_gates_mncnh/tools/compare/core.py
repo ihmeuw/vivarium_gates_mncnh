@@ -194,19 +194,6 @@ def _same_object(reference: Any, candidate: Any) -> bool:
         return repr(reference) == repr(candidate)
 
 
-def _merge_value_diffs(diffs: list[ValueDiff]) -> Optional[ValueDiff]:
-    """Combine several value diffs into one, or None if there are none."""
-    if not diffs:
-        return None
-    abs_diffs = [d.max_abs_diff for d in diffs if d.max_abs_diff is not None]
-    rel_diffs = [d.max_rel_diff for d in diffs if d.max_rel_diff is not None]
-    return ValueDiff(
-        n_changed=sum(d.n_changed for d in diffs),
-        max_abs_diff=max(abs_diffs) if abs_diffs else None,
-        max_rel_diff=max(rel_diffs) if rel_diffs else None,
-    )
-
-
 _OCCURRENCE = "__occurrence__"
 
 
@@ -316,8 +303,14 @@ def _compare_tables(
         )
         if diff is not None:
             diffs.append(diff)
-    value_diff = _merge_value_diffs(diffs)
-    if value_diff is not None:
+    if diffs:
+        abs_diffs = [d.max_abs_diff for d in diffs if d.max_abs_diff is not None]
+        rel_diffs = [d.max_rel_diff for d in diffs if d.max_rel_diff is not None]
+        value_diff = ValueDiff(
+            n_changed=sum(d.n_changed for d in diffs),
+            max_abs_diff=max(abs_diffs) if abs_diffs else None,
+            max_rel_diff=max(rel_diffs) if rel_diffs else None,
+        )
         n_values = len(shared) * len(value_columns)
         differences.append(
             Difference(

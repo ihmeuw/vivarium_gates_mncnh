@@ -515,7 +515,8 @@ def _compare_plot_data(
     counts, and nothing at that level or below it is paired or compared.
     Figures are numbered across the cell, advancing by the larger side's
     count. Each set of axes whose plotted data moved is described under its
-    name (see :func:`_axes_name`).
+    title (the reference's, or the candidate's if the reference has none), or
+    as ``figure <i>, axes <j>`` when it is untitled.
 
     Returns:
         One difference for the cell, with the value differences of everything
@@ -584,7 +585,17 @@ def _compare_plot_data(
                 )
                 continue
             for j, (ref_ax, cand_ax) in enumerate(zip(ref_axes, cand_axes), start=1):
-                compare_part(_axes_name(ref_ax, cand_ax, i, j), ref_ax, cand_ax)
+                title = next(
+                    (
+                        ax["title"]
+                        for ax in (ref_ax, cand_ax)
+                        if isinstance(ax, dict) and ax.get("title")
+                    ),
+                    None,
+                )
+                compare_part(
+                    f"'{title}'" if title else f"figure {i}, axes {j}", ref_ax, cand_ax
+                )
 
     value_diff = _plot_value_diff(ref_numbers, cand_numbers, rtol, atol)
     if not details and value_diff is None:
@@ -613,19 +624,6 @@ def _plot_children(node: Any, key: str) -> Optional[list[Any]]:
 
 def _without(node: dict[str, Any], key: str) -> dict[str, Any]:
     return {k: v for k, v in node.items() if k != key}
-
-
-def _axes_name(reference: Any, candidate: Any, figure: int, axes: int) -> str:
-    """Name a pair of axes by its title, or by its position if it is untitled.
-
-    The reference's title is used, or the candidate's if the reference has
-    none; ``figure`` and ``axes`` are 1-based positions within the cell.
-    """
-    for ax in (reference, candidate):
-        title = ax.get("title") if isinstance(ax, dict) else None
-        if title:
-            return f"'{title}'"
-    return f"figure {figure}, axes {axes}"
 
 
 def _pair_plot_values(

@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import pandas as pd
 from loguru import logger
@@ -189,9 +189,6 @@ def _read_requirements(path: Path) -> dict[str, tuple[str, str]]:
             name, version = match.group(1), match.group(3)
             version = version[2:] if version.startswith("==") else version
         name = name.split("[", 1)[0].strip()
-        packages[_normalize(name)] = (name, version.strip())
+        # Normalize as pip does, so Foo_Bar and foo-bar are the same package.
+        packages[re.sub(r"[-_.]+", "-", name).lower()] = (name, version.strip())
     return packages
-
-
-def _normalize(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
