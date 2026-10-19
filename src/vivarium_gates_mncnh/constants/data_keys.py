@@ -540,6 +540,25 @@ class __NoMisoprostolRisk(NamedTuple):
 NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
+class __Emotive(NamedTuple):
+    CAESAREAN_SECTION_PROPORTION: str = "covariate.caesarean_section.estimate"
+    CESAREAN_FRACTION_IFD: str = "intervention.emotive.cesarean_fraction_ifd"
+    # RRs of receiving E-MOTIVE among vaginal deliveries
+    RR_500ML_GIVEN_300ML: str = "intervention.emotive.relative_risk_500ml_given_300ml"
+    RR_1L_GIVEN_500ML: str = "intervention.emotive.relative_risk_1l_given_500ml"
+
+    @property
+    def name(self):
+        return "emotive"
+
+    @property
+    def log_name(self):
+        return "emotive"
+
+
+EMOTIVE = __Emotive()
+
+
 class __IFASupplementation(NamedTuple):
     COVERAGE: TargetString = TargetString(
         "risk_factor.iron_folic_acid_supplementation.coverage"
@@ -699,6 +718,7 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     NO_PROBIOTICS_RISK,
     NO_AZITHROMYCIN_RISK,
     NO_MISOPROSTOL_RISK,
+    EMOTIVE,
     IFA_SUPPLEMENTATION,
     MMN_SUPPLEMENTATION,
     POSTPARTUM_DEPRESSION,

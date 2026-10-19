@@ -168,6 +168,10 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_CEMONC: load_misoprostol_coverage_probability,
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
+        data_keys.EMOTIVE.CAESAREAN_SECTION_PROPORTION: load_facility_proportion,
+        data_keys.EMOTIVE.CESAREAN_FRACTION_IFD: load_cesarean_fraction_ifd,
+        data_keys.EMOTIVE.RR_500ML_GIVEN_300ML: load_emotive_relative_risk,
+        data_keys.EMOTIVE.RR_1L_GIVEN_500ML: load_emotive_relative_risk,
         data_keys.IFA_SUPPLEMENTATION.COVERAGE: load_ifa_coverage,
         data_keys.IFA_SUPPLEMENTATION.EFFECT_SIZE: load_oral_iron_effect_size,
         data_keys.IFA_SUPPLEMENTATION.EXCESS_SHIFT: load_ifa_excess_shift,
@@ -1464,15 +1468,21 @@ def load_misoprostol_coverage_probability(
     return coverage_dict[location]
 
 
+def _load_draws_from_distribution(key: str, location: str, distribution) -> pd.DataFrame:
+    """Draw-level values of a parameter distribution, constant across the demography."""
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, distribution)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+    return data
+
+
 def load_no_misoprostol_relative_risk(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
     # Relative risk for not receiving intervention
     rr_dist = data_values.MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION
-    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
-    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, rr_dist)
-    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
-    data.index = data.index.droplevel("location")
+    data = _load_draws_from_distribution(key, location, rr_dist)
     # Need to invert the relative risk to be a risk of no intervention
     data = (1 / data).fillna(0.0)
 
@@ -1492,6 +1502,39 @@ def load_no_misoprostol_paf(
     # paf = (mean_rr - 1) / mean_rr
     paf = (mean_rr - 1) / mean_rr
     return paf
+
+
+def load_cesarean_fraction_ifd(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> float | pd.DataFrame:
+    """Compute the fraction of facility births that are cesarean deliveries as
+    c-section proportion (covariate 2381) / IFD proportion (covariate 51), clipped
+    to 1 (with a warning)."""
+    csection_proportion = get_data(data_keys.EMOTIVE.CAESAREAN_SECTION_PROPORTION, location)
+    ifd_proportion = get_data(
+        data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION, location
+    )
+    cesarean_fraction_ifd = csection_proportion / ifd_proportion
+    clipped = np.asarray(cesarean_fraction_ifd > 1.0)
+    if clipped.any():
+        logger.warning(
+            f"{key}: clipping {int(clipped.sum())} of {clipped.size} values "
+            f"({clipped.mean():.2%}) to 1 for {location} (max unclipped value "
+            f"{np.max(cesarean_fraction_ifd):.4f})."
+        )
+    return np.clip(cesarean_fraction_ifd, None, 1.0)
+
+
+def load_emotive_relative_risk(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    # Relative risk for receiving E-MOTIVE among vaginal deliveries. Not inverted;
+    # the c-section adjustment to a population RR happens in the simulation.
+    rr_dists = {
+        data_keys.EMOTIVE.RR_500ML_GIVEN_300ML: data_values.EMOTIVE_RR_500ML_GIVEN_300ML_DISTRIBUTION,
+        data_keys.EMOTIVE.RR_1L_GIVEN_500ML: data_values.EMOTIVE_RR_1L_GIVEN_500ML_DISTRIBUTION,
+    }
+    return _load_draws_from_distribution(key, location, rr_dists[key])
 
 
 def load_ifa_coverage(
