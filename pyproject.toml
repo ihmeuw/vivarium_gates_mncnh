@@ -50,6 +50,7 @@ Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
 
 [project.scripts]
 make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
+compare_outputs = "vivarium_gates_mncnh.tools.cli:compare_outputs"
 
 [tool.setuptools.packages.find]
 where = ["src"]
