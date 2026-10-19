@@ -6,6 +6,7 @@ need a Jupyter kernel.
 
 import copy
 import json
+from pathlib import Path
 
 import nbformat
 import pytest
@@ -902,3 +903,50 @@ def test_axes_count_change_is_not_paired_by_position(tmp_path):
     assert "axes" in difference.detail.lower()
     assert "Anemia" not in difference.detail
     assert "Hemoglobin" not in difference.detail
+
+
+def test_execute_writes_side_effect_files_beside_outputs(tmp_path):
+    """Files a notebook writes to its working directory land in the output directory,
+    not beside the source notebooks."""
+    require_kernel()
+    source_dir, output_dir = tmp_path / "source", tmp_path / "executed"
+    write_source_notebook(
+        source_dir, "writes.ipynb", ["open('side_effect.txt', 'w').write('x')"]
+    )
+
+    statuses = execute_notebooks(source_dir, output_dir)
+
+    assert statuses == {"writes.ipynb": None}
+    assert (output_dir / "side_effect.txt").is_file()
+    assert not (source_dir / "side_effect.txt").exists()
+
+
+def test_execute_rejects_kernel_importing_another_checkout(tmp_path):
+    """Notebooks inside a checkout whose package the kernel does not import are not
+    run, and the error names both locations."""
+    require_kernel()
+    checkout = tmp_path / "other_checkout"
+    (checkout / "src" / "vivarium_gates_mncnh").mkdir(parents=True)
+    (checkout / "src" / "vivarium_gates_mncnh" / "__init__.py").write_text("")
+    source_dir, output_dir = checkout / "tests" / "notebooks", tmp_path / "executed"
+    write_source_notebook(source_dir, "prints.ipynb", ["print('hello')"])
+
+    with pytest.raises(ComparisonInputError, match="vivarium_gates_mncnh") as error:
+        execute_notebooks(source_dir, output_dir)
+
+    assert str(checkout / "src" / "vivarium_gates_mncnh") in str(error.value)
+    assert not (output_dir / "prints.ipynb").exists()
+
+
+def test_execute_accepts_kernel_importing_the_same_checkout(tmp_path):
+    """Notebooks inside the checkout the kernel imports from pass the check."""
+    require_kernel()
+    import vivarium_gates_mncnh
+
+    checkout = Path(vivarium_gates_mncnh.__file__).resolve().parents[2]
+    source_dir = checkout / "tests" / "model_notebooks"
+    if not (checkout / "src" / "vivarium_gates_mncnh" / "__init__.py").is_file():
+        pytest.skip("package is not imported from a source checkout")
+    from vivarium_gates_mncnh.tools.compare.notebooks import _check_kernel_package
+
+    _check_kernel_package(source_dir, "python3")

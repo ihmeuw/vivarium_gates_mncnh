@@ -2,7 +2,10 @@
 
 import inspect
 import math
+import os
 import re
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -85,13 +88,20 @@ def execute_notebooks(
     papermill and written under the same name to ``output_directory``, which
     is created if needed; any copy of a notebook already there is removed
     before it runs, so a failed run never leaves an earlier run's outputs in
-    place. The source notebooks are never modified. While a
+    place. Notebooks run with ``output_directory`` as their working directory,
+    so any files they write land beside their outputs; the source notebooks
+    are never modified. While a
     notebook runs, every code cell that displays one or more matplotlib
     figures gets one extra ``display_data`` output of type
     :data:`PLOT_DATA_MIMETYPE` recording the data plotted in those figures.
 
     A notebook that fails is still written, up to and including the failing
     cell, and the remaining notebooks still run.
+
+    When ``notebook_directory`` is inside a checkout of this repository, the
+    kernel must import ``vivarium_gates_mncnh`` from that same checkout;
+    otherwise the notebooks would run some other checkout's code and any
+    difference found would mean nothing, so nothing is run.
 
     Args:
         notebook_directory: Directory of notebooks to execute.
@@ -105,7 +115,9 @@ def execute_notebooks(
 
     Raises:
         ComparisonInputError: If ``notebook_directory`` is not a directory or
-            contains no notebooks.
+            contains no notebooks, if ``output_directory`` is the notebook
+            directory, or if the kernel imports ``vivarium_gates_mncnh`` from a
+            different checkout than the one the notebooks are in.
     """
     notebook_directory, output_directory = Path(notebook_directory), Path(output_directory)
     notebooks = _find_notebooks(notebook_directory, "notebook")
@@ -113,6 +125,7 @@ def execute_notebooks(
         raise ComparisonInputError(
             f"Output directory must differ from the notebook directory: {output_directory}"
         )
+    _check_kernel_package(notebook_directory, kernel_name)
     output_directory.mkdir(parents=True, exist_ok=True)
 
     outcomes = {}
@@ -141,6 +154,53 @@ def _find_notebooks(directory: Path, side: str) -> dict[str, Path]:
     if not notebooks:
         raise ComparisonInputError(f"No notebooks found in {side} directory {directory}")
     return notebooks
+
+
+def _check_kernel_package(notebook_directory: Path, kernel_name: str) -> None:
+    """Fail if the kernel would import this package from a different checkout.
+
+    The notebooks locate the model through ``vivarium_gates_mncnh.__file__``,
+    so they run whichever checkout the kernel's environment imports. The check
+    is skipped when the notebooks are not inside a checkout, or when the
+    kernel cannot be found or cannot import the package at all (each notebook
+    then reports that failure itself).
+    """
+    from jupyter_client.kernelspec import KernelSpecManager, NoSuchKernel
+
+    package = Path("src") / "vivarium_gates_mncnh"
+    repo = next(
+        (
+            parent
+            for parent in notebook_directory.resolve().parents
+            if (parent / package / "__init__.py").is_file()
+        ),
+        None,
+    )
+    if repo is None:
+        return
+    try:
+        python = KernelSpecManager().get_kernel_spec(kernel_name).argv[0]
+    except NoSuchKernel:
+        return
+    # Jupyter launches a bare "python" kernel with the current interpreter.
+    if python in ("python", "python3"):
+        python = sys.executable
+    found = subprocess.run(
+        [python, "-c", "import vivarium_gates_mncnh; print(vivarium_gates_mncnh.__file__)"],
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+    )
+    if found.returncode != 0:
+        return
+    imported = Path(found.stdout.strip().splitlines()[-1]).resolve().parent
+    expected = (repo / package).resolve()
+    if imported != expected:
+        raise ComparisonInputError(
+            f"Kernel '{kernel_name}' imports vivarium_gates_mncnh from {imported}, "
+            f"not from {expected}, the checkout the notebooks are in. Install the "
+            "package from this checkout, or put its src directory on PYTHONPATH."
+        )
 
 
 def _execute_notebook(
@@ -177,7 +237,7 @@ def _execute_notebook(
             str(output),
             parameters=parameters,
             kernel_name=kernel_name,
-            cwd=str(source.parent),
+            cwd=str(output.parent),
             progress_bar=False,
         )
     except PapermillExecutionError as e:
