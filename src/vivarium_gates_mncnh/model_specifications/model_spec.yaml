@@ -77,6 +77,7 @@ components:
             - InterventionObserver('probiotics')
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
+            - InterventionObserver('emotive')
             - PostpartumDepressionObserver()
             - NeonatalACMRiskObserver()
             - NeonatalCSMRiskObserver()
@@ -205,6 +206,10 @@ configuration:
                 - 'age_group'
                 - 'delivery_facility_type'
         intervention_misoprostol:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
+        intervention_emotive:
             include:
                 - 'age_group'
                 - 'delivery_facility_type'

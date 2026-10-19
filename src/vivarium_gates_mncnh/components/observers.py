@@ -225,6 +225,11 @@ class ResultsStratifier(ResultsStratifier_):
             requires_attributes=[COLUMNS.MISOPROSTOL_AVAILABLE],
         )
         builder.results.register_stratification(
+            "emotive_availability",
+            [True, False],
+            requires_attributes=[COLUMNS.EMOTIVE_AVAILABLE],
+        )
+        builder.results.register_stratification(
             "oral_iron_coverage",
             ["ifa", "mms", "none"],
             mapper=self.map_oral_iron_coverage,
