@@ -141,7 +141,12 @@ def _change_image(reference, candidate):
 
 
 def _change_widget(reference, candidate):
-    for cells, model_id in [(reference, "aaaa1111"), (candidate, "bbbb2222")]:
+    # The text/plain fallback differs too, so a comparer that read widget outputs'
+    # text would catch it.
+    for cells, model_id, text in [
+        (reference, "aaaa1111", "IntProgress(value=3, max=10)"),
+        (candidate, "bbbb2222", "IntProgress(value=5, max=10)"),
+    ]:
         cells[TABLE_CELL].outputs.append(
             nbformat.v4.new_output(
                 "display_data",
@@ -151,10 +156,37 @@ def _change_widget(reference, candidate):
                         "version_major": 2,
                         "version_minor": 0,
                     },
-                    "text/plain": "IntProgress(value=10, max=10)",
+                    "text/plain": text,
                 },
             )
         )
+
+
+REFERENCE_ADDRESS, CANDIDATE_ADDRESS = "0x7f12ab34cd56", "0x7f99aa00bb11"
+
+
+def _change_stdout_address(reference, candidate):
+    for cells, address in [(reference, REFERENCE_ADDRESS), (candidate, CANDIDATE_ADDRESS)]:
+        cells[PRINT_CELL].outputs = [stdout(f"<object at {address}>\n42\n")]
+
+
+def _change_text_address(reference, candidate):
+    for cells, address in [(reference, REFERENCE_ADDRESS), (candidate, CANDIDATE_ADDRESS)]:
+        cells[TABLE_CELL].outputs = [
+            execute_result(
+                f"<Thing at {address}>",
+                f"<div>&lt;Thing at {address}&gt;</div>",
+                count=2,
+            )
+        ]
+
+
+def _change_error_address(reference, candidate):
+    # The same error on both sides, in the last code cell, differing only by address.
+    for cells, address in [(reference, REFERENCE_ADDRESS), (candidate, CANDIDATE_ADDRESS)]:
+        cells[PLOT_CELL].outputs = [
+            error_output("TypeError", f"cannot use <Thing object at {address}>")
+        ]
 
 
 IGNORED_CHANGES = {
@@ -164,6 +196,12 @@ IGNORED_CHANGES = {
     "cell_metadata": _change_cell_metadata,
     "image": _change_image,
     "widget": _change_widget,
+}
+
+MEMORY_ADDRESS_CHANGES = {
+    "stdout": _change_stdout_address,
+    "text": _change_text_address,
+    "error": _change_error_address,
 }
 
 
@@ -187,6 +225,47 @@ def test_ignored_outputs_do_not_register(tmp_path, change):
     result = compare_notebooks(reference_dir, candidate_dir)
 
     assert result.differences == []
+
+
+@pytest.mark.parametrize("change", list(MEMORY_ADDRESS_CHANGES))
+def test_memory_addresses_are_masked(tmp_path, change):
+    """stdout, text/plain, text/html and error values that differ only by a memory
+    address compare clean."""
+    reference_cells, candidate_cells = standard_cells(), standard_cells()
+    MEMORY_ADDRESS_CHANGES[change](reference_cells, candidate_cells)
+    reference_dir, candidate_dir = _write_pair(tmp_path, reference_cells, candidate_cells)
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert result.differences == []
+
+
+@pytest.mark.parametrize(
+    "reference_text, candidate_text",
+    [
+        ("value 0x1f\n", "value 0x2f\n"),
+        ("total apples\n", "total pears\n"),
+        (
+            f"<object at {REFERENCE_ADDRESS}> apples\n",
+            f"<object at {REFERENCE_ADDRESS}> pears\n",
+        ),
+    ],
+    ids=["short_hex", "word", "word_beside_address"],
+)
+def test_non_address_changes_are_not_masked(tmp_path, reference_text, candidate_text):
+    """Text that differs by something other than a memory address (a short hex value,
+    a word) is still reported as output changed."""
+    reference_cells, candidate_cells = standard_cells(), standard_cells()
+    reference_cells[PRINT_CELL].outputs = [stdout(reference_text)]
+    candidate_cells[PRINT_CELL].outputs = [stdout(candidate_text)]
+    reference_dir, candidate_dir = _write_pair(tmp_path, reference_cells, candidate_cells)
+
+    result = compare_notebooks(reference_dir, candidate_dir)
+
+    assert len(result.differences) == 1
+    difference = result.differences[0]
+    assert difference.kind == DifferenceKind.OUTPUT
+    _assert_names_notebook_and_cell(difference)
 
 
 def test_changed_stdout_reported(tmp_path):

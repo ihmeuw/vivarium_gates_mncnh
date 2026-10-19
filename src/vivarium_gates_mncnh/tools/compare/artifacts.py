@@ -29,13 +29,16 @@ def compare_artifacts(
 
     Every key is loaded from both artifacts and compared by value, metadata
     keys included, so differences in how the HDF files were written never
-    register as a change. DataFrames are compared after sorting, so row and
-    column order do not matter; other values are compared for equality.
+    register as a change. The one exception is ``metadata.keyspace``, which
+    lists the artifact's own keys and so is covered by comparing the key sets.
+    DataFrames are compared after sorting, so row and column order do not
+    matter; other values are compared for equality.
 
     Reported as differences:
 
     - a key present in only one artifact;
     - a key whose data changed shape (index levels or columns differ);
+    - rows of a key's data present in only one artifact;
     - a key whose values moved beyond tolerance, with how many moved and the
       largest absolute and relative change.
 
