@@ -73,7 +73,9 @@ def execute_notebooks(
 
     Each notebook found by :func:`discover_notebook_paths` is executed with
     papermill and written under the same name to ``output_directory``, which
-    is created if needed. The source notebooks are never modified. While a
+    is created if needed; any copy of a notebook already there is removed
+    before it runs, so a failed run never leaves an earlier run's outputs in
+    place. The source notebooks are never modified. While a
     notebook runs, every code cell that displays one or more matplotlib
     figures gets one extra ``display_data`` output of type
     :data:`PLOT_DATA_MIMETYPE` recording the data plotted in those figures.
@@ -146,6 +148,8 @@ def _execute_notebook(
     import papermill as pm
     from papermill.exceptions import PapermillExecutionError
 
+    # Never leave an earlier run's outputs in place if this run fails before writing.
+    output.unlink(missing_ok=True)
     notebook = nbformat.read(source, as_version=4)
     setup_cell = nbformat.v4.new_code_cell(
         source=_plot_capture_source(), metadata={"tags": [_SETUP_CELL_TAG]}

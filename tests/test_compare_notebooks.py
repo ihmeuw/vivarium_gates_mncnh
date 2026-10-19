@@ -5,6 +5,7 @@ need a Jupyter kernel.
 """
 
 import copy
+import json
 
 import nbformat
 import pytest
@@ -524,3 +525,89 @@ def test_executed_runs_compare_clean(tmp_path):
     nudged = compare_notebooks(first_dir, nudged_dir)
     assert [d.kind for d in nudged.differences] == [DifferenceKind.PLOT]
     assert "plots" in nudged.differences[0].item
+
+
+def test_failed_execution_does_not_leave_stale_output(tmp_path, monkeypatch):
+    """When a notebook cannot run at all (it fails before anything is written) and
+    the output directory holds that notebook from an earlier run, the earlier copy is
+    not left behind looking like a fresh result."""
+    papermill = pytest.importorskip("papermill")
+    source_dir = tmp_path / "source"
+    write_source_notebook(source_dir, NOTEBOOK, ["print('fresh run')"])
+    output_dir = tmp_path / "executed"
+    # An earlier run's executed copy of the same notebook.
+    stale_cell = code_cell(
+        "print('fresh run')", [stdout("STALE-RUN-OUTPUT\n")], execution_count=1
+    )
+    write_notebook(output_dir, NOTEBOOK, [stale_cell])
+    assert "STALE-RUN-OUTPUT" in (output_dir / NOTEBOOK).read_text()
+
+    # Fail before papermill writes anything, so only the up-front removal of the
+    # earlier copy can keep it from being left behind.
+    def fail_immediately(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(papermill, "execute_notebook", fail_immediately)
+
+    statuses = execute_notebooks(source_dir, output_dir)
+
+    assert set(statuses) == {NOTEBOOK}
+    error = statuses[NOTEBOOK]
+    assert isinstance(error, str) and error
+    assert "boom" in error or "RuntimeError" in error
+    assert not (output_dir / NOTEBOOK).exists()
+
+
+def test_plot_capture_source_runs_without_a_kernel():
+    """The plot capture setup cell's source executes in a bare namespace against a
+    stand-in IPython shell and records a figure's plotted values, with no Jupyter
+    kernel."""
+    pytest.importorskip("IPython")
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from IPython.core.interactiveshell import InteractiveShell
+
+    from vivarium_gates_mncnh.tools.compare import notebooks as notebooks_module
+
+    source = notebooks_module._plot_capture_source()
+    assert isinstance(source, str) and source.strip()
+
+    published = []
+
+    def record(*args, **kwargs):
+        data = kwargs.get("data", args[0] if args else None)
+        published.append(data)
+
+    created_shell = not InteractiveShell.initialized()
+    shell = InteractiveShell.instance()
+    original_publish = shell.display_pub.publish
+    try:
+        # Record before the setup runs, so anything it wraps still reaches the recorder.
+        shell.display_pub.publish = record
+
+        namespace = {"__name__": "__main__", "get_ipython": lambda: shell}
+        exec(compile(source, "<plot-capture-setup>", "exec"), namespace)
+
+        run = shell.run_cell(
+            "import matplotlib.pyplot as plt\n"
+            "from IPython.display import display\n"
+            "fig, ax = plt.subplots()\n"
+            "ax.plot([1, 2, 3], [4.5, 5.5, 6.5])\n"
+            "display(fig)\n"
+        )
+        run.raise_error()
+    finally:
+        plt.close("all")
+        shell.display_pub.publish = original_publish
+        if created_shell:
+            InteractiveShell.clear_instance()
+
+    payloads = []
+    for data in published:
+        if isinstance(data, dict) and PLOT_DATA_MIMETYPE in data:
+            payload = data[PLOT_DATA_MIMETYPE]
+            payloads.append(json.loads(payload) if isinstance(payload, str) else payload)
+    assert payloads, f"no {PLOT_DATA_MIMETYPE} output was published: {published!r}"
+    lines = _all(payloads, "lines")
+    assert any(list(line["y"]) == pytest.approx([4.5, 5.5, 6.5]) for line in lines), lines
