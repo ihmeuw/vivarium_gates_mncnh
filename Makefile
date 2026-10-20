@@ -99,7 +99,10 @@ help:
 	@echo
 	@echo "This is the RECOMMENDED approach for development on the cluster. It creates a virtual"
 	@echo "environment that inherits packages from a Jenkins-built shared conda environment,"
-	@echo "while allowing you to install the local package in editable mode."
+	@echo "while allowing you to install the local package in editable mode. The shared"
+	@echo "environment's command-line tools (pytest, jupyter, psimulate, ...) are copied into"
+	@echo "the venv so they run against the local package. Rebuild with force=yes to pick up"
+	@echo "tools added to the shared environment later."
 	@echo
 	@echo "USAGE:"
 	@echo "  make build-shared-env [type=<environment type>] [venv_dir=<directory>] [venv_name=<name>] [shared_env_dir=<path>] [force=<yes|no>]"
@@ -110,14 +113,14 @@ help:
 	@echo "  venv_dir [optional]"
 	@echo "      Directory where venvs are stored (defaults to '.venv')"
 	@echo "  venv_name [optional]"
-	@echo "      Name of the venv to create (defaults to '<PACKAGE_NAME>_<TYPE>')"
+	@echo "      Name of the venv to create (defaults to '<DIST_NAME>_<TYPE>')"
 	@echo "  shared_env_dir [optional]"
 	@echo "      Base directory for shared environments (defaults to Jenkins shared env location)"
 	@echo "  force [optional]"
 	@echo "      Whether to remove and recreate an existing venv. Either 'yes' or 'no' (default)"
 	@echo
 	@echo "After creating the environment:"
-	@echo "  1. Activate it: 'source <venv_dir>/<environment_name>/bin/activate'"
+	@echo "  1. Activate it: 'source <venv_dir>/<venv_name>/bin/activate'"
 	@echo "  2. Run 'make help' again to see all available targets"
 	@echo
 endif
@@ -242,7 +245,8 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	$(SHARED_ENV_PATH)/bin/python -m venv --system-site-packages $(venv_path)
 
 #	Patch activate scripts to include shared environment's bin/ in PATH
-#	This ensures CLI entry points (e.g. psimulate) from the shared env are available.
+#	This keeps the shared env's non-Python tools (e.g. uv) available. Python console scripts
+#	are copied into the venv below.
 #	We append to the activate script rather than sed-replacing the PATH line because
 #	the exact format of that line varies across Python versions.
 #	_OLD_VIRTUAL_PATH is set by the activate script before any PATH modification,
@@ -250,17 +254,17 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 #	  venv bin > shared env bin > original PATH
 	@echo "Patching activate scripts to inherit shared environment CLI entry points"
 	@echo '' >> $(venv_path)/bin/activate
-	@echo '# Include shared environment CLI entry points (e.g. psimulate)' >> $(venv_path)/bin/activate
+	@echo '# Include shared environment CLI entry points (e.g. uv)' >> $(venv_path)/bin/activate
 	@echo 'PATH="$$VIRTUAL_ENV/bin:$(SHARED_ENV_PATH)/bin:$${_OLD_VIRTUAL_PATH}"' >> $(venv_path)/bin/activate
 	@echo 'export PATH' >> $(venv_path)/bin/activate
 	@if [ -f "$(venv_path)/bin/activate.fish" ]; then \
 		echo '' >> $(venv_path)/bin/activate.fish; \
-		echo '# Include shared environment CLI entry points (e.g. psimulate)' >> $(venv_path)/bin/activate.fish; \
+		echo '# Include shared environment CLI entry points (e.g. uv)' >> $(venv_path)/bin/activate.fish; \
 		echo 'set -gx PATH "$$VIRTUAL_ENV/bin" "$(SHARED_ENV_PATH)/bin" $$_OLD_VIRTUAL_PATH' >> $(venv_path)/bin/activate.fish; \
 	fi
 	@if [ -f "$(venv_path)/bin/activate.csh" ]; then \
 		echo '' >> $(venv_path)/bin/activate.csh; \
-		echo '# Include shared environment CLI entry points (e.g. psimulate)' >> $(venv_path)/bin/activate.csh; \
+		echo '# Include shared environment CLI entry points (e.g. uv)' >> $(venv_path)/bin/activate.csh; \
 		echo 'setenv PATH "$$VIRTUAL_ENV/bin:$(SHARED_ENV_PATH)/bin:$$_OLD_VIRTUAL_PATH"' >> $(venv_path)/bin/activate.csh; \
 	fi
 
