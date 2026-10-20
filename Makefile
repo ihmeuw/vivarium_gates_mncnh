@@ -268,6 +268,17 @@ build-shared-env: # Create a lightweight venv overlay on top of a shared conda e
 	@echo "Installing local package in editable mode (--no-deps)"
 	$(venv_path)/bin/pip install -e . --no-deps
 
+#	Copy the shared env's console scripts into the venv with the venv python in the
+#	shebang, so pytest, jupyter, simulate, etc. import the local package
+	@echo "Pointing shared environment console scripts at the venv python"
+	@for script in $(SHARED_ENV_PATH)/bin/*; do \
+		name=$$(basename "$$script"); \
+		[ -e "$(venv_path)/bin/$$name" ] && continue; \
+		head -n 1 "$$script" | grep -qx "#!$(SHARED_ENV_PATH)/bin/python[0-9.]*" || continue; \
+		{ echo "#!$(abspath $(venv_path))/bin/python"; tail -n +2 "$$script"; } > "$(venv_path)/bin/$$name"; \
+		chmod +x "$(venv_path)/bin/$$name"; \
+	done
+
 	@echo
 	@echo "Finished creating venv"
 	@echo "  venv directory: $(venv_dir)"

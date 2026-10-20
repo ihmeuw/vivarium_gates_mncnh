@@ -3,6 +3,7 @@ Module to test Jupyter notebooks in the model_notebooks directory. This module p
 framework to run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
+import hashlib
 import json
 import shlex
 import subprocess
@@ -24,7 +25,7 @@ def resolve_environment_python(environment_type: str) -> Path:
     Find the interpreter to run notebooks of a given environment type.
 
     `make build-shared-env` builds each environment as a venv overlay at
-    `<repo>/.venv/<repo_dir_name>_<environment_type>`, so the interpreter is
+    `<repo>/.venv/<distribution_name>_<environment_type>`, so the interpreter is
     discovered from the repo itself. Falling back to a conda environment named
     after the package keeps older setups working.
 
@@ -108,12 +109,14 @@ class NotebookTestRunner:
         self.parameters = parameters
         self.timeout = -1  # No timeout by default
         self.environment_type = environment_type
-        # Prefer this repo's venv overlay for the environment type; the kernel is
-        # named after it so worktrees don't collide on one another's kernelspecs.
+        # Prefer this repo's venv overlay for the environment type. Every worktree's
+        # venv has the same name, so a hash of its path keeps their kernels apart.
         self.environment_python = resolve_environment_python(environment_type)
         if self.environment_python is not None:
             self.conda_env_name = None
-            self.kernel_name = f"vgm-nb-{self.environment_python.parents[1].name}"
+            venv_dir = self.environment_python.parents[1]
+            path_hash = hashlib.sha1(str(venv_dir.resolve()).encode()).hexdigest()[:8]
+            self.kernel_name = f"vgm-nb-{venv_dir.name}-{path_hash}"
         else:
             self.conda_env_name = f"vivarium_gates_mncnh_{environment_type}"
             self.kernel_name = f"conda-env-{self.conda_env_name}-py"
