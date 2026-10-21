@@ -169,7 +169,6 @@ build-env: # Create a new environment with installed packages
 #	Install packages based on type
 	@if [ "$(type)" = "simulation" ]; then \
 		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=dev; \
-		conda install $(CONDA_RUN_FLAG) redis -c anaconda -y; \
 	elif [ "$(type)" = "artifact" ]; then \
 		conda run $(CONDA_RUN_FLAG) make install ENV_REQS=data; \
 	fi
