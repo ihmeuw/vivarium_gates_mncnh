@@ -84,15 +84,14 @@ def commit_pending_changes(message: str) -> None:
         raise RuntimeError(f"Failed to push commit to origin.\n  stderr: {e.stderr.strip()}")
 
 
-def create_and_push_tag(model_number: str) -> None:
-    """Create a git tag ``v{model_number}`` for the current HEAD and push it to origin.
+def create_and_push_tag(tag: str) -> None:
+    """Create a git tag for the current HEAD and push it to origin.
 
     If the tag already exists on the current commit, it is left as-is. If it
     exists on a *different* commit the user is prompted to force-update;
     when stdin is not a TTY (e.g. running inside a jobmon task) the prompt
     aborts cleanly instead of crashing.
     """
-    tag = f"v{model_number}"
     force = False
 
     existing_commit = tag_commit(tag)
