@@ -62,7 +62,7 @@ def test_pipelines_are_queryable_at_the_end_of_the_sim(
     sim = InteractiveContext(model_spec_path)
     clock = sim._clock
 
-    assert sim.get_number_of_steps_remaining() == len(clock.simulation_events)
+    assert clock.time_steps_remaining == len(clock.simulation_events)
     clock.step_index = len(clock.simulation_events)
     assert clock.step_name is None
 
