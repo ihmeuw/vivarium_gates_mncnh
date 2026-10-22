@@ -83,7 +83,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/aph_removal/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/pph_split_300ml/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True

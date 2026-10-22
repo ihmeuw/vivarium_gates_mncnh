@@ -241,6 +241,7 @@ class __Columns(NamedTuple):
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
+    POSTPARTUM_HEMORRHAGE_SEVERITY = "postpartum_hemorrhage_severity"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -362,7 +363,15 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
+    # Risk of a 300 mL+ postpartum hemorrhage per full-term birth
     POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
+    # Conditional probabilities of progressing along the blood-loss cascade
+    POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML = (
+        "postpartum_hemorrhage.probability_500ml_given_300ml"
+    )
+    POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML = (
+        "postpartum_hemorrhage.probability_1l_given_500ml"
+    )
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
@@ -504,6 +513,15 @@ AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30,
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/misoprostol_intervention.html#id17
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
 
+# Probability that a 300 mL+ postpartum hemorrhage case progresses to 500 mL+ (E-MOTIVE trial)
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_hemorrhage.html
+PPH_500ML_PER_300ML_DISTRIBUTION = get_norm(
+    0.4533, ninety_five_pct_confidence_interval=(0.4461, 0.4605)
+)
+# YLDs per 300-500 mL PPH case as a fraction of the 500 mL-1 L (s180) value; an
+# assumption of the research spec (postpartum_hemorrhage.rst, "YLDs" section)
+PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION = 0.5
+
 # Effects of IV iron intervention
 IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
     # see research documentation here:  https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/mncnh_pregnancy/iv_iron_antenatal/iv_iron_mncnh.html#id16
@@ -565,12 +583,24 @@ POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
 
 
 class __HemorrhageSeverity(NamedTuple):
-    NONE: str = "none"
-    MODERATE: str = "moderate"
-    SEVERE: str = "severe"
+    # Postpartum blood loss categories. MODERATE and SEVERE correspond to GBD
+    # sequelae s180 (500 mL-1 L) and s181 (1 L+); only SEVERE cases can die.
+    # MILD (300-500 mL) has no GBD sequela; its YLDs per case are a fraction of
+    # the MODERATE value (PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION).
+    NONE: str = "none"  # < 300 mL
+    MILD: str = "300_to_500ml"
+    MODERATE: str = "500ml_to_1l"
+    SEVERE: str = "1l_plus"
 
 
 HEMORRHAGE_SEVERITY = __HemorrhageSeverity()
+# Severities of PPH cases (300 mL+), and of the GBD-defined 500 mL+ cases
+HEMORRHAGE_CASE_SEVERITIES = (
+    HEMORRHAGE_SEVERITY.MILD,
+    HEMORRHAGE_SEVERITY.MODERATE,
+    HEMORRHAGE_SEVERITY.SEVERE,
+)
+HEMORRHAGE_SEVERITIES_500ML_PLUS = (HEMORRHAGE_SEVERITY.MODERATE, HEMORRHAGE_SEVERITY.SEVERE)
 
 
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18

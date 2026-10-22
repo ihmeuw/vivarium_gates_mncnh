@@ -6,6 +6,7 @@ from vivarium.engine import Component
 from vivarium.engine.framework.engine import Builder
 from vivarium.engine.framework.event import Event
 from vivarium.engine.framework.population import SimulantData
+from vivarium.engine.framework.values import AttributePostProcessor, ValuesManager
 from vivarium.public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,
 )
@@ -23,6 +24,13 @@ from vivarium_gates_mncnh.constants.data_values import (
 )
 from vivarium_gates_mncnh.constants.metadata import ARTIFACT_INDEX_COLUMNS
 from vivarium_gates_mncnh.utilities import get_location, load_per_birth_denominator
+
+
+def _clip_to_probability(
+    index: pd.Index, value: pd.Series, manager: ValuesManager
+) -> pd.Series:
+    """Attribute post-processor that clips a pipeline's values to [0, 1]."""
+    return value.clip(lower=0.0, upper=1.0)
 
 
 class MaternalDisorder(Component):
@@ -51,6 +59,7 @@ class MaternalDisorder(Component):
             builder,
             self.incidence_risk_pipeline_name,
             source=self.get_incidence_risk,
+            additional_post_processors=self.incidence_risk_post_processors,
             description="The incidence risk of this maternal disorder",
         )
 
@@ -59,6 +68,11 @@ class MaternalDisorder(Component):
             columns=[self.maternal_disorder],
             required_resources=[COLUMNS.PREGNANCY_OUTCOME],
         )
+
+    @property
+    def incidence_risk_post_processors(self) -> list[AttributePostProcessor]:
+        """Post-processors applied after the PAF and risk effects on incidence risk."""
+        return []
 
     def initialize_maternal_disorder(self, pop_data: SimulantData) -> None:
         self.population_view.initialize(
@@ -254,10 +268,21 @@ class ResidualMaternalDisorders(MaternalDisorder):
 
 
 class PostpartumHemorrhage(MaternalDisorder):
-    """Assigns postpartum hemorrhage, with a severity, to full-term births.
+    """Assigns postpartum hemorrhage, with a blood-loss severity, to full-term births.
 
-    Severity matters downstream: only severe cases can die of hemorrhage, and
-    moderate and severe cases accrue different YLDs per case.
+    Cases are assigned through a cascade of blood-loss thresholds::
+
+        birth --incidence_risk--> 300 mL+ --p(500|300)--> 500 mL+ --p(1L|500)--> 1 L+
+
+    The ``postpartum_hemorrhage.incidence_risk`` pipeline is the risk of a
+    300 mL+ hemorrhage; risk effects that target it (misoprostol, hemoglobin)
+    therefore cascade to every severity. The two conditional probabilities are
+    exposed as their own pipelines so later interventions can modify them.
+
+    Every 300 mL+ case has ``postpartum_hemorrhage`` set True and a severity of
+    300_to_500ml, 500ml_to_1l, or 1l_plus. Severity matters downstream: only
+    1l_plus cases can die of hemorrhage, only 500 mL+ cases shift hemoglobin,
+    and each severity accrues its own YLDs per case.
     """
 
     @property
@@ -265,15 +290,19 @@ class PostpartumHemorrhage(MaternalDisorder):
         return {
             self.name: {
                 "data_sources": {
-                    "incidence_risk_data": data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK,
-                    "severe_fraction": data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION,
+                    "incidence_risk_data": data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK_300ML,
+                    "probability_500ml_given_300ml_data": (
+                        data_keys.MATERNAL_HEMORRHAGE.PPH_PROBABILITY_500ML_GIVEN_300ML
+                    ),
+                    # p(1 L+ | 500 mL+) = s181 / (s180 + s181)
+                    "probability_1l_given_500ml_data": data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION,
                 }
             }
         }
 
     @property
     def severity_column(self) -> str:
-        return f"{self.maternal_disorder}_severity"
+        return COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
 
     @property
     def columns_created(self) -> list:
@@ -282,9 +311,36 @@ class PostpartumHemorrhage(MaternalDisorder):
     def __init__(self) -> None:
         super().__init__(COLUMNS.POSTPARTUM_HEMORRHAGE)
 
+    @property
+    def incidence_risk_post_processors(self) -> list[AttributePostProcessor]:
+        # The 300 mL+ risk is high enough that the hemoglobin relative risk can
+        # push it above 1 for some simulants; clip so it remains a probability.
+        return [_clip_to_probability]
+
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.severe_fraction_table = self.build_lookup_table(builder, "severe_fraction")
+
+        # Conditional probabilities along the blood-loss cascade. Registered as
+        # pipelines (unmodified for now) so interventions can target them, and
+        # clipped so that modifiers cannot push them outside [0, 1].
+        self.probability_500ml_given_300ml_table = self.build_lookup_table(
+            builder, "probability_500ml_given_300ml_data"
+        )
+        builder.value.register_attribute_producer(
+            PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML,
+            source=self.probability_500ml_given_300ml_table,
+            preferred_post_processor=_clip_to_probability,
+            description="The probability that a 300 mL+ postpartum hemorrhage reaches 500 mL+",
+        )
+        self.probability_1l_given_500ml_table = self.build_lookup_table(
+            builder, "probability_1l_given_500ml_data"
+        )
+        builder.value.register_attribute_producer(
+            PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML,
+            source=self.probability_1l_given_500ml_table,
+            preferred_post_processor=_clip_to_probability,
+            description="The probability that a 500 mL+ postpartum hemorrhage reaches 1 L+",
+        )
 
         builder.population.register_initializer(
             self.initialize_severity_column,
@@ -313,7 +369,9 @@ class PostpartumHemorrhage(MaternalDisorder):
         self._assign_outcomes(full_term)
 
     def _assign_outcomes(self, eligible_idx: pd.Index) -> None:
-        """Assign hemorrhage incidence and, to the cases, a severity."""
+        """Assign hemorrhage incidence (300 mL+) and walk the cases down the
+        blood-loss cascade to a severity."""
+        # 300 mL+ hemorrhage
         incidence_risk = self.population_view.get(
             eligible_idx, self.incidence_risk_pipeline_name
         )
@@ -323,16 +381,29 @@ class PostpartumHemorrhage(MaternalDisorder):
             f"got_{self.maternal_disorder}_choice",
         )
 
-        # Determine severity for those who got hemorrhage
-        severe_fraction = self.severe_fraction_table(got_disorder_idx)
-        severe_idx = self.randomness.filter_for_probability(
+        # 500 mL+ among 300 mL+ cases
+        probability_500ml = self.population_view.get(
+            got_disorder_idx, PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML
+        )
+        at_least_500ml_idx = self.randomness.filter_for_probability(
             got_disorder_idx,
-            severe_fraction,
-            f"{self.maternal_disorder}_severity_choice",
+            probability_500ml,
+            f"{self.maternal_disorder}_500ml_choice",
         )
 
-        severity = pd.Series(HEMORRHAGE_SEVERITY.MODERATE, index=got_disorder_idx)
-        severity.loc[severe_idx] = HEMORRHAGE_SEVERITY.SEVERE
+        # 1 L+ among 500 mL+ cases
+        probability_1l = self.population_view.get(
+            at_least_500ml_idx, PIPELINES.POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML
+        )
+        at_least_1l_idx = self.randomness.filter_for_probability(
+            at_least_500ml_idx,
+            probability_1l,
+            f"{self.maternal_disorder}_1l_choice",
+        )
+
+        severity = pd.Series(HEMORRHAGE_SEVERITY.MILD, index=got_disorder_idx)
+        severity.loc[at_least_500ml_idx] = HEMORRHAGE_SEVERITY.MODERATE
+        severity.loc[at_least_1l_idx] = HEMORRHAGE_SEVERITY.SEVERE
 
         def _set_disorder(col: pd.Series) -> pd.Series:
             result = col.copy()

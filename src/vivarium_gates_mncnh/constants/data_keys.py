@@ -141,9 +141,16 @@ class __MaternalHemorrhage(NamedTuple):
     YLD_RATE_SEVERE: str = "cause.maternal_hemorrhage.yld_rate_severe"
     YLDS_PER_CASE_MODERATE: str = "cause.maternal_hemorrhage.ylds_per_case_moderate"
     YLDS_PER_CASE_SEVERE: str = "cause.maternal_hemorrhage.ylds_per_case_severe"
+    YLDS_PER_CASE_300_TO_500ML: str = "cause.maternal_hemorrhage.ylds_per_case_300_to_500ml"
     SEVERE_FRACTION: str = "cause.maternal_hemorrhage.severe_fraction"
     CASE_FATALITY_RATE: str = "cause.maternal_hemorrhage.case_fatality_rate"
+    # 500 mL+ (GBD-defined) PPH risk per birth; the simulation uses the 300 mL+
+    # risk (PPH_INCIDENCE_RISK_300ML) derived from it.
     PPH_INCIDENCE_RISK: str = "cause.postpartum_hemorrhage.incidence_risk"
+    PPH_PROBABILITY_500ML_GIVEN_300ML: str = (
+        "cause.postpartum_hemorrhage.probability_500ml_given_300ml"
+    )
+    PPH_INCIDENCE_RISK_300ML: str = "cause.postpartum_hemorrhage.incidence_risk_300ml"
 
     @property
     def name(self):

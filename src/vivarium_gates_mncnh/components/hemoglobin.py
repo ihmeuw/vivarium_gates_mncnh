@@ -18,6 +18,7 @@ from vivarium_gates_mncnh.constants.data_values import (
     CHILD_LOOKUP_COLUMN_MAPPER,
     COLUMNS,
     HEMORRHAGE_CAUSES,
+    HEMORRHAGE_SEVERITIES_500ML_PLUS,
     PIPELINES,
     PREGNANCY_OUTCOMES,
     SIMULATION_EVENT_NAMES,
@@ -204,11 +205,11 @@ class Hemoglobin(Risk):
         """Apply hemorrhage hemoglobin shifts at postpartum events.
 
         At ``early_postpartum`` (0-6 week postpartum): apply the PPH shift
-        to the existing pregnancy hemoglobin for hemorrhage cases.
+        to the existing pregnancy hemoglobin for 500 mL+ hemorrhage cases.
 
         At ``late_postpartum`` (6w-9m): replace pregnancy
         hemoglobin with a draw from the non-pregnant distribution and apply
-        the PPH shift for hemorrhage cases.
+        the PPH shift for 500 mL+ hemorrhage cases.
 
         At all other events this is a no-op.
         """
@@ -228,6 +229,7 @@ class Hemoglobin(Risk):
             [
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.POSTPARTUM_HEMORRHAGE,
+                COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY,
             ],
         )
         survived_mask = pop[COLUMNS.PREGNANCY_OUTCOME].isin(
@@ -240,10 +242,14 @@ class Hemoglobin(Risk):
     ) -> pd.Series:
         """Apply the postpartum hemorrhage shift to hemoglobin values.
 
-        The shift is applied additively to postpartum hemorrhage cases and the
-        result is floored at zero.
+        The shift is applied additively to 500 mL+ postpartum hemorrhage cases
+        (severity 500ml_to_1l or 1l_plus) and the result is floored at zero.
+        300-500 mL cases are not shifted: the shift is only defined for 500 mL+
+        blood loss (documented spec limitation).
         """
-        pph_mask = pop[COLUMNS.POSTPARTUM_HEMORRHAGE].fillna(False)
+        pph_mask = pop[COLUMNS.POSTPARTUM_HEMORRHAGE].fillna(False).astype(bool) & pop[
+            COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY
+        ].isin(HEMORRHAGE_SEVERITIES_500ML_PLUS)
         if pph_mask.any():
             hgb.loc[pph_mask] += pph_shift
 
@@ -285,6 +291,7 @@ class Hemoglobin(Risk):
                 COLUMNS.MOTHER_ALIVE,
                 COLUMNS.PREGNANCY_OUTCOME,
                 COLUMNS.POSTPARTUM_HEMORRHAGE,
+                COLUMNS.POSTPARTUM_HEMORRHAGE_SEVERITY,
             ],
         )
         alive_pop = pop.loc[pop[COLUMNS.MOTHER_ALIVE]]

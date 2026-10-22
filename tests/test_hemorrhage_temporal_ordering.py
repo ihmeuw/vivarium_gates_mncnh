@@ -147,7 +147,7 @@ def test_intrapartum_deaths_only_among_survivors(
 
 
 # ---------------------------------------------------------------------------
-# Expectation 6: only severe hemorrhage cases can die of hemorrhage
+# Expectation 6: only 1 L+ hemorrhage cases can die of hemorrhage
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "hemorrhage_cause, severity_col",
@@ -155,14 +155,16 @@ def test_intrapartum_deaths_only_among_survivors(
         (COLUMNS.POSTPARTUM_HEMORRHAGE, PPH_SEVERITY_COL),
     ],
 )
-def test_only_severe_hemorrhage_deaths(
+def test_only_1l_plus_hemorrhage_deaths(
     hemorrhage_cause: str, severity_col: str, mortality_state: InteractiveContext
 ) -> None:
-    """Expectation 6: every hemorrhage death must be a severe case."""
+    """Expectation 6: every hemorrhage death must be a 1 L+ blood loss case
+    (HEMORRHAGE_SEVERITY.SEVERE, "1l_plus"); 300-500 mL and 500 mL-1 L cases
+    cannot die of hemorrhage."""
     pop = mortality_state.get_population([COLUMNS.MOTHER_CAUSE_OF_DEATH, severity_col])
     dead_of_cause = pop.loc[pop[COLUMNS.MOTHER_CAUSE_OF_DEATH] == hemorrhage_cause]
     non_severe = dead_of_cause.loc[dead_of_cause[severity_col] != HEMORRHAGE_SEVERITY.SEVERE]
     assert len(non_severe) == 0, (
-        f"{len(non_severe)} {hemorrhage_cause} deaths were not severe "
+        f"{len(non_severe)} {hemorrhage_cause} deaths were not 1 L+ cases "
         f"(severities found: {sorted(non_severe[severity_col].unique())})."
     )
