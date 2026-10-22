@@ -53,7 +53,9 @@ Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
 make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
 
 [tool.uv]
-override-dependencies = ["pandas<3.0.0", "sqlalchemy>=2.0.0,<3.0.0", "numpy<2.0.0"]
+# pyarrow 26 needs numpy 2 but does not declare it, so cap it while numpy<2 is here.
+# TODO: remove the pyarrow cap with numpy<2 once GBD siloing (MIC-7613) is merged.
+override-dependencies = ["pandas<3.0.0", "sqlalchemy>=2.0.0,<3.0.0", "numpy<2.0.0", "pyarrow<26.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -63,6 +65,7 @@ version_file = "src/vivarium_gates_mncnh/_version.py"
 version_file_template = "__version__ = \"{version}\"\n"
 tag_regex = '^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$'
 fallback_version = "0.0.0+no-git-tag"
+tag.strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
