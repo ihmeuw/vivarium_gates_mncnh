@@ -541,7 +541,7 @@ NO_MISOPROSTOL_RISK = __NoMisoprostolRisk()
 
 
 class __Emotive(NamedTuple):
-    CAESAREAN_SECTION_PROPORTION: str = "covariate.caesarean_section.estimate"
+    CESAREAN_SECTION_PROPORTION: str = "covariate.caesarean_section.estimate"
     CESAREAN_FRACTION_IFD: str = "intervention.emotive.cesarean_fraction_ifd"
     # RRs of receiving E-MOTIVE among vaginal deliveries
     RR_500ML_GIVEN_300ML: str = "intervention.emotive.relative_risk_500ml_given_300ml"

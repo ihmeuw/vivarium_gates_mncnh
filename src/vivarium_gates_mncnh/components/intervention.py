@@ -274,7 +274,7 @@ class EmotiveEffect(Component):
         self, index: pd.Index, probability: pd.Series[float], rr_table: LookupTable
     ) -> pd.Series[float]:
         has_emotive = self.population_view.get(index, COLUMNS.EMOTIVE_AVAILABLE)
-        emotive_index = has_emotive.index[has_emotive == True]
+        emotive_index = has_emotive.index[has_emotive]
         # The RR applies only to vaginal deliveries; cesarean deliveries get no effect
         rr = rr_table(emotive_index)
         cesarean_fraction = self.cesarean_fraction_ifd_table(emotive_index)

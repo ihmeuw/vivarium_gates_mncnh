@@ -168,7 +168,7 @@ def get_data(
         data_keys.NO_MISOPROSTOL_RISK.P_MISOPROSTOL_CEMONC: load_misoprostol_coverage_probability,
         data_keys.NO_MISOPROSTOL_RISK.RELATIVE_RISK: load_no_misoprostol_relative_risk,
         data_keys.NO_MISOPROSTOL_RISK.PAF: load_no_misoprostol_paf,
-        data_keys.EMOTIVE.CAESAREAN_SECTION_PROPORTION: load_facility_proportion,
+        data_keys.EMOTIVE.CESAREAN_SECTION_PROPORTION: load_facility_proportion,
         data_keys.EMOTIVE.CESAREAN_FRACTION_IFD: load_cesarean_fraction_ifd,
         data_keys.EMOTIVE.RR_500ML_GIVEN_300ML: load_emotive_relative_risk,
         data_keys.EMOTIVE.RR_1L_GIVEN_500ML: load_emotive_relative_risk,
@@ -1506,23 +1506,18 @@ def load_no_misoprostol_paf(
 
 def load_cesarean_fraction_ifd(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> float | pd.DataFrame:
+) -> float:
     """Compute the fraction of facility births that are cesarean deliveries as
     c-section proportion (covariate 2381) / IFD proportion (covariate 51), clipped
     to 1 (with a warning)."""
-    csection_proportion = get_data(data_keys.EMOTIVE.CAESAREAN_SECTION_PROPORTION, location)
+    csection_proportion = get_data(data_keys.EMOTIVE.CESAREAN_SECTION_PROPORTION, location)
     ifd_proportion = get_data(
         data_keys.FACILITY_CHOICE.IN_FACILITY_DELIVERY_PROPORTION, location
     )
-    cesarean_fraction_ifd = csection_proportion / ifd_proportion
-    clipped = np.asarray(cesarean_fraction_ifd > 1.0)
-    if clipped.any():
-        logger.warning(
-            f"{key}: clipping {int(clipped.sum())} of {clipped.size} values "
-            f"({clipped.mean():.2%}) to 1 for {location} (max unclipped value "
-            f"{np.max(cesarean_fraction_ifd):.4f})."
-        )
-    return np.clip(cesarean_fraction_ifd, None, 1.0)
+    cesarean_fraction_ifd = float(csection_proportion / ifd_proportion)
+    if cesarean_fraction_ifd > 1.0:
+        logger.warning(f"{key}: clipping {cesarean_fraction_ifd:.4f} to 1 for {location}.")
+    return min(cesarean_fraction_ifd, 1.0)
 
 
 def load_emotive_relative_risk(
