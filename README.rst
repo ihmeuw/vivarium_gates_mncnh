@@ -27,8 +27,8 @@ There are two environment options: a **local conda environment** (for personal m
 or a **shared environment on the cluster** with a lightweight venv wrapper.
 
 To create or update an environment, use ``source environment.sh``. This will
-automatically create the environment if it doesn't exist, or update it if it
-is stale.
+automatically create the environment if it doesn't exist, or rebuild a local
+conda environment if it is stale.
 
 **Local conda environment** (default)::
 
@@ -47,6 +47,11 @@ To deactivate a local conda environment, run ``conda deactivate``.
   ...creates/activates a venv overlay on the shared artifact environment...
 
 To deactivate a shared cluster environment, run ``deactivate``.
+
+The overlay is built once and then reused. Its command-line tools (``pytest``,
+``jupyter``, ``psimulate``, ...) are copied from the shared environment when the
+overlay is built, so they run against your checkout. Rebuild with ``-f`` to pick
+up tools added to the shared environment later.
 
 Additional options are available; pass the ``-h`` flag to see them
 (e.g. ``-f`` to force a rebuild, ``-l`` to install git lfs).
