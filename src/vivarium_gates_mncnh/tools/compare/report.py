@@ -1,12 +1,16 @@
 """Render comparison results as a report."""
 
 import math
-from typing import Optional, Sequence
+import os
+from pathlib import Path
+from typing import Optional, Sequence, Union
 
 from vivarium_gates_mncnh.tools.compare.core import ComparisonResult
 
 
-def render_report(results: Sequence[ComparisonResult]) -> str:
+def render_report(
+    results: Sequence[ComparisonResult], report_dir: Optional[Union[str, Path]] = None
+) -> str:
     """Render comparisons as Markdown fit for a pull request or Slack.
 
     Each comparison gets a heading naming its title, then its reference and
@@ -17,18 +21,21 @@ def render_report(results: Sequence[ComparisonResult]) -> str:
     difference row names the item, the kind of change, and, for value changes,
     how many values moved, the largest absolute change, the change the
     tolerance allowed for that same value (``atol + rtol * |reference|``),
-    and the largest relative change.
+    and the largest relative change. A comparison with diff pages lists a
+    link to each.
 
     Args:
         results: The comparisons to report, in order.
+        report_dir: The directory the report will be saved in. Links to diff
+            pages are relative to it; without it they are the pages' paths.
 
     Returns:
         The report text.
     """
-    return "\n\n".join(_render_result(result) for result in results) + "\n"
+    return "\n\n".join(_render_result(result, report_dir) for result in results) + "\n"
 
 
-def _render_result(result: ComparisonResult) -> str:
+def _render_result(result: ComparisonResult, report_dir: Optional[Union[str, Path]]) -> str:
     lines = [
         f"## {result.title}",
         "",
@@ -77,6 +84,11 @@ def _render_result(result: ComparisonResult) -> str:
         lines += _table(
             ["item", "kind", "n changed", "max abs", "allowed", "max rel", "detail"], rows
         )
+    if result.diff_files:
+        lines += ["", "Diff pages:", ""]
+        for item, path in result.diff_files.items():
+            link = Path(os.path.relpath(path, report_dir)) if report_dir else Path(path)
+            lines.append(f"- [{item}]({link.as_posix()})")
     if result.notes:
         lines += ["", "Notes:"]
         for note in result.notes:

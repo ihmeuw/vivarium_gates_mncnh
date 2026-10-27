@@ -2,6 +2,7 @@
 
 import math
 import re
+from pathlib import Path
 
 from vivarium_gates_mncnh.tools.compare import (
     ComparisonResult,
@@ -209,3 +210,19 @@ def test_tolerance_shown_only_when_known():
 
     assert "Tolerance: rtol=1e-12, atol=0" in render_report([with_tolerance])
     assert "Tolerance" not in render_report([without_tolerance])
+
+
+def test_diff_pages_are_linked_relative_to_the_report():
+    """Diff pages are listed as Markdown links, relative to the report's directory
+    when it is given and as the pages' paths otherwise."""
+    result = ComparisonResult(
+        title="Notebooks",
+        reference="ref",
+        candidate="cand",
+        n_compared=1,
+        differences=[Difference("a.ipynb, code cell 1", DifferenceKind.OUTPUT, "x")],
+        diff_files={"a.ipynb": Path("/out/report_diffs/a.html")},
+    )
+
+    assert "[a.ipynb](report_diffs/a.html)" in render_report([result], Path("/out"))
+    assert "[a.ipynb](/out/report_diffs/a.html)" in render_report([result])

@@ -7,7 +7,7 @@ import json
 import shlex
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import papermill as pm
 import pytest
@@ -15,6 +15,7 @@ from loguru import logger
 from pytest_vivarium.plugin import IS_ON_SLURM
 
 from vivarium_gates_mncnh.constants.paths import MODEL_NOTEBOOKS_DIR
+from vivarium_gates_mncnh.tools.compare import discover_notebook_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -43,30 +44,6 @@ def resolve_environment_python(environment_type: str) -> Path:
             f"using {candidates[0]}"
         )
     return candidates[0]
-
-
-def discover_notebook_paths(notebook_directory) -> List[Path]:
-    """
-    Discover all Jupyter notebook files in the notebook directory.
-
-    Searches only the top level of the directory (non-recursive) and filters
-    out checkpoint files.
-
-    Returns:
-        List of Path objects for discovered notebooks
-    """
-    # Filter out checkpoint files and nbdime merge conflict artifacts (e.g. *_BACKUP_*, *_BASE_*, *_LOCAL_*, *_REMOTE_*)
-    nbdime_suffixes = ("_BACKUP_", "_BASE_", "_LOCAL_", "_REMOTE_")
-    notebooks = [
-        nb
-        for nb in notebook_directory.glob("*.ipynb")
-        if ".ipynb_checkpoints" not in str(nb)
-        and not any(suffix in nb.stem for suffix in nbdime_suffixes)
-    ]
-
-    logger.info(f"Found {len(notebooks)} notebook(s) in {notebook_directory}")
-
-    return sorted(notebooks)
 
 
 class NotebookTestRunner:

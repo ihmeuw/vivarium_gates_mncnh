@@ -1,19 +1,24 @@
-"""Builders for the compare-tool tests: results directories and artifacts.
+"""Builders for the compare-tool tests: results directories, artifacts and notebooks.
 
 Every builder writes only under the directory it is given, so tests stay
 xdist-safe when handed a ``tmp_path``.
 """
 
+import copy
 import itertools
 import warnings
 from pathlib import Path
 from typing import Any, Optional
 
+import nbformat
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pytest
 from vivarium.artifact import Artifact
+
+from vivarium_gates_mncnh.tools.compare import PLOT_DATA_MIMETYPE
 
 ##############
 # Results    #
@@ -167,3 +172,187 @@ def make_artifact(path: Path, data: dict[str, Any]) -> Path:
     for key, value in data.items():
         artifact.write(key, value)
     return path
+
+
+##############
+# Notebooks  #
+##############
+
+
+def plot_data(line_y=(1.0, 2.0, 3.0), bar_height=2.5, point=(1.0, 4.0)) -> dict:
+    """A PLOT_DATA_MIMETYPE payload holding one line, one bar and one scatter point."""
+    return {
+        "figures": [
+            {
+                "axes": [
+                    {
+                        "title": "A plot",
+                        "xlabel": "x",
+                        "ylabel": "y",
+                        "lines": [{"label": "line", "x": [0.0, 1.0, 2.0], "y": list(line_y)}],
+                        "patches": [
+                            {
+                                "label": "bars",
+                                "x": -0.4,
+                                "y": 0.0,
+                                "width": 0.8,
+                                "height": bar_height,
+                            }
+                        ],
+                        "collections": [
+                            {"label": "points", "offsets": [list(point)], "segments": []}
+                        ],
+                    }
+                ]
+            }
+        ]
+    }
+
+
+def stdout(text: str):
+    return nbformat.v4.new_output("stream", name="stdout", text=text)
+
+
+def stderr(text: str):
+    return nbformat.v4.new_output("stream", name="stderr", text=text)
+
+
+def execute_result(text_plain: str, text_html: Optional[str] = None, count: int = 1):
+    data = {"text/plain": text_plain}
+    if text_html is not None:
+        data["text/html"] = text_html
+    return nbformat.v4.new_output("execute_result", data=data, execution_count=count)
+
+
+def image_output(png: str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"):
+    return nbformat.v4.new_output(
+        "display_data",
+        data={"image/png": png, "text/plain": "<Figure size 640x480 with 1 Axes>"},
+    )
+
+
+def plot_output(payload: Optional[dict] = None):
+    return nbformat.v4.new_output(
+        "display_data", data={PLOT_DATA_MIMETYPE: payload or plot_data()}
+    )
+
+
+def error_output(ename: str = "ValueError", evalue: str = "boom"):
+    return nbformat.v4.new_output(
+        "error",
+        ename=ename,
+        evalue=evalue,
+        traceback=[f"{ename}: {evalue}"],
+    )
+
+
+def code_cell(source: str, outputs=(), execution_count: Optional[int] = None):
+    cell = nbformat.v4.new_code_cell(source, execution_count=execution_count)
+    cell.outputs = list(outputs)
+    return cell
+
+
+def standard_cells(with_plot_data: bool = True) -> list:
+    """Cells of a small executed notebook.
+
+    Code cells, in order: a print (stdout), a table (text/plain and text/html)
+    and a plot (an image, plus plot data when ``with_plot_data``).
+    """
+    plot_outputs = [image_output()]
+    if with_plot_data:
+        plot_outputs.append(plot_output())
+    return [
+        nbformat.v4.new_markdown_cell("# A notebook"),
+        code_cell("print(42)", [stdout("42\n")], execution_count=1),
+        code_cell(
+            "df",
+            [execute_result("   a\n0  1", "<table><tr><td>1</td></tr></table>", count=2)],
+            execution_count=2,
+        ),
+        code_cell("plt.plot([0, 1, 2], [1, 2, 3])", plot_outputs, execution_count=3),
+    ]
+
+
+PRINT_CELL, TABLE_CELL, PLOT_CELL = 1, 2, 3
+"""Positions of the standard cells within the notebook's cell list."""
+
+
+def write_notebook(
+    directory: Path, name: str, cells: list, metadata: Optional[dict] = None
+) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    notebook = nbformat.v4.new_notebook(cells=copy.deepcopy(cells))
+    notebook.metadata.update(
+        metadata
+        or {
+            "kernelspec": {
+                "name": "python3",
+                "display_name": "Python 3",
+                "language": "python",
+            }
+        }
+    )
+    path = directory / name
+    nbformat.write(notebook, path)
+    return path
+
+
+def read_notebook(path: Path):
+    return nbformat.read(path, as_version=4)
+
+
+def code_cells(notebook) -> list:
+    return [cell for cell in notebook.cells if cell.cell_type == "code"]
+
+
+def plot_data_outputs(notebook) -> list[dict]:
+    """Every PLOT_DATA_MIMETYPE payload in the notebook, in order."""
+    return [
+        output["data"][PLOT_DATA_MIMETYPE]
+        for cell in code_cells(notebook)
+        for output in cell.get("outputs", [])
+        if PLOT_DATA_MIMETYPE in output.get("data", {})
+    ]
+
+
+def stdout_text(notebook) -> str:
+    return "".join(
+        output.get("text", "")
+        for cell in code_cells(notebook)
+        for output in cell.get("outputs", [])
+        if output.get("output_type") == "stream" and output.get("name") == "stdout"
+    )
+
+
+def kernel_available(kernel_name: str = "python3") -> bool:
+    try:
+        from jupyter_client.kernelspec import KernelSpecManager
+
+        return kernel_name in KernelSpecManager().find_kernel_specs()
+    except Exception:
+        return False
+
+
+def require_kernel() -> None:
+    """Skip the calling test unless papermill and the python3 kernel are available."""
+    pytest.importorskip("papermill")
+    if not kernel_available():
+        pytest.skip("python3 Jupyter kernel not available")
+
+
+PLOTTING_NOTEBOOK_SOURCE = [
+    "%matplotlib inline\nimport matplotlib.pyplot as plt",
+    "print('ready')",
+    (
+        "fig, ax = plt.subplots()\n"
+        "ax.plot([0, 1, 2], [1.5, 2.5, 4.5], label='line')\n"
+        "ax.bar([10, 11], [3.25, 7.75], label='bars')\n"
+        "ax.scatter([20.5, 21.5], [8.125, 9.375], label='points')\n"
+        "plt.show()"
+    ),
+]
+
+
+def write_source_notebook(directory: Path, name: str, sources: list[str]) -> Path:
+    """Write an unexecuted notebook whose code cells hold ``sources``."""
+    return write_notebook(directory, name, [code_cell(source) for source in sources])

@@ -18,5 +18,11 @@ from vivarium_gates_mncnh.tools.compare.core import (
     ValueDiff,
     compare_values,
 )
+from vivarium_gates_mncnh.tools.compare.notebooks import (
+    PLOT_DATA_MIMETYPE,
+    compare_notebooks,
+    discover_notebook_paths,
+    execute_notebooks,
+)
 from vivarium_gates_mncnh.tools.compare.report import render_report
 from vivarium_gates_mncnh.tools.compare.results import compare_results

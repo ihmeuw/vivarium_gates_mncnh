@@ -4,6 +4,7 @@ import fnmatch
 import numbers
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any, Iterable, Optional, Sequence
 
 import numpy as np
@@ -104,6 +105,7 @@ class ComparisonResult:
             runs, when that is known.
         rtol: The relative tolerance values were compared with, if any.
         atol: The absolute tolerance values were compared with, if any.
+        diff_files: Pages that show what moved in an item, by item name.
     """
 
     title: str
@@ -115,6 +117,7 @@ class ComparisonResult:
     environment_changes: list[PackageChange] = field(default_factory=list)
     rtol: Optional[float] = None
     atol: Optional[float] = None
+    diff_files: dict[str, Path] = field(default_factory=dict)
 
     @property
     def moved(self) -> bool:
