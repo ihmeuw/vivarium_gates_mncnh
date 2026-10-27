@@ -7,6 +7,7 @@ turns into Markdown for a pull request or a Slack message.
 
 """
 
+from vivarium_gates_mncnh.tools.compare.artifacts import compare_artifacts
 from vivarium_gates_mncnh.tools.compare.core import (
     DEFAULT_RTOL,
     ComparisonInputError,

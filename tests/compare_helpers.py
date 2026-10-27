@@ -1,10 +1,11 @@
-"""Builders for the compare-tool tests: results directories.
+"""Builders for the compare-tool tests: results directories and artifacts.
 
 Every builder writes only under the directory it is given, so tests stay
 xdist-safe when handed a ``tmp_path``.
 """
 
 import itertools
+import warnings
 from pathlib import Path
 from typing import Any, Optional
 
@@ -12,6 +13,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from vivarium.artifact import Artifact
 
 ##############
 # Results    #
@@ -120,3 +122,48 @@ def standard_measures() -> dict[str, pd.DataFrame]:
         "deaths": results_frame("deaths", seed=1),
         "births": results_frame("births", seed=2),
     }
+
+
+##############
+# Artifacts  #
+##############
+
+
+def artifact_frame(seed: int = 0, n_draws: int = 3) -> pd.DataFrame:
+    """A small artifact-style frame indexed by demographics with draw columns."""
+    ages = [(0.0, 0.01917808), (0.01917808, 0.07671233)]
+    rows = [
+        (sex, age_start, age_end, year, year + 1)
+        for sex in ["Female", "Male"]
+        for age_start, age_end in ages
+        for year in [2023, 2024]
+    ]
+    index = pd.MultiIndex.from_tuples(
+        rows, names=["sex", "age_start", "age_end", "year_start", "year_end"]
+    )
+    rng = np.random.default_rng(seed)
+    return pd.DataFrame(
+        rng.uniform(0.1, 1.0, (len(index), n_draws)),
+        index=index,
+        columns=[f"draw_{i}" for i in range(n_draws)],
+    )
+
+
+def standard_artifact_data() -> dict[str, Any]:
+    return {
+        "metadata.locations": ["Ethiopia"],
+        "population.structure": artifact_frame(seed=1),
+        "cause.some_cause.prevalence": artifact_frame(seed=2),
+    }
+
+
+def make_artifact(path: Path, data: dict[str, Any]) -> Path:
+    """Write a new artifact at ``path`` holding ``data``, in the dict's key order."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with warnings.catch_warnings():
+        # Artifact warns that it is building a new file; that is the point here.
+        warnings.simplefilter("ignore")
+        artifact = Artifact(path)
+    for key, value in data.items():
+        artifact.write(key, value)
+    return path
