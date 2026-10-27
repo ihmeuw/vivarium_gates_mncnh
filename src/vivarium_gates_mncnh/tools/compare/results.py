@@ -1,8 +1,13 @@
 """Compare two sets of model results."""
 
+import multiprocessing
 import re
+from concurrent.futures import ProcessPoolExecutor
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
-from typing import Iterable, Optional, Sequence, Union
+from typing import Any, Callable, Iterable, Iterator, Optional, Sequence, Union
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -32,6 +37,7 @@ def compare_results(
     rtol: float = DEFAULT_RTOL,
     atol: float = 0.0,
     measures: Optional[Sequence[str]] = None,
+    workers: int = 1,
 ) -> ComparisonResult:
     """Compare two directories of simulation results value by value.
 
@@ -67,6 +73,8 @@ def compare_results(
         measures: Glob patterns of the measures to compare, such as
             ``deaths`` or ``*_counts``. All measures are compared if none are
             given.
+        workers: How many processes to compare with. The result is the same
+            for any number.
 
     Returns:
         The comparison, with one item compared per selected measure on either
@@ -95,6 +103,15 @@ def compare_results(
         rtol=rtol,
         atol=atol,
     )
+    compared = _compare_measures(
+        {
+            name: (ref_measures[name], cand_measures[name])
+            for name in sorted(ref_measures.keys() & cand_measures.keys())
+        },
+        rtol,
+        atol,
+        workers,
+    )
     for measure in sorted(ref_measures.keys() | cand_measures.keys()):
         if measure not in cand_measures:
             result.differences.append(
@@ -105,61 +122,217 @@ def compare_results(
                 Difference(measure, DifferenceKind.ONLY_IN_CANDIDATE, "measure")
             )
         else:
-            result.differences.extend(
-                _compare_measure_paths(
-                    measure, ref_measures[measure], cand_measures[measure], rtol, atol
-                )
-            )
+            result.differences.extend(compared[measure])
     return result
 
 
-def _compare_measure_paths(
-    measure: str, reference: Path, candidate: Path, rtol: float, atol: float
-) -> list[Difference]:
-    """Compare one measure a group of shards at a time when the shards can be paired.
+_GROUPS_PER_TASK = 50
+"""Shard groups compared per task: big enough to keep task overhead small, small
+enough that a measure of hundreds of shards spreads over every worker."""
 
-    A whole measure can hold hundreds of millions of rows, so it is read in
-    groups when both sides are shard directories (see :func:`_shard_groups`).
-    Shards whose draw and seed are on one side only are counted as rows only on
-    that side without being read. Rows with no match within their group are
-    compared again across all groups at the end, so the result is the same as
-    comparing the whole measure at once. The one exception is a key repeated in
-    different shards, whose copies may pair up differently; psimulate never
-    writes those, as every shard is one draw and seed.
+_SHARD_ID_COLUMNS = ["input_draw", "random_seed"]
+
+ShardGroup = tuple[list[Path], list[Path]]
+"""Shards that hold the same rows on each side: (reference shards, candidate shards)."""
+
+
+def _compare_measures(
+    pairs: dict[str, tuple[Path, Path]], rtol: float, atol: float, workers: int
+) -> dict[str, list[Difference]]:
+    """Compare measures held on both sides, spreading the work over processes.
+
+    A whole measure can hold hundreds of millions of rows, so when both sides
+    are shard directories it is compared in groups of shards (see
+    :func:`_plan_groups`), several groups per task, and the tasks of every
+    measure share one pool. Shards whose draw and seed are on one side only are
+    counted as rows only on that side without being read. Rows with no match
+    within their group are compared again across all groups at the end, so the
+    result is the same as comparing the whole measure at once. The one
+    exception is a key repeated in different shards, whose copies may pair up
+    differently; psimulate never writes those, as every shard is one draw and
+    seed.
     """
-    groups = _shard_groups(reference, candidate)
-    if groups is None:
-        logger.info(f"Comparing {measure}")
-        return _compare_whole(measure, reference, candidate, rtol, atol)
+    with _task_runner(workers) as run:
+        groups = _plan_groups(pairs, run)
+        tasks, n_tasks = [], {}
+        for measure, (reference, candidate) in pairs.items():
+            if groups[measure] is None:
+                tasks.append(
+                    partial(_compare_whole, measure, reference, candidate, rtol, atol)
+                )
+                n_tasks[measure] = 1
+                continue
+            chunks = [
+                groups[measure][i : i + _GROUPS_PER_TASK]
+                for i in range(0, len(groups[measure]), _GROUPS_PER_TASK)
+            ]
+            tasks += [
+                partial(_compare_groups, measure, chunk, rtol, atol) for chunk in chunks
+            ]
+            n_tasks[measure] = len(chunks)
 
-    logger.info(f"Comparing {measure} in {len(groups)} groups of shards")
-    total = TableDiff()
-    ref_unmatched, cand_unmatched = [], []
-    columns = None
+        outputs = run(tasks)
+        compared = {}
+        for i, (measure, (reference, candidate)) in enumerate(pairs.items(), start=1):
+            parts = [next(outputs) for _ in range(n_tasks[measure])]
+            if groups[measure] is None:
+                compared[measure] = parts[0]
+            else:
+                compared[measure] = _combine_groups(
+                    measure, reference, candidate, groups[measure], parts, rtol, atol
+                )
+            logger.info(f"Compared {measure} ({i} of {len(pairs)})")
+    return compared
+
+
+def _plan_groups(
+    pairs: dict[str, tuple[Path, Path]], run: Callable
+) -> dict[str, Optional[list[ShardGroup]]]:
+    """Group each measure's shards, or None for a measure to compare whole.
+
+    Shards are paired by file name when both sides hold the same names, which
+    psimulate derives from the draw, seed and branch. Otherwise they are
+    grouped by the draw and seed they hold, read from the files, since names
+    change whenever psimulate changes how it makes them. A measure is compared
+    whole when either side is not a shard directory, or a shard lacks the draw
+    and seed columns or holds more than one draw and seed.
+    """
+    groups: dict[str, Optional[list[ShardGroup]]] = {}
+    to_read = []
+    for measure, (reference, candidate) in pairs.items():
+        if not (reference.is_dir() and candidate.is_dir()):
+            groups[measure] = None
+            continue
+        ref_names = {path.name for path in reference.glob("*.parquet")}
+        cand_names = {path.name for path in candidate.glob("*.parquet")}
+        if ref_names == cand_names:
+            groups[measure] = [
+                ([reference / name], [candidate / name]) for name in sorted(ref_names)
+            ]
+        else:
+            to_read.append(measure)
+    shard_ids = run(
+        [partial(_shard_ids, path) for measure in to_read for path in pairs[measure]]
+    )
+    for measure in to_read:
+        ref_ids, cand_ids = next(shard_ids), next(shard_ids)
+        groups[measure] = _group_by_ids(ref_ids, cand_ids)
+    return groups
+
+
+def _group_by_ids(
+    ref_ids: Optional[dict[Path, tuple]], cand_ids: Optional[dict[Path, tuple]]
+) -> Optional[list[ShardGroup]]:
+    if ref_ids is None or cand_ids is None:
+        return None
+    groups: dict[tuple, ShardGroup] = {}
+    for side, ids in ((0, ref_ids), (1, cand_ids)):
+        for path, shard_id in ids.items():
+            groups.setdefault(shard_id, ([], []))[side].append(path)
+    return [groups[shard_id] for shard_id in sorted(groups)]
+
+
+def _shard_ids(directory: Path) -> Optional[dict[Path, tuple]]:
+    """Map each shard to the one draw and seed it holds, or None if any shard has other."""
+    ids = {}
+    for path in sorted(directory.glob("*.parquet")):
+        try:
+            values = pd.read_parquet(path, columns=_SHARD_ID_COLUMNS).drop_duplicates()
+        except Exception:
+            # Unreadable files are reported when the whole measure is read.
+            return None
+        if len(values) != 1:
+            return None
+        # As floats, so a draw stored as 3 on one side and 3.0 on the other pairs up.
+        ids[path] = tuple(float(value) for value in values.iloc[0])
+    return ids
+
+
+@dataclass
+class _GroupsResult:
+    """What one task found in its groups of shards.
+
+    Attributes:
+        counts: Rows only on one side (from one-sided groups) and the value
+            comparison of matched rows.
+        ref_unmatched: Reference rows with no match within their group.
+        cand_unmatched: Candidate rows with no match within their group.
+        columns: The columns of every shard read, or None if none were read.
+        schema_change: A change of columns between the two sides, if found.
+            The task stops there.
+        shards_disagree: Whether shards on one side had different columns. The
+            task stops there, and the measure is compared whole.
+    """
+
+    counts: TableDiff = field(default_factory=TableDiff)
+    ref_unmatched: list[pd.DataFrame] = field(default_factory=list)
+    cand_unmatched: list[pd.DataFrame] = field(default_factory=list)
+    columns: Optional[frozenset[str]] = None
+    schema_change: Optional[Difference] = None
+    shards_disagree: bool = False
+
+
+def _compare_groups(
+    measure: str, groups: list[ShardGroup], rtol: float, atol: float
+) -> _GroupsResult:
+    """Compare groups of shards of one measure; runs in a worker process."""
+    result = _GroupsResult()
     for ref_shards, cand_shards in groups:
         if not cand_shards:
-            total.only_in_reference += _n_rows(ref_shards)
+            result.counts.only_in_reference += _n_rows(ref_shards)
             continue
         if not ref_shards:
-            total.only_in_candidate += _n_rows(cand_shards)
+            result.counts.only_in_candidate += _n_rows(cand_shards)
             continue
         ref_frame, cand_frame = _read_shards(ref_shards), _read_shards(cand_shards)
-        schema_change = _schema_change(measure, ref_frame, cand_frame)
-        if schema_change is not None:
-            return [schema_change]
-        if columns is None:
-            columns = set(ref_frame.columns)
-        elif set(ref_frame.columns) != columns:
-            # Shards disagree with each other, so let the whole-measure path report it.
-            return _compare_whole(measure, reference, candidate, rtol, atol)
+        result.schema_change = _schema_change(measure, ref_frame, cand_frame)
+        if result.schema_change is not None:
+            return result
+        columns = frozenset(ref_frame.columns)
+        if result.columns is not None and columns != result.columns:
+            result.shards_disagree = True
+            return result
+        result.columns = columns
         key_columns, value_columns = _key_and_value_columns(columns)
         counts, ref_rows, cand_rows = _align_tables(
             ref_frame, cand_frame, key_columns, value_columns, rtol, atol
         )
-        total.n_values += counts.n_values
-        total.value_diffs.extend(counts.value_diffs)
-        ref_unmatched.append(ref_frame.iloc[ref_rows])
-        cand_unmatched.append(cand_frame.iloc[cand_rows])
+        result.counts.n_values += counts.n_values
+        result.counts.value_diffs.extend(counts.value_diffs)
+        result.ref_unmatched.append(ref_frame.iloc[ref_rows])
+        result.cand_unmatched.append(cand_frame.iloc[cand_rows])
+    return result
+
+
+def _combine_groups(
+    measure: str,
+    reference: Path,
+    candidate: Path,
+    groups: list[ShardGroup],
+    parts: list[_GroupsResult],
+    rtol: float,
+    atol: float,
+) -> list[Difference]:
+    """Add up a measure's group results, in group order, and compare leftover rows."""
+    total = TableDiff()
+    ref_unmatched, cand_unmatched = [], []
+    columns = None
+    for part in parts:
+        if part.columns is not None:
+            if columns is not None and part.columns != columns:
+                part.shards_disagree = True
+            columns = columns or part.columns
+        if part.shards_disagree:
+            # Shards disagree with each other, so let the whole-measure path report it.
+            return _compare_whole(measure, reference, candidate, rtol, atol)
+        if part.schema_change is not None:
+            return [part.schema_change]
+        total.only_in_reference += part.counts.only_in_reference
+        total.only_in_candidate += part.counts.only_in_candidate
+        total.n_values += part.counts.n_values
+        total.value_diffs.extend(part.counts.value_diffs)
+        ref_unmatched += part.ref_unmatched
+        cand_unmatched += part.cand_unmatched
 
     if columns is None:
         # No draw and seed is on both sides, so check the columns on one shard of each.
@@ -171,6 +344,7 @@ def _compare_measure_paths(
         return [schema_change] if schema_change is not None else total.differences(measure)
 
     # A row unmatched within its group may still match a row in another group.
+    key_columns, value_columns = _key_and_value_columns(columns)
     counts, _, _ = _align_tables(
         pd.concat(ref_unmatched, ignore_index=True),
         pd.concat(cand_unmatched, ignore_index=True),
@@ -194,56 +368,32 @@ def _compare_whole(
     )
 
 
-_SHARD_ID_COLUMNS = ["input_draw", "random_seed"]
+@contextmanager
+def _task_runner(workers: int) -> Iterator[Callable[[list], Iterator]]:
+    """Yield a function that runs tasks and returns their results in task order.
 
-
-def _shard_groups(
-    reference: Path, candidate: Path
-) -> Optional[list[tuple[list[Path], list[Path]]]]:
-    """Group the shards of two shard directories so each group can be compared alone.
-
-    Shards are paired by file name when both sides hold the same names, which
-    psimulate derives from the draw, seed and branch. Otherwise shards are
-    grouped by the draw and seed they hold, read from the files, since names
-    change whenever psimulate changes how it makes them. A group may hold
-    shards on one side only.
-
-    Returns:
-        The groups as (reference shards, candidate shards), or None if the two
-        sides cannot be grouped: either is not a shard directory, or a shard
-        lacks the draw and seed columns or holds more than one draw and seed.
+    With one worker, tasks run in this process; with more, in a pool of
+    processes, so the same code runs either way. Workers start from a fork
+    server, as forking a process that has used pyarrow's threads can hang. The
+    server imports this module once, so each worker does not import pandas
+    again. An error in a task is raised from the results, and stops the tasks
+    not yet started.
     """
-    if not (reference.is_dir() and candidate.is_dir()):
-        return None
-    ref_names = {path.name for path in reference.glob("*.parquet")}
-    cand_names = {path.name for path in candidate.glob("*.parquet")}
-    if ref_names == cand_names:
-        return [([reference / name], [candidate / name]) for name in sorted(ref_names)]
-
-    ref_ids, cand_ids = _shard_ids(reference), _shard_ids(candidate)
-    if ref_ids is None or cand_ids is None:
-        return None
-    groups: dict[tuple, tuple[list[Path], list[Path]]] = {}
-    for side, ids in ((0, ref_ids), (1, cand_ids)):
-        for path, shard_id in ids.items():
-            groups.setdefault(shard_id, ([], []))[side].append(path)
-    return [groups[shard_id] for shard_id in sorted(groups)]
+    if workers <= 1:
+        yield lambda tasks: (task() for task in tasks)
+        return
+    context = multiprocessing.get_context("forkserver")
+    # Only takes effect before the server starts, which is the first pool.
+    context.set_forkserver_preload([__name__])
+    pool = ProcessPoolExecutor(workers, mp_context=context)
+    try:
+        yield lambda tasks: pool.map(_run_task, tasks)
+    finally:
+        pool.shutdown(cancel_futures=True)
 
 
-def _shard_ids(directory: Path) -> Optional[dict[Path, tuple]]:
-    """Map each shard to the one draw and seed it holds, or None if any shard has other."""
-    ids = {}
-    for path in sorted(directory.glob("*.parquet")):
-        try:
-            values = pd.read_parquet(path, columns=_SHARD_ID_COLUMNS).drop_duplicates()
-        except Exception:
-            # Unreadable files are reported when the whole measure is read.
-            return None
-        if len(values) != 1:
-            return None
-        # As floats, so a draw stored as 3 on one side and 3.0 on the other pairs up.
-        ids[path] = tuple(float(value) for value in values.iloc[0])
-    return ids
+def _run_task(task: Callable[[], Any]) -> Any:
+    return task()
 
 
 def _read_shards(paths: list[Path]) -> pd.DataFrame:

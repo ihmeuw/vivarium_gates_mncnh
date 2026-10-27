@@ -77,6 +77,22 @@ def test_tolerance_options_passed_through(tmp_path, options):
     assert with_tolerance.exit_code == 0, with_tolerance.output
 
 
+def test_workers_option_gives_the_same_report(tmp_path):
+    """--workers spreads the results comparison over processes; the report is the same."""
+    reference = make_results_dir(
+        tmp_path / "reference", standard_measures(), layout="per_draw"
+    )
+    candidate = make_results_dir(
+        tmp_path / "candidate", _changed_measures(), layout="per_draw"
+    )
+
+    one = _invoke("results", reference, candidate, "--workers", "1")
+    three = _invoke("results", reference, candidate, "--workers", "3")
+
+    assert one.exit_code == three.exit_code == 1, three.output
+    assert three.stdout == one.stdout
+
+
 @pytest.mark.parametrize(
     "options, expected",
     [([], "rtol=1e-12, atol=0"), (["--rtol", "0", "--atol", "0.5"], "rtol=0, atol=0.5")],
@@ -122,6 +138,37 @@ def test_bad_input_exits_two(tmp_path, command):
     assert len(message_lines) == 1, result.output
     if command == "artifacts":
         assert not (missing / "candidate.hdf").exists()
+
+
+def test_workers_below_one_is_a_usage_error(tmp_path):
+    """--workers 0 is rejected before anything is compared."""
+    reference = make_results_dir(tmp_path / "reference", standard_measures())
+
+    result = _invoke("results", reference, reference, "--workers", 0)
+
+    assert result.exit_code == 2, result.output
+    assert "--workers" in result.output
+
+
+@pytest.mark.parametrize("slurm_cpus, expected", [("3", 3), (None, 1)], ids=["slurm", "none"])
+def test_workers_default_to_the_slurm_allocation(tmp_path, monkeypatch, slurm_cpus, expected):
+    """Without --workers, results use the CPUs Slurm gave the job, or 1 outside Slurm."""
+    used = {}
+
+    def record_workers(reference, candidate, rtol, atol, measures, workers):
+        used["workers"] = workers
+        return ComparisonResult("Results", str(reference), str(candidate))
+
+    monkeypatch.setattr(cli, "compare_results", record_workers)
+    if slurm_cpus is None:
+        monkeypatch.delenv("SLURM_CPUS_PER_TASK", raising=False)
+    else:
+        monkeypatch.setenv("SLURM_CPUS_PER_TASK", slurm_cpus)
+
+    result = _invoke("results", tmp_path, tmp_path)
+
+    assert result.exit_code == 0, result.output
+    assert used == {"workers": expected}
 
 
 def test_unexpected_error_exits_two_naming_its_type(tmp_path, monkeypatch):
