@@ -1,0 +1,30 @@
+# -----------------------------------------------------------------------------
+# Fail pull requests into main that contain requirements/overrides.txt.
+# Main must use released packages: release the framework change, pin it, and
+# delete the overrides file before merging.
+# -----------------------------------------------------------------------------
+name: no overrides on main
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  no-overrides:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Check for requirements/overrides.txt
+        run: |
+          if [ -e requirements/overrides.txt ]; then
+            echo "::error file=requirements/overrides.txt::requirements/overrides.txt must not be merged into main."
+            echo "requirements/overrides.txt exists. Main's environments must be built from"
+            echo "released packages pinned in requirements/{simulation,artifact}.txt. Before merging:"
+            echo "  1. release the framework change,"
+            echo "  2. pin the released version in requirements/{simulation,artifact}.txt, and"
+            echo "  3. delete requirements/overrides.txt."
+            echo "Overrides in effect:"
+            cat requirements/overrides.txt
+            exit 1
+          fi
+          echo "No requirements/overrides.txt; OK."

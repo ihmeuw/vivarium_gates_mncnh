@@ -16,7 +16,8 @@ env_type="simulation"
 make_new="no"
 use_shared="no"
 install_git_lfs="no"
-days_until_stale=7 # Number of days until environment is considered stale
+check_env_versions="src/vivarium_gates_mncnh/tools/check_env_versions.py"
+fetch_timeout_seconds=10 # Max wait for fetching origin/main
 
 # Reset OPTIND so help can be invoked multiple times per shell session.
 OPTIND=0
@@ -31,7 +32,9 @@ Help()
    echo "h     Print this Help."
    echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
    echo "s     Use shared environment (venv overlay). Recommended for cluster development."
-   echo "f     Force creation of a new environment."
+   echo "      Warns, but never rebuilds, when your version files differ from the shared core environment's."
+   echo "f     Force a rebuild (also picks up conda-level package changes and new commits on an overrides branch)."
+   echo "      With -s, rebuilds only your venv overlay, not the shared core environment."
    echo "l     Install git lfs (only applies when creating a new conda environment)."
 }
 
@@ -95,6 +98,24 @@ if [[ "$use_shared" == "yes" ]]; then
   fi
   echo "Activating shared environment venv $env_name"
   source ".venv/$env_name/bin/activate"
+  # The venv overlay holds only this checkout's package. Every other package comes from the
+  # shared core env underneath it. If the core env's package versions differ from this
+  # checkout's, explain why. Jenkins builds the core env, so we can only warn, never rebuild
+  # it (-f rebuilds only the overlay).
+  # Every command below is guarded so a failure can't trip the ERR trap and end the script early.
+  # Fetch main (the same ref as MAIN_REF in check_env_versions.py) without prompting or hanging.
+  GIT_TERMINAL_PROMPT=0 timeout "$fetch_timeout_seconds" git fetch --quiet origin main 2>/dev/null || true
+  # The overlay's base prefix is the shared core env.
+  shared_prefix="$(python -c 'import sys; print(sys.base_prefix)' 2>/dev/null)" || shared_prefix=""
+  if [[ -n "$shared_prefix" ]]; then
+    shared_record_dir="$shared_prefix/etc/vivarium_gates_mncnh"  # where the core env's build recorded its versions
+    # Say how this checkout's versions differ from the core env's, and what to do.
+    python "$check_env_versions" explain-shared-mismatch --repo . --type "$env_type" --record-dir "$shared_record_dir" || true
+    # Warn if the core env was built with framework overrides.
+    python "$check_env_versions" warn-if-overrides --record-dir "$shared_record_dir" || true
+  else
+    echo "WARNING: could not locate the shared core environment; skipping the package version check"
+  fi
 
 else
   # Initialize conda if not already initialized
@@ -125,15 +146,24 @@ else
   if [[ "$env_info" != "" ]]; then
     # Environment exists
     if [[ "$make_new" != "yes" ]]; then
-      # Not forcing rebuild, check if stale
       conda activate $env_name
-      expiration_time=$(date -d "$days_until_stale days ago" +%s)
-      creation_time="$(head -n1 $CONDA_PREFIX/conda-meta/history)"
-      creation_time=$(echo $creation_time | sed -e 's/^==>\ //g' -e 's/\ <==//g')
-      creation_time="$(date -d "$creation_time" +%s)"
-      if [[ "$creation_time" -ge "$expiration_time" ]]; then
-        # Not stale, skip building
+      # Compare the versions this env was built with against the checkout's version files.
+      # Rebuild only if they differ.
+      # `&& rc=0 || rc=$?` keeps a nonzero exit from tripping the ERR trap.
+      python "$check_env_versions" compare --repo . --type "$env_type" && rc=0 || rc=$?
+      if [[ "$rc" == "0" ]]; then
         need_to_build="no"
+      elif [[ "$rc" == "10" ]]; then  # check_env_versions.EXIT_DIFFERENT
+        echo "Package versions changed; rebuilding environment '$env_name'"
+      elif [[ "$rc" == "11" ]]; then  # check_env_versions.EXIT_NO_RECORD
+        echo "Environment '$env_name' has no record of its package versions; rebuilding"
+      elif [[ "$rc" == "12" ]]; then  # check_env_versions.EXIT_ERROR
+        # The checkout's version file is missing or doesn't parse (e.g. merge conflict markers).
+        # A build would fail on the same file after deleting this env, so keep it.
+        echo "WARNING: could not read this checkout's version file (see the error above); keeping '$env_name' without rebuilding"
+        need_to_build="no"
+      else
+        echo "WARNING: could not compare '$env_name' with the version files (exit code $rc); rebuilding"
       fi
     fi
   fi
@@ -149,6 +179,8 @@ else
   fi
   echo "Activating conda environment '$env_name'"
   conda activate $env_name
+  # Warn if this env was built with framework overrides.
+  python "$check_env_versions" warn-if-overrides || true
 fi
 
 # Clear the ERR trap to avoid affecting subsequent commands in the parent shell
