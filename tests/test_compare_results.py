@@ -93,6 +93,8 @@ def _measures_with(change):
         deaths = pd.concat([deaths, deaths[deaths["input_draw"] == 1].assign(input_draw=2)])
     elif change == "float_draws":
         deaths = deaths.astype({"input_draw": "float64"})
+    elif change == "new_column":
+        deaths = deaths.assign(extra="x")
     return {**measures, "deaths": deaths}
 
 
@@ -135,8 +137,33 @@ def test_sharded_comparison_reports_as_flat(
     assert results[layout].moved == (change not in ("none", "float_draws"))
 
 
-def test_unreadable_shard_raises(tmp_path):
-    """A shard that cannot be read is an input error, not a crash."""
+@pytest.mark.parametrize("change", ["none", "values", "fewer_draws", "new_column"])
+@pytest.mark.parametrize(
+    "layout, candidate_prefix",
+    [("flat", "job"), ("per_draw", "job"), ("per_draw", "renamed"), ("sharded", "job")],
+    ids=["flat", "same_names", "other_names", "arbitrary_shards"],
+)
+def test_result_is_the_same_for_any_number_of_workers(
+    tmp_path, change, layout, candidate_prefix
+):
+    """Spreading the comparison over processes changes nothing in the result."""
+    reference = make_results_dir(tmp_path / "reference", standard_measures(), layout=layout)
+    candidate = make_results_dir(
+        tmp_path / "candidate",
+        _measures_with(change),
+        layout=layout,
+        shard_prefix=candidate_prefix,
+    )
+
+    in_process = compare_results(reference, candidate, workers=1)
+    in_pool = compare_results(reference, candidate, workers=3)
+
+    assert in_pool == in_process
+    assert in_pool.moved == (change != "none")
+
+
+def test_unreadable_shard_raises_from_a_worker(tmp_path):
+    """A shard that cannot be read is an input error with workers too, not a crash."""
     reference = make_results_dir(
         tmp_path / "reference", standard_measures(), layout="per_draw"
     )
@@ -146,7 +173,7 @@ def test_unreadable_shard_raises(tmp_path):
     next((candidate / "deaths").glob("*.parquet")).write_text("not parquet\n")
 
     with pytest.raises(ComparisonInputError, match="Could not read"):
-        compare_results(reference, candidate)
+        compare_results(reference, candidate, workers=3)
 
 
 def test_schema_change_found_when_no_draw_is_shared(tmp_path):

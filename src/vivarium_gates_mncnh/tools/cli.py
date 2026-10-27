@@ -1,3 +1,4 @@
+import os
 from functools import partial
 from pathlib import Path
 from typing import Callable, Optional, Tuple
@@ -124,6 +125,20 @@ _MEASURE_OPTION = click.option(
     metavar="PATTERN",
     help="Compare only the measures that match this glob pattern. Repeatable.",
 )
+
+
+def _default_workers() -> int:
+    """The CPUs Slurm gave this job, or 1 outside Slurm so a shared node is not swamped."""
+    return int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+
+
+_WORKERS_OPTION = click.option(
+    "--workers",
+    type=click.IntRange(min=1),
+    default=_default_workers,
+    show_default="SLURM_CPUS_PER_TASK, or 1",
+    help="Processes to compare results with. The report is the same for any number.",
+)
 _KEY_OPTION = click.option(
     "--key",
     "keys",
@@ -160,11 +175,13 @@ def compare_outputs() -> None:
 @click.argument("reference_dir", type=click.Path(path_type=Path))
 @click.argument("candidate_dir", type=click.Path(path_type=Path))
 @_MEASURE_OPTION
+@_WORKERS_OPTION
 @_comparison_options
 def compare_results_command(
     reference_dir: Path,
     candidate_dir: Path,
     measures: Tuple[str, ...],
+    workers: int,
     rtol: float,
     atol: float,
     report_path: Optional[Path],
@@ -172,7 +189,7 @@ def compare_results_command(
     """Compare two results directories (one location's results/ each)."""
     _run_comparisons(
         [
-            _results_comparison(reference_dir, candidate_dir, measures, rtol, atol),
+            _results_comparison(reference_dir, candidate_dir, measures, rtol, atol, workers),
         ],
         report_path,
     )
@@ -263,6 +280,7 @@ def compare_notebooks_command(
 @_MEASURE_OPTION
 @_KEY_OPTION
 @_NOTEBOOK_OPTION
+@_WORKERS_OPTION
 @_comparison_options
 def compare_all_command(
     results_pairs: Tuple[Tuple[Path, Path], ...],
@@ -271,6 +289,7 @@ def compare_all_command(
     measures: Tuple[str, ...],
     keys: Tuple[str, ...],
     notebooks: Tuple[str, ...],
+    workers: int,
     rtol: float,
     atol: float,
     report_path: Optional[Path],
@@ -286,7 +305,10 @@ def compare_all_command(
     command, into one numbered subdirectory per --notebooks pair.
     """
     comparisons = [
-        *(_results_comparison(*pair, measures, rtol, atol) for pair in results_pairs),
+        *(
+            _results_comparison(*pair, measures, rtol, atol, workers)
+            for pair in results_pairs
+        ),
         *(_artifacts_comparison(*pair, keys, rtol, atol) for pair in artifact_pairs),
         *(
             _notebooks_comparison(
@@ -349,11 +371,24 @@ _Comparison = Tuple[str, Callable[[], ComparisonResult]]
 
 
 def _results_comparison(
-    reference: Path, candidate: Path, measures: Tuple[str, ...], rtol: float, atol: float
+    reference: Path,
+    candidate: Path,
+    measures: Tuple[str, ...],
+    rtol: float,
+    atol: float,
+    workers: int,
 ) -> _Comparison:
     return (
         f"results {reference} vs {candidate}",
-        partial(compare_results, reference, candidate, rtol, atol, measures=measures),
+        partial(
+            compare_results,
+            reference,
+            candidate,
+            rtol,
+            atol,
+            measures=measures,
+            workers=workers,
+        ),
     )
 
 
