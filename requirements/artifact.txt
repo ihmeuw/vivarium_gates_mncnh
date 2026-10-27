@@ -981,7 +981,7 @@ vivarium-artifact==1.1.1
     #   vivarium-engine
     #   vivarium-inputs
     #   vivarium-validation
-vivarium-build-utils==4.9.1
+vivarium-build-utils==4.11.0
     # via
     #   vivarium-gates-mncnh (pyproject.toml)
     #   pytest-vivarium

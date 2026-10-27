@@ -695,7 +695,7 @@ urllib3==2.8.0
 uv==0.12.23
 vivarium-artifact==1.1.1
     # via vivarium-engine
-vivarium-build-utils==4.9.1
+vivarium-build-utils==4.11.0
     # via
     #   vivarium-gates-mncnh (pyproject.toml)
     #   pytest-vivarium
