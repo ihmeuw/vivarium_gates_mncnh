@@ -43,7 +43,8 @@ def _run_step(step: str, passthrough: List[str]) -> None:
     print()
     print("#" * 80)
     print(f"# step '{step}'")
-    print("#" * 80)
+    # Flush so the banner comes before the phase's own output when piped.
+    print("#" * 80, flush=True)
 
     subprocess.run(
         [sys.executable, str(RUN_PAF_SIM_STEP), "--step", step, *passthrough],
