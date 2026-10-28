@@ -9,7 +9,8 @@ for an example.
 
 .. admonition::
 
-   No logging is done here. Logging is done in vivarium inputs itself and forwarded.
+   Logging is generally done in vivarium inputs itself and forwarded; loaders here
+   only log data-quality warnings (e.g. clipped values).
 """
 
 import glob
@@ -106,21 +107,23 @@ def get_data(
         data_keys.MATERNAL_HEMORRHAGE.YLD_RATE_SEVERE: load_sequela_data,
         data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE: load_hemorrhage_ylds_per_case,
         data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_SEVERE: load_hemorrhage_ylds_per_case,
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_300_TO_500ML: load_hemorrhage_ylds_per_case_300_to_500ml,
         data_keys.MATERNAL_HEMORRHAGE.SEVERE_FRACTION: load_hemorrhage_severe_fraction,
         data_keys.MATERNAL_HEMORRHAGE.CASE_FATALITY_RATE: load_hemorrhage_case_fatality_rate,
-        data_keys.MATERNAL_HEMORRHAGE.APH_INCIDENCE_RISK: load_antepartum_hemorrhage_incidence,
         data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK: load_postpartum_hemorrhage_incidence,
-        data_keys.MATERNAL_HEMORRHAGE.APH_CSMR: load_antepartum_hemorrhage_csmr,
+        data_keys.MATERNAL_HEMORRHAGE.PPH_PROBABILITY_500ML_GIVEN_300ML: load_postpartum_hemorrhage_probability_500ml_given_300ml,
+        data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK_300ML: load_postpartum_hemorrhage_incidence_300ml,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
         data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
-        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: load_hemorrhage_hemoglobin_shift,
-        data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: load_hemorrhage_hemoglobin_shift,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.RAW_INCIDENCE_RATE: load_abortion_miscarriage_ectopic_incidence,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.CSMR: load_abortion_miscarriage_ectopic_csmr,
         data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.YLD_RATE: load_abortion_miscarriage_ectopic_yld_rate,
         data_keys.OBSTRUCTED_LABOR.RAW_INCIDENCE_RATE: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.CSMR: load_standard_data,
         data_keys.OBSTRUCTED_LABOR.YLD_RATE: load_maternal_disorder_yld_rate,
+        data_keys.PREGNANCY.INCIDENCE_RATE: load_pregnancy_incidence_rate,
+        data_keys.MATERNAL_DISORDERS.CSMR: load_standard_data,
+        data_keys.MATERNAL_DISORDERS.YLD_RATE: load_maternal_disorder_yld_rate,
         data_keys.RESIDUAL_MATERNAL_DISORDERS.CSMR: load_residual_maternal_disorders_csmr,
         data_keys.RESIDUAL_MATERNAL_DISORDERS.YLD_RATE: load_residual_maternal_disorders_yld_rate,
         data_keys.PRETERM_BIRTH.PAF: load_paf_data,
@@ -478,6 +481,59 @@ def load_birth_rate(
     return asfr + asfr * sbr
 
 
+def load_pregnancy_incidence_rate(
+    key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
+) -> pd.DataFrame:
+    """Rate of pregnancies, whatever their outcome, per person-year.
+
+    A pregnancy ends either in a birth -- live or still -- or partial term, so
+    this is the birth rate plus the abortion/miscarriage/ectopic incidence rate.
+    It is the denominator for expressing a population rate per pregnancy, which
+    is how the maternal validation targets are stated.
+    """
+    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location, years)
+    partial_term = get_data(
+        data_keys.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY.RAW_INCIDENCE_RATE, location, years
+    )
+    return birth_rate + partial_term
+
+
+def _residual_hemorrhage_share(data: pd.DataFrame, location: str) -> pd.DataFrame:
+    """Scale a maternal hemorrhage (c367) measure to the share residual disorders absorb.
+
+    The share of c367 that the postpartum fraction does not assign to postpartum
+    hemorrhage has no cause model of its own, so it is rolled into residual
+    maternal disorders. The postpartum fraction is only defined for
+    reproductive-age females, so it is broadcast onto the measure's index with 0
+    elsewhere, where the whole measure is therefore residual.
+
+    That broadcast is only harmless because c367 is itself zero outside the
+    reproductive-age window: a 0 fill makes ``1 - postpartum_fraction`` equal 1,
+    so any non-zero measure there would be attributed to residual disorders in
+    full. The assertion below pins that assumption down rather than leaving it
+    to a comment, so a future artifact revision that breaks it fails loudly
+    instead of quietly moving real burden into the residual cause.
+    """
+    postpartum_fraction = get_data(
+        data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location
+    )
+    postpartum_fraction = postpartum_fraction.reorder_levels(data.index.names)
+    # Capture where the fraction is genuinely defined BEFORE reindexing: the 0 fill
+    # below is indistinguishable from a real 0 afterwards, which would make the
+    # check vacuous.
+    defined = postpartum_fraction.index
+    postpartum_fraction = postpartum_fraction.reindex(data.index, fill_value=0.0)
+    unfilled = data.loc[~data.index.isin(defined)]
+    if not unfilled.empty and (unfilled != 0.0).any().any():
+        raise ValueError(
+            "Maternal hemorrhage (c367) is non-zero outside the reproductive-age "
+            "window where the postpartum fraction is defined, so the 0 fill would "
+            "attribute that burden to residual maternal disorders in full: "
+            f"{unfilled.index[(unfilled != 0.0).any(axis=1)].tolist()}"
+        )
+    return (1 - postpartum_fraction) * data
+
+
 def load_residual_maternal_disorders_csmr(
     key: str, location: str, years: Optional[Union[int, str, list[int]]] = None
 ) -> pd.DataFrame:
@@ -488,6 +544,8 @@ def load_residual_maternal_disorders_csmr(
         if not entity.restrictions.yld_only:
             csmr = load_standard_data(disorder_key, location, years)
             csmrs.append(csmr)
+    csmr_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location, years)
+    csmrs.append(_residual_hemorrhage_share(csmr_c367, location))
     return pd.concat(csmrs).groupby(level=[c for c in csmr.index.names]).sum()
 
 
@@ -503,6 +561,8 @@ def load_residual_maternal_disorders_yld_rate(
                 f"cause.{maternal_disorder}.yld_rate", location, years
             )
             yld_rates.append(yld_rate)
+    yld_rate_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.YLD_RATE, location, years)
+    yld_rates.append(_residual_hemorrhage_share(yld_rate_c367, location))
     return pd.concat(yld_rates).groupby(level=[c for c in yld_rate.index.names]).sum()
 
 
@@ -2207,7 +2267,8 @@ def load_postpartum_fraction(
         unmatched_ages = result.index[unmatched].tolist()
         raise ValueError(
             f"Postpartum fraction has unmatched demography rows (all draws are 0.0), "
-            f"which would silently shift all hemorrhage to APH: {unmatched_ages}"
+            f"which would silently shift all hemorrhage to residual maternal "
+            f"disorders: {unmatched_ages}"
         )
 
     return result
@@ -2228,7 +2289,7 @@ def load_sequela_data(
 def load_hemorrhage_severe_fraction(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute severe fraction as incidence_severe / (incidence_moderate + incidence_severe)."""
+    """Compute p(1 L+ | 500 mL+) PPH as incidence_s181 / (incidence_s180 + incidence_s181)."""
     inc_moderate = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_MODERATE, location)
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
     total = inc_moderate + inc_severe
@@ -2245,54 +2306,65 @@ def load_hemorrhage_case_fatality_rate(
     inc_severe = get_data(data_keys.MATERNAL_HEMORRHAGE.INCIDENCE_SEVERE, location)
     # Returns 0 for age groups outside reproductive age where incidence is 0
     cfr = (csmr / inc_severe).fillna(0)
+    clipped = cfr > 1.0
+    if clipped.any().any():
+        logger.warning(
+            f"{key}: clipping {int(clipped.sum().sum())} of {clipped.size} values "
+            f"({clipped.values.mean():.2%}) to 1 for {location}."
+        )
     return cfr.clip(upper=1.0)
 
 
-def _load_hemorrhage_incidence(location: str, antepartum: bool) -> pd.DataFrame:
-    """Compute hemorrhage per-birth incidence risk.
-
-    Splits the c367 population-level incidence rate by the APH/PPH fraction and
-    divides by the appropriate per-birth denominator to convert to per-event
-    risk. APH divides by the birth rate; PPH divides by the birth rate net of
-    the antepartum hemorrhage cause-specific mortality rate, since PPH is
-    conditional on surviving the antepartum period.
-    """
-    pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
-    inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
-    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location)
-    if antepartum:
-        incidence = (1 - pp_fraction) * inc_c367
-        denominator = birth_rate
-    else:
-        incidence = pp_fraction * inc_c367
-        antepartum_hemorrhage_csmr = get_data(
-            data_keys.MATERNAL_HEMORRHAGE.APH_CSMR, location
-        )
-        denominator = birth_rate - antepartum_hemorrhage_csmr
-    return (incidence / denominator).fillna(0.0)
-
-
-def load_antepartum_hemorrhage_incidence(
+def load_postpartum_hemorrhage_probability_500ml_given_300ml(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute APH per-birth incidence risk."""
-    return _load_hemorrhage_incidence(location, antepartum=True)
+    """Draw-level probability that a 300 mL+ PPH case progresses to 500 mL+."""
+    dist = data_values.PPH_500ML_PER_300ML_DISTRIBUTION
+    demography = get_data(data_keys.POPULATION.DEMOGRAPHY, location)
+    draws = get_random_variable_draws(metadata.ARTIFACT_COLUMNS, key, dist)
+    data = pd.DataFrame([draws], columns=metadata.ARTIFACT_COLUMNS, index=demography.index)
+    data.index = data.index.droplevel("location")
+    return data.clip(lower=0.0, upper=1.0)
+
+
+def load_postpartum_hemorrhage_incidence_300ml(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """Compute 300 mL+ PPH per-birth incidence risk as ir_500mL / p(500 mL | 300 mL),
+    clipped to 1 (with a warning)."""
+    ir_500ml = get_data(data_keys.MATERNAL_HEMORRHAGE.PPH_INCIDENCE_RISK, location)
+    p_500ml_given_300ml = get_data(
+        data_keys.MATERNAL_HEMORRHAGE.PPH_PROBABILITY_500ML_GIVEN_300ML, location
+    )
+    # p(500 mL | 300 mL) is built over the full demography; align it to ir_500mL's rows
+    p_500ml_given_300ml = p_500ml_given_300ml.reorder_levels(ir_500ml.index.names).reindex(
+        ir_500ml.index
+    )
+    if p_500ml_given_300ml.isna().any().any():
+        raise ValueError(f"{key}: p(500 mL | 300 mL) is missing rows of the 500 mL+ risk.")
+    ir_300ml = ir_500ml / p_500ml_given_300ml
+    clipped = ir_300ml > 1.0
+    if clipped.any().any():
+        logger.warning(
+            f"{key}: clipping {int(clipped.sum().sum())} of {clipped.size} values "
+            f"({clipped.values.mean():.2%}) to 1 for {location}."
+        )
+    return ir_300ml.clip(upper=1.0)
 
 
 def load_postpartum_hemorrhage_incidence(
     key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
 ) -> pd.DataFrame:
-    """Compute PPH per-birth incidence risk net of antepartum hemorrhage mortality."""
-    return _load_hemorrhage_incidence(location, antepartum=False)
+    """Compute 500 mL+ (GBD-defined) PPH per-birth incidence risk.
 
-
-def load_antepartum_hemorrhage_csmr(
-    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
-) -> pd.DataFrame:
-    """Compute APH cause-specific mortality rate as the antepartum fraction of c367 CSMR."""
+    Takes the postpartum share of the c367 population-level incidence rate and
+    divides by the birth rate to convert it to a per-birth risk in [0, 1]. The
+    denominator includes live births and stillbirths.
+    """
     pp_fraction = get_data(data_keys.MATERNAL_HEMORRHAGE.POSTPARTUM_FRACTION, location)
-    csmr_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.CSMR, location)
-    return ((1 - pp_fraction) * csmr_c367).fillna(0.0)
+    inc_c367 = get_data(data_keys.MATERNAL_HEMORRHAGE.RAW_INCIDENCE_RATE, location)
+    birth_rate = get_data(data_keys.POPULATION.BIRTH_RATE, location)
+    return ((pp_fraction * inc_c367) / birth_rate).fillna(0.0)
 
 
 def load_hemorrhage_ylds_per_case(
@@ -2314,6 +2386,16 @@ def load_hemorrhage_ylds_per_case(
     incidence = get_data(inc_key, location)
     # Returns 0 for age groups outside reproductive age where incidence is 0
     return (yld_rate / incidence).fillna(0)
+
+
+def load_hemorrhage_ylds_per_case_300_to_500ml(
+    key: str, location: str, years: Optional[Union[int, str, List[int]]] = None
+) -> pd.DataFrame:
+    """YLDs per 300-500 mL PPH case, a fixed fraction of the 500 mL-1 L (s180) value."""
+    ylds_per_case_moderate = get_data(
+        data_keys.MATERNAL_HEMORRHAGE.YLDS_PER_CASE_MODERATE, location
+    )
+    return data_values.PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION * ylds_per_case_moderate
 
 
 ###################################
@@ -2362,14 +2444,12 @@ _SHIFT_6W_9M = (
 HEMORRHAGE_SHIFT_DAY_RANGES = {
     data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_0_6W: _SHIFT_0_6W,
     data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.PPH_SHIFT_6W_9M: _SHIFT_6W_9M,
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_0_6W: _SHIFT_0_6W,
-    data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.APH_SHIFT_6W_9M: _SHIFT_6W_9M,
 }
 
-# All four shift keys are drawn off a single seed so that they share a propensity:
+# Both shift keys are drawn off a single seed so that they share a propensity:
 # within a draw, each key sits at the same quantile of its own normal. Seeding per
-# key instead made the four shifts independent, which let the APH:PPH ratio differ
-# between the early and late postpartum windows (and even flip sign) draw to draw.
+# key instead made the two windows independent, which let the early and late
+# postpartum shifts diverge (and even flip sign relative to one another) draw to draw.
 _HEMORRHAGE_SHIFT_SEED = data_keys.HEMORRHAGE_HEMOGLOBIN_SHIFT.name
 
 
@@ -2382,8 +2462,8 @@ def load_hemorrhage_hemoglobin_shift(
     the draw_se column for uncertainty. The shift is age-agnostic so the
     returned DataFrame is a single row of draws with no demographic index.
 
-    All four keys share a single seed, so a given draw uses the same propensity
-    for APH and PPH and for both postpartum windows.
+    Both keys share a single seed, so a given draw uses the same propensity for
+    both postpartum windows.
     """
     pred_data = pd.read_csv(paths.HEMORRHAGE_HEMOGLOBIN_SHIFT_PRED_DATA_CSV)
     day_start, day_end = HEMORRHAGE_SHIFT_DAY_RANGES[key]
