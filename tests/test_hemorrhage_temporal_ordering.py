@@ -1,8 +1,8 @@
-"""InteractiveContext checks for MIC-7286: APH/PPH split temporal ordering.
+"""Simulation checks for MIC-7286: APH/PPH split temporal ordering.
 
 These checks are BLIND to the implementation: they assert the quantitative
 expectations named in the iteration plan (the contract) against the state table
-and incidence-risk pipelines, using the repo's existing InteractiveContext +
+and incidence-risk pipelines, using the repo's existing Simulation +
 FuzzyChecker patterns (see ``tests/test_lbwsg.py`` / ``tests/test_mortality.py``).
 
 Expectations verified (numbering matches the iteration plan):
@@ -26,9 +26,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
 from vivarium.fuzzy_checker import FuzzyChecker
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
@@ -73,14 +73,14 @@ APH_SEVERITY_COL = f"{COLUMNS.ANTEPARTUM_HEMORRHAGE}_severity"
 PPH_SEVERITY_COL = f"{COLUMNS.POSTPARTUM_HEMORRHAGE}_severity"
 
 
-def _build_sim(model_spec_path: Path, pop_size: int = POP_SIZE) -> InteractiveContext:
+def _build_sim(model_spec_path: Path, pop_size: int = POP_SIZE) -> Simulation:
     """Build an interactive sim on the model spec with a reduced population."""
     spec = build_model_specification(model_spec_path)
     spec.configuration.population.population_size = pop_size
-    return InteractiveContext(spec)
+    return Simulation(spec)
 
 
-def _pipeline_values(sim: InteractiveContext, pipeline_name: str) -> pd.Series:
+def _pipeline_values(sim: Simulation, pipeline_name: str) -> pd.Series:
     """Return a scalar incidence-risk pipeline as a float Series over the pop."""
     values = sim.get_population(pipeline_name)
     if isinstance(values, pd.DataFrame):
@@ -89,9 +89,7 @@ def _pipeline_values(sim: InteractiveContext, pipeline_name: str) -> pd.Series:
 
 
 @pytest.fixture(scope="module")
-def aph_state(
-    model_spec_path: Path, sim_state_step_mapper: dict[str, int]
-) -> InteractiveContext:
+def aph_state(model_spec_path: Path, sim_state_step_mapper: dict[str, int]) -> Simulation:
     """Sim advanced to just after the antepartum_hemorrhage event fires."""
     sim = _build_sim(model_spec_path)
     return get_interactive_context_state(
@@ -102,7 +100,7 @@ def aph_state(
 @pytest.fixture(scope="module")
 def mortality_state(
     model_spec_path: Path, sim_state_step_mapper: dict[str, int]
-) -> InteractiveContext:
+) -> Simulation:
     """Sim advanced through the mortality event.
 
     By this state every maternal-disorder boolean, severity column, and the
@@ -118,7 +116,7 @@ def mortality_state(
 # ---------------------------------------------------------------------------
 # Expectation 1 & 5 (APH side): APH only for still/live births, never partial_term
 # ---------------------------------------------------------------------------
-def test_aph_never_assigned_to_partial_term(aph_state: InteractiveContext) -> None:
+def test_aph_never_assigned_to_partial_term(aph_state: Simulation) -> None:
     """Expectation 1/5: no partial_term simulant may ever have APH == True."""
     pop = aph_state.get_population([COLUMNS.PREGNANCY_OUTCOME, COLUMNS.ANTEPARTUM_HEMORRHAGE])
     aph = pop[COLUMNS.ANTEPARTUM_HEMORRHAGE].astype(bool)
@@ -140,7 +138,7 @@ def test_aph_never_assigned_to_partial_term(aph_state: InteractiveContext) -> No
 # ---------------------------------------------------------------------------
 # Expectation 1 & 2: APH incidence risk is a probability in [0, 1]
 # ---------------------------------------------------------------------------
-def test_aph_incidence_risk_in_unit_interval(aph_state: InteractiveContext) -> None:
+def test_aph_incidence_risk_in_unit_interval(aph_state: Simulation) -> None:
     """Expectation 1/2: APH incidence-risk pipeline values are probabilities."""
     risk = _pipeline_values(aph_state, PIPELINES.ANTEPARTUM_HEMORRHAGE_INCIDENCE_RISK)
     assert risk.notna().all(), "APH incidence risk pipeline produced NaNs"
@@ -154,7 +152,7 @@ def test_aph_incidence_risk_in_unit_interval(aph_state: InteractiveContext) -> N
 # Expectation 1: observed APH incidence matches the applied incidence risk
 # ---------------------------------------------------------------------------
 def test_aph_incidence_matches_applied_risk(
-    aph_state: InteractiveContext, fuzzy_checker: FuzzyChecker
+    aph_state: Simulation, fuzzy_checker: FuzzyChecker
 ) -> None:
     """Expectation 1: among birth-eligible simulants, the realized APH proportion
     matches the mean applied APH incidence-risk pipeline value."""
@@ -180,7 +178,7 @@ def test_aph_incidence_matches_applied_risk(
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("disorder", INTRAPARTUM_DISORDER_COLUMNS)
 def test_intrapartum_incidence_risk_in_unit_interval(
-    disorder: str, mortality_state: InteractiveContext
+    disorder: str, mortality_state: Simulation
 ) -> None:
     """Expectation 3: each intrapartum incidence-risk pipeline is a probability."""
     pipeline_name = INTRAPARTUM_INCIDENCE_RISK_PIPELINES[disorder]
@@ -194,7 +192,7 @@ def test_intrapartum_incidence_risk_in_unit_interval(
 # ---------------------------------------------------------------------------
 # Expectation 5 (AME side): AME only assigned to partial_term
 # ---------------------------------------------------------------------------
-def test_ame_only_assigned_to_partial_term(mortality_state: InteractiveContext) -> None:
+def test_ame_only_assigned_to_partial_term(mortality_state: Simulation) -> None:
     """Expectation 5: abortion/miscarriage/ectopic (AME) only on partial_term."""
     pop = mortality_state.get_population(
         [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY]
@@ -214,7 +212,7 @@ def test_ame_only_assigned_to_partial_term(mortality_state: InteractiveContext) 
 # Expectation 4: two-pass mortality / APH-survival gating
 # ---------------------------------------------------------------------------
 def test_aph_death_excludes_intrapartum_disorders(
-    mortality_state: InteractiveContext,
+    mortality_state: Simulation,
 ) -> None:
     """Expectation 4: a simulant that died of APH must not carry any intrapartum
     disorder (incidence gated on survival) and cannot also die of one."""
@@ -251,7 +249,7 @@ def test_aph_death_excludes_intrapartum_disorders(
 
 
 def test_intrapartum_deaths_only_among_survivors(
-    mortality_state: InteractiveContext,
+    mortality_state: Simulation,
 ) -> None:
     """Expectation 4: intrapartum-disorder deaths are resolved only among
     simulants who survived the pregnancy-band (APH/AME) mortality pass -- i.e.
@@ -281,7 +279,7 @@ def test_intrapartum_deaths_only_among_survivors(
     ],
 )
 def test_only_severe_hemorrhage_deaths(
-    hemorrhage_cause: str, severity_col: str, mortality_state: InteractiveContext
+    hemorrhage_cause: str, severity_col: str, mortality_state: Simulation
 ) -> None:
     """Expectation 6: every hemorrhage death must be a severe case."""
     pop = mortality_state.get_population([COLUMNS.MOTHER_CAUSE_OF_DEATH, severity_col])

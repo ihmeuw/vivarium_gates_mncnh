@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from vivarium.engine import InteractiveContext
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants.data_values import PIPELINES, SIMULATION_EVENT_NAMES
 from vivarium_gates_mncnh.plugins.time import EventClock
@@ -59,7 +59,7 @@ def test_pipelines_are_queryable_at_the_end_of_the_sim(
     simulation event is what the run would do, which the first assert pins down,
     and skipping the steps keeps this off the slow path.
     """
-    sim = InteractiveContext(model_spec_path)
+    sim = Simulation(model_spec_path)
     clock = sim._clock
 
     assert clock.time_steps_remaining == len(clock.simulation_events)

@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium.engine import InteractiveContext
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants import paths
 from vivarium_gates_mncnh.constants.data_values import (
@@ -81,7 +81,7 @@ FINAL_CSMR_PIPELINES = [
 # --------------------------------------------------------------------------- #
 
 
-def _pipeline_values(sim: InteractiveContext, name: str, index: pd.Index) -> pd.Series:
+def _pipeline_values(sim: Simulation, name: str, index: pd.Index) -> pd.Series:
     """Read an *attribute* pipeline (RR / CSMR / incidence-risk) aligned to
     ``index``.
 
@@ -96,7 +96,7 @@ def _pipeline_values(sim: InteractiveContext, name: str, index: pd.Index) -> pd.
     return values.loc[index]
 
 
-def _hemoglobin_exposure(sim: InteractiveContext, index: pd.Index) -> pd.Series:
+def _hemoglobin_exposure(sim: Simulation, index: pd.Index) -> pd.Series:
     """Read the hemoglobin exposure the non-log-linear risk effects are keyed on."""
     return _pipeline_values(sim, HGB_RR_EXPOSURE_PIPELINE, index)
 
@@ -146,7 +146,7 @@ def _expected_rr_with_band(
 # One sim, snapshotted at each relevant step (expensive; build once per module)
 # --------------------------------------------------------------------------- #
 class _Snapshots:
-    def __init__(self, sim: InteractiveContext):
+    def __init__(self, sim: Simulation):
         self.sim = sim
         # neonatal snapshots captured *while* the corresponding step is pending
         # (step_name == step), i.e. while the step-gated CSMR modifiers are active
@@ -158,7 +158,7 @@ class _Snapshots:
         self.ppd_after: pd.DataFrame | None = None
 
 
-def _advance_to_step(sim: InteractiveContext, step_name: str) -> None:
+def _advance_to_step(sim: Simulation, step_name: str) -> None:
     """Advance the (single) context until ``step_name`` is the pending event.
 
     We drive off the EventClock's ``step_index`` rather than the conftest
@@ -178,7 +178,7 @@ def _advance_to_step(sim: InteractiveContext, step_name: str) -> None:
             raise RuntimeError(f"Could not advance to step {step_name!r}")
 
 
-def _median_live_child_age(sim: InteractiveContext) -> float:
+def _median_live_child_age(sim: Simulation) -> float:
     """Median ``child_age`` over live-birth, still-alive neonates.
 
     Used to drive the late-neonatal snapshot to the correct age bin: children are
@@ -195,7 +195,7 @@ def _median_live_child_age(sim: InteractiveContext) -> float:
     return float(live[COLUMNS.CHILD_AGE].median())
 
 
-def _neonatal_snapshot(sim: InteractiveContext) -> pd.DataFrame:
+def _neonatal_snapshot(sim: Simulation) -> pd.DataFrame:
     pop = sim.get_population(
         [
             COLUMNS.SEX_OF_CHILD,
@@ -225,10 +225,10 @@ def _neonatal_snapshot(sim: InteractiveContext) -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def snapshots(model_spec_path: Path) -> _Snapshots:
     try:
-        sim = InteractiveContext(model_spec_path)
+        sim = Simulation(model_spec_path)
     except Exception as exc:  # pragma: no cover - artifact-dependent build
         pytest.skip(
-            "Could not build the InteractiveContext (likely a missing artifact "
+            "Could not build the Simulation (likely a missing artifact "
             f"key; needs the model40.0+ artifact): {exc!r}"
         )
 

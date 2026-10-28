@@ -234,7 +234,7 @@ Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. 
 we would still follow this process to ensure we did the experiment correctly, then simply close the PRs without merging once the process is complete.
 
 The V&V process is performed through our ``pytest`` suite.
-The test suite contains some tests that run the simulation (using the ``InteractiveContext``),
+The test suite contains some tests that run the simulation (using ``vivarium.interactive.Simulation``),
 and other tests that perform checks on the results of an already-run simulation (run with ``psimulate``).
 Currently, some of these tests are in Python files, and some are in notebooks.
 In the notebooks, there are also some checks which are not ``assert`` statements,
