@@ -3,7 +3,6 @@ Utility functions for PAF simulation workflow.
 """
 
 import glob
-import importlib
 import os
 import re
 import shutil
@@ -12,20 +11,9 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple
+from typing import List, Optional
 
 import pyarrow.parquet as pq
-
-#: The two environment flavours this repository builds. Their dependency sets
-#: conflict and cannot be merged into one environment.
-EnvType = Literal["simulation", "artifact"]
-ENV_TYPES: Tuple[EnvType, ...] = ("simulation", "artifact")
-
-
-def _environment_sh_hint(env_type: Optional[EnvType] = None) -> str:
-    """Return the ``source environment.sh`` invocation that builds *env_type*."""
-    flags = "-s" if env_type in (None, "simulation") else f"-s -t {env_type}"
-    return f"source environment.sh {flags}"
 
 
 def tag_commit(tag: str) -> Optional[str]:
@@ -165,59 +153,6 @@ def check_clean_tree() -> None:
         )
 
 
-def _env_satisfies(env_type: EnvType) -> bool:
-    """Return whether the *active* interpreter can do *env_type* work.
-
-    Decided by whether ``vivarium_inputs`` is importable: it is installed in the
-    artifact environment and not in the simulation one.
-    """
-    try:
-        importlib.import_module("vivarium_inputs")
-        artifact_capable = True
-    except ImportError:
-        artifact_capable = False
-
-    if env_type == "artifact":
-        return artifact_capable
-    if env_type == "simulation":
-        return shutil.which("psimulate") is not None and not artifact_capable
-    raise ValueError(f"Unknown environment type '{env_type}'. Expected one of {ENV_TYPES}.")
-
-
-def require_environment(env_type: EnvType) -> None:
-    """Abort unless the *active* environment can do *env_type* work.
-
-    Parameters
-    ----------
-    env_type
-        The flavour of work about to be done.
-
-    Raises
-    ------
-    ValueError
-        If *env_type* is not one of :data:`ENV_TYPES`.
-    RuntimeError
-        If the active environment cannot do that work.
-    """
-    if env_type not in ENV_TYPES:
-        raise ValueError(
-            f"Unknown environment type '{env_type}'. Expected one of {ENV_TYPES}."
-        )
-
-    if _env_satisfies(env_type):
-        print(f"  \u2713 active environment ({sys.prefix}) can do {env_type} work")
-        return
-
-    other = "artifact" if env_type == "simulation" else "simulation"
-    raise RuntimeError(
-        f"This is not a {env_type} environment: {sys.prefix}\n"
-        f"  It looks like a {other} environment instead.\n"
-        f"  Build or activate the right one with '{_environment_sh_hint(env_type)}'.\n"
-        "  If this is a workflow step, set its 'environment' key to the "
-        f"{env_type} environment."
-    )
-
-
 def _feed_confirmations(stream) -> None:
     """Answer ``y`` to every prompt the child writes, until it closes stdin.
 
@@ -293,8 +228,7 @@ def run_command(
     except FileNotFoundError:
         raise RuntimeError(
             f"Failed {description}: '{argv[0]}' was not found.\n"
-            f"Build the environment that provides it with "
-            f"'{_environment_sh_hint()}' (add '-t artifact' for artifact tooling)."
+            "Build the environment that provides it with 'source environment.sh'."
         )
 
     if auto_confirm:

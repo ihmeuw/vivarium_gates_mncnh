@@ -24,7 +24,6 @@ from vivarium_gates_mncnh.tools.utilities import (
     check_psimulate_finished,
     create_and_push_tag,
     extract_results_dir,
-    require_environment,
     run_command,
 )
 
@@ -65,9 +64,9 @@ def run_sim(
 ) -> None:
     """Run the main simulation for all locations.
 
-    Checks that this is a simulation environment and that the tree is clean,
-    creates a git tag ``{model_name}``, pushes it to origin, updates the
-    model results directory, then launches psimulate for every location.
+    Checks that the tree is clean, creates a git tag ``{model_name}``, pushes
+    it to origin, updates the model results directory, then launches psimulate
+    for every location.
 
     Parameters
     ----------
@@ -113,7 +112,6 @@ def run_sim(
     print(f"Baseline only: {baseline_only}")
     print("=" * 80)
 
-    require_environment("simulation")
     check_clean_tree()
     create_and_push_tag(model_name)
 

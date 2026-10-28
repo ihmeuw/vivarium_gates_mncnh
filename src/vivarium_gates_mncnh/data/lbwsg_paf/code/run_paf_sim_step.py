@@ -4,13 +4,13 @@ Run one step of the LBWSG PAF workflow.
 
 Usage
 -----
-Run the five steps in order, each in the environment named beside it:
+Run the five steps in order (run_paf_sim.py does this for you):
 
-    python run_paf_sim_step.py --step initial-artifact -a NAME -l Ethiopia   # artifact
-    python run_paf_sim_step.py --step enn-paf          -a NAME -l Ethiopia   # simulation
-    python run_paf_sim_step.py --step enn-artifact     -a NAME -l Ethiopia   # artifact
-    python run_paf_sim_step.py --step lnn-paf          -a NAME -l Ethiopia   # simulation
-    python run_paf_sim_step.py --step final-artifact   -a NAME -l Ethiopia   # artifact
+    python run_paf_sim_step.py --step initial-artifact -a NAME -l Ethiopia
+    python run_paf_sim_step.py --step enn-paf          -a NAME -l Ethiopia
+    python run_paf_sim_step.py --step enn-artifact     -a NAME -l Ethiopia
+    python run_paf_sim_step.py --step lnn-paf          -a NAME -l Ethiopia
+    python run_paf_sim_step.py --step final-artifact   -a NAME -l Ethiopia
 """
 
 import argparse
@@ -20,13 +20,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from vivarium_gates_mncnh.constants.metadata import LOCATIONS, PAF_PHASE_ENVIRONMENTS
+from vivarium_gates_mncnh.constants.metadata import LOCATIONS, PAF_PHASES
 from vivarium_gates_mncnh.constants.paths import CLUSTER_DATA_DIR
 from vivarium_gates_mncnh.tools.utilities import (
     check_psimulate_finished,
     extract_results_dir,
     move_results,
-    require_environment,
     run_command,
 )
 
@@ -114,7 +113,9 @@ def _run_paf_simulation(
                 str(artifact_dir / f"{location}.hdf"),
                 "-o",
                 str(working_dir),
+                "-M",
                 str(script_dir / "code" / model_spec),
+                "-B",
                 str(script_dir / "code" / "lbwsg_paf_branches.yaml"),
             ],
             description,
@@ -155,8 +156,8 @@ def main() -> None:
         required=True,
         # Ordered as constants.metadata.PAF_PHASES is, so --help lists the
         # phases in the order they run rather than alphabetically.
-        choices=list(PAF_PHASE_ENVIRONMENTS),
-        help="Which step to run. It runs in the environment the caller activated.",
+        choices=list(PAF_PHASES),
+        help="Which step to run.",
     )
     parser.add_argument(
         "-l",
@@ -214,8 +215,6 @@ def main() -> None:
     print(f"Locations: {', '.join(requested)}")
     print(f"Artifact: {artifact_dir}")
     print("=" * 80)
-
-    require_environment(PAF_PHASE_ENVIRONMENTS[step])
 
     for location in (loc.lower() for loc in requested):
         _run_one_location(step, location, artifact_dir)

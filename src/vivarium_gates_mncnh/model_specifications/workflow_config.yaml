@@ -1,8 +1,5 @@
 # ==========================================================================
 # Simulation + test half of the pipeline: run the models, then test the results.
-#
-# The 'environment' below is a conda environment name, so this pipeline only
-# runs with conda -- not with the shared environments from environment.sh -s.
 # ==========================================================================
 workflow:
   name: "test_pipeline"
@@ -59,9 +56,8 @@ workflow:
         branch_configuration: src/vivarium_gates_mncnh/model_specifications/branches/scenarios.yaml
         artifact_path: /mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/test_workflow/pakistan.hdf
     
-    - name: "tests_artifact"
+    - name: "tests_results"
       type: pytest
-      environment: vivarium_gates_mncnh_artifact
       resources:
         memory_gb: 2
         runtime: "01:00:00"
