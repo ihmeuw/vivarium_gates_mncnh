@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
@@ -18,7 +18,7 @@ from .utilities import get_interactive_context_state
 @pytest.fixture(scope="module")
 def pregnancy_state(
     model_spec_path: Path, sim_state_step_mapper: dict[str, int]
-) -> InteractiveContext:
+) -> Simulation:
     """Update model specification to remove OralIronEffectsOnGestationalAge. Then we can compare
     our unmodified pregnancy duration pipeline, which reads from the gestational age pipeline,
     with the pregnancy duration column."""
@@ -30,14 +30,14 @@ def pregnancy_state(
         if component != "OralIronEffectsOnGestationalAge()"
     ]
     model_spec.components.vivarium_gates_mncnh.components = components_without_oral_iron_on_ga
-    sim = InteractiveContext(model_spec)
+    sim = Simulation(model_spec)
     return get_interactive_context_state(
         sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.ULTRASOUND
     )
 
 
 @pytest.fixture(scope="module")
-def population(pregnancy_state: InteractiveContext) -> pd.DataFrame:
+def population(pregnancy_state: Simulation) -> pd.DataFrame:
     return pregnancy_state.get_population(
         [
             COLUMNS.PREGNANCY_OUTCOME,
@@ -66,7 +66,7 @@ def test_partial_term_pregnancy_durations(
 
 
 def test_pregnancy_duration_pipeline(
-    pregnancy_state: InteractiveContext, population: pd.DataFrame
+    pregnancy_state: Simulation, population: pd.DataFrame
 ) -> None:
     """Tests that the pregnancy duration pipeline (unmodified by oral iron)
     1) equals the partial term pregnancy duration column for partial term pregnancies, and

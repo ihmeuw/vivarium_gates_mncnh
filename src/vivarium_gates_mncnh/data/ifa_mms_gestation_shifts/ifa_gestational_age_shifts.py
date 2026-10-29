@@ -10,8 +10,8 @@ from vivarium.artifact import Artifact
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
+from vivarium.interactive import Simulation
 
 LOCATION_DATA = {"ethiopia": 179, "nigeria": 214, "pakistan": 165}
 ART_DIR = "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/model29.0"
@@ -128,7 +128,7 @@ def initialize_simulation(location, draw):
     no_oral_iron_spec.configuration.input_data.artifact_path = Path(ART_DIR) / (
         location + ".hdf"
     )
-    sim = InteractiveContext(no_oral_iron_spec)
+    sim = Simulation(no_oral_iron_spec)
     sim.take_steps(4, None, True)
     return sim
 
