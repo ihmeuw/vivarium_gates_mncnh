@@ -168,7 +168,9 @@ class NotebookTestRunner:
         with open(lock_path, "w") as lock_file:
             fcntl.flock(lock_file, fcntl.LOCK_EX)
             if not self._check_kernel_exists():
-                logger.info(f"Kernel '{self.kernel_name}' not found, attempting to register...")
+                logger.info(
+                    f"Kernel '{self.kernel_name}' not found, attempting to register..."
+                )
 
                 if not self._register_kernel():
                     raise RuntimeError(
