@@ -3,10 +3,12 @@ Module to test Jupyter notebooks in the model_notebooks directory. This module p
 framework to run each notebook and record whether the notebook runs successfully or not. 
 If the notebook has any cell that errors out, the test will fail.
 """
+import fcntl
 import hashlib
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -161,14 +163,18 @@ class NotebookTestRunner:
         Raises:
             RuntimeError: If kernel cannot be registered
         """
-        if not self._check_kernel_exists():
-            logger.info(f"Kernel '{self.kernel_name}' not found, attempting to register...")
+        # pytest workers register one at a time: each install deletes and rewrites the kernel.
+        lock_path = Path(tempfile.gettempdir()) / f"{self.kernel_name}.lock"
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            if not self._check_kernel_exists():
+                logger.info(f"Kernel '{self.kernel_name}' not found, attempting to register...")
 
-            if not self._register_kernel():
-                raise RuntimeError(
-                    f"Failed to register kernel '{self.kernel_name}'. "
-                    f"Ensure environment {self.environment_python} has ipykernel installed."
-                )
+                if not self._register_kernel():
+                    raise RuntimeError(
+                        f"Failed to register kernel '{self.kernel_name}'. "
+                        f"Ensure environment {self.environment_python} has ipykernel installed."
+                    )
 
     def _execute_notebook(self, notebook_path: Path) -> bool:
         """
