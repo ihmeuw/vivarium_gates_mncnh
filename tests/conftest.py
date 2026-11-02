@@ -12,32 +12,6 @@ from vivarium.fuzzy_checker import FuzzyChecker
 
 from vivarium_gates_mncnh.constants import paths
 
-# Detect environment type by checking for vivarium_inputs package
-try:
-    import vivarium_inputs
-
-    IS_SIMULATION_ENV = False
-except ImportError:
-    IS_SIMULATION_ENV = True
-
-# Use collect_ignore to prevent pytest from collecting certain directories
-# This is evaluated at module level before collection starts
-collect_ignore = []
-if IS_SIMULATION_ENV:
-    # In simulation env, don't collect tests from automated_v_and_v and model_notebooks
-    collect_ignore.extend(
-        [
-            "automated_v_and_v",
-            "model_notebooks",
-        ]
-    )
-else:
-    # In artifact env, only collect tests from automated_v_and_v and model_notebooks
-    # Ignore all test_*.py files in the tests root directory
-    test_dir = Path(__file__).parent
-    for test_file in test_dir.glob("test_*.py"):
-        collect_ignore.append(test_file.name)
-
 
 def pytest_collection_modifyitems(config, items):
     skip_jenkins = pytest.mark.skip(reason="skipping tests in jenkins")
