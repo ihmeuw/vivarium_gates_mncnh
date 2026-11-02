@@ -27,6 +27,9 @@ Note that updating the shared repo will take affect on the next pipeline invocat
 // Load the full vivarium_build_utils library at the expected version
 library("vivarium_build_utils@${get_vbu_version()}")
 
+// TODO: build from uv.lock with the build-utils uv pipeline argument once it exists
+// (MIC-7679). Until then the pipeline installs `.[dev]`, which no longer exists
+// because the dev requirements are a dependency group.
 reusable_pipeline(
     scheduled_branches: [
       // Add additional branches for cron jobs below.
@@ -36,5 +39,4 @@ reusable_pipeline(
     ],
     requires_slurm: true,
     skip_doc_build: true,
-    run_mypy: false,
 )
