@@ -16,7 +16,7 @@ We recommend installing `Miniforge <https://github.com/conda-forge/miniforge>`_.
 Once you have conda installed, you should open up your normal shell
 (if you're on linux or OSX) or the ``git bash`` shell if you're on windows.
 
-You'll then clone this repository and make the necessary environments.
+You'll then clone this repository and make the project environment.
 The first step is to clone the repo::
 
   :~$ git clone https://github.com/ihmeuw/vivarium_gates_mncnh.git
@@ -33,18 +33,14 @@ conda environment if it is stale.
 **Local conda environment** (default)::
 
   :~$ source environment.sh
-  ...creates/activates the simulation conda environment...
-  :~$ source environment.sh -t artifact
-  ...creates/activates the artifact conda environment...
+  ...creates/activates the vivarium_gates_mncnh conda environment...
 
 To deactivate a local conda environment, run ``conda deactivate``.
 
 **Shared environment on the cluster** (recommended for cluster development)::
 
   :~$ source environment.sh -s
-  ...creates/activates a venv overlay on the shared simulation environment...
-  :~$ source environment.sh -s -t artifact
-  ...creates/activates a venv overlay on the shared artifact environment...
+  ...creates/activates a venv overlay on the shared vivarium_gates_mncnh_current environment...
 
 To deactivate a shared cluster environment, run ``deactivate``.
 
@@ -56,19 +52,26 @@ up tools added to the shared environment later.
 Additional options are available; pass the ``-h`` flag to see them
 (e.g. ``-f`` to force a rebuild, ``-l`` to install git lfs).
 
-Alternatively, users can manually create conda environments as follows::
+Alternatively, users can manually create the conda environment as follows::
 
-  :~$ conda create --name=vivarium_gates_mncnh_simulation python=3.11 git git-lfs
+  :~$ conda create --name=vivarium_gates_mncnh python=3.11 git git-lfs
   ...conda will download python and base dependencies...
-  :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ pip install -e .[dev]
-  ...pip will install vivarium and other requirements...
-  (vivarium_gates_mncnh_simulation) :~$ conda deactivate
-  :~$ conda create --name=vivarium_gates_mncnh_artifact python=3.11 git git-lfs
-  ...conda will download python and base dependencies...
-  :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ pip install -e .[data]
-  ...pip will install vivarium and other requirements...
+  :~$ conda activate vivarium_gates_mncnh
+  (vivarium_gates_mncnh) :~$ pip install "vivarium_build_utils>=4.0.0,<5.0.0"
+  (vivarium_gates_mncnh) :~$ make install ENV_REQS=dev
+  ...uv will install vivarium and other requirements...
+
+Install with ``make install`` rather than ``pip install``.
+``make install`` uses ``uv``, which applies the dependency overrides in the
+``[tool.uv]`` table of ``pyproject.toml``. ``pip`` does not read that table,
+so it cannot resolve the dependencies.
+Some dependencies are installed from repositories in the ``ihme-internal``
+GitHub organization, so you need read access to that organization.
+
+``vivarium_gbd_access`` 8.0.0 removes the ``input_data.cache_data`` setting.
+If your ``~/vivarium.yaml`` sets it, every GBD pull fails with
+"The 'input_data.cache_data' setting has been removed".
+Remove that line from the file.
 
 Supported Python versions: 3.11
 
@@ -131,7 +134,7 @@ You'll find six directories inside the main
   data or process outputs.
 
 When performing merges in this repository, due to the presence of notebooks, there may be conflicts more often than you expect.
-Both the simulation and artifact environments have `nbdime` installed, which makes these conflicts easier to resolve.
+The project environment has ``nbdime`` installed, which makes these conflicts easier to resolve.
 Simply open the conflicting notebooks in a notebook editor (e.g. JupyterLab or VS Code) and resolve the conflicts within that interface.
 
 Running Simulations
@@ -141,6 +144,7 @@ You will need to repeat the entire process documented here for each location you
 Only Pakistan, Nigeria, and Ethiopia are supported currently.
 In all commands here, we use Pakistan as an example;
 replace "Pakistan" with the name of the location of interest.
+Run every command in this section in the project environment (see Installation).
 
 To run this simulation, the first step is to analyze GBD data to generate "caps" (maximum values)
 for relative risks of low birthweight and short gestation (LBWSG).
@@ -149,14 +153,12 @@ If you don't want to re-generate the RR caps, you can skip this step and simply 
 files included in this repo.
 Generating the caps is achieved with:::
 
-  :~$ source environment.sh -t artifact
-  (vivarium_gates_mncnh_artifact) :~$ python src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py -l Pakistan -o src/vivarium_gates_mncnh/data/lbwsg_rr_caps/caps/
+  (vivarium_gates_mncnh) :~$ python src/vivarium_gates_mncnh/data/lbwsg_rr_caps/generate_caps.py -l Pakistan -o src/vivarium_gates_mncnh/data/lbwsg_rr_caps/caps/
 
 The next step is to generate an artifact with base GBD data in it.
 This will only work on the IHME cluster, because it pulls draw-level data from internal GBD databases.:::
 
-  :~$ source environment.sh -t artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/
+  (vivarium_gates_mncnh) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/
 
 This command will create an artifact file in the ``artifacts/`` directory within the repo;
 omit the ``-o`` argument to output to the default location of ``/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts``,
@@ -167,8 +169,7 @@ for LBWSG in the early neonatal period.
 *Edit* the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml`` so that the ``end``
 is only one day after the ``start``, then run:::
 
-  :~$ source environment.sh
-  (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
+  (vivarium_gates_mncnh) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
 step. For more ways to run simulations, see the tutorials at
@@ -189,15 +190,13 @@ Now *edit* the ``PAF_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.
 ``Path("calculated_pafs/")``.
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
-  :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
+  (vivarium_gates_mncnh) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction
 
 Next we'll repeat the process to calculate PAFs and preterm prevalence for late neonatals.
 *Undo* your edits in the ``time`` section of ``src/vivarium_gates_mncnh/data/lbwsg_paf.yaml``
 and re-run:::
 
-  :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
+  (vivarium_gates_mncnh) :~$ simulate run -vvv src/vivarium_gates_mncnh/data/lbwsg_paf.yaml -i artifacts/pakistan.hdf -o paf_sim_results/
 
 *Edit* the ``PRETERM_PREVALENCE_DIR =`` line of ``src/vivarium_gates_mncnh/constants/paths.py`` to set the value to
 ``Path("calculated_preterm_prevalence/")``.
@@ -209,13 +208,11 @@ Copy your results to ``calculated_pafs`` and ``calculated_preterm_prevalence``, 
 
 You'll now re-run the ``make_artifacts`` command, updating the relevant PAFs:::
 
-  :~$ conda activate vivarium_gates_mncnh_artifact
-  (vivarium_gates_mncnh_artifact) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction -r cause.neonatal_preterm_birth.prevalence
+  (vivarium_gates_mncnh) :~$ make_artifacts -vvv -l "Pakistan" -o artifacts/ -r risk_factor.low_birth_weight_and_short_gestation.population_attributable_fraction -r cause.neonatal_preterm_birth.population_attributable_fraction -r cause.neonatal_preterm_birth.prevalence
 
 You are now ready to run the main simulation with::
 
-  :~$ conda activate vivarium_gates_mncnh_simulation
-  (vivarium_gates_mncnh_simulation) :~$ simulate run -vvv src/vivarium_gates_mncnh/model_specifications/model_spec.yaml -i artifacts/pakistan.hdf -o sim_results/
+  (vivarium_gates_mncnh) :~$ simulate run -vvv src/vivarium_gates_mncnh/model_specifications/model_spec.yaml -i artifacts/pakistan.hdf -o sim_results/
 
 Results of the simulation will be written to ``sim_results/``.
 For example, you can check the total deaths due to maternal disorders by
@@ -242,8 +239,9 @@ but require manual review of the notebook outputs to confirm that they are corre
 When notebook tests are run, the notebook outputs are saved to the ``executed`` subdirectories,
 and must be committed to the repo.
 
-For environment-management reasons, the Python tests run in the simulation environment, and the notebook tests run in the artifact environment.
-This means that "running the tests" involves running the test suite in both environments.
+The Python tests and the notebook tests run in the same environment.
+The notebook tests register a Jupyter kernel for the Python interpreter that runs ``pytest``,
+so run ``pytest`` from the project environment.
 
 In general, for each V&V process, there are four roles to play: the artifact-builder, the component-updater, the model-runner, and the V&V person.
 The artifact-builder makes the changes to the artifact,
