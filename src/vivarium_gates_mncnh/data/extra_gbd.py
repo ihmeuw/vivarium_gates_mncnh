@@ -3,7 +3,7 @@ from loguru import logger
 from vivarium_gbd_access import constants as gbd_constants
 from vivarium_gbd_access import utilities as vi_utils
 from vivarium_gbd_access.gbd import base_data
-from vivarium_gbd_access.gbd.demographics import get_age_group_id
+from vivarium_gbd_access.gbd.demographics import get_age_group_id, get_population
 from vivarium_gbd_access.gbd.measures import get_birth_exposure
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
@@ -70,8 +70,6 @@ def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
 
 @vi_utils.cache
 def get_birth_counts(location: str) -> pd.DataFrame:
-    from db_queries import get_population
-
     location_id = utility_data.get_location_id(location)
     births = get_population(
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
