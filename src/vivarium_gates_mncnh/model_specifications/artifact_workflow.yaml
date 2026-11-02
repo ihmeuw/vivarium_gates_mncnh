@@ -17,14 +17,14 @@ workflow:
   # set them to valid, writable directories before running.
   # ==========================================================================
   steps:
-    # Fill in the environment below, e.g. vivarium_gates_mncnh for a conda
-    # environment, or .venv/vivarium_gates_mncnh for a shared-env overlay. Every
-    # step references it.
+    # Every step runs in this checkout's .venv. dagger resolves ./.venv
+    # against the directory it is launched from, so run dagger from the
+    # repository root. Build .venv first with `source environment.sh`.
 
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"
       type: python
-      environment: &env INSERT_ENV_PREFIX
+      environment: &env ./.venv
       resources:
         memory_gb: 1
         runtime: "00:01:00"
