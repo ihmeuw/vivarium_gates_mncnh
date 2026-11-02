@@ -47,6 +47,18 @@ to the newest that fits ``pyproject.toml``; ``make upgrade-versions package=<nam
 moves just one. If ``source environment.sh`` says the lock is out of date,
 run ``make lock-versions`` and commit ``uv.lock``.
 
+**Testing an unreleased framework change.** On a branch, point the package at a
+git commit in the ``[tool.uv.sources]`` table of ``pyproject.toml``, then run
+``make lock-versions`` and ``source environment.sh``::
+
+  [tool.uv.sources]
+  vivarium-public-health = { git = "https://github.com/ihmeuw/vivarium-suite.git", rev = "<commit>", subdirectory = "libs/public-health" }
+
+Such a source must never reach main, and a check fails any pull request into main
+that has a git or path source. Before merging, release the framework change,
+require that release in ``[project] dependencies``, delete the source, and run
+``make lock-versions`` again.
+
 **Moving an existing checkout to uv.** Older checkouts have a ``.venv``
 directory that holds venv overlays on the shared environments
 (``.venv/vivarium_gates_mncnh*``). uv cannot use it, and ``source environment.sh``
