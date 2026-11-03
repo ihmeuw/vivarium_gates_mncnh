@@ -60,8 +60,8 @@ Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
 make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
 
 [tool.uv]
-# TODO: add required-version and a vivarium-build-utils floor once build-utils
-# reads the version from uv.lock (MIC-7678) and that release is tested (MIC-7681).
+# TODO: add required-version and a vivarium-build-utils floor at the build-utils
+# release that ends the uv epic (MIC-7687 section 7).
 index-strategy = "unsafe-best-match"
 python-preference = "only-managed"
 # Rebuild the package when the commit or tags change, so the setuptools_scm version stays current.
@@ -87,6 +87,11 @@ url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/
 # .github/workflows/no_unreleased_sources_on_main.yml).
 vivarium-inputs = { git = "https://github.com/ihme-internal/vivarium_inputs.git", rev = "9d1c2fe" }
 vivarium-gbd-access = { git = "https://github.com/ihme-internal/vivarium_gbd_access.git", rev = "70391248ea" }
+# TODO: replace with a vivarium-build-utils floor at the release that ends the uv
+# epic (MIC-7687 section 7). Until then, track the epic branch, never a PR branch:
+# Jenkins loads build-utils at the commit uv.lock pins, and it can only find a
+# commit that some branch still contains.
+vivarium-build-utils = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/build-utils", branch = "epic/uv-environments" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
