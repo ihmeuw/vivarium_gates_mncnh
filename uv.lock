@@ -5524,8 +5524,8 @@ wheels = [
 
 [[package]]
 name = "vivarium-build-utils"
-version = "4.11.3.dev1+g047f6b632"
-source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fbuild-utils&branch=epic%2Fuv-environments#047f6b6322436c129750689618ff365ec21f82cf" }
+version = "4.11.3.dev3+g2ff7debab"
+source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fbuild-utils&branch=epic%2Fuv-environments#2ff7debab3bb6c547c965c7bf18e29b87df8e93f" }
 dependencies = [
     { name = "packaging" },
 ]
