@@ -42,9 +42,6 @@ dev = [
     "vivarium-cluster-tools[cluster]>=4.8.0,<5.0.0",
     # Older jobmon imports pkg_resources, which setuptools 81+ removed.
     "jobmon_installer_ihme>=10.12.0",
-    # cluster-tools' pip_env.validate runs `pip list`, and uv venvs have no pip.
-    # TODO: remove once cluster-tools supports venvs without pip (MIC-7684).
-    "pip",
     # validation
     "vivarium-validation>=0.4.0",
     # interactive
@@ -93,6 +90,9 @@ vivarium-gbd-access = { git = "https://github.com/ihme-internal/vivarium_gbd_acc
 # Jenkins loads build-utils at the commit uv.lock pins, and it can only find a
 # commit that some branch still contains.
 vivarium-build-utils = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/build-utils", branch = "epic/uv-environments" }
+# TODO: replace with a vivarium-cluster-tools floor at the release that ends the uv
+# epic (MIC-7687 section 7). The epic has psimulate's support for venvs without pip.
+vivarium-cluster-tools = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/cluster-tools", branch = "epic/uv-environments" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

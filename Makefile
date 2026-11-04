@@ -54,8 +54,6 @@ endef
 
 ifneq ($(MAKE_INCLUDES),) # not empty
 # Include makefiles from vivarium_build_utils
-# TODO: base.mk's `install` target still runs pip and uv pip, which bypass uv.lock.
-# Guard it once build-utils ships the uv path (MIC-7680).
 include $(MAKE_INCLUDES)/base.mk
 include $(MAKE_INCLUDES)/test.mk
 else # empty
