@@ -5532,7 +5532,7 @@ dependencies = [
 
 [[package]]
 name = "vivarium-cluster-tools"
-version = "4.7.2"
+version = "4.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dill" },
@@ -5542,9 +5542,9 @@ dependencies = [
     { name = "vivarium-dependencies", extra = ["click", "loguru", "numpy", "pandas", "pyarrow", "pyyaml", "requests", "tables"] },
     { name = "vivarium-engine" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d8/d8/8e5e82aab39e5e660cb7c7da4bdbbfc68af5ab7eaccefc0ff94cde12be73/vivarium_cluster_tools-4.7.2.tar.gz", hash = "sha256:262caa4bab2939fee17396d4cc2c4e09f096fa0a061e4e52100c626814b339b5", size = 185864, upload-time = "2026-10-12T18:27:58.208Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/e7/5760b27f7876775ca941d10a990dd08c6ca3792d8e89c3187b79b60b5cdf/vivarium_cluster_tools-4.10.0.tar.gz", hash = "sha256:2e112bce33dfbccd563b3c1fbf84f7f9429c24160975d2b9b8741767bcba1054", size = 190134, upload-time = "2026-11-03T18:00:16.437Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/e9/4661b864749c67645b41c6a227e29a880e9b3dea550c89c01386c672fb26/vivarium_cluster_tools-4.7.2-py3-none-any.whl", hash = "sha256:ff1c910d52030eb6ccfa1bbaaabf4edc989bb157c43f7e0c8081ebf4ed1d3ee1", size = 98533, upload-time = "2026-10-12T18:27:56.767Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/da/4df6209ccf9356da163a09fdd43b9d572f506968f0ab0ca459701a1283e3/vivarium_cluster_tools-4.10.0-py3-none-any.whl", hash = "sha256:210f46027159aae93866ea76aa0890a66ca18fe36743b409783e5c97ef51df45", size = 100344, upload-time = "2026-11-03T18:00:14.368Z" },
 ]
 
 [package.optional-dependencies]
@@ -5639,7 +5639,7 @@ tables = [
 
 [[package]]
 name = "vivarium-engine"
-version = "5.19.1"
+version = "6.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dill" },
@@ -5648,9 +5648,9 @@ dependencies = [
     { name = "vivarium-config-tree" },
     { name = "vivarium-dependencies", extra = ["click", "loguru", "networkx", "numpy", "pandas", "pyarrow", "pyyaml", "scipy", "tables"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/85/f4/5b157d2f5e829efdbe63fb3d193547c14233019b80dcb80bf97bdfe40024/vivarium_engine-5.19.1.tar.gz", hash = "sha256:bab8c4f4402a355254ffc7894b1f7c66b505575a6f85e37f189187c0d153b15c", size = 7273423, upload-time = "2026-10-26T23:59:48.679Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/0d/3cb47ac6e8120419d62949792c406b1863328bb41ea1d4c8e32eaeef5b92/vivarium_engine-6.0.1.tar.gz", hash = "sha256:2a815a096c220ea2ef0bc4c2c98a88c8456d189c3a1fc9e22d06f10ce4675c9b", size = 7219577, upload-time = "2026-10-28T23:48:08.698Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/4f/ccc1fb24c3802e3eabc455073b74a4512c4c5727bbd4833521d0dd622341/vivarium_engine-5.19.1-py3-none-any.whl", hash = "sha256:e4d8dc6e10ae1f064454758bd6f2d80ea95cc5cbb6ff32b2e984ac029d1f2ed6", size = 199401, upload-time = "2026-10-26T23:59:46.773Z" },
+    { url = "https://files.pythonhosted.org/packages/12/8d/cb67e6a08bb421ac773616b0baf5ac32e7816ea5f28b038515d84833645d/vivarium_engine-6.0.1-py3-none-any.whl", hash = "sha256:17c468425c308878afc6c4dd9099ad030c5af2da0707838cc9d35518f94e42ff", size = 184313, upload-time = "2026-10-28T23:48:06.619Z" },
 ]
 
 [[package]]
@@ -5681,6 +5681,7 @@ dependencies = [
     { name = "vivarium-gbd-access" },
     { name = "vivarium-gbd-mapping" },
     { name = "vivarium-inputs" },
+    { name = "vivarium-interactive" },
     { name = "vivarium-public-health" },
 ]
 
@@ -5708,10 +5709,11 @@ requires-dist = [
     { name = "vivarium-config-tree" },
     { name = "vivarium-dependencies", specifier = "<2.0.0" },
     { name = "vivarium-dependencies", extras = ["click", "loguru", "numpy", "pandas", "scipy", "tables"] },
-    { name = "vivarium-engine", specifier = ">=5.10.0,<6.0.0" },
+    { name = "vivarium-engine", specifier = ">=6.0.0,<7.0.0" },
     { name = "vivarium-gbd-access", git = "https://github.com/ihme-internal/vivarium_gbd_access.git?rev=70391248ea" },
     { name = "vivarium-gbd-mapping", specifier = ">=6.0.0,<7.0.0" },
     { name = "vivarium-inputs", git = "https://github.com/ihme-internal/vivarium_inputs.git?rev=9d1c2fe" },
+    { name = "vivarium-interactive", specifier = ">=1.0.0,<2.0.0" },
     { name = "vivarium-public-health", specifier = ">=6.6.3,<7.0.0" },
 ]
 
@@ -5723,7 +5725,7 @@ dev = [
     { name = "papermill" },
     { name = "pip" },
     { name = "pytest-vivarium", specifier = ">=0.2.0" },
-    { name = "vivarium-cluster-tools", extras = ["cluster"], specifier = ">=4.0.0,<5.0.0" },
+    { name = "vivarium-cluster-tools", extras = ["cluster"], specifier = ">=4.8.0,<5.0.0" },
     { name = "vivarium-dependencies", extras = ["interactive"] },
     { name = "vivarium-dependencies", extras = ["lint"] },
     { name = "vivarium-dependencies", extras = ["pytest"] },
@@ -5770,6 +5772,21 @@ dependencies = [
     { name = "vivarium-dependencies", extra = ["click", "loguru", "numpy", "pandas", "scipy", "tables"] },
     { name = "vivarium-gbd-access" },
     { name = "vivarium-gbd-mapping" },
+]
+
+[[package]]
+name = "vivarium-interactive"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "vivarium-build-utils" },
+    { name = "vivarium-config-tree" },
+    { name = "vivarium-dependencies", extra = ["numpy", "pandas"] },
+    { name = "vivarium-engine" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/be/eb/f7da0427b85054c01d7b24e65b99f01d6f3baab64b0289cffdc1e7ef0db4/vivarium_interactive-1.0.1.tar.gz", hash = "sha256:b3039517f547be856bfb7e2f48e58c5b7eb65259598f9461a7f0744d4cf588d3", size = 70218, upload-time = "2026-10-28T23:39:20.694Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/d6/f4cb858968859bccb1c7430f397e9defe15d43c5ba614f55d6107bd8ae7a/vivarium_interactive-1.0.1-py3-none-any.whl", hash = "sha256:c42de1b8176ff99bbc6864e81e7c7dd6ccf031ca46fecd66947f2a4df31f6651", size = 19039, upload-time = "2026-10-28T23:39:19.499Z" },
 ]
 
 [[package]]
