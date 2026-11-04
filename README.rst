@@ -38,9 +38,6 @@ You can also run a command in the environment without activating it, with
 ``make`` targets (``make lint``, ``make test-all``, ...) run in ``.venv``
 whether or not it is active.
 
-Some dependencies are installed from repositories in the ``ihme-internal``
-GitHub organization, so you need read access to that organization.
-
 To change dependencies, edit ``pyproject.toml``, run ``make lock-versions``,
 and commit ``uv.lock``. ``make upgrade-versions`` moves every locked version
 to the newest that fits ``pyproject.toml``; ``make upgrade-versions package=<name>``

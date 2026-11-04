@@ -11,11 +11,7 @@ resolution-markers = [
 ]
 
 [manifest]
-overrides = [
-    { name = "pandas", specifier = "<3.0.0" },
-    { name = "pandera", specifier = ">=0.23.0" },
-    { name = "vivarium-gbd-access", git = "https://github.com/ihme-internal/vivarium_gbd_access.git?rev=70391248ea" },
-]
+overrides = [{ name = "pandera", specifier = ">=0.23.0" }]
 
 [[package]]
 name = "aiofiles"
@@ -400,15 +396,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8f/43/9d22679e8dd0ed965182cca990d32c68b150730cce8046ad61b3179b5b7a/async_lru-2.4.0.tar.gz", hash = "sha256:b0b0077d9b7596615b3c12d0aad4f6aeccaaa0ac75ceae472608ede89e764c08", size = 22927, upload-time = "2026-10-12T18:12:54.276Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/0b/6a817103fb78faca4970c686a61065047da7226aba0d7cae6d4299b20c59/async_lru-2.4.0-py3-none-any.whl", hash = "sha256:1b46a96419ef91fe11431d58db98d792c9b4250001427191a40faf1031934212", size = 10045, upload-time = "2026-10-12T18:12:53.091Z" },
-]
-
-[[package]]
-name = "async-timeout"
-version = "5.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
 ]
 
 [[package]]
@@ -977,24 +964,6 @@ wheels = [
 ]
 
 [[package]]
-name = "core-maths"
-version = "1.5.2"
-source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
-dependencies = [
-    { name = "draw-validation" },
-    { name = "gbd" },
-    { name = "ihme-cc-dependencies", extra = ["numpy", "pandas", "scipy"] },
-    { name = "ihme-cc-destinies" },
-    { name = "patsy" },
-    { name = "statsmodels" },
-    { name = "test-support" },
-]
-sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/core-maths/1.5.2/core_maths-1.5.2.tar.gz", hash = "sha256:6a49366b6197acda423abb53fc7c3054e620d1a9997b205ddfc1010098f978c2" }
-wheels = [
-    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/core-maths/1.5.2/core_maths-1.5.2-py3-none-any.whl", hash = "sha256:ee6e9c01dacb29806d83b694894a10f4be8a267b4413c3dd9f4fd35adbb868b5" },
-]
-
-[[package]]
 name = "coverage"
 version = "7.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1192,19 +1161,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ae/b6/03bb70946330e88ffec97aefd3ea75ba575cb2e762061e0e62a213befee8/docutils-0.22.4.tar.gz", hash = "sha256:4db53b1fde9abecbb74d91230d32ab626d94f6badfc575d6db9194a49df29968", size = 2291750, upload-time = "2025-12-18T19:00:26.443Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/10/5da547df7a391dcde17f59520a231527b8571e6f46fc8efb02ccb370ab12/docutils-0.22.4-py3-none-any.whl", hash = "sha256:d0013f540772d1420576855455d050a2180186c91c15779301ac2ccb3eeb68de", size = 633196, upload-time = "2025-12-18T19:00:18.077Z" },
-]
-
-[[package]]
-name = "draw-validation"
-version = "2.4.1"
-source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
-dependencies = [
-    { name = "ihme-cc-dependencies", extra = ["pandas"] },
-    { name = "scipy" },
-]
-sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/draw-validation/2.4.1/draw_validation-2.4.1.tar.gz", hash = "sha256:b486b09e3fcbdbbbcdbb8b2d3efa069afcf71b3e050e508dd4e6cd8513c498e1" }
-wheels = [
-    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/draw-validation/2.4.1/draw_validation-2.4.1-py3-none-any.whl", hash = "sha256:a5d3d6867f01290731e0f9120f414875a564022a6bc412e0a850cf8860944ee4" },
 ]
 
 [[package]]
@@ -1449,15 +1405,6 @@ wheels = [
 ]
 
 [[package]]
-name = "gbd"
-version = "4.44.1"
-source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
-sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/gbd/4.44.1/gbd-4.44.1.tar.gz", hash = "sha256:d858848e418c17a2516543164217e35ef8419b24a290b1038a53eb9fb86e7a2a" }
-wheels = [
-    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/gbd/4.44.1/gbd-4.44.1-py3-none-any.whl", hash = "sha256:3816f289e9f15e0e9c76a62506e6ae44d5a049a7236174c9a3a9a8d4e6265366" },
-]
-
-[[package]]
 name = "gitdb"
 version = "4.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -1634,52 +1581,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3abb2c0813953f7aec26d33b7a8960ed760e65ff29fa/idna-3.20.tar.gz", hash = "sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44", size = 216463, upload-time = "2026-09-17T14:11:04.752Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c", size = 69583, upload-time = "2026-09-17T14:11:03.168Z" },
-]
-
-[[package]]
-name = "ihme-cc-dependencies"
-version = "1.17.6"
-source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
-sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/ihme-cc-dependencies/1.17.6/ihme_cc_dependencies-1.17.6.tar.gz", hash = "sha256:9d7c91eb75b2ef75f3ad1c4c306ed7c3e2ac144a6a8a641288eebc0b452d0748" }
-wheels = [
-    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/ihme-cc-dependencies/1.17.6/ihme_cc_dependencies-1.17.6-py3-none-any.whl", hash = "sha256:f82c4d4afa59c427f1e9fd60821008614c4fab0a16587ef0c6c37302b2264106" },
-]
-
-[package.optional-dependencies]
-numpy = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-pandas = [
-    { name = "numexpr" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas" },
-]
-pandera = [
-    { name = "numexpr" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas" },
-    { name = "pandera" },
-]
-scipy = [
-    { name = "scipy" },
-]
-
-[[package]]
-name = "ihme-cc-destinies"
-version = "1.3.0"
-source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
-dependencies = [
-    { name = "ihme-cc-dependencies", extra = ["numpy", "pandas", "pandera"] },
-    { name = "loguru" },
-    { name = "packaging" },
-    { name = "pytest-loguru" },
-]
-sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/ihme-cc-destinies/1.3.0/ihme_cc_destinies-1.3.0.tar.gz", hash = "sha256:1aa50b758c1c6900feb238cda84dfa8a6200b0e414d501993fa5084531b556a0" }
-wheels = [
-    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/ihme-cc-destinies/1.3.0/ihme_cc_destinies-1.3.0-py3-none-any.whl", hash = "sha256:f12e2a8d5b721078b8ee17062c310d28d5585cc370eb1332b5a1f68c6ebb64d2" },
 ]
 
 [[package]]
@@ -4392,18 +4293,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pytest-loguru"
-version = "0.4.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "loguru" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/79/5d/022db15ea1bcf903ae502b874ebe40616072e41a2f4cc6f97aec42480d06/pytest_loguru-0.4.1.tar.gz", hash = "sha256:2248a2bdd4d3b396b06f5513c7208280b67d4dab27555aa65c310a82c2942dbe", size = 60215, upload-time = "2026-05-16T21:51:21.49Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/b8/8d0202e089dbfcab7592d2d26230c31cc1033e5d99326fd78e0902ff9892/pytest_loguru-0.4.1-py3-none-any.whl", hash = "sha256:57e8f4bf3d090c17bb652843ddf9c295a18200f4e2a99f78a5c4c9b605347405", size = 4649, upload-time = "2026-05-16T21:51:20.537Z" },
-]
-
-[[package]]
 name = "pytest-mock"
 version = "3.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4619,18 +4508,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/97/64/e22094c5555e550b6450ecfcceb6a1205d893d9a18ae27764c8c45acfb16/pyzmq-27.2.0-pp311-pypy311_pp73-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:679b5b1dde326a921ea2c9ec1f9ea3115bfe1b4735779bbc6eb0473a0ed93f71", size = 614492, upload-time = "2026-08-20T19:08:06.487Z" },
     { url = "https://files.pythonhosted.org/packages/d2/28/5b1042899caed18278c56d54a502f5254d463afe8aea1acbecc98e053391/pyzmq-27.2.0-pp311-pypy311_pp73-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f5c6d8744d10b5e1eadd90a7c58f8546acf6bf680ee463f7e6ada09ad6c9f802", size = 780574, upload-time = "2026-08-20T19:08:07.987Z" },
     { url = "https://files.pythonhosted.org/packages/77/a3/f134603a671c114c6b56eb912bba890f09e2d43b8a28d243be5a5507cf2f/pyzmq-27.2.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:3ee8dd7031d5e23f632e0e7eee67183ca7d2536e0de35dc1e5d69f3471a791e8", size = 553961, upload-time = "2026-08-20T19:08:09.651Z" },
-]
-
-[[package]]
-name = "redis"
-version = "8.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "async-timeout", marker = "python_full_version < '3.11.3'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/99/604f0b666d4c616d891cf77ebb9db6bb21601344c051aebf1b72b9ff915f/redis-8.1.0.tar.gz", hash = "sha256:6e1a19beef9225c83efd689c7e6b7da2d5215b1f42cd13b7fc3714d0a09c7b25", size = 5254356, upload-time = "2026-07-30T08:51:00.269Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/9d/c5731f6e3608663d4d3656fd8d3aecee8b509c3082818f5a13eae925baea/redis-8.1.0-py3-none-any.whl", hash = "sha256:a4fe1aac3d3b3cc791d4b3d5931c5a956045dc951ee74d1c913ee3ac4d2ee9fb", size = 560618, upload-time = "2026-07-30T08:50:58.497Z" },
 ]
 
 [[package]]
@@ -5285,18 +5162,6 @@ wheels = [
 ]
 
 [[package]]
-name = "test-support"
-version = "0.4.2"
-source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
-dependencies = [
-    { name = "ihme-cc-dependencies", extra = ["numpy", "pandas", "scipy"] },
-]
-sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/test-support/0.4.2/test_support-0.4.2.tar.gz", hash = "sha256:3391ee523662833a4034a9e66427164bf3d63aebc9225c7fc07720bf3d492b00" }
-wheels = [
-    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/test-support/0.4.2/test_support-0.4.2-py3-none-any.whl", hash = "sha256:da6b3486b722bad8e597f3cbaea18312fa219cbee7f17140662967a14f9ff4f4" },
-]
-
-[[package]]
 name = "threadpoolctl"
 version = "3.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5696,9 +5561,9 @@ requires-dist = [
     { name = "vivarium-dependencies", specifier = "<2.0.0" },
     { name = "vivarium-dependencies", extras = ["click", "loguru", "numpy", "pandas", "scipy", "tables"] },
     { name = "vivarium-engine", specifier = ">=6.0.0,<7.0.0" },
-    { name = "vivarium-gbd-access", git = "https://github.com/ihme-internal/vivarium_gbd_access.git?rev=70391248ea" },
+    { name = "vivarium-gbd-access", specifier = ">=8.0.0,<9.0.0" },
     { name = "vivarium-gbd-mapping", specifier = ">=6.0.0,<7.0.0" },
-    { name = "vivarium-inputs", git = "https://github.com/ihme-internal/vivarium_inputs.git?rev=9d1c2fe" },
+    { name = "vivarium-inputs", specifier = ">=9.2.0,<10.0.0" },
     { name = "vivarium-interactive", specifier = ">=1.0.0,<2.0.0" },
     { name = "vivarium-public-health", specifier = ">=6.6.3,<7.0.0" },
 ]
@@ -5720,15 +5585,18 @@ dev = [
 
 [[package]]
 name = "vivarium-gbd-access"
-version = "6.1.1.dev24+g70391248e"
-source = { git = "https://github.com/ihme-internal/vivarium_gbd_access.git?rev=70391248ea#70391248ea3e083ec9928ae938a07e5206d1564b" }
+version = "8.0.0"
+source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
 dependencies = [
     { name = "joblib" },
-    { name = "redis" },
     { name = "tables" },
     { name = "vivarium-build-utils" },
     { name = "vivarium-config-tree" },
     { name = "vivarium-dependencies", extra = ["loguru", "pandas", "pyarrow", "pyyaml"] },
+]
+sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/vivarium-gbd-access/8.0.0/vivarium_gbd_access-8.0.0.tar.gz", hash = "sha256:f44e0f3cb4db95642d0eda756ade44eaca781f0b7c39ebe7ca3a0620924e6cc9" }
+wheels = [
+    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/vivarium-gbd-access/8.0.0/vivarium_gbd_access-8.0.0-py3-none-any.whl", hash = "sha256:e3ad74dced2beb98bd4a800439370bcfee169b7e2b9d8a7fcaae9b7c76e5a53d" },
 ]
 
 [[package]]
@@ -5747,16 +5615,20 @@ wheels = [
 
 [[package]]
 name = "vivarium-inputs"
-version = "9.1.4.dev1+g9d1c2fecc"
-source = { git = "https://github.com/ihme-internal/vivarium_inputs.git?rev=9d1c2fe#9d1c2fecc54bc0f58606d55c4eba5907f9fdfdd6" }
+version = "9.2.0"
+source = { registry = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/" }
 dependencies = [
-    { name = "core-maths" },
     { name = "joblib" },
+    { name = "pandas" },
     { name = "vivarium-artifact" },
     { name = "vivarium-build-utils" },
     { name = "vivarium-dependencies", extra = ["click", "loguru", "numpy", "pandas", "scipy", "tables"] },
     { name = "vivarium-gbd-access" },
     { name = "vivarium-gbd-mapping" },
+]
+sdist = { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/vivarium-inputs/9.2.0/vivarium_inputs-9.2.0.tar.gz", hash = "sha256:2f6aaeab9b0995aebfdfa62bb7de0a10bc0bba385a363a54513bb518494a55eb" }
+wheels = [
+    { url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/vivarium-inputs/9.2.0/vivarium_inputs-9.2.0-py3-none-any.whl", hash = "sha256:8cfedea8d167f94356ce27de1e394b1323f42801f97b32728093ff7e942492be" },
 ]
 
 [[package]]

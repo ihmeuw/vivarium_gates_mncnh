@@ -19,10 +19,8 @@ dependencies = [
     "vivarium-engine>=6.0.0,<7.0.0",
     "vivarium-interactive>=1.0.0,<2.0.0",
     "vivarium-public-health>=6.6.3,<7.0.0",
-    # TODO: add version bounds to these two at release (vivarium_gbd_access 8.x and the
-    # vivarium_inputs that needs it), and drop their [tool.uv.sources] entries.
-    "vivarium-inputs",
-    "vivarium-gbd-access",
+    "vivarium-inputs>=9.2.0,<10.0.0",
+    "vivarium-gbd-access>=8.0.0,<9.0.0",
     "click",
     "jinja2",
     "pyyaml",
@@ -64,17 +62,10 @@ index-strategy = "unsafe-best-match"
 python-preference = "only-managed"
 # Rebuild the package when the commit or tags change, so the setuptools_scm version stays current.
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
-# The vivarium_gbd_access branch builds as a 6.1.1 dev version, which fails the
-# vivarium-gbd-access>=8.0.0 that vivarium_inputs requires, so force it.
-# TODO: remove this with the git sources below.
 # vivarium-validation caps pandera below 0.23, and pandera 0.22 fails to import
 # vivarium.validation under numpy 2.
-# TODO: remove the pandera override once vivarium-validation drops the cap (MIC-7662).
-override-dependencies = [
-    "pandas<3.0.0",
-    "pandera>=0.23.0",
-    "vivarium-gbd-access",
-]
+# TODO: remove this override once vivarium-validation drops the cap (MIC-7662).
+override-dependencies = ["pandera>=0.23.0"]
 
 [[tool.uv.index]]
 name = "ihme-artifactory"
@@ -83,8 +74,6 @@ url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/
 [tool.uv.sources]
 # Unreleased framework commits. These must not reach main (see
 # .github/workflows/no_unreleased_sources_on_main.yml).
-vivarium-inputs = { git = "https://github.com/ihme-internal/vivarium_inputs.git", rev = "9d1c2fe" }
-vivarium-gbd-access = { git = "https://github.com/ihme-internal/vivarium_gbd_access.git", rev = "70391248ea" }
 # TODO: replace with a vivarium-build-utils floor at the release that ends the uv
 # epic (MIC-7687 section 7). Until then, track the epic branch, never a PR branch:
 # Jenkins loads build-utils at the commit uv.lock pins, and it can only find a

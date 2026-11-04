@@ -32,10 +32,6 @@ library("vivarium_build_utils@${get_vbu_version()}")
 reusable_pipeline(
     // Build the environment from uv.lock instead of a conda environment.
     uv_lock: true,
-    // "Github App Enterprise", which can read the ihme-internal git sources in uv.lock.
-    // TODO: remove once uv.lock has no ihme-internal git sources, that is, once
-    // vivarium_inputs and vivarium_gbd_access are released.
-    uv_git_credentials_id: "892b2730-76c1-41b5-a1b6-41daee5b1812",
     scheduled_branches: [
       // Add additional branches for cron jobs below.
       // Note: Newly added branches will require a manual trigger of the first build 
