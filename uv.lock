@@ -10,9 +10,6 @@ resolution-markers = [
     "python_full_version < '3.11.5'",
 ]
 
-[manifest]
-overrides = [{ name = "pandera", specifier = ">=0.23.0" }]
-
 [[package]]
 name = "aiofiles"
 version = "25.1.0"
@@ -5580,7 +5577,7 @@ dev = [
     { name = "vivarium-dependencies", extras = ["lint"] },
     { name = "vivarium-dependencies", extras = ["pytest"] },
     { name = "vivarium-fuzzy-checker", specifier = ">=0.5.0" },
-    { name = "vivarium-validation", specifier = ">=0.4.0" },
+    { name = "vivarium-validation", specifier = ">=0.5.0" },
 ]
 
 [[package]]
@@ -5678,10 +5675,11 @@ wheels = [
 
 [[package]]
 name = "vivarium-validation"
-version = "0.4.3"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
+    { name = "pandas" },
     { name = "pandera" },
     { name = "seaborn" },
     { name = "vivarium-artifact" },
@@ -5692,9 +5690,9 @@ dependencies = [
     { name = "vivarium-fuzzy-checker" },
     { name = "vivarium-gbd-mapping" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/3f/3b78b0c7db857d5846ada2cd5b59cf7984136afe5fcdd30a211618aee366/vivarium_validation-0.4.3.tar.gz", hash = "sha256:36b0d026db4b2c46ee956559c616ccea980e0d2e5d1c69bbc1c7c1968f2e65bb", size = 1042992, upload-time = "2026-10-26T21:15:59.558Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/f8/a5ace0f9fa4d63ca176e6b9f6b8212875bd6c997efe566d3c8bd6d319652/vivarium_validation-0.5.0.tar.gz", hash = "sha256:04792cc598e05b6a7a075f71fb11dd4b9d7631cec0abd0fbf40f58240bfda2d5", size = 1042905, upload-time = "2026-11-04T22:15:41.078Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/d4/8ab143cefa70a5692898bbb701598cf1da6eb3548301fbe1178de1e7e4c0/vivarium_validation-0.4.3-py3-none-any.whl", hash = "sha256:a727d71eb04a824dfe3cfa048aa55652425193b8d2a743505a3bb80932f4dbd7", size = 62282, upload-time = "2026-10-26T21:15:57.725Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/61/ff0315f922d88f43c955084da77a35f67c6a4a7d57b78328a1052806b0d5/vivarium_validation-0.5.0-py3-none-any.whl", hash = "sha256:3872cb510a457c3557a99a12a9dc8b503756a045ea706bc8d3e4d8ab8c693b4f", size = 62125, upload-time = "2026-11-04T22:15:39.375Z" },
 ]
 
 [[package]]
