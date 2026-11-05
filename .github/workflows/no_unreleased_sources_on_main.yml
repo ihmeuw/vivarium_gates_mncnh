@@ -1,0 +1,51 @@
+# -----------------------------------------------------------------------------
+# Fail pull requests into main whose pyproject.toml has a git or path source in
+# [tool.uv.sources]. Main must use released packages: release the framework
+# change, require it in [project] dependencies, delete the source, and run
+# `make lock-versions` before merging.
+# Replaces no_overrides_on_main from epic/pin_package_versions (MIC-7495).
+# -----------------------------------------------------------------------------
+name: no unreleased sources on main
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  no-unreleased-sources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check [tool.uv.sources] in pyproject.toml
+        shell: python
+        run: |
+          import sys
+          import tomllib
+
+          with open("pyproject.toml", "rb") as f:
+              sources = tomllib.load(f).get("tool", {}).get("uv", {}).get("sources", {})
+
+          unreleased = []
+          for package, entries in sources.items():
+              # A source is a table, or a list of tables with markers.
+              for entry in entries if isinstance(entries, list) else [entries]:
+                  for kind in ("git", "path"):
+                      if kind in entry:
+                          unreleased.append(f"{package}: {kind} = {entry[kind]}")
+
+          if unreleased:
+              print("::error file=pyproject.toml::[tool.uv.sources] has unreleased sources.")
+              print("Main must be built from released packages. Before merging:")
+              print("  1. release the framework change,")
+              print("  2. require the released version in [project] dependencies,")
+              print("  3. delete its entry from [tool.uv.sources], and")
+              print("  4. run `make lock-versions` and commit uv.lock.")
+              print("Unreleased sources:")
+              for line in unreleased:
+                  print(f"  {line}")
+              sys.exit(1)
+          print("No git or path sources in [tool.uv.sources]; OK.")
