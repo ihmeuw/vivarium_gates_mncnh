@@ -22,12 +22,16 @@ Note that updating the shared repo will take affect on the next pipeline invocat
 
 // Load the get_vbu_version function from vivarium_build_utils/bootstrap/
 // (the directory to load from is defined in the Jenkins shared library configuration)
-@Library("get_vbu_version@main") _
+// TODO: load get_vbu_version@main at the end of the uv epic (MIC-7687 section 7).
+// Until then, use the bootstrap on the vivarium-suite epic branch, which reads uv.lock.
+@Library("get_vbu_version@epic/uv-environments") _
 
 // Load the full vivarium_build_utils library at the expected version
 library("vivarium_build_utils@${get_vbu_version()}")
 
 reusable_pipeline(
+    // Build the environment from uv.lock instead of a conda environment.
+    uv_lock: true,
     scheduled_branches: [
       // Add additional branches for cron jobs below.
       // Note: Newly added branches will require a manual trigger of the first build 
@@ -36,5 +40,4 @@ reusable_pipeline(
     ],
     requires_slurm: true,
     skip_doc_build: true,
-    run_mypy: false,
 )

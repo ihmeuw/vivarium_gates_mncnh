@@ -27,3 +27,7 @@ readme = re.sub(
 # Write the updated README.md back to file
 with open("README.rst", "w") as file:
     file.write(readme)
+
+# uv builds .venv with the Python named in .python-version
+with open(".python-version", "w") as file:
+    file.write(max_version + "\n")
