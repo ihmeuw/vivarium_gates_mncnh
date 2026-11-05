@@ -33,7 +33,9 @@ def load_hemoglobin_rrs_on_maternal_disorders():
         rrs_scaled = pd.read_csv(_CODE_DIR / "hemoglobin_rrs_scaled_to_tmred.csv")
     else:
         print(
-            "NOTE: data for scaled hemoglobin RRs on maternal disorders must be generated using the artifact environment prior to running the interactive context using the simulation environment. see code for more details."
+            "NOTE: hemoglobin_rrs_scaled_to_tmred.csv is missing, so the scaled "
+            "hemoglobin RRs on maternal disorders are generated from GBD data and "
+            "cached. See code for more details."
         )
         location = "Ethiopia"  # RRs do not vary by location, so using this as an arbitrary hard coded value
         from vivarium_gates_mncnh.data.loader import (
@@ -93,9 +95,6 @@ def load_hemoglobin_rrs_on_maternal_disorders():
         rrs_scaled = rrs_scaled.reset_index()
         rrs_scaled.to_csv(_CODE_DIR / "hemoglobin_rrs_scaled_to_tmred.csv", index=False)
     return rrs_scaled
-
-
-# initialize_simulation is imported from vivarium_gates_mncnh.data.utilities
 
 
 def load_direct_nn_sepsis_rrs(location, draw):
