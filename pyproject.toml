@@ -37,7 +37,9 @@ dev = [
     "pytest-vivarium>=0.2.0",
     "vivarium-fuzzy-checker>=0.5.0",
     # cluster
-    "vivarium-cluster-tools[cluster]>=4.8.0,<5.0.0",
+    "vivarium-cluster-tools[cluster]>=5.0.0,<6.0.0",
+    "vivarium-psimulate[cluster]>=1.0.0,<2.0.0",
+    "vivarium-dagger>=0.1.0,<0.2.0",
     # Older jobmon imports pkg_resources, which setuptools 81+ removed.
     "jobmon_installer_ihme>=10.12.0",
     # validation
@@ -75,9 +77,12 @@ url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/
 # Jenkins loads build-utils at the commit uv.lock pins, and it can only find a
 # commit that some branch still contains.
 vivarium-build-utils = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/build-utils", branch = "epic/uv-environments" }
-# TODO: replace with a vivarium-cluster-tools floor at the release that ends the uv
-# epic (MIC-7687 section 7). The epic has psimulate's support for venvs without pip.
+# TODO: replace these three with floors at the releases that end the uv epic
+# (MIC-7687 section 7). The epic has psimulate's support for venvs without pip,
+# and cluster-tools' lookup of the project .venv and the team Slack token.
 vivarium-cluster-tools = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/cluster-tools", branch = "epic/uv-environments" }
+vivarium-psimulate = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/psimulate", branch = "epic/uv-environments" }
+vivarium-dagger = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/dagger", branch = "epic/uv-environments" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

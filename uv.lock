@@ -5377,23 +5377,19 @@ wheels = [
 
 [[package]]
 name = "vivarium-build-utils"
-version = "4.11.3.dev5+g616bdf4b5"
-source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fbuild-utils&branch=epic%2Fuv-environments#616bdf4b53858ba7a145b3ccb880dc1922712058" }
+version = "4.13.1.dev14+g636b37590"
+source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fbuild-utils&branch=epic%2Fuv-environments#636b3759009dc90abf9e7a6232aca3e88f09855a" }
 dependencies = [
     { name = "packaging" },
 ]
 
 [[package]]
 name = "vivarium-cluster-tools"
-version = "4.8.1.dev13+g616bdf4b5"
-source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fcluster-tools&branch=epic%2Fuv-environments#616bdf4b53858ba7a145b3ccb880dc1922712058" }
+version = "5.0.1.dev11+g636b37590"
+source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fcluster-tools&branch=epic%2Fuv-environments#636b3759009dc90abf9e7a6232aca3e88f09855a" }
 dependencies = [
-    { name = "dill" },
-    { name = "psutil" },
     { name = "vivarium-build-utils" },
-    { name = "vivarium-config-tree" },
-    { name = "vivarium-dependencies", extra = ["click", "loguru", "numpy", "pandas", "pyarrow", "pyyaml", "requests", "tables"] },
-    { name = "vivarium-engine" },
+    { name = "vivarium-dependencies", extra = ["click", "loguru", "requests"] },
 ]
 
 [package.optional-dependencies]
@@ -5412,6 +5408,16 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8d/24/4c27dfa2edf943026eb67c8727df62359b5c03bb9bcbe5db0f3f2ef99636/vivarium_config_tree-5.2.1.tar.gz", hash = "sha256:ddbf59537b74ba0ca1bfed400f407d1077717b91212b867781b01e555e541df8", size = 35705, upload-time = "2026-09-22T18:33:56.105Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/b8/c226d22a6967062305ff6de9f6ba081550a84ef3585312bb9f0adbf9b3c5/vivarium_config_tree-5.2.1-py3-none-any.whl", hash = "sha256:08c315e63541447c9e2ded832db9999d58c44d7899a1cfbd42b1705310d0a090", size = 13293, upload-time = "2026-09-22T18:33:54.763Z" },
+]
+
+[[package]]
+name = "vivarium-dagger"
+version = "0.1.1.dev11+g636b37590"
+source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fdagger&branch=epic%2Fuv-environments#636b3759009dc90abf9e7a6232aca3e88f09855a" }
+dependencies = [
+    { name = "vivarium-build-utils" },
+    { name = "vivarium-cluster-tools" },
+    { name = "vivarium-dependencies", extra = ["click", "loguru", "pyyaml"] },
 ]
 
 [[package]]
@@ -5542,8 +5548,10 @@ dev = [
     { name = "papermill" },
     { name = "pytest-vivarium" },
     { name = "vivarium-cluster-tools", extra = ["cluster"] },
+    { name = "vivarium-dagger" },
     { name = "vivarium-dependencies", extra = ["interactive", "lint", "pytest"] },
     { name = "vivarium-fuzzy-checker" },
+    { name = "vivarium-psimulate", extra = ["cluster"] },
     { name = "vivarium-validation" },
 ]
 
@@ -5573,10 +5581,12 @@ dev = [
     { name = "papermill" },
     { name = "pytest-vivarium", specifier = ">=0.2.0" },
     { name = "vivarium-cluster-tools", extras = ["cluster"], git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fcluster-tools&branch=epic%2Fuv-environments" },
+    { name = "vivarium-dagger", git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fdagger&branch=epic%2Fuv-environments" },
     { name = "vivarium-dependencies", extras = ["interactive"] },
     { name = "vivarium-dependencies", extras = ["lint"] },
     { name = "vivarium-dependencies", extras = ["pytest"] },
     { name = "vivarium-fuzzy-checker", specifier = ">=0.5.0" },
+    { name = "vivarium-psimulate", extras = ["cluster"], git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fpsimulate&branch=epic%2Fuv-environments" },
     { name = "vivarium-validation", specifier = ">=0.5.0" },
 ]
 
@@ -5641,6 +5651,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/be/eb/f7da0427b85054c01d7b24e65b99f01d6f3baab64b0289cffdc1e7ef0db4/vivarium_interactive-1.0.1.tar.gz", hash = "sha256:b3039517f547be856bfb7e2f48e58c5b7eb65259598f9461a7f0744d4cf588d3", size = 70218, upload-time = "2026-10-28T23:39:20.694Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/d6/f4cb858968859bccb1c7430f397e9defe15d43c5ba614f55d6107bd8ae7a/vivarium_interactive-1.0.1-py3-none-any.whl", hash = "sha256:c42de1b8176ff99bbc6864e81e7c7dd6ccf031ca46fecd66947f2a4df31f6651", size = 19039, upload-time = "2026-10-28T23:39:19.499Z" },
+]
+
+[[package]]
+name = "vivarium-psimulate"
+version = "1.0.1.dev11+g636b37590"
+source = { git = "https://github.com/ihmeuw/vivarium-suite.git?subdirectory=libs%2Fpsimulate&branch=epic%2Fuv-environments#636b3759009dc90abf9e7a6232aca3e88f09855a" }
+dependencies = [
+    { name = "dill" },
+    { name = "psutil" },
+    { name = "vivarium-build-utils" },
+    { name = "vivarium-cluster-tools" },
+    { name = "vivarium-config-tree" },
+    { name = "vivarium-dependencies", extra = ["click", "loguru", "numpy", "pandas", "pyarrow", "pyyaml", "tables"] },
+    { name = "vivarium-engine" },
+]
+
+[package.optional-dependencies]
+cluster = [
+    { name = "jobmon-installer-ihme" },
 ]
 
 [[package]]
