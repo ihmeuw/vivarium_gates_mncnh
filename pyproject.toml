@@ -60,7 +60,6 @@ make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
 [tool.uv]
 # TODO: add required-version and a vivarium-build-utils floor at the build-utils
 # release that ends the uv epic (MIC-7687 section 7).
-index-strategy = "unsafe-best-match"
 python-preference = "only-managed"
 # Rebuild the package when the commit or tags change, so the setuptools_scm version stays current.
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
