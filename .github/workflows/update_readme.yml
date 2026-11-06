@@ -23,7 +23,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "github-actions"
           git diff --quiet && git diff --staged --quiet || (
-            git add README.rst
+            git add README.rst .python-version
             git commit -am "update README with supported Python versions"
             git pull --rebase origin ${{ github.ref_name }}
             git push origin ${{ github.ref_name }}

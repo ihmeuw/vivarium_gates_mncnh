@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Build this checkout's .venv from uv.lock and activate it.
+
 # This script must be sourced, not executed, because it activates an environment
 # in the current shell. Detect non-sourced invocation and fail with a clear message.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -10,157 +12,124 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   exit 1
 fi
 
-# Define variables
-username=$(whoami)
-env_type="simulation"
-make_new="no"
-use_shared="no"
-install_git_lfs="no"
-days_until_stale=7 # Number of days until environment is considered stale
+_vgm_environment() {
+  # The uv version this repo is tested with; older versions are refused.
+  # TODO: read required-version from pyproject.toml instead, once build-utils
+  # reads it (MIC-7678) and that release is tested (MIC-7681).
+  local uv_version="0.13.6"
+  local uv_install="curl -LsSf https://astral.sh/uv/${uv_version}/install.sh | sh"
+  # psimulate reads its Slack token from the environment.
+  # TODO: remove once psimulate reads the token itself.
+  local slack_config="/mnt/team/simulation_science/priv/engineering/config/slack_bot_config.sh"
 
-# Reset OPTIND so help can be invoked multiple times per shell session.
-OPTIND=0
-Help()
-{ 
-   # Display Help
-   echo
-   echo "Script to automatically create and validate conda environments."
-   echo
-   echo "Syntax: source environment.sh [-h|t|s|f|l]"
-   echo "options:"
-   echo "h     Print this Help."
-   echo "t     Type of conda environment. Either 'simulation' (default) or 'artifact'."
-   echo "s     Use shared environment (venv overlay). Recommended for cluster development."
-   echo "f     Force creation of a new environment."
-   echo "l     Install git lfs (only applies when creating a new conda environment)."
-}
+  local repo_root force="no" option OPTIND=1
+  repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
-# Process input options
-while getopts ":hsflt:" option; do
-   case $option in
-      h) # display help
-         Help
-         return;;
-      t) # Type of conda environment to build
-         env_type=$OPTARG;;
-      s) # Use shared environment
-         use_shared="yes";;
-      f) # Force creation of a new environment
-         make_new="yes";;
-      l) # Install git lfs
-         install_git_lfs="yes";;
-     \?) # Invalid option
-         echo
-         echo "ERROR: Invalid option"
-         return;;
-   esac
-done
-
-# Define the merge/diff drivers referenced in .gitattributes.
-# We set the nbdime keys directly
-# rather than running 'nbdime config-git --enable', because that writes
-# '*.ipynb merge=jupyternotebook' to .git/info/attributes, which overrides
-# .gitattributes and would defeat the merge=ours rule for executed notebooks.
-git config merge.ours.driver true
-git config merge.jupyternotebook.name "jupyter notebook merge driver"
-git config merge.jupyternotebook.driver "git-nbmergedriver merge %O %A %B %L %P"
-git config diff.jupyternotebook.command "git-nbdiffdriver diff"
-
-# Parse environment name
-env_name=$(make -s print-dist-name)
-if [[ -z "$env_name" ]]; then
-  echo "ERROR: could not determine the distribution name from pyproject.toml" >&2
-  return 1
-fi
-env_name+="_$env_type"
-branch_name=$(git rev-parse --abbrev-ref HEAD)
-
-# Pull repo to get latest changes from remote if remote exists
-git ls-remote --exit-code --heads origin $branch_name >/dev/null 2>&1
-exit_code=$?
-if [[ "$exit_code" == "0" ]]; then
-  git fetch --all
-  echo
-  echo "Git branch '$branch_name' exists in the remote repository; pulling latest changes"
-  git pull origin $branch_name
-fi
-
-# Capture error and exit script when sourced
-# But also clear the trap when exiting to avoid affecting the parent shell
-trap 'trap - ERR && return' ERR
-set -E
-
-if [[ "$use_shared" == "yes" ]]; then
-  # Deactivate any active conda environments so only the venv is active
-  for i in $(seq "${CONDA_SHLVL:-0}"); do
-    conda deactivate
+  while getopts ":hf" option; do
+    case $option in
+      h)
+        echo
+        echo "Build this checkout's .venv from uv.lock and activate it."
+        echo
+        echo "Syntax: source environment.sh [-h|f]"
+        echo "options:"
+        echo "h     Print this Help."
+        echo "f     Reinstall every package in .venv."
+        return 0;;
+      f)
+        force="yes";;
+      \?)
+        echo
+        echo "ERROR: Invalid option -$OPTARG. Run 'source environment.sh -h' for help."
+        return 1;;
+    esac
   done
 
-  # Shared environment (venv overlay)
-  venv_path=".venv/$env_name"
-  
-  if [[ ! -d "$venv_path" ]] || [[ "$make_new" == "yes" ]]; then
-    # Venv doesn't exist or user requested force rebuild
-    echo "Creating venv for shared environment in $venv_path"
-    make build-shared-env type=$env_type force=yes
-  fi
-  echo "Activating shared environment venv $env_name"
-  source ".venv/$env_name/bin/activate"
+  # Define the merge/diff drivers referenced in .gitattributes.
+  # We set the nbdime keys directly
+  # rather than running 'nbdime config-git --enable', because that writes
+  # '*.ipynb merge=jupyternotebook' to .git/info/attributes, which overrides
+  # .gitattributes and would defeat the merge=ours rule for executed notebooks.
+  git -C "$repo_root" config merge.ours.driver true
+  git -C "$repo_root" config merge.jupyternotebook.name "jupyter notebook merge driver"
+  git -C "$repo_root" config merge.jupyternotebook.driver "git-nbmergedriver merge %O %A %B %L %P"
+  git -C "$repo_root" config diff.jupyternotebook.command "git-nbdiffdriver diff"
 
-else
-  # Initialize conda if not already initialized
-  conda_path=$($SHELL -ic 'conda info --base')
-  if [ ! -d "$conda_path" ]; then
+  # uv must be on PATH and new enough.
+  if ! command -v uv >/dev/null 2>&1; then
     echo
-    echo "ERROR: Conda path $conda_path does not exist"
-    return
+    echo "ERROR: uv is not on PATH. Install it with:"
+    echo "  $uv_install"
+    return 1
   fi
-  if [ -f "$conda_path/etc/profile.d/conda.sh" ]; then
+  local found
+  found=$(uv --version | awk '{print $2}')
+  if [[ "$(printf '%s\n%s\n' "$uv_version" "$found" | sort -V | head -n 1)" != "$uv_version" ]]; then
     echo
-    echo "Initializing conda from $conda_path"
-    source "$conda_path/etc/profile.d/conda.sh"
-  else
-    echo
-    echo "ERROR: Unable to find conda in expected locations"
-    return
-  fi
-  # Conda environment
-  lfs_flag=""
-  if [[ "$install_git_lfs" == "yes" ]]; then
-    lfs_flag="lfs=yes"
+    echo "ERROR: uv $found is older than $uv_version. Install the newer one with:"
+    echo "  $uv_install"
+    return 1
   fi
 
-  need_to_build="yes"
-  env_info=$(conda info --envs | grep $env_name | head -n 1)
-  
-  if [[ "$env_info" != "" ]]; then
-    # Environment exists
-    if [[ "$make_new" != "yes" ]]; then
-      # Not forcing rebuild, check if stale
-      conda activate $env_name
-      expiration_time=$(date -d "$days_until_stale days ago" +%s)
-      creation_time="$(head -n1 $CONDA_PREFIX/conda-meta/history)"
-      creation_time=$(echo $creation_time | sed -e 's/^==>\ //g' -e 's/\ <==//g')
-      creation_time="$(date -d "$creation_time" +%s)"
-      if [[ "$creation_time" -ge "$expiration_time" ]]; then
-        # Not stale, skip building
-        need_to_build="no"
-      fi
-    fi
+  # Leftovers from the old setup. uv will not use a .venv that is not a venv,
+  # so stop there. We never delete these ourselves.
+  if [[ -d "$repo_root/.venv" && ! -f "$repo_root/.venv/pyvenv.cfg" ]]; then
+    echo
+    echo "ERROR: $repo_root/.venv is not a venv. It holds the old shared-environment overlays:"
+    ls -d "$repo_root"/.venv/*/ 2>/dev/null | sed 's/^/  /'
+    echo "Remove it, then source this script again:"
+    echo "  rm -rf $repo_root/.venv"
+    return 1
   fi
-  
-  if [[ "$need_to_build" == "yes" ]]; then
-    # Deactivate current environment if it's the one we're about to rebuild
-    if [[ "$CONDA_DEFAULT_ENV" == "$env_name" ]]; then
-      echo "Deactivating currently active environment..."
+  local hooks_dir hook lfs_hooks=()
+  # Relative to repo_root; --path-format=absolute needs a newer git than the cluster's.
+  hooks_dir=$(git -C "$repo_root" rev-parse --git-path hooks 2>/dev/null)
+  [[ "$hooks_dir" == /* ]] || hooks_dir="$repo_root/$hooks_dir"
+  for hook in "$hooks_dir"/*; do
+    [[ -f "$hook" ]] && grep -q "git lfs\|git-lfs" "$hook" && lfs_hooks+=("$hook")
+  done
+  if (( ${#lfs_hooks[@]} )); then
+    echo
+    echo "NOTE: $hooks_dir holds Git LFS hooks left by the old git-lfs option."
+    echo "This repo tracks no files in Git LFS. To remove them:"
+    echo "  rm ${lfs_hooks[*]}"
+  fi
+
+  # Only .venv should be active.
+  if declare -F deactivate >/dev/null; then
+    deactivate
+  fi
+  if declare -F conda >/dev/null; then
+    local i
+    for i in $(seq "${CONDA_SHLVL:-0}"); do
       conda deactivate
-    fi
-    echo "Creating conda environment '$env_name'"
-    make build-env type=$env_type name=$env_name force=yes $lfs_flag
+    done
   fi
-  echo "Activating conda environment '$env_name'"
-  conda activate $env_name
-fi
 
-# Clear the ERR trap to avoid affecting subsequent commands in the parent shell
-trap - ERR
+  local sync_args=(--locked --project "$repo_root")
+  [[ "$force" == "yes" ]] && sync_args+=(--reinstall)
+  if ! uv sync "${sync_args[@]}"; then
+    echo
+    if ! uv lock --check --project "$repo_root" >/dev/null 2>&1; then
+      echo "ERROR: uv.lock does not match pyproject.toml."
+      echo "Run 'make lock-versions' and commit uv.lock."
+    else
+      echo "ERROR: 'uv sync ${sync_args[*]}' failed; see the messages above."
+    fi
+    return 1
+  fi
+
+  echo "Activating $repo_root/.venv"
+  source "$repo_root/.venv/bin/activate"
+
+  if [[ -r "$slack_config" ]]; then
+    source "$slack_config"
+  fi
+}
+
+if _vgm_environment "$@"; then
+  unset -f _vgm_environment
+else
+  unset -f _vgm_environment
+  return 1
+fi

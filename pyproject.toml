@@ -19,33 +19,37 @@ dependencies = [
     "vivarium-engine>=6.0.0,<7.0.0",
     "vivarium-interactive>=1.0.0,<2.0.0",
     "vivarium-public-health>=6.6.3,<7.0.0",
+    "vivarium-inputs>=9.2.0,<10.0.0",
+    "vivarium-gbd-access>=8.0.0,<9.0.0",
     "click",
     "jinja2",
     "pyyaml",
     "statsmodels",
 ]
 
-[project.optional-dependencies]
-test = [
+[dependency-groups]
+# One group for the whole environment, so a bare `uv sync` builds everything.
+dev = [
+    # test
     "vivarium-dependencies[pytest]",
     "papermill",
     "jupyterlab",
     "pytest-vivarium>=0.2.0",
     "vivarium-fuzzy-checker>=0.5.0",
-]
-cluster = ["vivarium-cluster-tools[cluster]>=4.8.0,<5.0.0"]
-validation = ["vivarium-validation[gbd]>=0.4.0"]
-interactive = [
+    # cluster
+    "vivarium-cluster-tools[cluster]>=5.0.0,<6.0.0",
+    "vivarium-psimulate[cluster]>=1.0.0,<2.0.0",
+    "vivarium-dagger>=0.1.0,<0.2.0",
+    # Older jobmon imports pkg_resources, which setuptools 81+ removed.
+    "jobmon_installer_ihme>=10.12.0",
+    # validation
+    "vivarium-validation>=0.5.0",
+    # interactive
     "vivarium-dependencies[interactive]",
     "nbdime",
+    # lint
+    "vivarium-dependencies[lint]",
 ]
-lint = ["vivarium-dependencies[lint]"]
-data = [
-    "vivarium-inputs>=9.0.0,<10.0.0",
-    "vivarium-gbd-access>=7.0.0,<8.0.0",
-    "vivarium_gates_mncnh[cluster,lint,test,validation,interactive]",
-]
-dev = ["vivarium_gates_mncnh[test,cluster,lint,interactive]"]
 
 [project.urls]
 Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
@@ -54,9 +58,30 @@ Homepage = "https://github.com/ihmeuw/vivarium_gates_mncnh"
 make_artifacts = "vivarium_gates_mncnh.tools.cli:make_artifacts"
 
 [tool.uv]
-# pyarrow 26 needs numpy 2 but does not declare it, so cap it while numpy<2 is here.
-# TODO: remove the pyarrow cap with numpy<2 once GBD siloing (MIC-7613) is merged.
-override-dependencies = ["pandas<3.0.0", "sqlalchemy>=2.0.0,<3.0.0", "numpy<2.0.0", "pyarrow<26.0.0"]
+# TODO: add required-version and a vivarium-build-utils floor at the build-utils
+# release that ends the uv epic (MIC-7687 section 7).
+python-preference = "only-managed"
+# Rebuild the package when the commit or tags change, so the setuptools_scm version stays current.
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
+[[tool.uv.index]]
+name = "ihme-artifactory"
+url = "https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/simple/"
+
+[tool.uv.sources]
+# Unreleased framework commits. These must not reach main (see
+# .github/workflows/no_unreleased_sources_on_main.yml).
+# TODO: replace with a vivarium-build-utils floor at the release that ends the uv
+# epic (MIC-7687 section 7). Until then, track the epic branch, never a PR branch:
+# Jenkins loads build-utils at the commit uv.lock pins, and it can only find a
+# commit that some branch still contains.
+vivarium-build-utils = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/build-utils", branch = "epic/uv-environments" }
+# TODO: replace these three with floors at the releases that end the uv epic
+# (MIC-7687 section 7). The epic has psimulate's support for venvs without pip,
+# and cluster-tools' lookup of the project .venv and the team Slack token.
+vivarium-cluster-tools = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/cluster-tools", branch = "epic/uv-environments" }
+vivarium-psimulate = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/psimulate", branch = "epic/uv-environments" }
+vivarium-dagger = { git = "https://github.com/ihmeuw/vivarium-suite.git", subdirectory = "libs/dagger", branch = "epic/uv-environments" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -66,6 +91,9 @@ version_file = "src/vivarium_gates_mncnh/_version.py"
 version_file_template = "__version__ = \"{version}\"\n"
 tag_regex = '^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$'
 fallback_version = "0.0.0+no-git-tag"
+# Only use release tags (v<number>.<number>...) for the version. Otherwise a stray tag
+# like vtest_mic7347 breaks every install, as it did the 2026-10-06 nightly build.
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v[0-9]*.[0-9]*"]
 tag.strict = true
 
 [tool.pytest.ini_options]

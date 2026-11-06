@@ -1,4 +1,4 @@
-"""Lightweight simulation helpers with no vivarium_inputs dependency."""
+"""Simulation helpers for the data generation scripts."""
 
 from vivarium.engine.framework.configuration import build_model_specification
 from vivarium.interactive import Simulation
