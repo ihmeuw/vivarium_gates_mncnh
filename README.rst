@@ -68,7 +68,8 @@ If you used the old ``-l`` option, ``source environment.sh`` also prints the
 command to remove the Git LFS hooks it left in ``.git/hooks``.
 The old conda environments are no longer used. Remove them with::
 
-  :~$ conda env remove -n vivarium_gates_mncnh
+  :~$ conda env remove -n vivarium_gates_mncnh_simulation
+  :~$ conda env remove -n vivarium_gates_mncnh_artifact
 
 ``vivarium_gbd_access`` 8.0.0 removes the ``input_data.cache_data`` setting.
 If your ``~/vivarium.yaml`` sets it, every GBD pull fails with
