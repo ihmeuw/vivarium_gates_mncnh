@@ -32,7 +32,7 @@ To deactivate the environment, run ``deactivate``.
 We do not support ``uv run`` for this repository, and it may behave in ways
 you do not expect. For example, a plain ``uv run`` updates ``uv.lock`` when it
 does not match ``pyproject.toml``, where ``source environment.sh`` and
-``make build-env`` stop. If you use ``uv run`` anyway, pass ``--locked``.
+``make build-env`` stop.
 
 ``make`` targets (``make lint``, ``make test-all``, ...) run in ``.venv``
 whether or not it is active.
