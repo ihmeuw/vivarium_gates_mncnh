@@ -29,15 +29,10 @@ branches or pull; when nothing has changed it takes about a second.
 Pass ``-f`` to reinstall every package, or ``-h`` for help.
 To deactivate the environment, run ``deactivate``.
 
-You can also run a command in the environment without activating it, with
-``uv run --locked``, which syncs ``.venv`` first::
-
-  :~$ uv run --locked pytest
-  :~$ uv run --locked make_artifacts -l Ethiopia -o artifacts/
-
-Keep ``--locked``. Without it, ``uv run`` updates ``uv.lock`` when it does not
-match ``pyproject.toml``, where ``source environment.sh`` and ``make build-env``
-stop.
+We do not support ``uv run`` for this repository, and it may behave in ways
+you do not expect. For example, a plain ``uv run`` updates ``uv.lock`` when it
+does not match ``pyproject.toml``, where ``source environment.sh`` and
+``make build-env`` stop. If you use ``uv run`` anyway, pass ``--locked``.
 
 ``make`` targets (``make lint``, ``make test-all``, ...) run in ``.venv``
 whether or not it is active.
@@ -208,7 +203,7 @@ and must be committed to the repo.
 The Python tests and the notebook tests run in the same environment, ``.venv``.
 The notebook tests are slow, so they only run with ``pytest --runslow``.
 They register a Jupyter kernel for the Python interpreter that runs ``pytest``,
-so run ``pytest`` from ``.venv``: activate it, or use ``uv run --locked pytest``.
+so activate ``.venv`` before you run ``pytest``.
 
 In general, for each V&V process, there are four roles to play: the artifact-builder, the component-updater, the model-runner, and the V&V person.
 The artifact-builder makes the changes to the artifact,
