@@ -1765,8 +1765,6 @@ def load_hemoglobin_exposure_data(
         "modelable_entity_id",
         "rei_id",
     ]
-    if key == data_keys.HEMOGLOBIN.EXPOSURE:
-        levels_to_drop.append("parameter")
     hemoglobin_data.index = hemoglobin_data.index.droplevel(levels_to_drop)
 
     return utilities.expand_100_draws_to_250(hemoglobin_data)
@@ -2326,25 +2324,15 @@ def load_non_pregnant_hemoglobin_exposure(
 ) -> pd.DataFrame:
     """Load non-pregnant hemoglobin exposure data (MEID 27596)."""
     data = extra_gbd.get_non_pregnant_hemoglobin_exposure_data(location)
-    # The GBD source returns 1000 draws + stgpr_model_version_id. Keep only the
-    # columns needed for reshape_to_vivarium_format to avoid extras landing in
-    # the index.
-    keep_cols = [
-        c for c in data.columns if not c.startswith("draw_") or c in vi_globals.DRAW_COLUMNS
-    ]
-    keep_cols = [c for c in keep_cols if c != "stgpr_model_version_id"]
-    data = data[keep_cols]
     data = reshape_to_vivarium_format(data, location)
     levels_to_drop = [
         "measure_id",
         "metric_id",
         "model_version_id",
         "modelable_entity_id",
-        "parameter",
         "rei_id",
     ]
-    existing_levels = [l for l in levels_to_drop if l in data.index.names]
-    data.index = data.index.droplevel(existing_levels)
+    data.index = data.index.droplevel(levels_to_drop)
 
     return utilities.expand_100_draws_to_250(data)
 
