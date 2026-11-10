@@ -1,9 +1,11 @@
+from typing import Any
+
 import pandas as pd
 from loguru import logger
 from vivarium_gbd_access import constants as gbd_constants
-from vivarium_gbd_access import utilities as vi_utils
-from vivarium_gbd_access.gbd import base_data
-from vivarium_gbd_access.gbd.demographics import get_age_group_id
+from vivarium_gbd_access import shared_functions
+from vivarium_gbd_access.caching import cache
+from vivarium_gbd_access.gbd.demographics import get_age_group_id, get_population
 from vivarium_gbd_access.gbd.measures import get_birth_exposure
 from vivarium_inputs import globals as vi_globals
 from vivarium_inputs import utility_data
@@ -17,6 +19,12 @@ from vivarium_gates_mncnh.constants.paths import HEMOGLOBIN_RELEASE_33_DATA_DIR
 from vivarium_gates_mncnh.data import utilities
 
 _ALL_SEXES = gbd_constants.SEX.MALE + gbd_constants.SEX.FEMALE
+
+
+def _get_machinery_estimates(**kwargs: Any) -> pd.DataFrame:
+    """Return machinery estimates without the columns vivarium_gbd_access 7 dropped."""
+    data = shared_functions.get_machinery_estimates(**kwargs)
+    return data.drop(columns=["population", "population_group_id"], errors="ignore")
 
 
 def _release_33_data(name: str) -> pd.DataFrame:
@@ -33,11 +41,11 @@ def _release_33_data(name: str) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-@vi_utils.cache
+@cache
 def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
     entity = utilities.get_entity(key)
     location_id = utility_data.get_location_id(location)
-    data = base_data.get_machinery_estimates(
+    data = _get_machinery_estimates(
         entity="cause",
         entity_id=entity.gbd_id,
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
@@ -52,7 +60,7 @@ def get_maternal_disorder_yld_rate(key: str, location: str) -> pd.DataFrame:
     return data
 
 
-@vi_utils.cache
+@cache
 def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
     """Pull the GBD 2021 LBWSG birth exposure, relabelled to the artifact year."""
     entity = utilities.get_entity(data_keys.LBWSG.BIRTH_EXPOSURE)
@@ -68,10 +76,8 @@ def load_2021_lbwsg_birth_exposure(location: str) -> pd.DataFrame:
     return data
 
 
-@vi_utils.cache
+@cache
 def get_birth_counts(location: str) -> pd.DataFrame:
-    from db_queries import get_population
-
     location_id = utility_data.get_location_id(location)
     births = get_population(
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
@@ -87,12 +93,12 @@ def get_birth_counts(location: str) -> pd.DataFrame:
     return births
 
 
-@vi_utils.cache
+@cache
 def get_mortality_death_counts(
     location: str, age_group_id: int, gbd_id: int | list[int]
 ) -> pd.DataFrame:
     location_id = utility_data.get_location_id(location)
-    data = base_data.get_machinery_estimates(
+    data = _get_machinery_estimates(
         entity="cause",
         entity_id=gbd_id,
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
@@ -107,7 +113,7 @@ def get_mortality_death_counts(
     return data
 
 
-@vi_utils.cache
+@cache
 def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
     """Get hemoglobin exposure mean or exposure standard deviation, both from file.
 
@@ -124,7 +130,7 @@ def get_hemoglobin_exposure_data(key: str, location: str) -> pd.DataFrame:
     return _release_33_data(f"{dataset}_{location.lower()}")
 
 
-@vi_utils.cache
+@cache
 def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
     """Get hemoglobin relative risks, from file.
 
@@ -136,7 +142,7 @@ def get_hemoglobin_rr_data(key: str, location: str) -> pd.DataFrame:
     return data
 
 
-@vi_utils.cache
+@cache
 def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
     """Get Burdenator PAFs for hemoglobin, from file.
 
@@ -147,11 +153,11 @@ def get_hemoglobin_paf_data(key: str, location: str) -> pd.DataFrame:
     return _release_33_data(f"hemoglobin_paf_{location.lower()}")
 
 
-@vi_utils.cache
+@cache
 def get_sequela_data(sequela_id: int, location: str, measure: str) -> pd.DataFrame:
     """Get sequela-level data from COMO for the given measure."""
     location_id = utility_data.get_location_id(location)
-    data = base_data.get_machinery_estimates(
+    data = _get_machinery_estimates(
         entity="sequela",
         entity_id=sequela_id,
         release_id=gbd_constants.RELEASE_IDS.GBD_2023,
@@ -166,7 +172,7 @@ def get_sequela_data(sequela_id: int, location: str, measure: str) -> pd.DataFra
     return data
 
 
-@vi_utils.cache
+@cache
 def get_non_pregnant_hemoglobin_exposure_data(location: str) -> pd.DataFrame:
     """Get non-pregnant hemoglobin exposure (MEID 27596), from file.
 
