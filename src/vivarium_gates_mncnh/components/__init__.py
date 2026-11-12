@@ -8,6 +8,7 @@ from vivarium_gates_mncnh.components.hemoglobin import (
 from vivarium_gates_mncnh.components.intervention import (
     AdditiveRiskEffect,
     CPAPAndACSRiskEffect,
+    EmotiveEffect,
     InterventionRiskEffect,
     IVIronEffectOnHemoglobin,
     IVIronEffectOnLBWSG,
@@ -20,6 +21,7 @@ from vivarium_gates_mncnh.components.intervention import (
 )
 from vivarium_gates_mncnh.components.intrapartum import (
     ACSAccess,
+    EmotiveAccess,
     InterventionAccess,
     RDSInterventionAccess,
 )
@@ -36,7 +38,6 @@ from vivarium_gates_mncnh.components.lbwsg import (
 )
 from vivarium_gates_mncnh.components.maternal_disorders import (
     AbortionMiscarriageEctopicPregnancy,
-    AntepartumHemorrhage,
     MaternalDisorder,
     PostpartumDepression,
     PostpartumHemorrhage,
