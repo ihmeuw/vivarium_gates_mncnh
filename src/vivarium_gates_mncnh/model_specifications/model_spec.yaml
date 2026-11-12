@@ -38,6 +38,7 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
+            - EmotiveEffect()
             - OralIronInterventionExposure() # IFA and MMS
             - OralIronEffectOnHemoglobin()
             - OralIronEffectOnStillbirth()
@@ -55,6 +56,7 @@ components:
             - InterventionAccess('probiotics')        
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
+            - EmotiveAccess()
             - ACSAccess()
             - PostpartumDepression()
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_hemorrhage.incidence_risk')
@@ -76,6 +78,7 @@ components:
             - InterventionObserver('probiotics')
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
+            - InterventionObserver('emotive')
             - PostpartumDepressionObserver()
             - NeonatalACMRiskObserver()
             - NeonatalCSMRiskObserver()
@@ -109,6 +112,7 @@ configuration:
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'
+            - 'emotive_access'
             - 'cpap_access'
             - 'acs_access'
             - 'antibiotics_access'
@@ -206,6 +210,10 @@ configuration:
             include:
                 - 'age_group'
                 - 'delivery_facility_type'
+        intervention_emotive:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
         postpartum_depression:
             include:
                 - 'age_group'
@@ -274,3 +282,4 @@ configuration:
             # misoprostol_vv
             # ultrasound_vv
             # anemia_screening_vv
+            # emotive_total_scaleup

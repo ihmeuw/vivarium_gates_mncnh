@@ -117,6 +117,7 @@ class _SimulationEventNames(NamedTuple):
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
+    EMOTIVE_ACCESS = "emotive_access"
     CPAP_ACCESS = "cpap_access"
     ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
@@ -148,6 +149,7 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
     SIMULATION_EVENT_NAMES.AZITHROMYCIN_ACCESS,
     SIMULATION_EVENT_NAMES.MISOPROSTOL_ACCESS,
+    SIMULATION_EVENT_NAMES.EMOTIVE_ACCESS,
     SIMULATION_EVENT_NAMES.CPAP_ACCESS,
     SIMULATION_EVENT_NAMES.ACS_ACCESS,
     SIMULATION_EVENT_NAMES.ANTIBIOTICS_ACCESS,
@@ -276,6 +278,7 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    EMOTIVE_AVAILABLE = "emotive_available"
     HEMOGLOBIN_EXPOSURE = "hemoglobin_exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     IV_IRON_INTERVENTION = "iv_iron_intervention"
@@ -500,6 +503,7 @@ class __Interventions(NamedTuple):
     AZITHROMYCIN: str = "azithromycin"
     MISOPROSTOL: str = "misoprostol"
     IV_IRON: str = "iv_iron"
+    EMOTIVE: str = "emotive"
 
 
 INTERVENTIONS = __Interventions()
@@ -511,6 +515,7 @@ INTERVENTION_TYPE_MAPPER = {
     INTERVENTIONS.AZITHROMYCIN: "maternal",
     INTERVENTIONS.MISOPROSTOL: "maternal",
     INTERVENTIONS.IV_IRON: "maternal",
+    INTERVENTIONS.EMOTIVE: "maternal",
 }
 
 
@@ -539,6 +544,10 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/misoprostol_intervention.html#id17
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
+# RRs of receiving E-MOTIVE on the PPH severity cascade, for vaginal deliveries
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/emotive_intervention.html#vivarium-modeling-strategy
+EMOTIVE_RR_500ML_GIVEN_300ML_DISTRIBUTION = get_lognorm_from_quantiles(0.846, 0.822, 0.871)
+EMOTIVE_RR_1L_GIVEN_500ML_DISTRIBUTION = get_lognorm_from_quantiles(0.741, 0.689, 0.797)
 
 # Probability that a 300 mL+ postpartum hemorrhage case progresses to 500 mL+ (E-MOTIVE trial)
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_hemorrhage.html
