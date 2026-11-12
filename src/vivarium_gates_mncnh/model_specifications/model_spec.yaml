@@ -17,7 +17,6 @@ components:
             - Ultrasound()
             - MaternalDisorder("maternal_obstructed_labor_and_uterine_rupture")
             - MaternalDisorder("maternal_sepsis_and_other_maternal_infections")
-            - AntepartumHemorrhage()
             - PostpartumHemorrhage()
             - ResidualMaternalDisorders()
             - AbortionMiscarriageEctopicPregnancy()
@@ -39,6 +38,7 @@ components:
             - InterventionRiskEffect('probiotics')
             - InterventionRiskEffect('azithromycin')
             - InterventionRiskEffect('misoprostol')
+            - EmotiveEffect()
             - OralIronInterventionExposure() # IFA and MMS
             - OralIronEffectOnHemoglobin()
             - OralIronEffectOnStillbirth()
@@ -56,9 +56,9 @@ components:
             - InterventionAccess('probiotics')        
             - InterventionAccess('azithromycin')
             - InterventionAccess('misoprostol')
+            - EmotiveAccess()
             - ACSAccess()
             - PostpartumDepression()
-            - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.antepartum_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_hemorrhage.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.maternal_sepsis_and_other_maternal_infections.incidence_risk')
             - HemoglobinRiskEffect('risk_factor.hemoglobin', 'cause.postpartum_depression.incidence_risk')
@@ -78,6 +78,7 @@ components:
             - InterventionObserver('probiotics')
             - InterventionObserver('azithromycin')
             - InterventionObserver('misoprostol')
+            - InterventionObserver('emotive')
             - PostpartumDepressionObserver()
             - NeonatalACMRiskObserver()
             - NeonatalCSMRiskObserver()
@@ -86,7 +87,7 @@ components:
 configuration:
     input_data:
         input_draw_number: 60
-        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/hemoglobin_sd_10488/ethiopia.hdf"
+        artifact_path: "/mnt/team/simulation_science/pub/models/vivarium_gates_mncnh/artifacts/emotive_hemoglobin_sd_10488/ethiopia.hdf"
     interpolation:
         order: 0
         extrapolate: True
@@ -106,12 +107,12 @@ configuration:
             - 'later_pregnancy_intervention'
             - 'later_pregnancy_visit_timing'
             - 'ultrasound'
-            - 'antepartum_hemorrhage'
             - 'abortion_miscarriage_ectopic_pregnancy'
             - 'antepartum_maternal_disorders_mortality'
             - 'delivery_facility'
             - 'azithromycin_access'
             - 'misoprostol_access'
+            - 'emotive_access'
             - 'cpap_access'
             - 'acs_access'
             - 'antibiotics_access'
@@ -209,6 +210,10 @@ configuration:
             include:
                 - 'age_group'
                 - 'delivery_facility_type'
+        intervention_emotive:
+            include:
+                - 'age_group'
+                - 'delivery_facility_type'
         postpartum_depression:
             include:
                 - 'age_group'
@@ -277,3 +282,4 @@ configuration:
             # misoprostol_vv
             # ultrasound_vv
             # anemia_screening_vv
+            # emotive_total_scaleup

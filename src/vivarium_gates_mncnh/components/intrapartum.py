@@ -235,3 +235,32 @@ class ACSAccess(RDSInterventionAccess):
         return pop.loc[
             pop[COLUMNS.STATED_GESTATIONAL_AGE].between(*ACS_ELIGIBLE_GESTATIONAL_AGE_RANGE)
         ]
+
+
+class EmotiveAccess(InterventionAccess):
+    """Component for determining if a simulant has access to E-MOTIVE."""
+
+    @property
+    def configuration_defaults(self) -> dict:
+        # Baseline E-MOTIVE coverage is 0 everywhere, so it has no artifact keys
+        return {
+            self.name: {
+                "data_sources": {
+                    "bemonc_access_probability": 0.0,
+                    "cemonc_access_probability": 0.0,
+                    "home_access_probability": 0.0,
+                }
+            }
+        }
+
+    def __init__(self) -> None:
+        super().__init__(INTERVENTIONS.EMOTIVE)
+
+    def filter_pop_for_intervention(self, pop: pd.DataFrame) -> pd.DataFrame:
+        # E-MOTIVE is for facility births only
+        pop = super().filter_pop_for_intervention(pop)
+        return pop.loc[
+            pop[COLUMNS.DELIVERY_FACILITY_TYPE].isin(
+                [DELIVERY_FACILITY_TYPES.BEmONC, DELIVERY_FACILITY_TYPES.CEmONC]
+            )
+        ]

@@ -117,11 +117,11 @@ class _SimulationEventNames(NamedTuple):
     DELIVERY_FACILITY = "delivery_facility"
     AZITHROMYCIN_ACCESS = "azithromycin_access"
     MISOPROSTOL_ACCESS = "misoprostol_access"
+    EMOTIVE_ACCESS = "emotive_access"
     CPAP_ACCESS = "cpap_access"
     ACS_ACCESS = "acs_access"
     ANTIBIOTICS_ACCESS = "antibiotics_access"
     PROBIOTICS_ACCESS = "probiotics_access"
-    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
@@ -144,12 +144,12 @@ SIMULATION_STEPS = [
     SIMULATION_EVENT_NAMES.LATER_PREGNANCY_INTERVENTION,
     SIMULATION_EVENT_NAMES.LATER_PREGNANCY_VISIT_TIMING,
     SIMULATION_EVENT_NAMES.ULTRASOUND,
-    SIMULATION_EVENT_NAMES.ANTEPARTUM_HEMORRHAGE,
     SIMULATION_EVENT_NAMES.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
     SIMULATION_EVENT_NAMES.ANTEPARTUM_MATERNAL_DISORDERS_MORTALITY,
     SIMULATION_EVENT_NAMES.DELIVERY_FACILITY,
     SIMULATION_EVENT_NAMES.AZITHROMYCIN_ACCESS,
     SIMULATION_EVENT_NAMES.MISOPROSTOL_ACCESS,
+    SIMULATION_EVENT_NAMES.EMOTIVE_ACCESS,
     SIMULATION_EVENT_NAMES.CPAP_ACCESS,
     SIMULATION_EVENT_NAMES.ACS_ACCESS,
     SIMULATION_EVENT_NAMES.ANTIBIOTICS_ACCESS,
@@ -266,8 +266,8 @@ class __Columns(NamedTuple):
     ULTRASOUND_TYPE = "ultrasound_type"
     STATED_GESTATIONAL_AGE = "stated_gestational_age"
     MATERNAL_SEPSIS = "maternal_sepsis_and_other_maternal_infections"
-    ANTEPARTUM_HEMORRHAGE = "antepartum_hemorrhage"
     POSTPARTUM_HEMORRHAGE = "postpartum_hemorrhage"
+    POSTPARTUM_HEMORRHAGE_SEVERITY = "postpartum_hemorrhage_severity"
     ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY = "abortion_miscarriage_ectopic_pregnancy"
     OBSTRUCTED_LABOR = "maternal_obstructed_labor_and_uterine_rupture"
     RESIDUAL_MATERNAL_DISORDERS = "residual_maternal_disorders"
@@ -278,6 +278,7 @@ class __Columns(NamedTuple):
     PROBIOTICS_AVAILABLE = "probiotics_available"
     AZITHROMYCIN_AVAILABLE = "azithromycin_available"
     MISOPROSTOL_AVAILABLE = "misoprostol_available"
+    EMOTIVE_AVAILABLE = "emotive_available"
     HEMOGLOBIN_EXPOSURE = "hemoglobin_exposure"
     ORAL_IRON_INTERVENTION = "oral_iron_intervention"
     IV_IRON_INTERVENTION = "iv_iron_intervention"
@@ -300,7 +301,6 @@ COLUMNS = __Columns()
 # TODO: add other maternal disorders when implemented
 MATERNAL_DISORDERS = [
     COLUMNS.OBSTRUCTED_LABOR,
-    COLUMNS.ANTEPARTUM_HEMORRHAGE,
     COLUMNS.POSTPARTUM_HEMORRHAGE,
     COLUMNS.MATERNAL_SEPSIS,
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY,
@@ -308,18 +308,10 @@ MATERNAL_DISORDERS = [
 ]
 
 HEMORRHAGE_CAUSES = [
-    COLUMNS.ANTEPARTUM_HEMORRHAGE,
     COLUMNS.POSTPARTUM_HEMORRHAGE,
 ]
 
-# Maternal disorders resolve in two mortality passes. Antepartum disorders resolve
-# (incidence + mortality) during the pregnancy band, before any intrapartum disorder
-# is assigned; intrapartum disorders are applied and killed only among antepartum
-# survivors. The single phase mapping makes the partition structural — a disorder
-# cannot land in both passes — while the observer still consumes the full union
-# (MATERNAL_DISORDERS).
 MATERNAL_DISORDER_PHASE = {
-    COLUMNS.ANTEPARTUM_HEMORRHAGE: "antepartum",
     COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY: "antepartum",
     COLUMNS.OBSTRUCTED_LABOR: "intrapartum",
     COLUMNS.POSTPARTUM_HEMORRHAGE: "intrapartum",
@@ -401,8 +393,15 @@ class __Pipelines(NamedTuple):
     MATERNAL_SEPSIS_INCIDENCE_RISK = (
         "maternal_sepsis_and_other_maternal_infections.incidence_risk"
     )
-    ANTEPARTUM_HEMORRHAGE_INCIDENCE_RISK = "antepartum_hemorrhage.incidence_risk"
+    # Risk of a 300 mL+ postpartum hemorrhage per full-term birth
     POSTPARTUM_HEMORRHAGE_INCIDENCE_RISK = "postpartum_hemorrhage.incidence_risk"
+    # Conditional probabilities of progressing along the blood-loss cascade
+    POSTPARTUM_HEMORRHAGE_PROBABILITY_500ML_GIVEN_300ML = (
+        "postpartum_hemorrhage.probability_500ml_given_300ml"
+    )
+    POSTPARTUM_HEMORRHAGE_PROBABILITY_1L_GIVEN_500ML = (
+        "postpartum_hemorrhage.probability_1l_given_500ml"
+    )
     IFA_SUPPLEMENTATION = "iron_folic_acid_supplementation.exposure"
     MMN_SUPPLEMENTATION = "multiple_micronutrient_supplementation.exposure"
     HEMOGLOBIN_EXPOSURE = "hemoglobin.exposure"
@@ -504,6 +503,7 @@ class __Interventions(NamedTuple):
     AZITHROMYCIN: str = "azithromycin"
     MISOPROSTOL: str = "misoprostol"
     IV_IRON: str = "iv_iron"
+    EMOTIVE: str = "emotive"
 
 
 INTERVENTIONS = __Interventions()
@@ -515,6 +515,7 @@ INTERVENTION_TYPE_MAPPER = {
     INTERVENTIONS.AZITHROMYCIN: "maternal",
     INTERVENTIONS.MISOPROSTOL: "maternal",
     INTERVENTIONS.IV_IRON: "maternal",
+    INTERVENTIONS.EMOTIVE: "maternal",
 }
 
 
@@ -543,6 +544,19 @@ AZITHROMYCIN_FACILITY_TYPE_DISTRIBUTION = {
 AZITHROMYCIN_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(1.54, 1.30, 1.82)
 # https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/misoprostol_intervention.html#id17
 MISOPROSTOL_RELATIVE_RISK_DISTRIBUTION = get_lognorm_from_quantiles(0.61, 0.50, 0.74)
+# RRs of receiving E-MOTIVE on the PPH severity cascade, for vaginal deliveries
+# https://vivarium-research.readthedocs.io/en/latest/models/intervention_models/intrapartum/emotive_intervention.html#vivarium-modeling-strategy
+EMOTIVE_RR_500ML_GIVEN_300ML_DISTRIBUTION = get_lognorm_from_quantiles(0.846, 0.822, 0.871)
+EMOTIVE_RR_1L_GIVEN_500ML_DISTRIBUTION = get_lognorm_from_quantiles(0.741, 0.689, 0.797)
+
+# Probability that a 300 mL+ postpartum hemorrhage case progresses to 500 mL+ (E-MOTIVE trial)
+# https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_hemorrhage.html
+PPH_500ML_PER_300ML_DISTRIBUTION = get_norm(
+    0.4533, ninety_five_pct_confidence_interval=(0.4461, 0.4605)
+)
+# YLDs per 300-500 mL PPH case as a fraction of the 500 mL-1 L (s180) value; an
+# assumption of the research spec (postpartum_hemorrhage.rst, "YLDs" section)
+PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION = 0.5
 
 # Effects of IV iron intervention
 IV_IRON_HEMOGLOBIN_EFFECT_SIZE = {
@@ -605,12 +619,24 @@ POSTPARTUM_DEPRESSION_CASE_TYPES = __PostpartumDepressionCaseTypes()
 
 
 class __HemorrhageSeverity(NamedTuple):
-    NONE: str = "none"
-    MODERATE: str = "moderate"
-    SEVERE: str = "severe"
+    # Postpartum blood loss categories. MODERATE and SEVERE correspond to GBD
+    # sequelae s180 (500 mL-1 L) and s181 (1 L+); only SEVERE cases can die.
+    # MILD (300-500 mL) has no GBD sequela; its YLDs per case are a fraction of
+    # the MODERATE value (PPH_300_TO_500ML_YLDS_PER_CASE_FRACTION).
+    NONE: str = "none"  # < 300 mL
+    MILD: str = "300_to_500ml"
+    MODERATE: str = "500ml_to_1l"
+    SEVERE: str = "1l_plus"
 
 
 HEMORRHAGE_SEVERITY = __HemorrhageSeverity()
+# Severities of PPH cases (300 mL+), and of the GBD-defined 500 mL+ cases
+HEMORRHAGE_CASE_SEVERITIES = (
+    HEMORRHAGE_SEVERITY.MILD,
+    HEMORRHAGE_SEVERITY.MODERATE,
+    HEMORRHAGE_SEVERITY.SEVERE,
+)
+HEMORRHAGE_SEVERITIES_500ML_PLUS = (HEMORRHAGE_SEVERITY.MODERATE, HEMORRHAGE_SEVERITY.SEVERE)
 
 
 # https://vivarium-research.readthedocs.io/en/latest/models/causes/maternal_disorders/gbd_2021_mncnh/postpartum_depression.html#id18
