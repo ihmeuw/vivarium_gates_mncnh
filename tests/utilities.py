@@ -1,12 +1,12 @@
 import pandas as pd
-from vivarium.engine import InteractiveContext
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants.data_values import COLUMNS, PREGNANCY_OUTCOMES
 
 
 def get_interactive_context_state(
-    sim: InteractiveContext, step_mapper: dict[str, int], step_name: str
-) -> InteractiveContext:
+    sim: Simulation, step_mapper: dict[str, int], step_name: str
+) -> Simulation:
     num_steps = step_mapper[step_name]
     sim.take_steps(num_steps)
     return sim

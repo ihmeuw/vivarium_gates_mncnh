@@ -1,8 +1,8 @@
-"""InteractiveContext checks for MIC-7286: hemorrhage temporal ordering.
+"""Simulation checks for MIC-7286: hemorrhage temporal ordering.
 
 These checks are BLIND to the implementation: they assert the quantitative
 expectations named in the iteration plan (the contract) against the state table
-and incidence-risk pipelines, using the repo's existing InteractiveContext
+and incidence-risk pipelines, using the repo's existing Simulation
 patterns (see ``tests/test_lbwsg.py`` / ``tests/test_mortality.py``).
 
 Expectations verified (numbering matches the iteration plan):
@@ -18,8 +18,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants.data_values import (
     COLUMNS,
@@ -57,14 +57,14 @@ INTRAPARTUM_INCIDENCE_RISK_PIPELINES = {
 PPH_SEVERITY_COL = f"{COLUMNS.POSTPARTUM_HEMORRHAGE}_severity"
 
 
-def _build_sim(model_spec_path: Path, pop_size: int = POP_SIZE) -> InteractiveContext:
+def _build_sim(model_spec_path: Path, pop_size: int = POP_SIZE) -> Simulation:
     """Build an interactive sim on the model spec with a reduced population."""
     spec = build_model_specification(model_spec_path)
     spec.configuration.population.population_size = pop_size
-    return InteractiveContext(spec)
+    return Simulation(spec)
 
 
-def _pipeline_values(sim: InteractiveContext, pipeline_name: str) -> pd.Series:
+def _pipeline_values(sim: Simulation, pipeline_name: str) -> pd.Series:
     """Return a scalar incidence-risk pipeline as a float Series over the pop."""
     values = sim.get_population(pipeline_name)
     if isinstance(values, pd.DataFrame):
@@ -75,7 +75,7 @@ def _pipeline_values(sim: InteractiveContext, pipeline_name: str) -> pd.Series:
 @pytest.fixture(scope="module")
 def mortality_state(
     model_spec_path: Path, sim_state_step_mapper: dict[str, int]
-) -> InteractiveContext:
+) -> Simulation:
     """Sim advanced through the mortality event.
 
     By this state every maternal-disorder boolean, severity column, and the
@@ -93,7 +93,7 @@ def mortality_state(
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("disorder", INTRAPARTUM_DISORDER_COLUMNS)
 def test_intrapartum_incidence_risk_in_unit_interval(
-    disorder: str, mortality_state: InteractiveContext
+    disorder: str, mortality_state: Simulation
 ) -> None:
     """Expectation 3: each intrapartum incidence-risk pipeline is a probability."""
     pipeline_name = INTRAPARTUM_INCIDENCE_RISK_PIPELINES[disorder]
@@ -107,7 +107,7 @@ def test_intrapartum_incidence_risk_in_unit_interval(
 # ---------------------------------------------------------------------------
 # Expectation 5 (AME side): AME only assigned to partial_term
 # ---------------------------------------------------------------------------
-def test_ame_only_assigned_to_partial_term(mortality_state: InteractiveContext) -> None:
+def test_ame_only_assigned_to_partial_term(mortality_state: Simulation) -> None:
     """Expectation 5: abortion/miscarriage/ectopic (AME) only on partial_term."""
     pop = mortality_state.get_population(
         [COLUMNS.PREGNANCY_OUTCOME, COLUMNS.ABORTION_MISCARRIAGE_ECTOPIC_PREGNANCY]
@@ -127,7 +127,7 @@ def test_ame_only_assigned_to_partial_term(mortality_state: InteractiveContext) 
 # Expectation 4: two-pass mortality gating
 # ---------------------------------------------------------------------------
 def test_intrapartum_deaths_only_among_survivors(
-    mortality_state: InteractiveContext,
+    mortality_state: Simulation,
 ) -> None:
     """Expectation 4: intrapartum-disorder deaths are resolved only among
     simulants who survived the antepartum (AME) mortality pass -- i.e.
@@ -156,7 +156,7 @@ def test_intrapartum_deaths_only_among_survivors(
     ],
 )
 def test_only_1l_plus_hemorrhage_deaths(
-    hemorrhage_cause: str, severity_col: str, mortality_state: InteractiveContext
+    hemorrhage_cause: str, severity_col: str, mortality_state: Simulation
 ) -> None:
     """Expectation 6: every hemorrhage death must be a 1 L+ blood loss case
     (HEMORRHAGE_SEVERITY.SEVERE, "1l_plus"); 300-500 mL and 500 mL-1 L cases

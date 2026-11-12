@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium.artifact import Artifact
-from vivarium.engine import InteractiveContext
 from vivarium.fuzzy_checker import FuzzyChecker
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.components.mortality import MaternalDisordersBurden
 from vivarium_gates_mncnh.constants.data_keys import POPULATION
@@ -21,8 +21,8 @@ from .utilities import get_births_and_deaths_idx, get_interactive_context_state
 @pytest.fixture(scope="module")
 def late_neonatal_mortality_state(
     sim_state_step_mapper: dict[str, int], model_spec_path: Path
-) -> InteractiveContext:
-    sim = InteractiveContext(model_spec_path)
+) -> Simulation:
+    sim = Simulation(model_spec_path)
     # Use last time step of mortality to have both mother and neonatal deaths
     return get_interactive_context_state(
         sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.LATE_NEONATAL_MORTALITY
@@ -32,15 +32,15 @@ def late_neonatal_mortality_state(
 @pytest.fixture(scope="module")
 def early_neonatal_mortality_state(
     sim_state_step_mapper: dict[str, int], model_spec_path: Path
-) -> InteractiveContext:
-    sim = InteractiveContext(model_spec_path)
+) -> Simulation:
+    sim = Simulation(model_spec_path)
     return get_interactive_context_state(
         sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY
     )
 
 
 @pytest.fixture(scope="module")
-def population(late_neonatal_mortality_state: InteractiveContext) -> pd.DataFrame:
+def population(late_neonatal_mortality_state: Simulation) -> pd.DataFrame:
     return late_neonatal_mortality_state.get_population(
         [
             COLUMNS.MOTHER_ALIVE,
@@ -99,8 +99,8 @@ def test_cause_of_death_normalized(
 @pytest.mark.parametrize("sex", ["Male", "Female"])
 def test_neonatal_acmr(
     sex: str,
-    early_neonatal_mortality_state: InteractiveContext,
-    late_neonatal_mortality_state: InteractiveContext,
+    early_neonatal_mortality_state: Simulation,
+    late_neonatal_mortality_state: Simulation,
     artifact: Artifact,
     fuzzy_checker: FuzzyChecker,
 ) -> None:
@@ -182,8 +182,8 @@ def test_neonatal_acmr(
 def test_neonatal_csmr(
     sex: str,
     cause_of_death: list[str],
-    early_neonatal_mortality_state: InteractiveContext,
-    late_neonatal_mortality_state: InteractiveContext,
+    early_neonatal_mortality_state: Simulation,
+    late_neonatal_mortality_state: Simulation,
     artifact: Artifact,
     fuzzy_checker: FuzzyChecker,
 ) -> None:

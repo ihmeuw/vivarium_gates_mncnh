@@ -1,13 +1,13 @@
 """Lightweight simulation helpers with no vivarium_inputs dependency."""
 
-from vivarium.engine import InteractiveContext
 from vivarium.engine.framework.configuration import build_model_specification
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.constants.paths import MODEL_SPEC_PATH
 
 
 def initialize_simulation(location: str, draw: int, population_size: int):
-    """Build an InteractiveContext from the default model spec.
+    """Build a Simulation from the default model spec.
 
     Parameters
     ----------
@@ -24,4 +24,4 @@ def initialize_simulation(location: str, draw: int, population_size: int):
     spec.configuration.input_data.artifact_path = artifact_base + location + ".hdf"
     spec.configuration.input_data.input_draw_number = draw
     spec.configuration.population.population_size = population_size
-    return InteractiveContext(spec)
+    return Simulation(spec)

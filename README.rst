@@ -27,8 +27,8 @@ There are two environment options: a **local conda environment** (for personal m
 or a **shared environment on the cluster** with a lightweight venv wrapper.
 
 To create or update an environment, use ``source environment.sh``. This will
-automatically create the environment if it doesn't exist, or update it if it
-is stale.
+automatically create the environment if it doesn't exist, or rebuild a local
+conda environment if it is stale.
 
 **Local conda environment** (default)::
 
@@ -47,6 +47,11 @@ To deactivate a local conda environment, run ``conda deactivate``.
   ...creates/activates a venv overlay on the shared artifact environment...
 
 To deactivate a shared cluster environment, run ``deactivate``.
+
+The overlay is built once and then reused. Its command-line tools (``pytest``,
+``jupyter``, ``psimulate``, ...) are copied from the shared environment when the
+overlay is built, so they run against your checkout. Rebuild with ``-f`` to pick
+up tools added to the shared environment later.
 
 Additional options are available; pass the ``-h`` flag to see them
 (e.g. ``-f`` to force a rebuild, ``-l`` to install git lfs).
@@ -229,7 +234,7 @@ Note that we may sometimes run and V&V models we do *not* intend to merge, e.g. 
 we would still follow this process to ensure we did the experiment correctly, then simply close the PRs without merging once the process is complete.
 
 The V&V process is performed through our ``pytest`` suite.
-The test suite contains some tests that run the simulation (using the ``InteractiveContext``),
+The test suite contains some tests that run the simulation (using ``vivarium.interactive.Simulation``),
 and other tests that perform checks on the results of an already-run simulation (run with ``psimulate``).
 Currently, some of these tests are in Python files, and some are in notebooks.
 In the notebooks, there are also some checks which are not ``assert`` statements,

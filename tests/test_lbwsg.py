@@ -3,8 +3,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from vivarium.artifact import Artifact
-from vivarium.engine import InteractiveContext
 from vivarium.fuzzy_checker import FuzzyChecker
+from vivarium.interactive import Simulation
 
 from vivarium_gates_mncnh.components.lbwsg import parse_short_gestation_description
 from vivarium_gates_mncnh.constants import data_keys, metadata
@@ -19,10 +19,8 @@ from .utilities import get_interactive_context_state
 
 
 @pytest.fixture(scope="module")
-def birth_state(
-    model_spec_path: Path, sim_state_step_mapper: dict[str, int]
-) -> InteractiveContext:
-    sim = InteractiveContext(model_spec_path)
+def birth_state(model_spec_path: Path, sim_state_step_mapper: dict[str, int]) -> Simulation:
+    sim = Simulation(model_spec_path)
     return get_interactive_context_state(
         sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.FIRST_TRIMESTER_ANC
     )
@@ -31,15 +29,15 @@ def birth_state(
 @pytest.fixture(scope="module")
 def mortality_state(
     model_spec_path: Path, sim_state_step_mapper: dict[str, int]
-) -> InteractiveContext:
-    sim = InteractiveContext(model_spec_path)
+) -> Simulation:
+    sim = Simulation(model_spec_path)
     return get_interactive_context_state(
         sim, sim_state_step_mapper, SIMULATION_EVENT_NAMES.EARLY_NEONATAL_MORTALITY
     )
 
 
 @pytest.fixture(scope="module")
-def population(birth_state: InteractiveContext) -> pd.DataFrame:
+def population(birth_state: Simulation) -> pd.DataFrame:
     return birth_state.get_population(
         [
             COLUMNS.SEX_OF_CHILD,
@@ -50,7 +48,7 @@ def population(birth_state: InteractiveContext) -> pd.DataFrame:
 
 
 def test_birth_exposure_coverage(
-    birth_state: InteractiveContext,
+    birth_state: Simulation,
     population: pd.DataFrame,
     artifact: Artifact,
     fuzzy_checker: FuzzyChecker,
@@ -97,7 +95,7 @@ def test_birth_exposure_coverage(
 
 
 def test_relative_risk(
-    mortality_state: InteractiveContext,
+    mortality_state: Simulation,
     artifact: Artifact,
     fuzzy_checker: FuzzyChecker,
 ) -> None:
@@ -123,7 +121,7 @@ def test_relative_risk(
 
 def get_simulation_exposure_categories(
     pop: pd.DataFrame,
-    sim: InteractiveContext,
+    sim: Simulation,
     intervention_effects: bool = True,
 ) -> pd.DataFrame:
     lbwsg = sim.get_component("risk_factor.low_birth_weight_and_short_gestation")
