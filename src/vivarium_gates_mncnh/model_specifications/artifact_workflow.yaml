@@ -19,7 +19,7 @@ workflow:
   steps:
     # Every step runs in this checkout's .venv. dagger resolves ./.venv
     # against the directory it is launched from, so run dagger from the
-    # repository root. Build .venv first with `source environment.sh`.
+    # repository root. Build .venv first with `make build-env`.
 
     # ---- Step 0: guard -- fail fast if the working tree is dirty -------------
     - name: "check_clean_working_tree"

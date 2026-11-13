@@ -228,7 +228,8 @@ def run_command(
     except FileNotFoundError:
         raise RuntimeError(
             f"Failed {description}: '{argv[0]}' was not found.\n"
-            "Build the environment that provides it with 'source environment.sh'."
+            "Build the environment that provides it with 'make build-env', "
+            "then activate .venv."
         )
 
     if auto_confirm:

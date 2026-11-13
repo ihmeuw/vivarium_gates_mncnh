@@ -2,7 +2,7 @@
 # Simulation + test half of the pipeline: run the models, then test the results.
 #
 # Steps name no environment, so they run in the venv that is active when dagger
-# starts: run `source environment.sh` first. Paths are relative to the
+# starts: run `make build-env` and activate .venv first. Paths are relative to the
 # repository root, so run dagger from there.
 # ==========================================================================
 workflow:

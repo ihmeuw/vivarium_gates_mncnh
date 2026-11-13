@@ -43,13 +43,40 @@ define validate_make_args
 	done
 endef
 
-# Fail with install instructions if uv is not on PATH.
+# The uv version this repo is tested with. Older versions are refused.
+UV_VERSION := 0.13.6
+UV_INSTALL := curl -LsSf https://astral.sh/uv/$(UV_VERSION)/install.sh | sh
+
+# Fail with install instructions if uv is missing or too old.
 define require_uv
 	@command -v uv >/dev/null 2>&1 || { \
 		echo "Error: uv is not on PATH. Install it with:" >&2; \
-		echo "  curl -LsSf https://astral.sh/uv/install.sh | sh" >&2; \
+		echo "  $(UV_INSTALL)" >&2; \
 		exit 1; \
 	}
+	@found=$$(uv --version | awk '{print $$2}'); \
+	if [ "$$(printf '%s\n%s\n' "$(UV_VERSION)" "$$found" | sort -V | head -n 1)" != "$(UV_VERSION)" ]; then \
+		echo "Error: uv $$found is older than $(UV_VERSION). Install the newer one with:" >&2; \
+		echo "  $(UV_INSTALL)" >&2; \
+		exit 1; \
+	fi
+endef
+
+# Refuse to build while a named conda env is active, and warn about base.
+# make cannot deactivate conda for the shell that called it.
+define check_conda
+	@if [ "$${CONDA_SHLVL:-0}" -gt 0 ]; then \
+		if [ "$${CONDA_DEFAULT_ENV}" = "base" ]; then \
+			echo "Warning: conda's base environment is active. Run 'conda deactivate' before" >&2; \
+			echo "you activate .venv, or stop base from starting with every shell:" >&2; \
+			echo "  conda config --set auto_activate_base false" >&2; \
+		else \
+			echo "Error: the conda environment '$${CONDA_DEFAULT_ENV}' is active. This repo uses" >&2; \
+			echo ".venv, not conda. Run 'conda deactivate' until no named environment is" >&2; \
+			echo "active, then run this again." >&2; \
+			exit 1; \
+		fi; \
+	fi
 endef
 
 ifneq ($(MAKE_INCLUDES),) # not empty
@@ -66,8 +93,8 @@ help:
 	@echo "package, which is installed in this checkout's .venv. To get them, build"
 	@echo ".venv first. You need uv on your PATH."
 	@echo
-	@echo "Most people should run 'source environment.sh' instead, which also"
-	@echo "activates .venv. The targets below work before .venv exists."
+	@echo "The targets below work before .venv exists. After 'make build-env',"
+	@echo "activate .venv with 'source .venv/bin/activate'."
 	@echo
 	@echo "================================================================================"
 	@echo "build-env: Build .venv from uv.lock"
@@ -107,6 +134,14 @@ build-env: # Build .venv from uv.lock
 	@$(eval force ?= no)
 	@$(call validate_arg,$(force),yes no,force)
 	$(call require_uv)
+	$(call check_conda)
+#	Define the merge and diff drivers that .gitattributes names. We set the nbdime
+#	keys directly, because 'nbdime config-git --enable' writes a rule to
+#	.git/info/attributes that overrides the merge=ours rule for executed notebooks.
+	@git config merge.ours.driver true
+	@git config merge.jupyternotebook.name "jupyter notebook merge driver"
+	@git config merge.jupyternotebook.driver "git-nbmergedriver merge %O %A %B %L %P"
+	@git config diff.jupyternotebook.command "git-nbdiffdriver diff"
 #	uv will not reuse a .venv that holds the old shared-env overlays
 	@if [ -d .venv ] && [ ! -f .venv/pyvenv.cfg ]; then \
 		echo "Error: .venv is not a venv. It holds the old shared-environment overlays:" >&2; \

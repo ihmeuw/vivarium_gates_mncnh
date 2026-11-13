@@ -17,35 +17,39 @@ the lock. Install uv once::
 
   :~$ curl -LsSf https://astral.sh/uv/0.13.6/install.sh | sh
 
-Clone the repository and set up the environment::
+Clone the repository, build the environment, and activate it::
 
   :~$ git clone https://github.com/ihmeuw/vivarium_gates_mncnh.git
   :~$ cd vivarium_gates_mncnh
-  :~$ source environment.sh
+  :~$ make build-env
+  :~$ source .venv/bin/activate
 
-``source environment.sh`` builds or updates ``.venv`` from ``uv.lock``
-(``uv sync --locked``) and activates it. Run it again whenever you switch
-branches or pull; when nothing has changed it takes about a second.
-Pass ``-f`` to reinstall every package, or ``-h`` for help.
-To deactivate the environment, run ``deactivate``.
+``make build-env`` builds or updates ``.venv`` from ``uv.lock``
+(``uv sync --locked``). Run it again whenever you switch branches or pull.
+When nothing has changed it takes about a second. Pass ``force=yes`` to
+reinstall every package. To deactivate the environment, run ``deactivate``.
+
+This repo does not use conda. ``make build-env`` stops if a named conda
+environment is active, and warns if conda's ``base`` environment is active.
+Run ``conda deactivate`` before you activate ``.venv``. To stop ``base`` from
+starting with every shell, run ``conda config --set auto_activate_base false``.
 
 We do not support ``uv run`` for this repository, and it may behave in ways
 you do not expect. For example, a plain ``uv run`` updates ``uv.lock`` when it
-does not match ``pyproject.toml``, where ``source environment.sh`` and
-``make build-env`` stop.
+does not match ``pyproject.toml``, where ``make build-env`` stops.
 
 ``make`` targets (``make lint``, ``make test-all``, ...) run in ``.venv``
 whether or not it is active.
 
 To change dependencies, edit ``pyproject.toml``, run ``make lock-versions``,
 and commit ``uv.lock``. ``make upgrade-versions`` moves every locked version
-to the newest that fits ``pyproject.toml``; ``make upgrade-versions package=<name>``
-moves just one. If ``source environment.sh`` says the lock is out of date,
+to the newest that fits ``pyproject.toml``. ``make upgrade-versions package=<name>``
+moves just one. If ``make build-env`` says the lockfile needs to be updated,
 run ``make lock-versions`` and commit ``uv.lock``.
 
 **Testing an unreleased framework change.** On a branch, point the package at a
 git commit in the ``[tool.uv.sources]`` table of ``pyproject.toml``, then run
-``make lock-versions`` and ``source environment.sh``::
+``make lock-versions`` and ``make build-env``::
 
   [tool.uv.sources]
   vivarium-public-health = { git = "https://github.com/ihmeuw/vivarium-suite.git", rev = "<commit>", subdirectory = "libs/public-health" }
@@ -57,14 +61,15 @@ require that release in ``[project] dependencies``, delete the source, and run
 
 **Moving an existing checkout to uv.** Older checkouts have a ``.venv``
 directory that holds venv overlays on the shared environments
-(``.venv/vivarium_gates_mncnh*``). uv cannot use it, and ``source environment.sh``
+(``.venv/vivarium_gates_mncnh*``). uv cannot use it, and ``make build-env``
 stops and prints the command to remove it::
 
   :~$ rm -rf .venv
-  :~$ source environment.sh
+  :~$ make build-env
 
-If you used the old ``-l`` option, ``source environment.sh`` also prints the
-command to remove the Git LFS hooks it left in ``.git/hooks``.
+If you used the old ``-l`` option of ``environment.sh``, it left Git LFS hooks
+in ``.git/hooks``. This repo tracks no files in Git LFS, so remove them. To
+list them, run ``grep -l git-lfs "$(git rev-parse --git-path hooks)"/*``.
 The old conda environments are no longer used. Remove them with::
 
   :~$ conda env remove -n vivarium_gates_mncnh_simulation
