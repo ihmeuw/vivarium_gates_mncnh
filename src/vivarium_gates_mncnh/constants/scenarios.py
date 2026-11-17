@@ -92,6 +92,8 @@ class __InterventionScenarios(NamedTuple):
         home_antibiotics_access="full",
         bemonc_azithromycin_access="full",
         cemonc_azithromycin_access="full",
+        bemonc_emotive_access="full",
+        cemonc_emotive_access="full",
     )
     MMS_TOTAL_SCALEUP: InterventionScenario = InterventionScenario(
         "mms_total_scaleup",
