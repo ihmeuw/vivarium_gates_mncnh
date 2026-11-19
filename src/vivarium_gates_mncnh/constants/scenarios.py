@@ -94,6 +94,9 @@ class __InterventionScenarios(NamedTuple):
         cemonc_azithromycin_access="full",
         bemonc_emotive_access="full",
         cemonc_emotive_access="full",
+        hemoglobin_screening_coverage="full",
+        ferritin_screening_coverage="full",
+        iv_iron_coverage="full",
     )
     MMS_TOTAL_SCALEUP: InterventionScenario = InterventionScenario(
         "mms_total_scaleup",
