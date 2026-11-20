@@ -1,20 +1,39 @@
 from pathlib import Path
+from typing import Any
 
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 from vivarium_gates_mncnh.compare import (
     Comparison,
     ComparisonError,
     _same_bytes,
+    _same_frame,
     compare_artifacts,
     compare_notebooks,
     compare_results,
 )
 
+
+def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
+    """A small results shard with the column types of a real psimulate shard."""
+    return pd.DataFrame(
+        {
+            "measure": measure,
+            "child_sex": pd.Categorical(["Female", "Male"], ordered=True),
+            "input_draw": np.int64(draw),
+            "value": [value, value * 3],
+        }
+    )
+
+
 SHARDS = {
-    "deaths/aaaa.parquet": b"deaths draw 0",
-    "deaths/bbbb.parquet": b"deaths draw 1",
-    "births/aaaa.parquet": b"births draw 0",
+    "deaths/aaaa.parquet": shard("deaths", 0),
+    "deaths/bbbb.parquet": shard("deaths", 1),
+    "births/aaaa.parquet": shard("births", 0),
 }
 
 
@@ -26,29 +45,76 @@ def write_files(root: Path, files: dict[str, bytes]) -> Path:
     return root
 
 
+def write_shards(root: Path, shards: dict[str, pd.DataFrame]) -> Path:
+    """Write shards the way psimulate does."""
+    for name, frame in shards.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_parquet(path)
+    return root
+
+
+def write_shards_other_metadata(root: Path, shards: dict[str, pd.DataFrame]) -> Path:
+    """Write shards with the same content and different file metadata.
+
+    The files differ in compression, row groups, statistics, string width,
+    key-value metadata, and the pandas metadata, so their bytes differ too.
+    """
+    for name, frame in shards.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        table = pa.Table.from_pandas(frame, preserve_index=False)
+        table = table.cast(
+            pa.schema(
+                pa.field(f.name, pa.large_string()) if f.type == pa.string() else f
+                for f in table.schema
+            )
+        ).replace_schema_metadata({"written_by": "another environment"})
+        pq.write_table(
+            table, path, compression="zstd", row_group_size=1, write_statistics=False
+        )
+    return root
+
+
+def write_one(path: Path, frame: pd.DataFrame, **kwargs: Any) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_parquet(path, **kwargs)
+    return path
+
+
 @pytest.fixture
 def reference(tmp_path: Path) -> Path:
-    return write_files(tmp_path / "reference", SHARDS)
+    return write_shards(tmp_path / "reference", SHARDS)
 
 
 def test_results_same(reference: Path, tmp_path: Path) -> None:
-    candidate = write_files(tmp_path / "candidate", SHARDS)
+    candidate = write_shards(tmp_path / "candidate", SHARDS)
     assert compare_results(reference, candidate) == Comparison()
 
 
-def test_results_one_byte_differs(reference: Path, tmp_path: Path) -> None:
-    candidate = write_files(
-        tmp_path / "candidate", {**SHARDS, "deaths/bbbb.parquet": b"deaths draw 2"}
+def test_results_same_content_with_other_metadata(reference: Path, tmp_path: Path) -> None:
+    candidate = write_shards_other_metadata(tmp_path / "candidate", SHARDS)
+    name = "deaths/aaaa.parquet"
+    assert not _same_bytes(reference / name, candidate / name)
+    assert compare_results(reference, candidate) == Comparison()
+
+
+def test_results_one_value_differs_with_other_metadata(
+    reference: Path, tmp_path: Path
+) -> None:
+    changed = shard("deaths", 1, value=np.nextafter(0.1, 1.0))
+    candidate = write_shards_other_metadata(
+        tmp_path / "candidate", {**SHARDS, "deaths/bbbb.parquet": changed}
     )
-    comparison = compare_results(reference, candidate)
-    assert not comparison.same
-    assert comparison == Comparison(different=["deaths/bbbb.parquet"])
+    assert compare_results(reference, candidate) == Comparison(
+        different=["deaths/bbbb.parquet"]
+    )
 
 
 def test_results_shard_on_one_side(reference: Path, tmp_path: Path) -> None:
-    candidate_shards = {**SHARDS, "births/bbbb.parquet": b"births draw 1"}
+    candidate_shards = {**SHARDS, "births/bbbb.parquet": shard("births", 1)}
     del candidate_shards["deaths/aaaa.parquet"]
-    candidate = write_files(tmp_path / "candidate", candidate_shards)
+    candidate = write_shards(tmp_path / "candidate", candidate_shards)
     assert compare_results(reference, candidate) == Comparison(
         only_in_reference=["deaths/aaaa.parquet"],
         only_in_candidate=["births/bbbb.parquet"],
@@ -56,16 +122,60 @@ def test_results_shard_on_one_side(reference: Path, tmp_path: Path) -> None:
 
 
 def test_results_ignore_files_outside_measure_shards(reference: Path, tmp_path: Path) -> None:
-    candidate = write_files(
-        tmp_path / "candidate",
+    candidate = write_shards(tmp_path / "candidate", SHARDS)
+    write_files(
+        candidate,
         {
-            **SHARDS,
             "flat.parquet": b"not a shard",
             "deaths/notes.txt": b"not parquet",
             "deaths/nested/cccc.parquet": b"too deep",
         },
     )
     assert compare_results(reference, candidate).same
+
+
+def test_results_unreadable_shard_is_an_error(reference: Path, tmp_path: Path) -> None:
+    candidate = write_shards(tmp_path / "candidate", SHARDS)
+    write_files(candidate, {"deaths/aaaa.parquet": b"not parquet"})
+    with pytest.raises(ComparisonError, match="cannot read .*deaths/aaaa.parquet"):
+        compare_results(reference, candidate)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        pytest.param(lambda f: f.assign(value=[np.nan, 0.3]), id="nan_in_same_place"),
+        pytest.param(lambda f: f, id="identical"),
+    ],
+)
+def test_same_frame_equal(tmp_path: Path, change: Any) -> None:
+    frame = change(shard("deaths", 0))
+    reference = write_one(tmp_path / "reference.parquet", frame)
+    candidate = write_one(tmp_path / "candidate.parquet", frame, compression="gzip")
+    assert _same_frame(reference, candidate)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        pytest.param(
+            lambda f: f.assign(value=[np.nextafter(0.1, 1.0), 0.3]), id="value_one_ulp"
+        ),
+        pytest.param(lambda f: f.astype({"input_draw": "int32"}), id="int64_to_int32"),
+        pytest.param(lambda f: f.rename(columns={"value": "count"}), id="column_renamed"),
+        pytest.param(lambda f: f[["value", *f.columns[:-1]]], id="column_order"),
+        pytest.param(lambda f: f.iloc[::-1].reset_index(drop=True), id="row_order"),
+        pytest.param(lambda f: f.iloc[:1], id="row_removed"),
+        pytest.param(
+            lambda f: f.assign(child_sex=f["child_sex"].astype(str)), id="category_to_string"
+        ),
+    ],
+)
+def test_same_frame_different(tmp_path: Path, change: Any) -> None:
+    frame = shard("deaths", 0)
+    reference = write_one(tmp_path / "reference.parquet", frame)
+    candidate = write_one(tmp_path / "candidate.parquet", change(frame))
+    assert not _same_frame(reference, candidate)
 
 
 def test_notebooks_paired_by_relative_path(tmp_path: Path) -> None:

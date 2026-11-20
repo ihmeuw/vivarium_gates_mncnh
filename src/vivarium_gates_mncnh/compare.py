@@ -6,11 +6,13 @@ artifacts, the simulation results, or the executed notebooks change? Each
 returns a ``Comparison``, which later CI stages can act on or save.
 
 Two outputs are the same when they have the same set of files and each pair of
-files is equal byte for byte. Which files count depends on the output type:
+files is equal. Which files count, and how a pair is compared, depends on the
+output type:
 
-- artifacts: the two artifact files
-- results: ``<measure>/*.parquet`` in a psimulate ``results`` directory
-- notebooks: ``**/executed/*.ipynb`` in a notebooks directory
+- artifacts: the two artifact files, byte for byte
+- results: ``<measure>/*.parquet`` in a psimulate ``results`` directory, as
+  ``pd.read_parquet`` reads them
+- notebooks: ``**/executed/*.ipynb`` in a notebooks directory, byte for byte
 
 This module imports nothing from the model, so a broken candidate environment
 cannot make the comparison itself fail.
@@ -19,6 +21,8 @@ cannot make the comparison itself fail.
 import filecmp
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import pandas as pd
 
 RESULTS_PATTERN = "*/*.parquet"
 NOTEBOOKS_PATTERN = "**/executed/*.ipynb"
@@ -42,7 +46,7 @@ class Comparison:
     only_in_reference: list[str] = field(default_factory=list)
     only_in_candidate: list[str] = field(default_factory=list)
     different: list[str] = field(default_factory=list)
-    """Files or keys present on both sides whose bytes differ."""
+    """Files or keys present on both sides whose content differs."""
 
     @property
     def same(self) -> bool:
@@ -67,9 +71,13 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
 
 
 def compare_results(reference: Path, candidate: Path) -> Comparison:
-    """Compare the measure files in two psimulate results directories, byte for byte.
+    """Compare the measure files in two psimulate results directories.
 
-    Files are paired by their path relative to each directory.
+    Files are paired by their path relative to each directory. Each pair is read
+    with ``pd.read_parquet`` and its default options, which is how results are
+    read for analysis. The two frames must be exactly equal. Differences that
+    ``pd.read_parquet`` does not show, such as compression, row groups, or
+    string width, are ignored.
 
     Raises
     ------
@@ -85,7 +93,7 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
             comparison.only_in_reference.append(name)
         elif name not in reference_files:
             comparison.only_in_candidate.append(name)
-        elif not _same_bytes(reference_files[name], candidate_files[name]):
+        elif not _same_frame(reference_files[name], candidate_files[name]):
             comparison.different.append(name)
     return comparison
 
@@ -137,3 +145,23 @@ def _same_bytes(reference: Path, candidate: Path) -> bool:
         return filecmp.cmp(reference, candidate, shallow=False)
     except OSError as error:
         raise ComparisonError(f"cannot read {error.filename}: {error}") from error
+
+
+def _same_frame(reference: Path, candidate: Path) -> bool:
+    """Whether two parquet files read into exactly equal frames."""
+    try:
+        pd.testing.assert_frame_equal(
+            _read_parquet(reference), _read_parquet(candidate), check_exact=True
+        )
+    except AssertionError:
+        return False
+    return True
+
+
+def _read_parquet(path: Path) -> pd.DataFrame:
+    """Read a parquet file as results are read for analysis."""
+    try:
+        return pd.read_parquet(path)
+    # pyarrow raises ArrowInvalid, a ValueError, for a file that is not parquet.
+    except (OSError, ValueError) as error:
+        raise ComparisonError(f"cannot read {path}: {error}") from error
