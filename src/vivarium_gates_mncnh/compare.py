@@ -12,14 +12,15 @@ output type:
 - artifacts: the keys in two artifact files, as vivarium's ``Artifact`` reads them
 - results: ``<measure>/*.parquet`` in a psimulate ``results`` directory, as
   ``pd.read_parquet`` reads them
-- notebooks: ``**/executed/*.ipynb`` in a notebooks directory, byte for byte
+- notebooks: ``**/executed/*.ipynb`` in a notebooks directory, by the source and
+  outputs of each cell
 
 This module imports nothing from the model, so a broken model cannot make the
 comparison itself fail. ``compare_artifacts`` imports vivarium, so that it reads
 artifacts as a simulation does.
 """
 
-import filecmp
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -125,9 +126,13 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
 
 
 def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
-    """Compare the executed notebooks in two notebook directories, byte for byte.
+    """Compare the executed notebooks in two notebook directories.
 
-    Notebooks are paired by their path relative to each directory.
+    Notebooks are paired by their path relative to each directory. Each pair must
+    have the same cells in the same order, with the same type, source,
+    execution count, and outputs. Notebook, cell, and output metadata are
+    ignored. So are cell IDs and whether text is stored as one string or as a
+    list of lines, because the notebook format allows either.
 
     Raises
     ------
@@ -143,7 +148,7 @@ def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
             comparison.only_in_reference.append(name)
         elif name not in reference_files:
             comparison.only_in_candidate.append(name)
-        elif not _same_bytes(reference_files[name], candidate_files[name]):
+        elif _notebook_cells(reference_files[name]) != _notebook_cells(candidate_files[name]):
             comparison.different.append(name)
     return comparison
 
@@ -163,14 +168,6 @@ def _find_files(path: Path, side: str, pattern: str) -> dict[str, Path]:
     if not files:
         raise ComparisonError(f"no files match '{pattern}' in {side} path: {path}")
     return files
-
-
-def _same_bytes(reference: Path, candidate: Path) -> bool:
-    """Whether two files are equal byte for byte."""
-    try:
-        return filecmp.cmp(reference, candidate, shallow=False)
-    except OSError as error:
-        raise ComparisonError(f"cannot read {error.filename}: {error}") from error
 
 
 def _same_frame(reference: Path, candidate: Path) -> bool:
@@ -230,3 +227,41 @@ def _load(artifact: "Artifact", key: str, path: Path) -> Any:
         raise ComparisonError(f"cannot read key {key} in {path}: {error}") from error
     finally:
         artifact.clear_cache()
+
+
+def _notebook_cells(path: Path) -> list[dict[str, Any]]:
+    """Return the cells of a notebook without metadata, cell IDs, or line splits."""
+    try:
+        cells = json.loads(path.read_text(encoding="utf-8"))["cells"]
+        return [_cell_content(cell) for cell in cells]
+    except (OSError, ValueError) as error:
+        raise ComparisonError(f"cannot read notebook {path}: {error}") from error
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ComparisonError(f"not a notebook: {path}") from error
+
+
+def _cell_content(cell: dict[str, Any]) -> dict[str, Any]:
+    """Return what a cell holds: its type, source, execution count, and outputs."""
+    content = {
+        key: _join_lines(value)
+        for key, value in cell.items()
+        if key not in ("metadata", "id", "outputs")
+    }
+    if "outputs" in cell:
+        content["outputs"] = [_output_content(output) for output in cell["outputs"]]
+    return content
+
+
+def _output_content(output: dict[str, Any]) -> dict[str, Any]:
+    """Return an output without its metadata, with each text joined into one string."""
+    content = {key: _join_lines(value) for key, value in output.items() if key != "metadata"}
+    if "data" in output:
+        content["data"] = {mime: _join_lines(value) for mime, value in output["data"].items()}
+    return content
+
+
+def _join_lines(value: Any) -> Any:
+    """Join a list of lines into one string, as the notebook format allows either."""
+    if isinstance(value, list) and all(isinstance(line, str) for line in value):
+        return "".join(value)
+    return value
