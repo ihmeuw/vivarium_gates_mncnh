@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from vivarium_gates_mncnh.compare import (
-    Comparison,
     ComparisonError,
+    OutputDiff,
     _same_bytes,
     compare_artifacts,
     compare_notebooks,
@@ -33,23 +33,23 @@ def reference(tmp_path: Path) -> Path:
 
 def test_results_same(reference: Path, tmp_path: Path) -> None:
     candidate = write_files(tmp_path / "candidate", SHARDS)
-    assert compare_results(reference, candidate) == Comparison()
+    assert compare_results(reference, candidate) == OutputDiff()
 
 
 def test_results_one_byte_differs(reference: Path, tmp_path: Path) -> None:
     candidate = write_files(
         tmp_path / "candidate", {**SHARDS, "deaths/bbbb.parquet": b"deaths draw 2"}
     )
-    comparison = compare_results(reference, candidate)
-    assert not comparison.same
-    assert comparison == Comparison(different=["deaths/bbbb.parquet"])
+    diff = compare_results(reference, candidate)
+    assert not diff.same
+    assert diff == OutputDiff(different=["deaths/bbbb.parquet"])
 
 
 def test_results_shard_on_one_side(reference: Path, tmp_path: Path) -> None:
     candidate_shards = {**SHARDS, "births/bbbb.parquet": b"births draw 1"}
     del candidate_shards["deaths/aaaa.parquet"]
     candidate = write_files(tmp_path / "candidate", candidate_shards)
-    assert compare_results(reference, candidate) == Comparison(
+    assert compare_results(reference, candidate) == OutputDiff(
         only_in_reference=["deaths/aaaa.parquet"],
         only_in_candidate=["births/bbbb.parquet"],
     )
@@ -74,7 +74,7 @@ def test_notebooks_paired_by_relative_path(tmp_path: Path) -> None:
     candidate = write_files(
         tmp_path / "candidate", {**notebooks, "results/executed/a.ipynb": b"{3}"}
     )
-    assert compare_notebooks(reference, candidate) == Comparison(
+    assert compare_notebooks(reference, candidate) == OutputDiff(
         different=["results/executed/a.ipynb"]
     )
 
@@ -87,7 +87,7 @@ def test_notebooks_ignore_source_notebooks(tmp_path: Path) -> None:
     candidate = write_files(
         tmp_path / "candidate", {**executed, "interactive/a.ipynb": b"{2}"}
     )
-    assert compare_notebooks(reference, candidate) == Comparison()
+    assert compare_notebooks(reference, candidate) == OutputDiff()
 
 
 def test_artifacts_paired_regardless_of_name(tmp_path: Path) -> None:
@@ -96,7 +96,7 @@ def test_artifacts_paired_regardless_of_name(tmp_path: Path) -> None:
     changed = (
         write_files(tmp_path, {"changed/ethiopia.hdf": b"data!"}) / "changed/ethiopia.hdf"
     )
-    assert compare_artifacts(reference, same) == Comparison()
+    assert compare_artifacts(reference, same) == OutputDiff()
     assert compare_artifacts(reference, changed).different == ["artifact"]
 
 

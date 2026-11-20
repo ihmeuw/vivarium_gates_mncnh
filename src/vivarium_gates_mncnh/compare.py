@@ -3,7 +3,7 @@ Compare model outputs from two environments.
 
 These functions answer one question after an environment update: did the
 artifacts, the simulation results, or the executed notebooks change? Each
-returns a ``Comparison``, which later CI stages can act on or save.
+returns an ``OutputDiff``, which later CI stages can act on or save.
 
 Two outputs are the same when they have the same set of files and each pair of
 files is equal byte for byte. Which files count depends on the output type:
@@ -33,7 +33,7 @@ class ComparisonError(Exception):
 
 
 @dataclass
-class Comparison:
+class OutputDiff:
     """The result of comparing a reference output with a candidate output.
 
     Each list holds relative file names or keys, in sorted order.
@@ -50,7 +50,7 @@ class Comparison:
         return not (self.only_in_reference or self.only_in_candidate or self.different)
 
 
-def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
+def compare_artifacts(reference: Path, candidate: Path) -> OutputDiff:
     """Compare two artifact files byte for byte. The file names can differ.
 
     Raises
@@ -62,11 +62,11 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
         if not path.is_file():
             raise ComparisonError(f"{side} artifact is not a file: {path}")
     if _same_bytes(reference, candidate):
-        return Comparison()
-    return Comparison(different=["artifact"])
+        return OutputDiff()
+    return OutputDiff(different=["artifact"])
 
 
-def compare_results(reference: Path, candidate: Path) -> Comparison:
+def compare_results(reference: Path, candidate: Path) -> OutputDiff:
     """Compare the measure files in two psimulate results directories, byte for byte.
 
     Files are paired by their path relative to each directory.
@@ -79,18 +79,18 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
     """
     reference_files = _find_files(reference, "reference", RESULTS_PATTERN)
     candidate_files = _find_files(candidate, "candidate", RESULTS_PATTERN)
-    comparison = Comparison()
+    diff = OutputDiff()
     for name in sorted(reference_files.keys() | candidate_files.keys()):
         if name not in candidate_files:
-            comparison.only_in_reference.append(name)
+            diff.only_in_reference.append(name)
         elif name not in reference_files:
-            comparison.only_in_candidate.append(name)
+            diff.only_in_candidate.append(name)
         elif not _same_bytes(reference_files[name], candidate_files[name]):
-            comparison.different.append(name)
-    return comparison
+            diff.different.append(name)
+    return diff
 
 
-def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
+def compare_notebooks(reference: Path, candidate: Path) -> OutputDiff:
     """Compare the executed notebooks in two notebook directories, byte for byte.
 
     Notebooks are paired by their path relative to each directory.
@@ -103,15 +103,15 @@ def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
     """
     reference_files = _find_files(reference, "reference", NOTEBOOKS_PATTERN)
     candidate_files = _find_files(candidate, "candidate", NOTEBOOKS_PATTERN)
-    comparison = Comparison()
+    diff = OutputDiff()
     for name in sorted(reference_files.keys() | candidate_files.keys()):
         if name not in candidate_files:
-            comparison.only_in_reference.append(name)
+            diff.only_in_reference.append(name)
         elif name not in reference_files:
-            comparison.only_in_candidate.append(name)
+            diff.only_in_candidate.append(name)
         elif not _same_bytes(reference_files[name], candidate_files[name]):
-            comparison.different.append(name)
-    return comparison
+            diff.different.append(name)
+    return diff
 
 
 def _find_files(path: Path, side: str, pattern: str) -> dict[str, Path]:
