@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -6,6 +7,8 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+import tables
+from vivarium.artifact import Artifact
 
 from vivarium_gates_mncnh.compare import (
     Comparison,
@@ -200,14 +203,115 @@ def test_notebooks_ignore_source_notebooks(tmp_path: Path) -> None:
     assert compare_notebooks(reference, candidate) == Comparison()
 
 
-def test_artifacts_paired_regardless_of_name(tmp_path: Path) -> None:
-    reference = write_files(tmp_path, {"old/ethiopia.hdf": b"data"}) / "old/ethiopia.hdf"
-    same = write_files(tmp_path, {"new/renamed.hdf": b"data"}) / "new/renamed.hdf"
-    changed = (
-        write_files(tmp_path, {"changed/ethiopia.hdf": b"data!"}) / "changed/ethiopia.hdf"
+def artifact_data() -> dict[str, Any]:
+    """Artifact keys with the kinds of data a real artifact holds."""
+    return {
+        "population.structure": pd.DataFrame(
+            {
+                "sex": ["Female", "Male"],
+                "year_start": [2023, 2023],
+                "draw_0": [0.1, 0.3],
+            }
+        ).set_index(["sex", "year_start"]),
+        "population.demographic_dimensions": ["sex", "year_start"],
+        "cause.maternal_disorders.restrictions": {"yld_only": False, "age_start": 7.0},
+    }
+
+
+def write_artifact(path: Path, data: dict[str, Any]) -> Path:
+    """Write keys with vivarium's Artifact, in the order given."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="No artifact found")
+        artifact = Artifact(path)
+    for key, value in data.items():
+        artifact.write(key, value)
+    return path
+
+
+def write_artifact_other_layout(path: Path, data: dict[str, Any]) -> Path:
+    """Write the same keys in reverse order, with a key written and removed first.
+
+    The data is the same, but the HDF file and the keyspace order differ.
+    """
+    artifact = Artifact(write_artifact(path, {"scratch.key": [1, 2, 3]}))
+    for key, value in reversed(data.items()):
+        artifact.write(key, value)
+    artifact.remove("scratch.key")
+    return path
+
+
+def test_artifacts_same_with_other_name(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "old/ethiopia.hdf", artifact_data())
+    candidate = write_artifact(tmp_path / "new/renamed.hdf", artifact_data())
+    assert compare_artifacts(reference, candidate) == Comparison()
+
+
+def test_artifacts_same_data_with_other_layout(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    candidate = write_artifact_other_layout(tmp_path / "candidate.hdf", artifact_data())
+    assert not _same_bytes(reference, candidate)
+    assert compare_artifacts(reference, candidate) == Comparison()
+
+
+def test_artifacts_one_value_differs_with_other_layout(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    data = artifact_data()
+    data["population.structure"].iloc[0, 0] = np.nextafter(0.1, 1.0)
+    candidate = write_artifact_other_layout(tmp_path / "candidate.hdf", data)
+    assert compare_artifacts(reference, candidate) == Comparison(
+        different=["population.structure"]
     )
-    assert compare_artifacts(reference, same) == Comparison()
-    assert compare_artifacts(reference, changed).different == ["artifact"]
+
+
+def test_artifacts_key_on_one_side(tmp_path: Path) -> None:
+    data = artifact_data()
+    reference = write_artifact(tmp_path / "reference.hdf", data)
+    del data["population.demographic_dimensions"]
+    data["cause.other.restrictions"] = {"yld_only": True}
+    candidate = write_artifact(tmp_path / "candidate.hdf", data)
+    assert compare_artifacts(reference, candidate) == Comparison(
+        only_in_reference=["population.demographic_dimensions"],
+        only_in_candidate=["cause.other.restrictions"],
+    )
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("population.demographic_dimensions", ["sex", "year_end"]),
+        ("cause.maternal_disorders.restrictions", {"yld_only": True, "age_start": 7.0}),
+        (
+            "population.structure",
+            artifact_data()["population.structure"].astype({"draw_0": "float32"}),
+        ),
+    ],
+    ids=["list", "dict", "float64_to_float32"],
+)
+def test_artifacts_key_data_differs(tmp_path: Path, key: str, value: Any) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    candidate = write_artifact(tmp_path / "candidate.hdf", {**artifact_data(), key: value})
+    assert compare_artifacts(reference, candidate) == Comparison(different=[key])
+
+
+def test_artifact_with_no_keys_is_an_error_and_is_not_changed(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    empty = tmp_path / "empty.hdf"
+    tables.open_file(str(empty), "w").close()
+    before = empty.read_bytes()
+    with pytest.raises(ComparisonError, match="candidate artifact has no keys"):
+        compare_artifacts(reference, empty)
+    assert empty.read_bytes() == before
+
+
+def test_artifact_not_written_by_vivarium_is_an_error(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    not_hdf = write_files(tmp_path, {"not_hdf.hdf": b"data"}) / "not_hdf.hdf"
+    pandas_hdf = tmp_path / "pandas.hdf"
+    pd.DataFrame({"x": [1]}).to_hdf(pandas_hdf, key="x")
+    for candidate in (not_hdf, pandas_hdf):
+        with pytest.raises(ComparisonError, match="cannot read candidate artifact"):
+            compare_artifacts(reference, candidate)
 
 
 def test_missing_directory(reference: Path, tmp_path: Path) -> None:
@@ -223,9 +327,10 @@ def test_no_matching_files(reference: Path, tmp_path: Path) -> None:
         compare_results(reference, candidate)
 
 
-def test_artifact_must_be_a_file(reference: Path) -> None:
+def test_artifact_must_be_a_file(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
     with pytest.raises(ComparisonError, match="candidate artifact is not a file"):
-        compare_artifacts(reference / "deaths/aaaa.parquet", reference)
+        compare_artifacts(reference, tmp_path)
 
 
 def test_unreadable_file_is_an_error(tmp_path: Path) -> None:

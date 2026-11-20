@@ -9,23 +9,30 @@ Two outputs are the same when they have the same set of files and each pair of
 files is equal. Which files count, and how a pair is compared, depends on the
 output type:
 
-- artifacts: the two artifact files, byte for byte
+- artifacts: the keys in two artifact files, as vivarium's ``Artifact`` reads them
 - results: ``<measure>/*.parquet`` in a psimulate ``results`` directory, as
   ``pd.read_parquet`` reads them
 - notebooks: ``**/executed/*.ipynb`` in a notebooks directory, byte for byte
 
-This module imports nothing from the model, so a broken candidate environment
-cannot make the comparison itself fail.
+This module imports nothing from the model, so a broken model cannot make the
+comparison itself fail. ``compare_artifacts`` imports vivarium, so that it reads
+artifacts as a simulation does.
 """
 
 import filecmp
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+if TYPE_CHECKING:
+    from vivarium.artifact.artifact import Artifact
+
 RESULTS_PATTERN = "*/*.parquet"
 NOTEBOOKS_PATTERN = "**/executed/*.ipynb"
+KEYSPACE_KEY = "metadata.keyspace"
+"""The artifact key that lists the other keys. The key set already covers it."""
 
 
 class ComparisonError(Exception):
@@ -55,19 +62,38 @@ class Comparison:
 
 
 def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
-    """Compare two artifact files byte for byte. The file names can differ.
+    """Compare the keys in two artifact files. The file names can differ.
+
+    Both artifacts are read with vivarium's ``Artifact``, as a simulation reads
+    them. The key sets must be the same, and each key's data must be exactly
+    equal. Differences in the HDF file itself, such as the order in which keys
+    were written, are ignored. The ``metadata.keyspace`` key is not compared,
+    because the key set already covers it.
 
     Raises
     ------
     ComparisonError
-        If either path is not a file or cannot be read.
+        If either path is not an artifact file with keys, or a key cannot be read.
     """
     for side, path in (("reference", reference), ("candidate", candidate)):
         if not path.is_file():
             raise ComparisonError(f"{side} artifact is not a file: {path}")
-    if _same_bytes(reference, candidate):
-        return Comparison()
-    return Comparison(different=["artifact"])
+    reference_artifact = _open_artifact(reference, "reference")
+    candidate_artifact = _open_artifact(candidate, "candidate")
+    reference_keys = set(reference_artifact.keys) - {KEYSPACE_KEY}
+    candidate_keys = set(candidate_artifact.keys) - {KEYSPACE_KEY}
+    comparison = Comparison()
+    for key in sorted(reference_keys | candidate_keys):
+        if key not in candidate_keys:
+            comparison.only_in_reference.append(key)
+        elif key not in reference_keys:
+            comparison.only_in_candidate.append(key)
+        elif not _equal(
+            _load(reference_artifact, key, reference),
+            _load(candidate_artifact, key, candidate),
+        ):
+            comparison.different.append(key)
+    return comparison
 
 
 def compare_results(reference: Path, candidate: Path) -> Comparison:
@@ -149,10 +175,20 @@ def _same_bytes(reference: Path, candidate: Path) -> bool:
 
 def _same_frame(reference: Path, candidate: Path) -> bool:
     """Whether two parquet files read into exactly equal frames."""
+    return _equal(_read_parquet(reference), _read_parquet(candidate))
+
+
+def _equal(reference: Any, candidate: Any) -> bool:
+    """Whether two values are exactly equal. Frames and series count NaN as equal."""
+    if type(reference) is not type(candidate):
+        return False
     try:
-        pd.testing.assert_frame_equal(
-            _read_parquet(reference), _read_parquet(candidate), check_exact=True
-        )
+        if isinstance(reference, pd.DataFrame):
+            pd.testing.assert_frame_equal(reference, candidate, check_exact=True)
+        elif isinstance(reference, pd.Series):
+            pd.testing.assert_series_equal(reference, candidate, check_exact=True)
+        else:
+            return bool(reference == candidate)
     except AssertionError:
         return False
     return True
@@ -165,3 +201,32 @@ def _read_parquet(path: Path) -> pd.DataFrame:
     # pyarrow raises ArrowInvalid, a ValueError, for a file that is not parquet.
     except (OSError, ValueError) as error:
         raise ComparisonError(f"cannot read {path}: {error}") from error
+
+
+def _open_artifact(path: Path, side: str) -> "Artifact":
+    """Open an artifact for reading. ``side`` is "reference" or "candidate"."""
+    import tables  # type: ignore[import-untyped]
+    from vivarium.artifact.artifact import Artifact, ArtifactException
+
+    # Artifact writes a keyspace into an HDF file that has no keys. Refuse such a
+    # file first, so the comparison never changes its inputs.
+    # Artifact raises TypeError for an HDF file that pandas wrote, and tables
+    # raises a RuntimeError for a file that is not HDF.
+    errors = (OSError, RuntimeError, TypeError, ValueError, ArtifactException)
+    try:
+        with tables.open_file(str(path), "r") as file:
+            if next(iter(file.walk_nodes("/", "Leaf")), None) is None:
+                raise ComparisonError(f"{side} artifact has no keys: {path}")
+        return Artifact(path)
+    except errors as error:
+        raise ComparisonError(f"cannot read {side} artifact {path}: {error}") from error
+
+
+def _load(artifact: "Artifact", key: str, path: Path) -> Any:
+    """Load one key and drop it from the artifact's cache, so memory stays low."""
+    try:
+        return artifact.load(key)
+    except (OSError, RuntimeError, TypeError, ValueError, KeyError) as error:
+        raise ComparisonError(f"cannot read key {key} in {path}: {error}") from error
+    finally:
+        artifact.clear_cache()
