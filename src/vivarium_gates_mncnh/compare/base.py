@@ -114,11 +114,13 @@ def equal_values(reference: Any, candidate: Any) -> bool:
 
     Frames and series are compared with ``equals``. Their data must be exactly
     equal and have the same dtypes, and NaN in the same place counts as equal.
-    Index and column labels are compared by value only, so their names and
-    dtypes are ignored.
+    Index and column labels are compared by value only, so their dtypes are
+    ignored. Index names and series names must also be equal.
     """
     if type(reference) is not type(candidate):
         return False
+    if isinstance(reference, pd.Series) and reference.name != candidate.name:
+        return False
     if isinstance(reference, (pd.DataFrame, pd.Series)):
-        return reference.equals(candidate)
+        return reference.index.names == candidate.index.names and reference.equals(candidate)
     return bool(reference == candidate)

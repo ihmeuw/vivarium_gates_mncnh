@@ -18,6 +18,7 @@ from vivarium_gates_mncnh.compare import (
     compare_notebooks,
     compare_results,
 )
+from vivarium_gates_mncnh.compare.base import equal_values
 from vivarium_gates_mncnh.compare.results import _equal_frames
 
 
@@ -170,6 +171,7 @@ def test_equal_frames(tmp_path: Path, change: Any) -> None:
         ),
         pytest.param(lambda f: f.astype({"input_draw": "int32"}), id="int64_to_int32"),
         pytest.param(lambda f: f.rename(columns={"value": "count"}), id="column_renamed"),
+        pytest.param(lambda f: f.rename_axis("row"), id="index_renamed"),
         pytest.param(lambda f: f[["value", *f.columns[:-1]]], id="column_order"),
         pytest.param(lambda f: f.iloc[::-1].reset_index(drop=True), id="row_order"),
         pytest.param(lambda f: f.iloc[:1], id="row_removed"),
@@ -183,6 +185,21 @@ def test_unequal_frames(tmp_path: Path, change: Any) -> None:
     reference = write_one(tmp_path / "reference.parquet", frame)
     candidate = write_one(tmp_path / "candidate.parquet", change(frame))
     assert not _equal_frames(reference, candidate)
+
+
+def test_index_level_renamed(tmp_path: Path) -> None:
+    frame = shard("deaths", 0).set_index(["measure", "child_sex"])
+    reference = write_one(tmp_path / "reference.parquet", frame)
+    candidate = write_one(
+        tmp_path / "candidate.parquet", frame.rename_axis(["measure", "sex"])
+    )
+    assert not _equal_frames(reference, candidate)
+
+
+def test_series_renamed() -> None:
+    series = pd.Series([0.1, 0.3], name="value")
+    assert equal_values(series, series.copy())
+    assert not equal_values(series, series.rename("count"))
 
 
 def notebook(cells: list[dict[str, Any]], **metadata: Any) -> dict[str, Any]:
