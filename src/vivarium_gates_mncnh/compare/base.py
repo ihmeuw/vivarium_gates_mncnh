@@ -35,13 +35,14 @@ class ComparisonError(Exception):
 class Comparison:
     """The result of comparing a reference output with a candidate output.
 
-    Each list holds relative file names or keys, in sorted order.
+    Each list holds item names, in sorted order. ``compare_items`` says how
+    each output type names its items.
     """
 
     only_in_reference: list[str] = field(default_factory=list)
     only_in_candidate: list[str] = field(default_factory=list)
     different: list[str] = field(default_factory=list)
-    """Files or keys present on both sides whose content differs."""
+    """Items present on both sides whose content differs."""
 
     @property
     def equal(self) -> bool:
@@ -69,8 +70,8 @@ def compare_items(
 
     An item is one part of an output, named as it appears in a ``Comparison``:
 
-    - results: a shard path relative to the results directory, such as
-      ``deaths/aaaa.parquet``
+    - results: a shard, named by its measure and the draw, seed, and branch
+      values it holds, such as ``deaths: input_draw=0, random_seed=1``
     - notebooks: a notebook path relative to the notebooks directory, such as
       ``results/executed/maternal.ipynb``
     - artifacts: an artifact key, such as ``population.structure``

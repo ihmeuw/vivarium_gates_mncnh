@@ -9,6 +9,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+import yaml
 from vivarium.artifact import Artifact
 
 from vivarium_gates_mncnh.compare import (
@@ -19,16 +20,23 @@ from vivarium_gates_mncnh.compare import (
     compare_results,
 )
 from vivarium_gates_mncnh.compare.base import equal_values
-from vivarium_gates_mncnh.compare.results import _equal_frames
+from vivarium_gates_mncnh.compare.results import _equal_frames, _identifying_columns
 
 
-def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
-    """A small results shard with the column types of a real psimulate shard."""
+def shard(
+    measure: str, draw: int, seed: int = 0, value: float = 0.1, **branch: Any
+) -> pd.DataFrame:
+    """A small results shard with the columns and column types of a real psimulate shard.
+
+    psimulate adds the branch, draw, and seed columns just before ``value``.
+    """
     return pd.DataFrame(
         {
             "measure": measure,
             "child_sex": pd.Categorical(["Female", "Male"], ordered=True),
+            **branch,
             "input_draw": np.int64(draw),
+            "random_seed": np.int64(seed),
             "value": [value, value * 3],
         }
     )
@@ -39,6 +47,16 @@ SHARDS = {
     "deaths/bbbb.parquet": shard("deaths", 1),
     "births/aaaa.parquet": shard("births", 0),
 }
+SHARDS_UNDER_OTHER_NAMES = {
+    "deaths/aaaa.parquet": shard("deaths", 1),
+    "deaths/cccc.parquet": shard("deaths", 0),
+    "births/dddd.parquet": shard("births", 0),
+}
+NO_BRANCHES: list[dict[str, Any]] = [{}]
+SCENARIOS = [
+    {"intervention": {"scenario": "baseline"}},
+    {"intervention": {"scenario": "treated"}},
+]
 
 
 def same_bytes(reference: Path, candidate: Path) -> bool:
@@ -53,23 +71,30 @@ def write_files(root: Path, files: dict[str, bytes]) -> Path:
     return root
 
 
-def write_shards(root: Path, shards: dict[str, pd.DataFrame]) -> Path:
+def run_root(root: Path, branches: list[dict[str, Any]] = NO_BRANCHES) -> Path:
+    """Make a run root with a branches.yaml file and return its results directory."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "branches.yaml").write_text(yaml.safe_dump(branches))
+    return root / "results"
+
+
+def write_shards(results: Path, shards: dict[str, pd.DataFrame]) -> Path:
     """Write shards the way psimulate does."""
     for name, frame in shards.items():
-        path = root / name
+        path = results / name
         path.parent.mkdir(parents=True, exist_ok=True)
         frame.to_parquet(path)
-    return root
+    return results
 
 
-def write_shards_other_metadata(root: Path, shards: dict[str, pd.DataFrame]) -> Path:
+def write_shards_other_metadata(results: Path, shards: dict[str, pd.DataFrame]) -> Path:
     """Write shards with the same content and different file metadata.
 
     The files differ in compression, row groups, statistics, string width,
     key-value metadata, and the pandas metadata, so their bytes differ too.
     """
     for name, frame in shards.items():
-        path = root / name
+        path = results / name
         path.parent.mkdir(parents=True, exist_ok=True)
         table = pa.Table.from_pandas(frame, preserve_index=False)
         table = table.cast(
@@ -81,7 +106,7 @@ def write_shards_other_metadata(root: Path, shards: dict[str, pd.DataFrame]) -> 
         pq.write_table(
             table, path, compression="zstd", row_group_size=1, write_statistics=False
         )
-    return root
+    return results
 
 
 def write_one(path: Path, frame: pd.DataFrame, **kwargs: Any) -> Path:
@@ -92,45 +117,156 @@ def write_one(path: Path, frame: pd.DataFrame, **kwargs: Any) -> Path:
 
 @pytest.fixture
 def reference(tmp_path: Path) -> Path:
-    return write_shards(tmp_path / "reference", SHARDS)
+    return write_shards(run_root(tmp_path / "reference"), SHARDS)
 
 
-def test_results_same(reference: Path, tmp_path: Path) -> None:
-    candidate = write_shards(tmp_path / "candidate", SHARDS)
+@pytest.fixture
+def candidate_results(tmp_path: Path) -> Path:
+    return run_root(tmp_path / "candidate")
+
+
+def test_results_same(reference: Path, candidate_results: Path) -> None:
+    candidate = write_shards(candidate_results, SHARDS)
     assert compare_results(reference, candidate) == Comparison()
 
 
-def test_results_same_content_with_other_metadata(reference: Path, tmp_path: Path) -> None:
-    candidate = write_shards_other_metadata(tmp_path / "candidate", SHARDS)
+def test_results_same_content_with_other_metadata(
+    reference: Path, candidate_results: Path
+) -> None:
+    candidate = write_shards_other_metadata(candidate_results, SHARDS)
     name = "deaths/aaaa.parquet"
     assert not same_bytes(reference / name, candidate / name)
     assert compare_results(reference, candidate) == Comparison()
 
 
 def test_results_one_value_differs_with_other_metadata(
-    reference: Path, tmp_path: Path
+    reference: Path, candidate_results: Path
 ) -> None:
     changed = shard("deaths", 1, value=np.nextafter(0.1, 1.0))
     candidate = write_shards_other_metadata(
-        tmp_path / "candidate", {**SHARDS, "deaths/bbbb.parquet": changed}
+        candidate_results, {**SHARDS, "deaths/bbbb.parquet": changed}
     )
     assert compare_results(reference, candidate) == Comparison(
-        different=["deaths/bbbb.parquet"]
+        different=["deaths: input_draw=1, random_seed=0"]
     )
 
 
-def test_results_shard_on_one_side(reference: Path, tmp_path: Path) -> None:
+def test_results_same_shards_under_other_file_names(
+    reference: Path, candidate_results: Path
+) -> None:
+    candidate = write_shards(candidate_results, SHARDS_UNDER_OTHER_NAMES)
+    assert compare_results(reference, candidate) == Comparison()
+
+
+def test_results_one_value_differs_under_other_file_names(
+    reference: Path, candidate_results: Path
+) -> None:
+    changed = shard("deaths", 1, value=np.nextafter(0.1, 1.0))
+    candidate = write_shards(
+        candidate_results, {**SHARDS_UNDER_OTHER_NAMES, "deaths/aaaa.parquet": changed}
+    )
+    assert compare_results(reference, candidate) == Comparison(
+        different=["deaths: input_draw=1, random_seed=0"]
+    )
+
+
+def test_results_shard_on_one_side(reference: Path, candidate_results: Path) -> None:
     candidate_shards = {**SHARDS, "births/bbbb.parquet": shard("births", 1)}
     del candidate_shards["deaths/aaaa.parquet"]
-    candidate = write_shards(tmp_path / "candidate", candidate_shards)
+    candidate = write_shards(candidate_results, candidate_shards)
     assert compare_results(reference, candidate) == Comparison(
-        only_in_reference=["deaths/aaaa.parquet"],
-        only_in_candidate=["births/bbbb.parquet"],
+        only_in_reference=["deaths: input_draw=0, random_seed=0"],
+        only_in_candidate=["births: input_draw=1, random_seed=0"],
     )
 
 
-def test_results_ignore_files_outside_measure_shards(reference: Path, tmp_path: Path) -> None:
-    candidate = write_shards(tmp_path / "candidate", SHARDS)
+def test_results_same_values_twice_on_one_side_is_an_error(
+    reference: Path, candidate_results: Path
+) -> None:
+    candidate = write_shards(
+        candidate_results, {**SHARDS, "deaths/cccc.parquet": shard("deaths", 0)}
+    )
+    with pytest.raises(
+        ComparisonError,
+        match="candidate shards deaths/aaaa.parquet and deaths/cccc.parquet both hold "
+        "deaths: input_draw=0, random_seed=0",
+    ):
+        compare_results(reference, candidate)
+
+
+def test_results_pair_by_branch_values(tmp_path: Path) -> None:
+    baseline = shard("deaths", 0, scenario="baseline")
+    treated = shard("deaths", 0, scenario="treated")
+    reference = write_shards(
+        run_root(tmp_path / "reference", SCENARIOS),
+        {"deaths/aaaa.parquet": baseline, "deaths/bbbb.parquet": treated},
+    )
+    candidate = write_shards(
+        run_root(tmp_path / "candidate", SCENARIOS[::-1]),
+        {
+            "deaths/aaaa.parquet": treated.assign(value=treated["value"] * 2),
+            "deaths/bbbb.parquet": baseline,
+        },
+    )
+    assert compare_results(reference, candidate) == Comparison(
+        different=["deaths: scenario=treated, input_draw=0, random_seed=0"]
+    )
+
+
+@pytest.mark.parametrize(
+    "branches, columns",
+    [
+        pytest.param(NO_BRANCHES, ["input_draw", "random_seed"], id="no_branches"),
+        pytest.param(
+            [
+                {"intervention": {"scenario": "baseline", "level": 0.5}, "seasons": 2},
+                {"intervention": {"scenario": "treated", "level": 0.9}, "seasons": 2},
+            ],
+            ["level", "scenario", "seasons", "input_draw", "random_seed"],
+            id="nested_keys",
+        ),
+    ],
+)
+def test_identifying_columns(
+    tmp_path: Path, branches: list[dict[str, Any]], columns: list[str]
+) -> None:
+    run_root(tmp_path, branches)
+    assert _identifying_columns(tmp_path / "branches.yaml", "reference") == columns
+
+
+def test_results_missing_branches_file_is_an_error(reference: Path, tmp_path: Path) -> None:
+    candidate = write_shards(tmp_path / "candidate" / "results", SHARDS)
+    with pytest.raises(ComparisonError, match="candidate run root has no branches.yaml"):
+        compare_results(reference, candidate)
+
+
+@pytest.mark.parametrize(
+    "frame, error",
+    [
+        pytest.param(
+            shard("deaths", 0).drop(columns="random_seed"),
+            "has no column random_seed",
+            id="missing_column",
+        ),
+        pytest.param(
+            shard("deaths", 0).assign(input_draw=[0, 1]),
+            "has 2 values in column input_draw, not one",
+            id="two_values",
+        ),
+    ],
+)
+def test_results_shard_without_one_value_per_column_is_an_error(
+    reference: Path, candidate_results: Path, frame: pd.DataFrame, error: str
+) -> None:
+    candidate = write_shards(candidate_results, {**SHARDS, "deaths/aaaa.parquet": frame})
+    with pytest.raises(ComparisonError, match=f"candidate shard deaths/aaaa.parquet {error}"):
+        compare_results(reference, candidate)
+
+
+def test_results_ignore_files_outside_measure_shards(
+    reference: Path, candidate_results: Path
+) -> None:
+    candidate = write_shards(candidate_results, SHARDS)
     write_files(
         candidate,
         {
@@ -142,10 +278,14 @@ def test_results_ignore_files_outside_measure_shards(reference: Path, tmp_path: 
     assert compare_results(reference, candidate).equal
 
 
-def test_results_unreadable_shard_is_an_error(reference: Path, tmp_path: Path) -> None:
-    candidate = write_shards(tmp_path / "candidate", SHARDS)
+def test_results_unreadable_shard_is_an_error(
+    reference: Path, candidate_results: Path
+) -> None:
+    candidate = write_shards(candidate_results, SHARDS)
     write_files(candidate, {"deaths/aaaa.parquet": b"not parquet"})
-    with pytest.raises(ComparisonError, match="cannot read .*deaths/aaaa.parquet"):
+    with pytest.raises(
+        ComparisonError, match="cannot read candidate shard deaths/aaaa.parquet"
+    ):
         compare_results(reference, candidate)
 
 
