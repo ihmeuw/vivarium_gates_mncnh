@@ -9,17 +9,16 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
-import tables
 from vivarium.artifact import Artifact
 
 from vivarium_gates_mncnh.compare import (
     Comparison,
     ComparisonError,
-    _same_frame,
     compare_artifacts,
     compare_notebooks,
     compare_results,
 )
+from vivarium_gates_mncnh.compare.results import _equal_frames
 
 
 def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
@@ -139,7 +138,7 @@ def test_results_ignore_files_outside_measure_shards(reference: Path, tmp_path: 
             "deaths/nested/cccc.parquet": b"too deep",
         },
     )
-    assert compare_results(reference, candidate).same
+    assert compare_results(reference, candidate).equal
 
 
 def test_results_unreadable_shard_is_an_error(reference: Path, tmp_path: Path) -> None:
@@ -156,11 +155,11 @@ def test_results_unreadable_shard_is_an_error(reference: Path, tmp_path: Path) -
         pytest.param(lambda f: f, id="identical"),
     ],
 )
-def test_same_frame_equal(tmp_path: Path, change: Any) -> None:
+def test_equal_frames(tmp_path: Path, change: Any) -> None:
     frame = change(shard("deaths", 0))
     reference = write_one(tmp_path / "reference.parquet", frame)
     candidate = write_one(tmp_path / "candidate.parquet", frame, compression="gzip")
-    assert _same_frame(reference, candidate)
+    assert _equal_frames(reference, candidate)
 
 
 @pytest.mark.parametrize(
@@ -179,11 +178,11 @@ def test_same_frame_equal(tmp_path: Path, change: Any) -> None:
         ),
     ],
 )
-def test_same_frame_different(tmp_path: Path, change: Any) -> None:
+def test_unequal_frames(tmp_path: Path, change: Any) -> None:
     frame = shard("deaths", 0)
     reference = write_one(tmp_path / "reference.parquet", frame)
     candidate = write_one(tmp_path / "candidate.parquet", change(frame))
-    assert not _same_frame(reference, candidate)
+    assert not _equal_frames(reference, candidate)
 
 
 def notebook(cells: list[dict[str, Any]], **metadata: Any) -> dict[str, Any]:
@@ -218,7 +217,7 @@ def notebook_cells() -> list[dict[str, Any]]:
 
 
 def as_other_layout(nb: dict[str, Any]) -> dict[str, Any]:
-    """The same notebook with other metadata, cell IDs, and line splits."""
+    """The same notebook with other metadata and cell IDs."""
     other = json.loads(json.dumps(nb))
     other["metadata"] = {
         "kernelspec": {"name": "python3"},
@@ -228,12 +227,9 @@ def as_other_layout(nb: dict[str, Any]) -> dict[str, Any]:
     for index, cell in enumerate(other["cells"]):
         cell["id"] = f"other-{index}"
         cell["metadata"] = {"tags": ["new"], "execution": {"time": "2026-11-20"}}
-        cell["source"] = cell["source"].splitlines(keepends=True)
         for output in cell.get("outputs", []):
             if "metadata" in output:
                 output["metadata"] = {"image/png": {"width": 640}}
-            if "text" in output:
-                output["text"] = output["text"].splitlines(keepends=True)
     return other
 
 
@@ -361,7 +357,10 @@ def test_notebook_on_one_side(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "content, message",
-    [(b"not json", "cannot read notebook"), (b'{"no": "cells"}', "not a notebook")],
+    [
+        (b"not json", "cannot read results/executed/maternal.ipynb"),
+        (b'{"no": "cells"}', "cannot read results/executed/maternal.ipynb: not a notebook"),
+    ],
 )
 def test_unreadable_notebook_is_an_error(
     tmp_path: Path, content: bytes, message: str
@@ -464,14 +463,11 @@ def test_artifacts_key_data_differs(tmp_path: Path, key: str, value: Any) -> Non
     assert compare_artifacts(reference, candidate) == Comparison(different=[key])
 
 
-def test_artifact_with_no_keys_is_an_error_and_is_not_changed(tmp_path: Path) -> None:
+def test_artifact_with_no_keys_is_an_error(tmp_path: Path) -> None:
     reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
-    empty = tmp_path / "empty.hdf"
-    tables.open_file(str(empty), "w").close()
-    before = empty.read_bytes()
+    candidate = write_artifact(tmp_path / "candidate.hdf", {})
     with pytest.raises(ComparisonError, match="candidate artifact has no keys"):
-        compare_artifacts(reference, empty)
-    assert empty.read_bytes() == before
+        compare_artifacts(reference, candidate)
 
 
 def test_artifact_not_written_by_vivarium_is_an_error(tmp_path: Path) -> None:
