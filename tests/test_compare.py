@@ -38,6 +38,17 @@ def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
     )
 
 
+def reverse_order(frame: pd.DataFrame) -> pd.DataFrame:
+    """The same frame with its rows and its columns in reverse order.
+
+    A frame with a default index gets a new default index, as psimulate writes.
+    """
+    reversed_frame = frame.iloc[::-1, ::-1]
+    if isinstance(frame.index, pd.RangeIndex) and frame.index.name is None:
+        return reversed_frame.reset_index(drop=True)
+    return reversed_frame
+
+
 SHARDS = {
     "deaths/aaaa.parquet": shard("deaths", 0),
     "deaths/bbbb.parquet": shard("deaths", 1),
@@ -123,6 +134,35 @@ def test_results_one_value_differs_with_other_metadata(
     )
 
 
+def test_results_same_content_in_other_order(reference: Path, tmp_path: Path) -> None:
+    candidate = write_shards_other_metadata(
+        tmp_path / "candidate", {name: reverse_order(frame) for name, frame in SHARDS.items()}
+    )
+    assert compare_results(reference, candidate) == Comparison()
+
+
+def test_results_one_value_differs_in_other_order(reference: Path, tmp_path: Path) -> None:
+    changed = shard("deaths", 1, value=np.nextafter(0.1, 1.0))
+    candidate_shards = {**SHARDS, "deaths/bbbb.parquet": changed}
+    candidate = write_shards_other_metadata(
+        tmp_path / "candidate",
+        {name: reverse_order(frame) for name, frame in candidate_shards.items()},
+    )
+    assert compare_results(reference, candidate) == Comparison(
+        different=["deaths/bbbb.parquet"]
+    )
+
+
+def test_results_repeated_row_labels_in_other_order_is_an_error(tmp_path: Path) -> None:
+    frame = pd.concat([shard("deaths", 0), shard("deaths", 0, value=0.2)], ignore_index=True)
+    reference = write_shards(tmp_path / "reference", {"deaths/aaaa.parquet": frame})
+    candidate = write_shards(
+        tmp_path / "candidate", {"deaths/aaaa.parquet": reverse_order(frame)}
+    )
+    with pytest.raises(ComparisonError, match="cannot read deaths/aaaa.parquet"):
+        compare_results(reference, candidate)
+
+
 def test_results_shard_on_one_side(reference: Path, tmp_path: Path) -> None:
     candidate_shards = {**SHARDS, "births/bbbb.parquet": shard("births", 1)}
     del candidate_shards["deaths/aaaa.parquet"]
@@ -171,6 +211,8 @@ def test_equal_frames(tmp_path: Path, change: Any) -> None:
     "change",
     [
         pytest.param(lambda f: f[["value", *f.columns[:-1]]], id="column_order"),
+        pytest.param(lambda f: f.iloc[::-1].reset_index(drop=True), id="row_order"),
+        pytest.param(reverse_order, id="row_and_column_order"),
     ],
 )
 def test_equal_frames_in_other_order(tmp_path: Path, change: Any) -> None:
@@ -189,10 +231,23 @@ def test_equal_frames_in_other_order(tmp_path: Path, change: Any) -> None:
         pytest.param(lambda f: f.astype({"input_draw": "int32"}), id="int64_to_int32"),
         pytest.param(lambda f: f.rename(columns={"value": "count"}), id="column_renamed"),
         pytest.param(lambda f: f.rename_axis("row"), id="index_renamed"),
-        pytest.param(lambda f: f.iloc[::-1].reset_index(drop=True), id="row_order"),
         pytest.param(lambda f: f.iloc[:1], id="row_removed"),
         pytest.param(
             lambda f: f.assign(child_sex=f["child_sex"].astype(str)), id="category_to_string"
+        ),
+        pytest.param(
+            lambda f: reverse_order(f.astype({"input_draw": "int32"})),
+            id="int64_to_int32_in_other_order",
+        ),
+        pytest.param(
+            lambda f: reverse_order(f.assign(child_sex=f["child_sex"].astype(str))),
+            id="category_to_string_in_other_order",
+        ),
+        pytest.param(
+            lambda f: reverse_order(
+                f.assign(child_sex=f["child_sex"].iloc[::-1].to_numpy())
+            ).astype({"child_sex": f["child_sex"].dtype}),
+            id="row_labels_swapped_in_other_order",
         ),
     ],
 )
@@ -465,11 +520,6 @@ def test_artifacts_one_value_differs_with_other_layout(tmp_path: Path) -> None:
     assert compare_artifacts(reference, candidate) == Comparison(
         different=["population.structure"]
     )
-
-
-def reverse_order(frame: pd.DataFrame) -> pd.DataFrame:
-    """The same frame with its rows and its columns in reverse order."""
-    return frame.iloc[::-1, ::-1]
 
 
 def test_artifacts_same_data_in_other_order(tmp_path: Path) -> None:
