@@ -29,11 +29,8 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
         If either path is not a directory, has no measure files, or has a file
         that cannot be read.
     """
-    reference_files = find_files(reference, "reference", RESULTS_PATTERN)
-    candidate_files = find_files(candidate, "candidate", RESULTS_PATTERN)
-    files = {"reference": reference_files, "candidate": candidate_files}
     return compare_items(
-        reference=reference_files.keys(),
-        candidate=candidate_files.keys(),
-        load=lambda side, name: pd.read_parquet(files[side][name]),
+        reference=find_files(reference, "reference", RESULTS_PATTERN),
+        candidate=find_files(candidate, "candidate", RESULTS_PATTERN),
+        load=lambda path, _: pd.read_parquet(path),
     )

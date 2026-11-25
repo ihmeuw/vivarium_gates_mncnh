@@ -1,10 +1,10 @@
 """The comparison result and the parts that every output type shares."""
 
-from collections.abc import Callable, Collection, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import pandas as pd
 
@@ -21,6 +21,8 @@ pyarrow raises ``ArrowInvalid``, a ``ValueError``, for a file that is not
 parquet. tables raises ``HDF5ExtError``, a ``RuntimeError``, for a file that is
 not HDF. ``Artifact`` raises a ``TypeError`` for an HDF file that pandas wrote.
 """
+
+Source = TypeVar("Source")
 
 
 class ComparisonError(Exception):
@@ -61,9 +63,9 @@ def reraise_read_errors(
 
 
 def compare_items(
-    reference: Collection[str],
-    candidate: Collection[str],
-    load: Callable[[str, str], Any],
+    reference: Mapping[str, Source],
+    candidate: Mapping[str, Source],
+    load: Callable[[Source, str], Any],
 ) -> Comparison:
     """Compare two sets of items, and each item on both sides with ``check_equality``.
 
@@ -75,9 +77,10 @@ def compare_items(
       ``results/executed/maternal.ipynb``
     - artifacts: an artifact key, such as ``population.structure``
 
-    ``load`` takes a side, "reference" or "candidate", and an item, and returns
-    the item's data on that side. An error that it raises becomes a
-    ``ComparisonError`` that names the item.
+    ``reference`` and ``candidate`` map each item to where its data is, such as
+    a file or an artifact. ``load`` takes that source and the item, and returns
+    the item's data. An error that it raises becomes a ``ComparisonError`` that
+    names the item.
     """
     comparison = Comparison()
     for item in sorted(set(reference) | set(candidate)):
@@ -87,8 +90,8 @@ def compare_items(
             comparison.only_in_candidate.append(item)
         else:
             with reraise_read_errors(item):
-                reference_data = load("reference", item)
-                candidate_data = load("candidate", item)
+                reference_data = load(reference[item], item)
+                candidate_data = load(candidate[item], item)
             if not check_equality(reference_data, candidate_data):
                 comparison.different.append(item)
     return comparison

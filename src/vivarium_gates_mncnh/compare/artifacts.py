@@ -30,28 +30,26 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
     ComparisonError
         If either path is not an artifact file with keys, or a key cannot be read.
     """
-    reference_artifact = _open_artifact(reference, "reference")
-    candidate_artifact = _open_artifact(candidate, "candidate")
-    artifacts = {"reference": reference_artifact, "candidate": candidate_artifact}
     return compare_items(
-        reference=set(reference_artifact.keys) - {KEYSPACE_KEY},
-        candidate=set(candidate_artifact.keys) - {KEYSPACE_KEY},
-        load=lambda side, key: artifacts[side].load(key),
+        reference=_open_artifact(reference, "reference"),
+        candidate=_open_artifact(candidate, "candidate"),
+        load=lambda artifact, key: artifact.load(key),
     )
 
 
-def _open_artifact(path: Path, side: str) -> Artifact:
-    """Open an artifact for reading. ``side`` is "reference" or "candidate".
+def _open_artifact(path: Path, side: str) -> dict[str, Artifact]:
+    """Open an artifact and map each key to it. ``side`` is "reference" or "candidate".
 
-    An artifact with no keys besides ``metadata.keyspace`` is refused. ``Artifact``
-    writes a keyspace into a file that has none, so such a file is changed
-    before it is refused.
+    ``metadata.keyspace`` is left out of the mapping. The file is not changed.
+    An artifact with no other keys is refused. ``Artifact`` writes a keyspace
+    into a file that has none, so such a file is changed before it is refused.
     """
     # Artifact creates a file at a path that has none.
     if not path.is_file():
         raise ComparisonError(f"{side} artifact is not a file: {path}")
     with reraise_read_errors(f"{side} artifact {path}", (*READ_ERRORS, ArtifactException)):
         artifact = Artifact(path)
-    if not set(artifact.keys) - {KEYSPACE_KEY}:
+    keys = {key: artifact for key in artifact.keys if key != KEYSPACE_KEY}
+    if not keys:
         raise ComparisonError(f"{side} artifact has no keys: {path}")
-    return artifact
+    return keys

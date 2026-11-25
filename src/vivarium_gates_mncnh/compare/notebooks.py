@@ -23,13 +23,10 @@ def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
         If either path is not a directory, has no executed notebooks, or has a
         notebook that cannot be read.
     """
-    reference_files = find_files(reference, "reference", NOTEBOOKS_PATTERN)
-    candidate_files = find_files(candidate, "candidate", NOTEBOOKS_PATTERN)
-    files = {"reference": reference_files, "candidate": candidate_files}
     return compare_items(
-        reference=reference_files.keys(),
-        candidate=candidate_files.keys(),
-        load=lambda side, name: _cells(files[side][name]),
+        reference=find_files(reference, "reference", NOTEBOOKS_PATTERN),
+        candidate=find_files(candidate, "candidate", NOTEBOOKS_PATTERN),
+        load=lambda path, _: _cells(path),
     )
 
 
