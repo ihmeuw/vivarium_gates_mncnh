@@ -63,8 +63,7 @@ def reraise_read_errors(
 def compare_items(
     reference: Collection[str],
     candidate: Collection[str],
-    load_reference: Callable[[str], Any],
-    load_candidate: Callable[[str], Any],
+    load: Callable[[str, str], Any],
 ) -> Comparison:
     """Compare two sets of items, and each item on both sides with ``check_equality``.
 
@@ -76,9 +75,9 @@ def compare_items(
       ``results/executed/maternal.ipynb``
     - artifacts: an artifact key, such as ``population.structure``
 
-    ``load_reference`` and ``load_candidate`` return the data of one item on
-    each side. An error that they raise becomes a ``ComparisonError`` that
-    names the item.
+    ``load`` takes a side, "reference" or "candidate", and an item, and returns
+    the item's data on that side. An error that it raises becomes a
+    ``ComparisonError`` that names the item.
     """
     comparison = Comparison()
     for item in sorted(set(reference) | set(candidate)):
@@ -88,8 +87,8 @@ def compare_items(
             comparison.only_in_candidate.append(item)
         else:
             with reraise_read_errors(item):
-                reference_data = load_reference(item)
-                candidate_data = load_candidate(item)
+                reference_data = load("reference", item)
+                candidate_data = load("candidate", item)
             if not check_equality(reference_data, candidate_data):
                 comparison.different.append(item)
     return comparison

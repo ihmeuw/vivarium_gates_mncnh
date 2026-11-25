@@ -32,11 +32,11 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
     """
     reference_artifact = _open_artifact(reference, "reference")
     candidate_artifact = _open_artifact(candidate, "candidate")
+    artifacts = {"reference": reference_artifact, "candidate": candidate_artifact}
     return compare_items(
         reference=set(reference_artifact.keys) - {KEYSPACE_KEY},
         candidate=set(candidate_artifact.keys) - {KEYSPACE_KEY},
-        load_reference=reference_artifact.load,
-        load_candidate=candidate_artifact.load,
+        load=lambda side, key: artifacts[side].load(key),
     )
 
 

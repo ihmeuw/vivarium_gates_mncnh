@@ -26,9 +26,9 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
     """
     reference_files = find_files(reference, "reference", RESULTS_PATTERN)
     candidate_files = find_files(candidate, "candidate", RESULTS_PATTERN)
+    files = {"reference": reference_files, "candidate": candidate_files}
     return compare_items(
-        reference=reference_files,
-        candidate=candidate_files,
-        load_reference=lambda name: pd.read_parquet(reference_files[name]),
-        load_candidate=lambda name: pd.read_parquet(candidate_files[name]),
+        reference=reference_files.keys(),
+        candidate=candidate_files.keys(),
+        load=lambda side, name: pd.read_parquet(files[side][name]),
     )
