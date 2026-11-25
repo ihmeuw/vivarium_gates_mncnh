@@ -18,7 +18,11 @@ from vivarium_gates_mncnh.compare import (
     compare_notebooks,
     compare_results,
 )
-from vivarium_gates_mncnh.compare.base import equal_values
+from vivarium_gates_mncnh.compare.base import (
+    equal_values,
+    match_column_order,
+    match_row_order,
+)
 from vivarium_gates_mncnh.compare.results import _equal_frames
 
 
@@ -32,6 +36,17 @@ def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
             "value": [value, value * 3],
         }
     )
+
+
+def reverse_order(frame: pd.DataFrame) -> pd.DataFrame:
+    """The same frame with its rows and its columns in reverse order.
+
+    A frame with a default index gets a new default index, as psimulate writes.
+    """
+    reversed_frame = frame.iloc[::-1, ::-1]
+    if isinstance(frame.index, pd.RangeIndex) and frame.index.name is None:
+        return reversed_frame.reset_index(drop=True)
+    return reversed_frame
 
 
 SHARDS = {
@@ -119,6 +134,35 @@ def test_results_one_value_differs_with_other_metadata(
     )
 
 
+def test_results_same_content_in_other_order(reference: Path, tmp_path: Path) -> None:
+    candidate = write_shards_other_metadata(
+        tmp_path / "candidate", {name: reverse_order(frame) for name, frame in SHARDS.items()}
+    )
+    assert compare_results(reference, candidate) == Comparison()
+
+
+def test_results_one_value_differs_in_other_order(reference: Path, tmp_path: Path) -> None:
+    changed = shard("deaths", 1, value=np.nextafter(0.1, 1.0))
+    candidate_shards = {**SHARDS, "deaths/bbbb.parquet": changed}
+    candidate = write_shards_other_metadata(
+        tmp_path / "candidate",
+        {name: reverse_order(frame) for name, frame in candidate_shards.items()},
+    )
+    assert compare_results(reference, candidate) == Comparison(
+        different=["deaths/bbbb.parquet"]
+    )
+
+
+def test_results_repeated_row_labels_in_other_order_is_an_error(tmp_path: Path) -> None:
+    frame = pd.concat([shard("deaths", 0), shard("deaths", 0, value=0.2)], ignore_index=True)
+    reference = write_shards(tmp_path / "reference", {"deaths/aaaa.parquet": frame})
+    candidate = write_shards(
+        tmp_path / "candidate", {"deaths/aaaa.parquet": reverse_order(frame)}
+    )
+    with pytest.raises(ComparisonError, match="cannot read deaths/aaaa.parquet"):
+        compare_results(reference, candidate)
+
+
 def test_results_shard_on_one_side(reference: Path, tmp_path: Path) -> None:
     candidate_shards = {**SHARDS, "births/bbbb.parquet": shard("births", 1)}
     del candidate_shards["deaths/aaaa.parquet"]
@@ -166,17 +210,44 @@ def test_equal_frames(tmp_path: Path, change: Any) -> None:
 @pytest.mark.parametrize(
     "change",
     [
+        pytest.param(lambda f: f[["value", *f.columns[:-1]]], id="column_order"),
+        pytest.param(lambda f: f.iloc[::-1].reset_index(drop=True), id="row_order"),
+        pytest.param(reverse_order, id="row_and_column_order"),
+    ],
+)
+def test_equal_frames_in_other_order(tmp_path: Path, change: Any) -> None:
+    frame = shard("deaths", 0)
+    reference = write_one(tmp_path / "reference.parquet", frame)
+    candidate = write_one(tmp_path / "candidate.parquet", change(frame))
+    assert _equal_frames(reference, candidate)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
         pytest.param(
             lambda f: f.assign(value=[np.nextafter(0.1, 1.0), 0.3]), id="value_one_ulp"
         ),
         pytest.param(lambda f: f.astype({"input_draw": "int32"}), id="int64_to_int32"),
         pytest.param(lambda f: f.rename(columns={"value": "count"}), id="column_renamed"),
         pytest.param(lambda f: f.rename_axis("row"), id="index_renamed"),
-        pytest.param(lambda f: f[["value", *f.columns[:-1]]], id="column_order"),
-        pytest.param(lambda f: f.iloc[::-1].reset_index(drop=True), id="row_order"),
         pytest.param(lambda f: f.iloc[:1], id="row_removed"),
         pytest.param(
             lambda f: f.assign(child_sex=f["child_sex"].astype(str)), id="category_to_string"
+        ),
+        pytest.param(
+            lambda f: reverse_order(f.astype({"input_draw": "int32"})),
+            id="int64_to_int32_in_other_order",
+        ),
+        pytest.param(
+            lambda f: reverse_order(f.assign(child_sex=f["child_sex"].astype(str))),
+            id="category_to_string_in_other_order",
+        ),
+        pytest.param(
+            lambda f: reverse_order(
+                f.assign(child_sex=f["child_sex"].iloc[::-1].to_numpy())
+            ).astype({"child_sex": f["child_sex"].dtype}),
+            id="row_labels_swapped_in_other_order",
         ),
     ],
 )
@@ -397,6 +468,7 @@ def artifact_data() -> dict[str, Any]:
                 "sex": ["Female", "Male"],
                 "year_start": [2023, 2023],
                 "draw_0": [0.1, 0.3],
+                "draw_1": [0.2, 0.4],
             }
         ).set_index(["sex", "year_start"]),
         "population.demographic_dimensions": ["sex", "year_start"],
@@ -450,6 +522,107 @@ def test_artifacts_one_value_differs_with_other_layout(tmp_path: Path) -> None:
     )
 
 
+def test_artifacts_same_data_in_other_order(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    data = artifact_data()
+    data["population.structure"] = reverse_order(data["population.structure"])
+    candidate = write_artifact_other_layout(tmp_path / "candidate.hdf", data)
+    assert compare_artifacts(reference, candidate) == Comparison()
+
+
+def test_artifacts_one_value_differs_in_other_order(tmp_path: Path) -> None:
+    reference = write_artifact(tmp_path / "reference.hdf", artifact_data())
+    data = artifact_data()
+    data["population.structure"].iloc[0, 0] = np.nextafter(0.1, 1.0)
+    data["population.structure"] = reverse_order(data["population.structure"])
+    candidate = write_artifact_other_layout(tmp_path / "candidate.hdf", data)
+    assert compare_artifacts(reference, candidate) == Comparison(
+        different=["population.structure"]
+    )
+
+
+def test_artifacts_repeated_row_label_in_other_order_is_an_error(tmp_path: Path) -> None:
+    frame = pd.DataFrame(
+        {"value": [0.1, 0.2, 0.3]}, index=pd.Index(["Female", "Female", "Male"], name="sex")
+    )
+    reference = write_artifact(tmp_path / "reference.hdf", {"population.structure": frame})
+    candidate = write_artifact(
+        tmp_path / "candidate.hdf", {"population.structure": frame.iloc[::-1]}
+    )
+    with pytest.raises(ComparisonError, match="cannot read population.structure"):
+        compare_artifacts(reference, candidate)
+
+
+def order_frame() -> pd.DataFrame:
+    """A frame with a two-level index and columns of three dtypes."""
+    index = pd.MultiIndex.from_tuples(
+        [("Female", 2023), ("Male", 2023), ("Female", 2024)], names=["sex", "year_start"]
+    )
+    return pd.DataFrame(
+        {
+            "draw_0": [0.1, 0.2, 0.3],
+            "count": [1, 2, 3],
+            "group": pd.Categorical(["a", "b", "a"]),
+        },
+        index=index,
+    )
+
+
+def test_match_column_order() -> None:
+    reference = order_frame()
+    matched = match_column_order(reference, reference[["group", "draw_0", "count"]])
+    assert list(matched.columns) == list(reference.columns)
+    assert equal_values(reference, matched)
+
+
+def test_match_row_order() -> None:
+    reference = order_frame()
+    matched = match_row_order(reference, reference.iloc[[2, 0, 1]])
+    assert list(matched.index) == list(reference.index)
+    assert equal_values(reference, matched)
+
+
+def test_match_row_order_keeps_index_names() -> None:
+    reference = order_frame()
+    candidate = reference.iloc[[2, 0, 1]].rename_axis(["sex", "year"])
+    matched = match_row_order(reference, candidate)
+    assert list(matched.index.names) == ["sex", "year"]
+    assert not equal_values(reference, matched)
+
+
+def test_match_order_compares_labels_by_value() -> None:
+    reference = pd.DataFrame([[0.1, 0.2], [0.3, 0.4]], index=[1, 2], columns=[0, 1])
+    candidate = pd.DataFrame([[0.4, 0.3], [0.2, 0.1]], index=[2.0, 1.0], columns=[1.0, 0.0])
+    matched = match_row_order(reference, match_column_order(reference, candidate))
+    assert equal_values(reference, matched)
+
+
+def test_match_column_order_with_other_labels() -> None:
+    candidate = order_frame().rename(columns={"count": "number"})
+    assert match_column_order(order_frame(), candidate) is candidate
+
+
+@pytest.mark.parametrize(
+    "candidate",
+    [
+        order_frame().rename(index={2024: 2025}),
+        order_frame().iloc[:2],
+        order_frame().reorder_levels(["year_start", "sex"]),
+        order_frame().droplevel("year_start"),
+        order_frame().set_index("group", append=True),
+    ],
+    ids=[
+        "row renamed",
+        "row missing",
+        "levels in other order",
+        "level removed",
+        "level added",
+    ],
+)
+def test_match_row_order_with_other_labels(candidate: pd.DataFrame) -> None:
+    assert match_row_order(order_frame(), candidate) is candidate
+
+
 def test_artifacts_key_on_one_side(tmp_path: Path) -> None:
     data = artifact_data()
     reference = write_artifact(tmp_path / "reference.hdf", data)
@@ -471,8 +644,22 @@ def test_artifacts_key_on_one_side(tmp_path: Path) -> None:
             "population.structure",
             artifact_data()["population.structure"].astype({"draw_0": "float32"}),
         ),
+        (
+            "population.structure",
+            artifact_data()["population.structure"].droplevel("year_start"),
+        ),
+        (
+            "population.structure",
+            artifact_data()["population.structure"].rename_axis(["sex", "year"]),
+        ),
     ],
-    ids=["list", "dict", "float64_to_float32"],
+    ids=[
+        "list",
+        "dict",
+        "float64_to_float32",
+        "index_level_removed",
+        "index_level_renamed",
+    ],
 )
 def test_artifacts_key_data_differs(tmp_path: Path, key: str, value: Any) -> None:
     reference = write_artifact(tmp_path / "reference.hdf", artifact_data())

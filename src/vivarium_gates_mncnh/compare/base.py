@@ -124,3 +124,69 @@ def equal_values(reference: Any, candidate: Any) -> bool:
     if isinstance(reference, (pd.DataFrame, pd.Series)):
         return reference.index.names == candidate.index.names and reference.equals(candidate)
     return bool(reference == candidate)
+
+
+def equal_in_any_order(reference: Any, candidate: Any) -> bool:
+    """Whether two values are equal, in any row or column order.
+
+    The columns and rows of two frames are matched by label with
+    ``match_column_order`` and ``match_row_order``, and then compared with
+    ``equal_values``. Other values are compared with ``equal_values`` only.
+    """
+    if isinstance(reference, pd.DataFrame) and isinstance(candidate, pd.DataFrame):
+        candidate = match_row_order(reference, match_column_order(reference, candidate))
+    return equal_values(reference, candidate)
+
+
+def match_column_order(reference: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFrame:
+    """Return ``candidate`` with its columns in the order of ``reference``.
+
+    Columns are matched by label. If the two frames do not have the same column
+    labels, ``candidate`` is returned unchanged, so a later comparison reports
+    the difference.
+
+    Raises
+    ------
+    ValueError
+        If the labels are the same but in a different order, and a label
+        appears more than once.
+    """
+    if not _same_labels(reference.columns, candidate.columns):
+        return candidate
+    return candidate.reindex(columns=reference.columns)
+
+
+def match_row_order(reference: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFrame:
+    """Return ``candidate`` with its rows in the order of ``reference``.
+
+    Rows are matched by their index labels. If the two frames do not have the
+    same index labels, ``candidate`` is returned unchanged, so a later
+    comparison reports the difference. The index keeps the names of
+    ``candidate``, so a later comparison also reports different index names.
+
+    Raises
+    ------
+    ValueError
+        If the labels are the same but in a different order, and a label
+        appears more than once.
+    """
+    if not _same_labels(reference.index, candidate.index):
+        return candidate
+    matched = candidate.reindex(index=reference.index)
+    matched.index = matched.index.set_names(candidate.index.names)
+    return matched
+
+
+def _same_labels(reference: pd.Index, candidate: pd.Index) -> bool:
+    """Whether two indexes hold the same labels, in any order.
+
+    Labels are compared by value, as ``equals`` compares them, so ``1`` and
+    ``1.0`` match, and NaN matches NaN. Indexes with different numbers of
+    levels do not match. ``isin`` raises for them.
+    """
+    return (
+        reference.nlevels == candidate.nlevels
+        and len(reference) == len(candidate)
+        and bool(reference.isin(candidate).all())
+        and bool(candidate.isin(reference).all())
+    )

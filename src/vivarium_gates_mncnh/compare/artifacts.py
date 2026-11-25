@@ -9,7 +9,7 @@ from vivarium_gates_mncnh.compare.base import (
     Comparison,
     ComparisonError,
     compare_items,
-    equal_values,
+    equal_in_any_order,
     reraise_read_errors,
 )
 
@@ -26,17 +26,25 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
     were written, are ignored. The ``metadata.keyspace`` key is not compared,
     because the key set already covers it.
 
+    The rows and columns of a frame are matched by label before the values are
+    compared, so a difference only in their order is not reported.
+
     Raises
     ------
     ComparisonError
-        If either path is not an artifact file with keys, or a key cannot be read.
+        If either path is not an artifact file with keys, or a key cannot be
+        read. A frame whose rows or columns are in a different order and have a
+        repeated label also raises this, because its rows or columns cannot be
+        matched.
     """
     reference_artifact = _open_artifact(reference, "reference")
     candidate_artifact = _open_artifact(candidate, "candidate")
     return compare_items(
         set(reference_artifact.keys) - {KEYSPACE_KEY},
         set(candidate_artifact.keys) - {KEYSPACE_KEY},
-        lambda key: equal_values(reference_artifact.load(key), candidate_artifact.load(key)),
+        lambda key: equal_in_any_order(
+            reference_artifact.load(key), candidate_artifact.load(key)
+        ),
     )
 
 
