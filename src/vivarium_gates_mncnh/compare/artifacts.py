@@ -1,9 +1,7 @@
 """Compare two artifact files key by key."""
 
 from pathlib import Path
-from typing import Any
 
-import pandas as pd
 from vivarium.artifact import Artifact, ArtifactException
 
 from vivarium_gates_mncnh.compare.base import (
@@ -11,9 +9,7 @@ from vivarium_gates_mncnh.compare.base import (
     Comparison,
     ComparisonError,
     compare_items,
-    equal_values,
-    match_column_order,
-    match_row_order,
+    equal_in_any_order,
     reraise_read_errors,
 )
 
@@ -46,15 +42,10 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
     return compare_items(
         set(reference_artifact.keys) - {KEYSPACE_KEY},
         set(candidate_artifact.keys) - {KEYSPACE_KEY},
-        lambda key: _equal_data(reference_artifact.load(key), candidate_artifact.load(key)),
+        lambda key: equal_in_any_order(
+            reference_artifact.load(key), candidate_artifact.load(key)
+        ),
     )
-
-
-def _equal_data(reference: Any, candidate: Any) -> bool:
-    """Whether the data of one key is equal on both sides, in any row or column order."""
-    if isinstance(reference, pd.DataFrame) and isinstance(candidate, pd.DataFrame):
-        candidate = match_row_order(reference, match_column_order(reference, candidate))
-    return equal_values(reference, candidate)
 
 
 def _open_artifact(path: Path, side: str) -> Artifact:

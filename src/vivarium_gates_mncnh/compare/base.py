@@ -126,6 +126,18 @@ def equal_values(reference: Any, candidate: Any) -> bool:
     return bool(reference == candidate)
 
 
+def equal_in_any_order(reference: Any, candidate: Any) -> bool:
+    """Whether two values are equal, in any row or column order.
+
+    The columns and rows of two frames are matched by label with
+    ``match_column_order`` and ``match_row_order``, and then compared with
+    ``equal_values``. Other values are compared with ``equal_values`` only.
+    """
+    if isinstance(reference, pd.DataFrame) and isinstance(candidate, pd.DataFrame):
+        candidate = match_row_order(reference, match_column_order(reference, candidate))
+    return equal_values(reference, candidate)
+
+
 def match_column_order(reference: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFrame:
     """Return ``candidate`` with its columns in the order of ``reference``.
 
