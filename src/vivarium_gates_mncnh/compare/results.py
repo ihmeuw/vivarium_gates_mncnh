@@ -29,5 +29,6 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
     return compare_items(
         reference=reference_files,
         candidate=candidate_files,
-        load=pd.read_parquet,
+        load_reference=lambda name: pd.read_parquet(reference_files[name]),
+        load_candidate=lambda name: pd.read_parquet(candidate_files[name]),
     )

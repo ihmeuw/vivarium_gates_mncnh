@@ -1,7 +1,6 @@
 """Compare two artifact files key by key."""
 
 from pathlib import Path
-from typing import Any
 
 from vivarium.artifact import Artifact, ArtifactException
 
@@ -34,22 +33,11 @@ def compare_artifacts(reference: Path, candidate: Path) -> Comparison:
     reference_artifact = _open_artifact(reference, "reference")
     candidate_artifact = _open_artifact(candidate, "candidate")
     return compare_items(
-        reference={
-            key: (reference_artifact, key)
-            for key in set(reference_artifact.keys) - {KEYSPACE_KEY}
-        },
-        candidate={
-            key: (candidate_artifact, key)
-            for key in set(candidate_artifact.keys) - {KEYSPACE_KEY}
-        },
-        load=_load_key,
+        reference=set(reference_artifact.keys) - {KEYSPACE_KEY},
+        candidate=set(candidate_artifact.keys) - {KEYSPACE_KEY},
+        load_reference=reference_artifact.load,
+        load_candidate=candidate_artifact.load,
     )
-
-
-def _load_key(source: tuple[Artifact, str]) -> Any:
-    """Load one key from an artifact."""
-    artifact, key = source
-    return artifact.load(key)
 
 
 def _open_artifact(path: Path, side: str) -> Artifact:

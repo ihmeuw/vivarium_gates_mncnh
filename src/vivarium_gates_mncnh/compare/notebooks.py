@@ -28,7 +28,8 @@ def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
     return compare_items(
         reference=reference_files,
         candidate=candidate_files,
-        load=_cells,
+        load_reference=lambda name: _cells(reference_files[name]),
+        load_candidate=lambda name: _cells(candidate_files[name]),
     )
 
 
