@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from vivarium_gates_mncnh.compare.base import Comparison, compare_items, find_files
+from vivarium_gates_mncnh.compare.utilities import Comparison, compare_items, find_files
 
 NOTEBOOKS_PATTERN = "**/executed/*.ipynb"
 

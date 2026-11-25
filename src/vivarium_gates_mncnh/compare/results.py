@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from vivarium_gates_mncnh.compare.base import Comparison, compare_items, find_files
+from vivarium_gates_mncnh.compare.utilities import Comparison, compare_items, find_files
 
 RESULTS_PATTERN = "*/*.parquet"
 

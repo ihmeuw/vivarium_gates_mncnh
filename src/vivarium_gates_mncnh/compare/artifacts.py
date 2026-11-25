@@ -4,7 +4,7 @@ from pathlib import Path
 
 from vivarium.artifact import Artifact, ArtifactException
 
-from vivarium_gates_mncnh.compare.base import (
+from vivarium_gates_mncnh.compare.utilities import (
     READ_ERRORS,
     Comparison,
     ComparisonError,

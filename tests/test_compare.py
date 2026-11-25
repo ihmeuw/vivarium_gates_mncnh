@@ -18,7 +18,7 @@ from vivarium_gates_mncnh.compare import (
     compare_notebooks,
     compare_results,
 )
-from vivarium_gates_mncnh.compare.base import check_equality
+from vivarium_gates_mncnh.compare.utilities import check_equality
 
 
 def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
