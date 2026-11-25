@@ -4,12 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from vivarium_gates_mncnh.compare.base import (
-    Comparison,
-    compare_items,
-    equal_values,
-    find_files,
-)
+from vivarium_gates_mncnh.compare.base import Comparison, compare_items, find_files
 
 RESULTS_PATTERN = "*/*.parquet"
 
@@ -32,12 +27,7 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
     reference_files = find_files(reference, "reference", RESULTS_PATTERN)
     candidate_files = find_files(candidate, "candidate", RESULTS_PATTERN)
     return compare_items(
-        reference_files,
-        candidate_files,
-        lambda name: _equal_frames(reference_files[name], candidate_files[name]),
+        reference=reference_files,
+        candidate=candidate_files,
+        load=pd.read_parquet,
     )
-
-
-def _equal_frames(reference: Path, candidate: Path) -> bool:
-    """Whether two parquet files read into exactly equal frames."""
-    return equal_values(pd.read_parquet(reference), pd.read_parquet(candidate))

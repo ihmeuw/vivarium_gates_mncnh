@@ -18,8 +18,7 @@ from vivarium_gates_mncnh.compare import (
     compare_notebooks,
     compare_results,
 )
-from vivarium_gates_mncnh.compare.base import equal_values
-from vivarium_gates_mncnh.compare.results import _equal_frames
+from vivarium_gates_mncnh.compare.base import check_equality
 
 
 def shard(measure: str, draw: int, value: float = 0.1) -> pd.DataFrame:
@@ -149,6 +148,11 @@ def test_results_unreadable_shard_is_an_error(reference: Path, tmp_path: Path) -
         compare_results(reference, candidate)
 
 
+def equal_shards(reference: Path, candidate: Path) -> bool:
+    """Whether two shards read into equal frames, as ``compare_results`` reads them."""
+    return check_equality(pd.read_parquet(reference), pd.read_parquet(candidate))
+
+
 @pytest.mark.parametrize(
     "change",
     [
@@ -160,7 +164,7 @@ def test_equal_frames(tmp_path: Path, change: Any) -> None:
     frame = change(shard("deaths", 0))
     reference = write_one(tmp_path / "reference.parquet", frame)
     candidate = write_one(tmp_path / "candidate.parquet", frame, compression="gzip")
-    assert _equal_frames(reference, candidate)
+    assert equal_shards(reference, candidate)
 
 
 @pytest.mark.parametrize(
@@ -184,7 +188,7 @@ def test_unequal_frames(tmp_path: Path, change: Any) -> None:
     frame = shard("deaths", 0)
     reference = write_one(tmp_path / "reference.parquet", frame)
     candidate = write_one(tmp_path / "candidate.parquet", change(frame))
-    assert not _equal_frames(reference, candidate)
+    assert not equal_shards(reference, candidate)
 
 
 def test_index_level_renamed(tmp_path: Path) -> None:
@@ -193,13 +197,13 @@ def test_index_level_renamed(tmp_path: Path) -> None:
     candidate = write_one(
         tmp_path / "candidate.parquet", frame.rename_axis(["measure", "sex"])
     )
-    assert not _equal_frames(reference, candidate)
+    assert not equal_shards(reference, candidate)
 
 
 def test_series_renamed() -> None:
     series = pd.Series([0.1, 0.3], name="value")
-    assert equal_values(series, series.copy())
-    assert not equal_values(series, series.rename("count"))
+    assert check_equality(series, series.copy())
+    assert not check_equality(series, series.rename("count"))
 
 
 def notebook(cells: list[dict[str, Any]], **metadata: Any) -> dict[str, Any]:

@@ -1,10 +1,10 @@
 """The comparison result and the parts that every output type shares."""
 
-from collections.abc import Callable, Collection, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import pandas as pd
 
@@ -21,6 +21,8 @@ pyarrow raises ``ArrowInvalid``, a ``ValueError``, for a file that is not
 parquet. tables raises ``HDF5ExtError``, a ``RuntimeError``, for a file that is
 not HDF. ``Artifact`` raises a ``TypeError`` for an HDF file that pandas wrote.
 """
+
+T = TypeVar("T")
 
 
 class ComparisonError(Exception):
@@ -61,11 +63,11 @@ def reraise_read_errors(
 
 
 def compare_items(
-    reference: Collection[str],
-    candidate: Collection[str],
-    equal: Callable[[str], bool],
+    reference: Mapping[str, T],
+    candidate: Mapping[str, T],
+    load: Callable[[T], Any],
 ) -> Comparison:
-    """Compare two sets of items, and each item on both sides with ``equal``.
+    """Compare two sets of items, and each item on both sides with ``check_equality``.
 
     An item is one part of an output, named as it appears in a ``Comparison``:
 
@@ -75,8 +77,9 @@ def compare_items(
       ``results/executed/maternal.ipynb``
     - artifacts: an artifact key, such as ``population.structure``
 
-    ``equal`` reads both sides of one item. An error that it raises while
-    reading becomes a ``ComparisonError`` that names the item.
+    ``reference`` and ``candidate`` map each item to where its data is. ``load``
+    reads the data of one item from there. An error that it raises becomes a
+    ``ComparisonError`` that names the item.
     """
     comparison = Comparison()
     for item in sorted(set(reference) | set(candidate)):
@@ -86,8 +89,9 @@ def compare_items(
             comparison.only_in_candidate.append(item)
         else:
             with reraise_read_errors(item):
-                item_is_equal = equal(item)
-            if not item_is_equal:
+                reference_data = load(reference[item])
+                candidate_data = load(candidate[item])
+            if not check_equality(reference_data, candidate_data):
                 comparison.different.append(item)
     return comparison
 
@@ -109,7 +113,7 @@ def find_files(path: Path, side: str, pattern: str) -> dict[str, Path]:
     return files
 
 
-def equal_values(reference: Any, candidate: Any) -> bool:
+def check_equality(reference: Any, candidate: Any) -> bool:
     """Whether two values are exactly equal.
 
     Frames and series are compared with ``equals``. Their data must be exactly

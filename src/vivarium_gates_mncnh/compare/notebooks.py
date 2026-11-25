@@ -26,9 +26,9 @@ def compare_notebooks(reference: Path, candidate: Path) -> Comparison:
     reference_files = find_files(reference, "reference", NOTEBOOKS_PATTERN)
     candidate_files = find_files(candidate, "candidate", NOTEBOOKS_PATTERN)
     return compare_items(
-        reference_files,
-        candidate_files,
-        lambda name: _cells(reference_files[name]) == _cells(candidate_files[name]),
+        reference=reference_files,
+        candidate=candidate_files,
+        load=_cells,
     )
 
 
