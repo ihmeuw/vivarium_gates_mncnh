@@ -17,11 +17,16 @@ RESULTS_PATTERN = "*/*.parquet"
 def compare_results(reference: Path, candidate: Path) -> Comparison:
     """Compare the measure files in two psimulate results directories.
 
-    Files are paired by their path relative to each directory. Each pair is read
-    with ``pd.read_parquet`` and its default options, which is how results are
-    read for analysis. The two frames must be exactly equal. Differences that
-    ``pd.read_parquet`` does not show, such as compression, row groups, or
-    string width, are ignored.
+    Files are paired by their path relative to each directory. psimulate 3.0.0
+    and later names each shard after a hash of its draw, seed, and branch
+    configuration (``generate_task_id``), so the same task has the same file
+    name in both runs. If a psimulate release changes that hash, no names pair,
+    and every shard is reported as only in one side.
+
+    Each pair is read with ``pd.read_parquet`` and its default options, which is
+    how results are read for analysis. The two frames must be exactly equal.
+    Differences that ``pd.read_parquet`` does not show, such as compression, row
+    groups, or string width, are ignored.
 
     Raises
     ------
