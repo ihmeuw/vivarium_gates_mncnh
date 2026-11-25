@@ -21,7 +21,9 @@ def compare_results(reference: Path, candidate: Path) -> Comparison:
     with ``pd.read_parquet`` and its default options, which is how results are
     read for analysis. The two frames must be exactly equal. Differences that
     ``pd.read_parquet`` does not show, such as compression, row groups, or
-    string width, are ignored.
+    string width, are ignored. The columns of two frames are matched by label
+    before the values are compared, so a difference only in column order is not
+    reported.
 
     Raises
     ------
